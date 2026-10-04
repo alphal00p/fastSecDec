@@ -32,8 +32,10 @@ local Numerica feature branch; publication of that repository is not authorized.
 Numerica commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` passes all 30 QMC
 tests and nine existing MC tests. Evidence is retained locally in
 `output/numerica-coverage-tests.log` and
-`output/numerica-coverage-mc-tests.log`. The reference checkout is clean and
-has not been pushed.
+`output/numerica-coverage-mc-tests.log`. The reference checkout was clean at
+this review. After the user's subsequent publication authorization and full
+readiness gates, the feature was published as
+[Numerica PR #8](https://github.com/symbolica-dev/numerica/pull/8).
 
 ## Failure and scope boundaries
 

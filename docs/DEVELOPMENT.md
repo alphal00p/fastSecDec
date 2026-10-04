@@ -23,6 +23,12 @@ registry resolution. Local dependency source identities are:
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster` | Development-only scalar references at community lock revision `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`; default features disabled |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/one-loop-reduce` | Development-only numerator references at community lock revision `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
 
+The Numerica QMC branch is published as
+[upstream PR #8](https://github.com/symbolica-dev/numerica/pull/8), targeting
+`symbolica-dev/numerica:main` from `ValentinHirschi:codex/havana-qmc`.
+FastSecDec still uses the exact local revision above while that PR is reviewed.
+See the [upstream-readiness evidence](reviews/numerica-qmc-upstream-readiness.md).
+
 The first two checkouts are detached worktrees of the supplied repositories. The
 FeynKit worktree has one small literal-substitution fix for kinematic symbols
 whose names end in an underscore; its native input regression passes. The

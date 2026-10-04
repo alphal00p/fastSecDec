@@ -230,7 +230,10 @@ cancellation with overflowing marginal covariance. Presentation uses borrowed
 rows and indexed ordering rather than copying covariance or repeatedly scanning
 sector IDs. Metadata validation reuses native rule checks without generating
 all random shifts. Numerica's local `e4638da22a17cfa931fa14c6829d3350b7a8de2b`
-passes 30 QMC and nine existing MC tests and remains unpublished.
+passes 30 QMC and nine existing MC tests. After the user's publication
+authorization, its full default, serde and alternative-backend suites also
+passed; it is published as
+[Numerica PR #8](https://github.com/symbolica-dev/numerica/pull/8).
 
 The [coupled-sunset campaign](reviews/coupled-sunset-numerator.md) and its
 [independent review](reviews/coupled-sunset-independent.md) close the mixed-loop
