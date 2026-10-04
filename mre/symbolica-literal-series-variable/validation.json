@@ -1,0 +1,47 @@
+{
+  "format": "symbolica-literal-series-variable-mre-validation",
+  "version": 1,
+  "date_utc": "2026-10-04",
+  "rustc": "1.98.1",
+  "rust_script": "0.36.0",
+  "source_sha256": "7433d48329d24dda7219d10bdb9091d7237521924cee3acf9e362909d10dc9c1",
+  "fix_patch_sha256": "112d93c9c900ef0929045c909cdc78b177a64c7d20fca7356dfbf13b64cdc8bb",
+  "published": {
+    "dependency": "symbolica =3.0.1",
+    "source": "crates.io registry, no Cargo patch overrides",
+    "crate_sha256": "0965398bbe5063c00b3a0d078d7d3dc57b61819b97e960b73e9a7e9602662795",
+    "manifest_created_by": "rust-script --package --pkg-path <isolated-output> reproduce.rs",
+    "build": "cargo build --manifest-path <isolated-output>/Cargo.toml --target-dir <isolated-target>",
+    "profile": "dev, unoptimized dependency",
+    "exit_code": 101,
+    "gamma_plain_terms": 2,
+    "gamma_underscore_terms": 0,
+    "composed_plain_nonzero": true,
+    "composed_underscore_nonzero": false,
+    "binary_sha256": "ed862e9bf097c07e2236e43764f243cc4f3874f0f3f51737d60a8be6515a9eb4",
+    "lock_sha256": "32192437ff4b5d5ac7a5421009aad3c695a34ded541bcd85570007772d2e247a",
+    "upstream_commit": "e9a0d35490a834afb2fa40d97c8c0b1e58ef5a5e"
+  },
+  "fixed": {
+    "source": "same unchanged reproduce.rs; explicitly linked corrected native Symbolica library",
+    "upstream_revision": "98794d0d7337ba2b08e4c046dde584ad7fc1ce10",
+    "patch_scope": "fix.patch plus previously documented unrelated evaluator/parser/printer fixes",
+    "profile": "native dependency opt-level2, debug",
+    "symbolica_rlib_sha256": "dda215a39b38358772677beed211e773c9b028f33f0251dc1072135fe37f2e51",
+    "binary_sha256": "35e3f6f3b0b227ca02b2c3f59d67162d7f1a9cd5a9b30018994eaae8dd952dd3",
+    "exit_code": 0,
+    "gamma_plain_terms": 2,
+    "gamma_underscore_terms": 2,
+    "composed_plain_nonzero": true,
+    "composed_underscore_nonzero": true,
+    "all_equality_assertions_passed": true
+  },
+  "independent_review": "Source and nonvacuity assertions reviewed independently before execution.",
+  "limits": "Published-release execution and corrected-checkout execution are distinct; no corrected published-release build is claimed.",
+  "patch_check": {
+    "command": "git apply --check --verbose fix.patch",
+    "source": "fresh unpacking of published Symbolica3.0.1 outside any parent Git checkout",
+    "exit_code": 0,
+    "output": "Checking patch src/derivative.rs..."
+  }
+}

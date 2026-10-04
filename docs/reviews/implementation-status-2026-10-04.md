@@ -25,16 +25,25 @@ complete vectors, with their scientific certification still pending.
 Remaining coverage: complete on-shell triple-box generation; independent higher
 double-box coefficients and difficult triple-box/orthant vectors; difficult-case
 convergence/calibration; final matched performance and platform gates. The latest
-combined workspace gate passes **280 tests**, with seventeen explicit probes
+combined workspace gate passes **281 tests**, with seventeen explicit probes
 ignored. Formatting and all-target Clippy pass. It includes the CLI, family/input,
 experimental Series-first and Laurent capture/depth regressions; the separately
 executed expensive scientific campaigns retain their own evidence.
 
+The additional regression covers a confirmed native Symbolica defect: an
+underscore-suffixed regulator could make Gamma's Laurent series silently empty.
+A minimal literal-substitution patch passes its native regression and the full
+FastSecDec gate. The first two formal-function proof attempts are rejected as
+empty-vector evidence; the corrected six-case proof passes. This dependency fix
+does not close the on-shell generation or scientific-reference gaps.
+
 The on-shell bottleneck is Laurent expression growth. The first Series-first
 experiment completed one difficult representative but took about 83 s and
 5.37 GiB, worse than the earlier approximately 42 s / 1.22 GiB ordering. It stays
-test-only. The next proof uses native formal derivatives and shared FunctionMap
-bodies, with one native evaluator IR feeding O2, MPFR and portable reload.
+test-only. The small proof using native formal derivatives and shared FunctionMap
+bodies passes complete-vector O2, MPFR and portable-reload checks under both
+inlining policies. Adapting it to the actual difficult representative and
+comparing against an independent original-expression oracle remain in progress.
 
 ## Generation and fixed-work measurements, alongside Pathfinder
 
@@ -48,6 +57,8 @@ decomposition interval; they are not an equivalent elapsed stopwatch. Formula
 caches were available. No generation speedup ratio is inferred. Projected
 families are exact native-family diagnostic
 callers; automatic CLI projection is not enabled.
+These measurements retain their frozen binaries from before the fourth local
+Symbolica patch; they have not been relabelled as measurements of the new build.
 
 | Case | Native kernels | FastSecDec generation | Pathfinder generation |
 | --- | ---: | ---: | ---: |

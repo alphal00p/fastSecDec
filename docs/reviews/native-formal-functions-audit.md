@@ -118,9 +118,10 @@ and scope metadata. It should transport the native evaluator representation,
 not invent another serialization of FunctionMap definitions.
 
 Native `map_coeff_with_prec` provides f64, conditioning and arbitrary-precision
-coefficient conversion. Non-inlined body constants are hoisted into the common
-root constant table by `tree.rs:817–927`; `get_constants()` exposes that native
-table. Thus a complex coefficient present only in a retained body must affect
+coefficient conversion. Non-inlined polynomial body literals are hoisted into
+the common root constant table by `tree.rs:817–927`; `get_constants()` borrows
+that table rather than recursively examining arbitrary external callbacks.
+Thus a complex coefficient present only in a retained polynomial body must affect
 backend selection even if it is absent from the small outer Atom. Existing
 output-Atom-only scans are insufficient for such a representation. The native
 `is_real()` method checks coefficients, not a general theorem that arbitrary
@@ -170,3 +171,72 @@ size, full build/load and numerical costs, including maximum and average
 per-sample cost and rescue tails where measured. This is a capability recovery
 attempt first; the negative Series-first result is retained, and no performance
 claim follows from smaller outer expressions alone.
+
+## Initial proof attempts: rejected empty-vector evidence
+
+The first disconnected writer stopped at its hidden-complex assertion. The
+next diagnostic writer revealed that both the formal and restored-baseline
+Laurent maps were empty: every case had `orders: []` and an evaluator with zero
+outputs. Therefore neither that assertion nor the subsequent successful empty
+numeric loop is evidence for or against complex FunctionMap support. Both
+attempts remain under `output/diagnostics/formal-functions/small-{1,2}`; neither
+is accepted as a compatibility pass. The separate mixed-partial and admitted
+face controls did evaluate nonempty vectors.
+
+The follow-up review identified an exact source mechanism to test before any
+dependency change. Generic function Series fallback in `src/derivative.rs:514`
+and `:534` converts the expansion `Indeterminate` to a replacement pattern.
+`src/id.rs:148–174` converts a trailing-underscore symbol to a wildcard, whereas
+the proof deliberately uses a regulator ending in `_`. A minimal ordinary-name
+versus trailing-underscore Gamma series comparison confirmed the defect:
+`Gamma(eps)` has the expected pole and finite term, whereas `Gamma(eps_)`
+returns no terms. The two literal substitutions and regression scope are
+recorded in
+[`symbolica-literal-series-variable.md`](../dependency-patches/symbolica-literal-series-variable.md).
+The focused native regression and the FastSecDec Gamma/endpoint complete-vector
+regression both pass against the corrected dependency. The guarded
+formal-function writer and cold reader still require their own rerun.
+No native evaluator classification defect has been established.
+The corrected proof must require a nonempty complete vector, the analytic
+control's explicit orders `[-3,-2,-1,0]`, and finite nonzero analytic values;
+choosing the complex backend from its known source definitions is conservative
+and does not rely on sampled realness.
+
+## Corrected small proof: independent outcome review
+
+After the literal-Series correction, `small-3` contains six distinct cases:
+analytic complex, rational real and rational complex, each with Always and
+Never. Every case retains orders `[-3,-2,-1,0]` and 32 finite values: four
+complex coefficients at three ordinary points and one weighted boundary
+point. The writer and separate cold reader both exited successfully under
+their 180-second caps. Their roughly 4.0- and 2.4-second observations include
+debug-dependency execution and coarse process sampling; they are not accepted
+generation or throughput benchmarks.
+
+Independent inspection verified the case matrix, nonempty order vectors,
+native-IR byte lengths, finite values, policy agreement and source/library
+hashes. Hidden complex constants are present for both explicitly complex cases
+after the corrected series produces actual coefficients. Thus the original
+empty-vector failure did not reveal a constants-table defect. Source inspection
+also confirmed nonempty guards, restored exact identities, a composed mixed
+partial, missing/wrong-arity errors, admitted positive polynomial faces, cloned
+numeric workers, conditioning, O2, and cold native-IR reconstruction without a
+separate source-definition table.
+
+An additional numerical check used the independent analytic coefficient vector
+of `Gamma(eps)*(2+3i)*(1/(eps*(eps-1))+1/eps^2)`. Its maximum scaled ordinary
+binary64 discrepancy is `1.3547764533932096e-11`, within the proof's existing
+`2e-10` tolerance. A tighter `2e-14` check does not pass: the unsimplified
+endpoint subtraction still incurs ordinary floating-point cancellation.
+The weighted multiprecision endpoint agrees with the analytic coefficients to
+`2.0849665056442675e-16` after binary64 conversion. These observations do not
+establish uniformly accurate raw binary64 evaluation. Full independent
+inspection data is retained in `small-3/independent-review.json`.
+
+This accepts the bounded native-API compatibility proof, not a production
+representation change or the difficult representative. The proposed actual
+adaptation must continue to use admitted epsilon-independent polynomial bodies,
+native partials and literal substitutions, preserve all orders and cancellation
+metadata, and reject unsupported unregulated captures before introducing
+opacity. Its complete-vector comparison remains against the separately
+authored point-first oracle.

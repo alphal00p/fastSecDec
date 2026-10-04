@@ -1,0 +1,30 @@
+Standalone reproduce.rs; relevant stdout and assertion text only.
+The normal startup banner, process ID and absolute source location are omitted.
+
+UNPATCHED PUBLISHED SYMBOLICA 3.0.1 — exit status 101
+
+Gamma(eps):  -γ+1/eps (2 terms)
+Gamma(eps_): 0 (0 terms)
+Expected Gamma(eps_): -γ+1/eps_
+f(1+eps,sin(eps)):   eps*(der(0,1,f,1,0)+der(1,0,f,1,0))+f(1,0)
+f(1+eps_,sin(eps_)): 0
+Expected composed series: eps_*(der(0,1,f,1,0)+der(1,0,f,1,0))+f(1,0)
+assertion `left == right` failed: BUG: a literal expansion variable ending in '_' becomes a wildcard
+  left: 0
+ right: 2
+
+CORRECTED UPSTREAM CHECKOUT, SAME SCRIPT — exit status 0
+
+Gamma(eps):  -γ+1/eps (2 terms)
+Gamma(eps_): -γ+1/eps_ (2 terms)
+Expected Gamma(eps_): -γ+1/eps_
+f(1+eps,sin(eps)):   eps*(der(0,1,f,1,0)+der(1,0,f,1,0))+f(1,0)
+f(1+eps_,sin(eps_)): eps_*(der(0,1,f,1,0)+der(1,0,f,1,0))+f(1,0)
+Expected composed series: eps_*(der(0,1,f,1,0)+der(1,0,f,1,0))+f(1,0)
+PASS: both literal variable names preserve the same nonzero series.
+
+PATCH CHECK AGAINST FRESH PUBLISHED 3.0.1 SOURCE — exit status 0
+
+Checking patch src/derivative.rs...
+
+See validation.json and README.md for the distinct dependency identities.

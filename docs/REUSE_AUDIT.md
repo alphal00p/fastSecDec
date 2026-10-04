@@ -472,3 +472,46 @@ The subsequent [formal-function audit](reviews/native-formal-functions-audit.md)
 rechecks current releases and confirms native exact evaluator persistence and
 retained function-body ownership; its new disconnected executable proof remains
 separate from this accepted production API.
+
+The first two formal-function proof attempts exposed a separate native defect:
+the generic function-series fallback interpreted an underscore-suffixed
+expansion symbol as a wildcard. A minimal native Gamma call returned no
+coefficients for `eps_`, while the same call with `eps` returned its pole and
+finite coefficient. Empty-vector comparisons from those attempts are rejected;
+they establish no FunctionMap or complex-constant compatibility. This is
+distinct from the earlier cold-import Gamma initialization diagnostic.
+
+The [minimal fourth Symbolica patch](dependency-patches/symbolica-literal-series-variable.md)
+uses `Pattern::Literal` for the two existing native substitutions. API/source
+inspection, the failing native executable, an independent source review, and
+passing native and FastSecDec regressions support the correction. Native Gamma,
+Series arithmetic, derivatives, truncation and evaluator ownership remain
+unchanged. The FastSecDec regression checks the complete nonempty vector through
+order one for `Gamma(eps_)/eps_`, including both poles. The corrected
+formal-function experiment must still pass its own nonempty controls before
+any production representation change. Frozen prior benchmark binaries keep
+their original dependency identities.
+
+The subsequent combined gate passes **281 workspace tests**, with seventeen
+explicit probes ignored; formatting and all-target Clippy pass. The production
+dependency tree retains the same single native Symbolica 3.0.1/SymJIT 2.26.4,
+Numerica and Linnet ownership and excludes Python, pySecDec, CLI rendering and
+development-only reference providers. Evidence is retained in
+`output/literal-series-{workspace-tests,fmt,clippy,production-dependencies}.log`.
+
+The corrected [small formal-function proof](reviews/native-formal-function-proof.md)
+now passes three complete-vector cases under both Always and Never inlining,
+including exact restored identities, mixed native partials, admitted face
+substitution, hidden complex polynomial constants, O2/error-tracking/weighted
+MPFR evaluation and fresh-process native-IR reload. Native Symbolica owns the
+derivatives, series, evaluator and serialization throughout. This supports the
+bounded actual-representative experiment, not a production strategy switch or
+an end-to-end performance claim.
+
+The [standalone author-facing MRE](../mre/symbolica-literal-series-variable/README.md)
+reproduces the defect against the actual unpatched published 3.0.1 crate in an
+isolated Rust-script package. Its unchanged Rust source passes when explicitly
+linked to the corrected local library. The folder includes the minimal patch,
+observed before/after output, source/version hashes and reproducible instructions;
+the patch also applies cleanly to the published source. No FastSecDec dependency
+or maintainer contact is needed to run the reproduction.

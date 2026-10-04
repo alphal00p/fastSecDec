@@ -32,10 +32,16 @@ See the [upstream-readiness evidence](reviews/numerica-qmc-upstream-readiness.md
 The first two checkouts are detached worktrees of the supplied repositories. The
 FeynKit worktree has one small literal-substitution fix for kinematic symbols
 whose names end in an underscore; its native input regression passes. The
-Symbolica worktree has three small local fixes: evaluating fixed-argument external
-constants in its error-tracking numeric domain, and preserving parentheses around
-complex coefficients in canonical products, and retaining registered aliases
-when parsing canonical symbol references. All focused upstream regressions pass;
+Symbolica worktree has four small local fixes: evaluating fixed-argument external
+constants in its error-tracking numeric domain, preserving parentheses around
+complex coefficients in canonical products, retaining registered aliases
+when parsing canonical symbol references, and treating expansion variables and
+points literally in the generic function-series fallback. The latter fixes a
+silently empty Gamma Laurent series for a valid underscore-suffixed regulator;
+see the [isolated patch and regression](dependency-patches/symbolica-literal-series-variable.md).
+An author-ready [standalone Rust-script reproducer](../mre/symbolica-literal-series-variable/README.md)
+pins the unpatched published crate and includes the patch and verified outcomes.
+All focused upstream regressions pass;
 a fresh-process Gamma artifact test also passes. The patches and reproductions
 are recorded under `docs/dependency-patches`.
 The original working trees remain unchanged. The root Cargo patches select one
