@@ -1,0 +1,23 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 5eea414..0146b9e 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -17,4 +17,4 @@ prebuilt = []
+ symbolica = { version = "3.0.1", default-features = false, features = ["tracing_max_level_info", "integer-gmp", "float-mpfr", "native_code_generation", "bincode"] }
+ bincode = "2.0"
+ # Evaluator cache compatibility includes the JIT backend version.
+-symjit = "=2.26.0"
++symjit = "=2.26.4"
+diff --git a/src/evaluators.rs b/src/evaluators.rs
+index 22e747e..d6b3c6d 100644
+--- a/src/evaluators.rs
++++ b/src/evaluators.rs
+@@ -28,7 +28,7 @@ pub(crate) fn portable_environment() -> Result<(), String> {
+ }
+ 
+ // Deliberately version-bound: portable IR is not a stable cross-version ABI.
+-const FORMAT: &[u8] = b"oneloop-evaluator-v2:a19c760dd567c239f30d87e4e924ca2f8b8457ab:symjit-2.26.0:strict-o2-complex1-simd0\0";
++const FORMAT: &[u8] = b"oneloop-evaluator-v2:a19c760dd567c239f30d87e4e924ca2f8b8457ab:symjit-2.26.4:strict-o2-complex1-simd0\0";
+ 
+ fn cache_payload(data: &[u8]) -> Result<(&[u8], usize, usize), String> {
+     let payload = data

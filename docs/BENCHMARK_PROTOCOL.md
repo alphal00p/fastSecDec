@@ -25,7 +25,8 @@ Where needed provide identical shifts explicitly for pointwise comparisons.
 Record any unavoidable dependency-version differences instead of hiding them.
 
 The installed reference wheel uses Symbolica 2.1.0 with embedded SymJIT 2.18.6;
-FastSecDec uses the recorded Symbolica 3.0.1 worktree and SymJIT 2.26.0. Initial
+FastSecDec uses the recorded Symbolica 3.0.1 worktree and SymJIT 2.26.4. Earlier
+development diagnostics used SymJIT 2.26.0 and retain that provenance. Initial
 box checks show that the reference's real O2 JIT path returns wrong coefficients,
 whereas its complex O2 JIT path agrees with its eager evaluator and the analytic
 result. Use the independently checked complex path for reference trials until

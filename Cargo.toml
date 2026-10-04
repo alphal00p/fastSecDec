@@ -15,7 +15,7 @@ fastsecdec-sectors = { path = "crates/fastsecdec-sectors" }
 symbolica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "native_code_generation", "serde", "bincode"] }
 numerica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "serde", "bincode"] }
 # Pin the published Rust library, not the reference checkout's C/Python cdylib.
-symjit = "=2.26.0"
+symjit = "=2.26.4"
 feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-graph", default-features = false }
 feynkit-model = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-model", default-features = false }
 feynkit-kinematics = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-kinematics", default-features = false }
@@ -31,6 +31,7 @@ clap = { version = "4.6", features = ["derive"] }
 rayon = "1.11"
 tempfile = "3"
 blake3 = "1.8"
+bincode = { version = "2.0.1", features = ["serde"] }
 
 [patch.crates-io]
 symbolica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }

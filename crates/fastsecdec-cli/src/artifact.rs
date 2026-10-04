@@ -35,7 +35,7 @@ pub fn dependencies() -> Vec<Dependency> {
             env!("FASTSECDEC_NUMERICA_REVISION"),
             env!("FASTSECDEC_NUMERICA_STATE"),
         ),
-        ("symjit", "2.26.0", "published Rust crate"),
+        ("symjit", "2.26.4", "published Rust crate"),
     ]
     .into_iter()
     .map(|(name, revision, source_state)| Dependency {

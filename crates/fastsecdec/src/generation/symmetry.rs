@@ -29,6 +29,33 @@ enum Vertex {
 
 type DensityGraph = Graph<Vertex, usize>;
 
+#[cfg(test)]
+#[derive(serde::Serialize)]
+pub(super) struct GraphProfile {
+    pub density_bytes: usize,
+    pub vertices: usize,
+    pub edges: usize,
+    pub encoding_seconds: f64,
+    pub canonization_seconds: f64,
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static GRAPH_PROFILES: std::cell::RefCell<Option<Vec<GraphProfile>>> = const {
+        std::cell::RefCell::new(None)
+    };
+}
+
+#[cfg(test)]
+pub(super) fn begin_profile() {
+    GRAPH_PROFILES.with(|rows| *rows.borrow_mut() = Some(Vec::new()));
+}
+
+#[cfg(test)]
+pub(super) fn take_profile() -> Vec<GraphProfile> {
+    GRAPH_PROFILES.with(|rows| rows.borrow_mut().take().unwrap_or_default())
+}
+
 struct Representative {
     source_index: usize,
     parameters: Vec<Symbol>,
@@ -218,6 +245,8 @@ fn incidence_graph(
     density: &Atom,
     parameters: &[Symbol],
 ) -> Result<CanonicalForm<Vertex, usize>, GenerationError> {
+    #[cfg(test)]
+    let encoding_started = std::time::Instant::now();
     if parameters.iter().collect::<HashSet<_>>().len() != parameters.len() {
         return Err(GenerationError::Invariant(
             "duplicate density parameters".into(),
@@ -241,7 +270,27 @@ fn incidence_graph(
     let root = builder.graph.add_node(Vertex::Root);
     let expression = builder.expression(density.as_view())?;
     builder.edge(root, expression, 0)?;
-    Ok(builder.graph.canonize())
+    #[cfg(test)]
+    let profile = GraphProfile {
+        density_bytes: density.as_view().get_byte_size(),
+        vertices: builder.graph.nodes().len(),
+        edges: builder.graph.edges().len(),
+        encoding_seconds: encoding_started.elapsed().as_secs_f64(),
+        canonization_seconds: 0.0,
+    };
+    #[cfg(test)]
+    let canonization_started = std::time::Instant::now();
+    let result = builder.graph.canonize();
+    #[cfg(test)]
+    GRAPH_PROFILES.with(|rows| {
+        if let Some(rows) = rows.borrow_mut().as_mut() {
+            rows.push(GraphProfile {
+                canonization_seconds: canonization_started.elapsed().as_secs_f64(),
+                ..profile
+            });
+        }
+    });
+    Ok(result)
 }
 
 #[cfg(test)]

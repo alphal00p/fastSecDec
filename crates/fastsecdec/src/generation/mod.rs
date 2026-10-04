@@ -6,6 +6,8 @@ mod domain;
 mod laurent;
 mod mapping;
 mod metadata;
+#[cfg(test)]
+mod profiling;
 mod subtraction;
 mod symmetry;
 mod types;

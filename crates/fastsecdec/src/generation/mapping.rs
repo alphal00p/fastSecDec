@@ -110,19 +110,23 @@ pub(super) fn map_terms(
                         .iter()
                         .map(|value| signed(&-value))
                         .collect::<Result<Vec<_>, _>>()?;
-                    let polynomial = mapped
-                        .to_polynomial_in_vars::<i32>(&variables)
-                        .mul_exp(&shifts);
-                    if polynomial
-                        .exponents_iter()
-                        .flatten()
-                        .any(|power| *power < 0)
-                    {
-                        return Err(GenerationError::Invariant(
-                            "negative exponent after monomial extraction".into(),
-                        ));
+                    if let Some(residual) = factored_residual(&mapped, &variables, &shifts) {
+                        residual
+                    } else {
+                        let polynomial = mapped
+                            .to_polynomial_in_vars::<i32>(&variables)
+                            .mul_exp(&shifts);
+                        if polynomial
+                            .exponents_iter()
+                            .flatten()
+                            .any(|power| *power < 0)
+                        {
+                            return Err(GenerationError::Invariant(
+                                "negative exponent after monomial extraction".into(),
+                            ));
+                        }
+                        polynomial.flatten(false)
                     }
-                    polynomial.flatten(false)
                 };
                 (minima, residual)
             };
@@ -162,6 +166,48 @@ pub(super) fn map_terms(
         })
         .collect())
 }
+
+/// Native collection exposes chart monomials inside nested sums and integer
+/// powers without materializing their polynomial support again. The exact
+/// valuation and exponent bounds have already been checked by the caller.
+fn factored_residual(mapped: &Atom, variables: &[Atom], shifts: &[i32]) -> Option<Atom> {
+    #[cfg(test)]
+    if SPARSE_ONLY.with(std::cell::Cell::get) {
+        return None;
+    }
+    let residual = mapped.collect_factors()
+        * variables
+            .iter()
+            .zip(shifts)
+            .map(|(variable, shift)| variable.pow(Atom::num(*shift)))
+            .product::<Atom>();
+    residual
+        .is_polynomial(true, false)
+        .is_some_and(|indeterminates| {
+            indeterminates.iter().all(|indeterminate| {
+                variables
+                    .iter()
+                    .any(|variable| *indeterminate == variable.as_view())
+                    || variables
+                        .iter()
+                        .all(|variable| !indeterminate.contains(variable.as_view()))
+            })
+        })
+        .then_some(residual)
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static SPARSE_ONLY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub(super) fn profile_sparse_only(enabled: bool) {
+    SPARSE_ONLY.with(|value| value.set(enabled));
+}
+
+#[cfg(test)]
+mod tests;
 
 pub(super) fn coordinates(
     input: &ParametricIntegrand,

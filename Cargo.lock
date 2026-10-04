@@ -811,6 +811,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 name = "fastsecdec"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "blake3",
  "fastsecdec-sectors",
  "feynkit-graph",
@@ -2364,9 +2365,9 @@ dependencies = [
 
 [[package]]
 name = "symjit"
-version = "2.26.0"
+version = "2.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3e0ed8cf2dd16f83f5393de7e34de02516bbcb2d7d0e85bb2a5615c665c947b"
+checksum = "37344a51408baa239bbaa771e40cd908686bffed4f4491ec6bc608e8d248c931"
 dependencies = [
  "ahash",
  "anyhow",

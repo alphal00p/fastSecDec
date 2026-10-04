@@ -19,7 +19,7 @@ registry resolution. Local dependency source identities are:
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit` | `8f834d9c62ae06fb327e4ef0b14abffda755b610` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `55072895f98be8830bcf6400e32546bc9470de7a` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package access for checkpoint validation, and explicit interior periodization-underflow/subnormal-range errors |
-| Published SymJIT Rust crate | `2.26.0`, registry checksum in Cargo.lock |
+| Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster` | Development-only scalar references at community lock revision `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`; default features disabled |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/one-loop-reduce` | Development-only numerator references at community lock revision `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
 
@@ -35,6 +35,13 @@ are recorded under `docs/dependency-patches`.
 The original working trees remain unchanged. The root Cargo patches select one
 Symbolica/Graphica/Numerica identity across every consumer. Do not use the local
 SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
+
+The latest-release check and exact source ancestry are recorded in the
+[evaluator version review](reviews/evaluator-release-verification.md). The
+development-only OneLOop worktree has an additional two-line compatibility patch
+updating its exact SymJIT pin and compiled-cache identity together; see
+[the patch record](dependency-patches/oneloop-symjit-2.26.4.md). Its optional
+prebuilt caches are disabled; no master formulas were changed.
 
 Standard checks as implementation lands:
 

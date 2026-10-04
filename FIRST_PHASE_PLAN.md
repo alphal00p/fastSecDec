@@ -108,7 +108,13 @@ Use local dependency worktrees at the revisions matching the inspected community
 
 The supplied FeynKit and Symbolica directories currently have other branches checked out; prepare isolated worktrees without disturbing them. Root Cargo patches must resolve direct and transitive dependencies to one compatible Symbolica, Graphica, and Numerica instance.
 
-Use the published Rust `symjit = "=2.26.0"` package initially. The supplied SymJIT checkout has different library packaging; that alone does not justify patching it.
+The initial published Rust backend was `symjit = "=2.26.0"`; the current pin is
+`=2.26.4`, verified against the live registry on 2026-10-04 before the requested
+function-map experiments. Symbolica's pinned upstream revision includes the
+latest published 3.0.1 release. Recheck published releases before subsequent
+evaluator experiments and record the exact source revisions and local patches.
+The supplied SymJIT checkout has different library packaging; that alone does
+not justify patching it.
 
 Disable Python features and unnecessary dependency defaults. Verify the production dependency graph excludes PyO3, Python bindings, pySecDec, and the full GammaLoop application. Existing numeric backends used by Symbolica remain dependencies; all new FastSecDec and QMC implementation code is Rust.
 
@@ -210,6 +216,16 @@ Implement endpoint Taylor subtraction, analytic endpoint terms, and the integrat
 Substitute coordinate changes directly into complete Laurent-coefficient expressions. Compile a multi-output evaluator per sector or verified equivalent group. Preserve cancellations within each complete coefficient; do not integrate projector pieces independently.
 
 Default compilation explicitly selects **SymJIT O2**. Retain an interpreted evaluator and arbitrary-precision evaluation for diagnostics and rescue. Validate JIT results against them at interior and near-boundary points before trusting the compiled path.
+
+Also investigate representing coordinate substitutions with Symbolica's native
+evaluator function maps and aliases, comparing inlined and non-inlined forms.
+Measure symbolic generation, evaluator construction/compilation, expression/IR
+size, and numerical runtime, including precision rescue and portable reload.
+Preserve the same complete direct Laurent coefficients and Jacobians. Choose
+the representation from measured correctness and performance; do not assume that
+the smallest symbolic expression gives the fastest numerical evaluator. Verify
+the latest published Symbolica and SymJIT releases before this work and retain
+exact dependency identities in its evidence.
 
 When generation or evaluation performance is uncertain, dissect the reference's
 **direct integrand** implementation first: its subtraction and IBP formulas,
@@ -470,6 +486,16 @@ Continue as planned, but note that the `All 15 historical DOT` must not remain i
 Continue as planned, but periodically run an audit verifying that your implementation is perfectly setup for a future integration in HEPKit and also uses HEPKit primitives wherever it can, without re-implementing its own versions (e.g. for numerical test/cross-checks the one-loop master scalar integrals are already available there, and even on-loop reduction if need be; that's just an example, your auditing subagents should review that aspect broadly).
 ```
 
+```text
+Ok, continue as planned, but probably a good point at which you can now commit+push fastSecDec to:
+[https://github.com/alphal00p/fastSecDec](https://github.com/alphal00p/fastSecDec)
+and periodically push there when you reach milestones.
+```
+
+```text
+(continue as planned, but don't forget that one potential useful way to get a small expression for each evaluator is to encode the change of variables as a function map int he evaluator builder arguments, and play with the possibility of inlining aliases or not (though this need generation and runtime generation check)). Make sure you are on the latest symbolica and SymJIT realeases when doing all that.
+```
+
 ## Implementation record
 
 - 2026-10-04: the user supplied `https://github.com/alphal00p/fastSecDec` and authorized the initial push and periodic pushes at validated milestones. This supersedes the initial no-push restriction for FastSecDec only; excluded reference repositories and raw outputs remain local.
@@ -482,3 +508,4 @@ Continue as planned, but periodically run an audit verifying that your implement
 - 2026-10-04: HEPKit reuse/diagnostics milestone validated: **147 workspace tests passed**, four performance probes intentionally ignored; formatting and all-target Clippy pass. The audit's model-cache, reusable-diagnostic and mapped-expansion findings are fixed. Three native master tests cover eleven one-loop points with exact normalization and scales. Boundary diagnostics now expose bounded typed face coverage, streamed results and cancellation; benchmarks preserve partial repetitions. Regular degree-10,000 factors stay compact, and a three-axis Taylor/IBP integral identity passes without forced expansion. Production dependencies still exclude Python, pySecDec and CLI presentation crates; the native master provider is development-only. Future wrapper accessors are documented for the bridge phase. Weighted-sample replay, complete multiloop/numerator/orthant numerical certification, and matched performance gates remain open.
 - 2026-10-04: weighted-evaluation and retained-metadata milestone: **176 workspace tests passed**, six explicit scientific/performance probes ignored by the ordinary gate; formatting and all-target Clippy pass. Whole-vector MPFR replay now applies the sampling weight before binary64 conversion; caller-owned QMC/MC workers accept already-weighted vectors. Checkpoint version three preserves accepted replay state across worker-count changes. Portable kernel version two retains native coordinate maps, exact geometry, factor-level domain certificates, and the phase-one branch policy, with semantic load validation and explicit legacy handling. Independent HEPKit reviews drove zero-dimensional and symbol-collision fixes and removed quadratic chart association. Five native reducer tests cover eight numerator points, including rank five and zero Gram determinant, alongside the eleven scalar-master points. Numerica is pinned at `55072895f98be8830bcf6400e32546bc9470de7a`, with independently reviewed periodization range checks. A separately executed native rational-integration proof verifies the generated double-box leading pole integrates to zero; the sampled value is still reported unchanged. The 64-shift double-box convergence study, all-example numerical gates, downstream generation optimization, and matched performance acceptance remain open.
 - 2026-10-04: reference-reporting and source-provenance milestone validated after the 176-test workspace baseline: nine library reference tests and 22 CLI tests passed, with final focused repeats after review fixes; formatting and all-target Clippy pass. Native callers can compare typed sparse Laurent/component results directly, with explicit exact/reported/unknown uncertainty and recorded normalization, kinematic and independence evidence. CLI targets remain outside numerical settings and artifact identity; changing a target clears inherited evidence, and native TOML fingerprints preserve non-reference value types. Independent reviews found and closed a missing untracked-dependency-source hash and absent-file Cargo watches. The double-box diagnostic completed 6,684,672 samples and 64 shifts without failures: its leading pole is −0.000181020268 ± 0.000588690140, consistent with the separate exact-zero proof. Higher coefficients and matched performance remain uncertified. The validated history has been published to the user-supplied FastSecDec remote; the next slices address factored monomial extraction, all-example multiloop checks and remaining regression gaps.
+- 2026-10-04: latest-backend and factored-mapping milestone: **202 workspace tests passed**, eight explicit scientific/performance probes ignored; formatting and all-target Clippy pass. The live registry identifies Symbolica 3.0.1 and SymJIT 2.26.4; the existing Symbolica revision contains that release, and SymJIT is upgraded to 2.26.4. A two-line development-only OneLOop patch updates its exact backend pin and cache identity, with native cache rebuild/reload and old-header rejection passing. Native monomial collection preserves compact residuals, retaining exact support minima and the signed sparse fallback; independent review found no correctness or reuse defect. Four new tests close graph-entry timelike rejection, signed Gamma depth, negative highest Laurent order and complete native rank-two MPFR replay gaps. The rank-five master comparison passes with much smaller development-build symmetry/Laurent costs; controlled release and reference timings remain pending. The native FunctionMap audit and disconnected probe prepare the requested alias/inlining comparison; no production representation is selected yet. All-example multiloop, boundary-growth, saved-result reporting and matched performance gates remain open.

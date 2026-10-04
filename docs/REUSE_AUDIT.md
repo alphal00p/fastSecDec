@@ -97,6 +97,24 @@ The probe passed for two factored polynomials and a Laurent-polynomial shift;
 the same cases are retained in `ecosystem_probes.rs`. General rational functions
 still require appropriate native simplification or explicit rejection.
 
+The [factored monomial review](reviews/native-monomial-stripping.md) and its
+[independent audit](reviews/native-monomial-stripping-independent.md) extend that
+reuse: after exact support determines a valuation, native `collect_factors`
+can remove its monomial without flattening the residual. Native polynomial
+recognition plus a check of coordinate-dependent indeterminates supplies a
+sufficient acceptance condition; hidden cancellation retains the previous exact
+sparse fallback. No new factoring or valuation engine was introduced.
+
+The [native evaluator function-map audit](reviews/native-function-map-audit.md)
+distinguishes aliases, which always inline, from registered functions with native
+`Always`/`Never` policies. This is evidence for a controlled representation
+experiment, not a measured production improvement. The experiment must retain
+complete Laurent vectors, weighted precision replay, worker cloning and native
+persistence, and control translation mode when comparing inlining policies.
+The [release verification](reviews/evaluator-release-verification.md) records
+Symbolica 3.0.1 and SymJIT 2.26.4 and the small development-only OneLOop cache
+compatibility patch.
+
 The supplied Symbolica build could not convert fixed-argument external constants
 to its error-tracking domain when that function only registered a multiprecision
 hook. The [minimal dependency patch](dependency-patches/symbolica-fixed-argument-constant-domain.md)

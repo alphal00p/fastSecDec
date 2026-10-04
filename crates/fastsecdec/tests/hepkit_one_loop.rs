@@ -13,7 +13,7 @@ use fastsecdec::{
     parametric::ParametricIntegrand,
 };
 use feynkit_graph::symbols;
-use oneloop::{EvaluationBackend, ScalarIntegral};
+use oneloop::{EvaluationBackend, JitEvaluator, ScalarEvaluator, ScalarIntegral};
 use symbolica::{domains::float::Complex, parse, symbol};
 
 fn integrate(graph: GraphIntegral, mu_squared: i64) -> VectorEstimate {
@@ -135,6 +135,53 @@ fn with_stack(work: impl FnOnce() + Send + 'static) {
         .unwrap()
         .join()
         .unwrap();
+}
+
+#[test]
+fn native_master_jit_cache_round_trip_uses_current_backend_and_rejects_old_version() {
+    with_stack(|| {
+        // Rebuild explicitly from native expressions: no bundled evaluator built
+        // with the previous SymJIT release participates in this check.
+        let family = ScalarIntegral::B0;
+        let evaluator = ScalarEvaluator::rebuild(family).unwrap();
+        let bytes = evaluator.to_bytes().unwrap();
+        drop(evaluator);
+        // The family wrapper prefixes one discriminator byte. The remainder is
+        // the provider's public portable JitEvaluator cache, including functions.
+        let mut restored = JitEvaluator::from_bytes(&bytes[1..]).unwrap();
+        assert_eq!(restored.input_count(), family.arity());
+        assert_eq!(restored.output_count(), 3);
+        for arguments in [[-1.0, 0.0, 0.0, 1.0], [-2.0, 1.0, 1.0, 4.0]] {
+            let input = arguments.map(|value| Complex::new(value, 0.0));
+            let mut actual = [Complex::new(f64::NAN, f64::NAN); 3];
+            let mut expected = actual;
+            restored.evaluate(&input, &mut actual).unwrap();
+            oneloop::evaluate_with_backend(
+                family,
+                &input,
+                &mut expected,
+                EvaluationBackend::Expression,
+            )
+            .unwrap();
+            for (actual, expected) in actual.into_iter().zip(expected) {
+                assert!(actual.re.is_finite() && actual.im.is_finite());
+                assert!(expected.re.is_finite() && expected.im.is_finite());
+                assert!((actual.re - expected.re).abs() < 1e-12);
+                assert!((actual.im - expected.im).abs() < 1e-12);
+            }
+        }
+        let current = b"symjit-2.26.4";
+        let mut stale = bytes[1..].to_vec();
+        let offset = stale
+            .windows(current.len())
+            .position(|window| window == current)
+            .expect("native portable cache must identify the selected SymJIT release");
+        stale[offset..offset + current.len()].copy_from_slice(b"symjit-2.26.0");
+        assert!(matches!(
+            JitEvaluator::from_bytes(&stale),
+            Err(error) if error.contains("incompatible evaluator cache")
+        ));
+    });
 }
 
 #[test]
