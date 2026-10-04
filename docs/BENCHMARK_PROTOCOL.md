@@ -24,6 +24,18 @@ rank-one backend can use the same Kuo vector, lattice size, and shift count.
 Where needed provide identical shifts explicitly for pointwise comparisons.
 Record any unavoidable dependency-version differences instead of hiding them.
 
+Record the concrete generating vector, provenance and modulus, not just the
+requested point count or a backend label. The frozen reference defaults to a
+prime CBC/PT rule and caps requests at 4096 even in democratic mode; a nominal
+4096 request uses 4261 points. It also defaults to boundary support, so select
+full support explicitly for the matched comparison. See the
+[reference rule audit](reviews/reference-qmc-rule-and-refinement.md).
+The [native rule-quality investigation](reviews/six-line-qmc-convergence.md)
+shows that the current Kuo33002 vector can interact poorly with Korobov3 at
+small embedded sizes. Keep diagnostic cross-rule comparisons separate from
+fixed-rule timing acceptance; neither an isolated small error bar nor a faster
+inaccurate reference path establishes parity.
+
 The installed reference wheel uses Symbolica 2.1.0 with embedded SymJIT 2.18.6;
 FastSecDec uses the recorded Symbolica 3.0.1 worktree and SymJIT 2.26.4. Earlier
 development diagnostics used SymJIT 2.26.0 and retain that provenance. Initial

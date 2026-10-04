@@ -1,0 +1,142 @@
+{
+  "format": "fastsecdec-reference",
+  "reference": {
+    "coefficients": [
+      {
+        "key": {
+          "component": "Real",
+          "order": 0
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 5.0273374911426446e-8
+        },
+        "value": -0.7048468145599492
+      }
+    ],
+    "kernel_content_id": null,
+    "provenance": {
+      "attributes": {
+        "actual_evaluations": null,
+        "actual_lattice_size": null,
+        "case": "three_point_2loop",
+        "command": [
+          "FSD.py",
+          "run",
+          "--dot-file",
+          "examples/graphs/three_point_2loop.dot",
+          "--kinematics",
+          "examples/graphs/three_point_2loop_kinematics.yaml",
+          "--dot-engine",
+          "pysecdec",
+          "--mode",
+          "massive",
+          "--m",
+          "1",
+          "--prefactor-convention",
+          "pysecdec",
+          "--sector-method",
+          "iterative",
+          "--workers",
+          "1",
+          "--max-eps-order",
+          "0",
+          "--pysecdec-maxeval",
+          "4096",
+          "--pysecdec-epsrel",
+          "0.05",
+          "--pysecdec-workdir",
+          "/common/dev/fastsecdec/output/diagnostics/multiloop-pysecdec/three_point_2loop-package",
+          "--result-path",
+          "/common/dev/fastsecdec/output/diagnostics/multiloop-pysecdec/three_point_2loop.raw.json",
+          "--json",
+          "--no-progress"
+        ],
+        "cpu_affinity": [
+          0
+        ],
+        "environment": {
+          "executable": "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python",
+          "platform": "Linux-6.18.45-x86_64-with-glibc2.42",
+          "python": "3.12.14 (main, Aug 14 2026, 15:34:45) [Clang 22.1.3 ]"
+        },
+        "external_imaginary_standard_error": 0.0,
+        "external_imaginary_value": 0.0,
+        "external_sources": [
+          {
+            "blake3": "c89527e98eaa77c804707c5b39affa94cc5f6c6794f8946bf2f585ec161d333d",
+            "path": "examples/graphs/three_point_2loop.dot"
+          },
+          {
+            "blake3": "9b97f0b29154f06a7dcbe076453631eaf9f58f79828906558e41b1420bfc4a7b",
+            "path": "examples/graphs/three_point_2loop_kinematics.yaml"
+          }
+        ],
+        "external_virtualities": -1,
+        "loops": 2,
+        "masses": 1,
+        "native_sources": [
+          {
+            "blake3": "b0325cb17190bfc5e847617b7c9900f53eacf70404e59f979532ae2ecc04884f",
+            "path": "examples/runs/three_point_2loop.toml"
+          },
+          {
+            "blake3": "4ef9a88394e7da82eeccfed10a180295a51eceddbee919d15a7d595aa45e5bd9",
+            "path": "examples/graphs/three_point_2loop.dot"
+          },
+          {
+            "blake3": "202292c4ed5bd40f8284efb94aca0084210b905f31ccda41c13ddde677d7059a",
+            "path": "examples/models/scalar.json"
+          },
+          {
+            "blake3": "cb415a771b9e86af2dd12186f3f7ecacb6fb523f780cb7ad36fefe32a4e323da",
+            "path": "examples/models/massive.json"
+          }
+        ],
+        "propagators": 5,
+        "qmc_defaults": {
+          "fitfunction": "default",
+          "generating_vectors": {
+            "selected_rule": null,
+            "selection": "dimension-dependent merged CBC/PT tables",
+            "tables": [
+              "cbcpt_dn2_6",
+              "cbcpt_cfftw1_6",
+              "cbcpt_cfftw2_10",
+              "cbcpt_dn1_100"
+            ]
+          },
+          "lattice_candidates": 0,
+          "minimum_shifts": 32,
+          "minn": 10000,
+          "periodization": "Korobov3",
+          "seed": "native random_device"
+        },
+        "raw_report_blake3": "aef3a3180ee1c85f4c8b38ba6db5058a0057b4aadf8d20c285f856d4ad00d08d",
+        "reference_domain": "Euclidean; no contour deformation",
+        "reference_pysecdec_version": "1.6.6",
+        "reference_symbolica_version": "2.1.0",
+        "requested_epsrel": 0.05,
+        "requested_maxeval": 4096
+      },
+      "convention": "Per-loop d^Dk/(i*pi^(D/2)); D=4-2*eps; unit powers; multiplier 1; finite eps^0",
+      "engine": "pySecDec 1.6.6; generated C++ compiled with GCC 15.3.0",
+      "location": "output/diagnostics/multiloop-pysecdec/three_point_2loop.raw.json",
+      "notes": [
+        "Independent reviewers matched graph incidence, external attachments, masses and virtualities, and checked native/pySecDec normalization. See docs/reviews/massive-multiloop-diagnostics.md.",
+        "The real-only projection is explicit: the external imaginary value and its reported error are both zero and remain recorded below. No absent component or uncertainty was invented.",
+        "The reported error is retained as a standard error. Initial independent correctness evidence is not convergence or matched-performance certification.",
+        "maxeval=4096 is requested steering, not measured work. The bridge does not report actual counts/lattice sizes; its QMC defaults are minn=10000 and 32 minimum shifts, so work may exceed that request.",
+        "QMC seed zero preserves the native random_device seed; request.seed=1 is not forwarded by this reference bridge. Native campaigns use independent fixed seeds."
+      ],
+      "recorded_utc": "2026-10-04T19:13:14.050541+00:00",
+      "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+      "source": "Independent pySecDec C++ package through the existing reference CLI"
+    },
+    "validation": {
+      "evidence": "Independent source/graph/normalization/projection audit and bounded complete-vector native comparison; source errors retained. This label records implementation and input evidence, not convergence certification.",
+      "status": "checked"
+    }
+  },
+  "version": 1
+}

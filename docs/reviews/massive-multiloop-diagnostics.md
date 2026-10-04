@@ -172,12 +172,18 @@ convergence-rate or performance conclusion; it is not evidence of a numerical bu
 by itself. The tighter report/checkpoint use the `.tight.*` suffix in the original
 native output directory.
 
+The subsequent independent numerical review is recorded in
+[`six-line-qmc-convergence.md`](six-line-qmc-convergence.md). Its constant-integrand
+controls separate lattice/periodization quality from Feynman kernels and JIT
+evaluation. The original observations above remain preserved; the controls do
+not replace matched complete-vector convergence checks on this integral.
+
 All six initial independent external comparisons are now complete. The last,
 `three_point_3loop_8line`, completed serial generation in 10.722 s, compilation in
 213.660 s and numerical evaluation in 3.439 s, within its 600-second watchdog.
-These are initial independent correctness comparisons. Tighter reference repeats,
-frozen typed fixtures and broader convergence evidence remain pending for the
-campaign; the raw uncertainties are not convergence certificates.
+These are initial independent correctness comparisons. Tighter reference repeats
+and broader convergence evidence remain pending for the campaign; the raw
+uncertainties are not convergence certificates.
 
 The serial reference invocation uses the following existing entry point from the
 pinned Pathfinder checkout; each raw JSON stores the fully expanded arguments.
@@ -211,3 +217,30 @@ packages or raw build output:
 | `three_point_2loop_6line.raw.json` | `b57bf8c86a85dbe3f51ed4c7e78de0e2baaea087b98d7711317fd9b0960d8490` |
 | `three_point_3loop.raw.json` | `516364f26f31b21eede883b6bb59bc0256d0fb2288fc5d214a54f278a31d3b79` |
 | `three_point_3loop_8line.raw.json` | `d85baa52bf0ea614212a98269f3ddd3e58952767cb6e352cd13a3f301e9da680` |
+
+## Frozen native transport and comparison gate
+
+The six small versioned transports in `examples/references/` were constructed
+through the native `ReferenceResult` and `encode_reference` APIs after the
+independent review in `massive-multiloop-reference-independent.md`. Their positive
+reported errors remain `StandardError`; the explicitly checked real projection
+retains the source imaginary value and error in provenance. `Checked` records
+source/input/normalization and bounded comparison evidence, not convergence.
+Raw commands, revisions, versions, external/native source digests, and raw-report
+digests remain available without tracking generated packages.
+
+Three pure-data tests passed in `output/multiloop-reference-tests.log`: the
+transport/input evidence checks, an explicitly ignored candidate recorder, and
+all six saved complete-vector comparisons delegated to the native `compare`
+API. The recorder writes only ignored candidates and rejects raw-report changes
+against the independently audited digest. Normal tests need no external tool or
+ignored report. The ignored six-case production-CLI harness now includes these
+same typed comparisons with a five-combined-standard-error initial correctness
+threshold; its unchanged sampling pipeline remains separate from convergence
+acceptance.
+
+The provenance audit corrected the external rule description: installed
+`secdecutil::integrators::Qmc` merges dimension-appropriate CBC/PT tables
+(`cbcpt_dn2_6`, `cbcpt_cfftw1_6`, `cbcpt_cfftw2_10`, `cbcpt_dn1_100`). It does not
+necessarily select only `dn1_100`. The frozen metadata describes that native
+default while leaving the actual selected rule and point count unknown.

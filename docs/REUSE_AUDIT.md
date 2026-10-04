@@ -155,3 +155,32 @@ to its error-tracking domain when that function only registered a multiprecision
 hook. The [minimal dependency patch](dependency-patches/symbolica-fixed-argument-constant-domain.md)
 reuses that registered hook and native conversion, with a passing focused
 regression. FastSecDec does not implement special-function constants itself.
+
+## Multiloop reference transport and lattice quality
+
+The [independent multiloop review](reviews/massive-multiloop-reference-independent.md)
+checks six externally generated C++ reference results against the native graph
+attachments, kinematics and normalization. The frozen files in
+`examples/references` use the existing `ReferenceResult`, `read_reference`,
+`encode_reference` and `compare` APIs. Their positive reported errors and
+explicit real-only projection are preserved; unknown actual work counts remain
+unknown. No external engine enters the normal build or test dependency graph.
+These initial comparisons do not certify convergence.
+
+The [six-line investigation](reviews/six-line-qmc-convergence.md) uses native
+Numerica plans, worker-local point generation, periodization and complete-shift
+statistics throughout. A constant-integrand control reproduces a plateau of the
+current Kuo33002 rule with Korobov3. Published alternative vectors improve the
+actual five-dimensional integral substantially, but broader dimension controls
+show that the best vector for that fixture is not universally best. Explicit
+catalogue choices and cross-case validation are under review; no new estimator,
+adaptive vector search or CBC generator is justified by this evidence.
+
+The [mapping attribution](reviews/rank-five-mapping-attribution.md) measures
+repeated native original-support extraction as 99.63% of rank-five mapping time.
+It motivates a generation-owned lazy cache of existing `PolynomialSupport`
+results with native Atom keys and fixed parameter ordering. Such reuse must
+preserve the coordinate-face fast path before support extraction and all exact
+validation; it does not justify expanding regular factors or caching mapped
+densities. Implementation, independent review and measured results are separate
+acceptance steps.

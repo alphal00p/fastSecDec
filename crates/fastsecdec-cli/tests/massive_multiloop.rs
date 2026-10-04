@@ -1,5 +1,7 @@
-//! Explicit end-to-end diagnostics, not an independent numerical certificate.
+//! Complete CLI diagnostics with frozen independent numerical comparisons.
 //! All sampling, precision controls and checkpoints belong to the production CLI.
+#[path = "support/multiloop_reference.rs"]
+mod reference;
 use std::{
     fs::{self, File},
     path::{Path, PathBuf},
@@ -9,18 +11,10 @@ use std::{
 
 use fastsecdec::{
     integration::VectorEstimate,
+    reference::{Pull, ReferenceComparison},
     status::{CoefficientComponent, GenerationTimings, IntegrationSnapshot},
 };
 use serde::{Deserialize, Serialize};
-
-const CASES: [(&str, usize, usize); 6] = [
-    ("kite_2loop", 2, 5),
-    ("self_energy_3loop", 3, 7),
-    ("three_point_2loop", 2, 5),
-    ("three_point_2loop_6line", 2, 6),
-    ("three_point_3loop", 3, 7),
-    ("three_point_3loop_8line", 3, 8),
-];
 
 #[derive(Deserialize, Serialize)]
 struct GenerationReport {
@@ -48,6 +42,7 @@ struct CaseReport {
     propagators: usize,
     generation: Option<GenerationReport>,
     integration: Option<IntegrationReport>,
+    reference_comparison: Option<ReferenceComparison>,
     errors: Vec<String>,
 }
 
@@ -102,7 +97,7 @@ fn invoke(
 
 fn write_summary(directory: &Path, cases: &[CaseReport]) {
     let summary = serde_json::json!({
-        "purpose":"full native pipeline diagnostics; independent numerical certification pending",
+        "purpose":"full native pipeline with bounded independent numerical comparisons; convergence certification pending",
         "independently_certified":false,
         "settings":{"points":1024,"shifts":8,"seed":20261004,"workers":2,"periodization":"korobov3","max_rounds":1},
         "cases":cases,
@@ -174,7 +169,7 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
     fs::create_dir_all(&directory).unwrap();
     let mut cases = Vec::new();
     // Finish native generation for every case before beginning numerical work.
-    for (name, loops, propagators) in CASES {
+    for (name, loops, propagators) in reference::CASES {
         println!("Generating {name} (L={loops}, N={propagators})");
         let card = repository.join(format!("examples/runs/{name}.toml"));
         let artifact = directory.join(format!("{name}.fsd.json"));
@@ -184,6 +179,7 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
             propagators,
             generation: None,
             integration: None,
+            reference_comparison: None,
             errors: Vec::new(),
         };
         match invoke(
@@ -265,6 +261,22 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
                         "{name}: {:?} ± {:?}; {:.3}s integration (diagnostic, uncertified)",
                         estimate.mean, estimate.standard_error, integration.elapsed_seconds
                     );
+                    let comparison = reference::compare_reference(
+                        &repository,
+                        name,
+                        &integration.content_id,
+                        estimate,
+                    );
+                    if !comparison.eligibility.eligible
+                        || comparison.rows.len() != 1
+                        || !matches!(comparison.rows[0].pull, Pull::Value(value) if value.abs() < 5.0)
+                    {
+                        case.errors.push(format!(
+                            "initial independent comparison failed: {comparison:?}"
+                        ));
+                    }
+                    println!("{name}: {comparison}");
+                    case.reference_comparison = Some(comparison);
                 }
                 case.integration = Some(integration);
             }
