@@ -72,9 +72,21 @@ across schedules is not promised.
 
 Boundary diagnostics enumerate coordinate subsets and every lower/upper side
 assignment through `--max-codimension` (default 2), up to `--max-probes` total
-points (default 10,000). Reports state configured/planned/completed coverage and
-whether the budget truncated it. Increasing codimension includes higher face
-intersections; finite samples do not prove the absence of thresholds.
+points (default 10,000). `--exponents 3,6,9,12,15` is the default distance list.
+Each physical Laurent component is compared at adjacent actual endpoint distances;
+`--growth-tolerance` defaults to 0.5 per approached axis, plus a numerical slack
+of 1e-6. A large constant component cannot conceal another component's growth.
+Zeros, failed samples and incomplete coverage are represented explicitly.
+
+`--retry-scales 0.01,0.0001` retries flagged or inconclusive sectors; there are no
+retries by default. Each scale refers to the original distances, and all attempts
+share the point budget. The plain report shows an attempt table; JSON retains
+every raw vector and growth pair in `attempts`, including earlier flags. Growth
+flags are diagnostic and do not cause a failing exit. Numerical evaluation
+failures cause a nonzero exit while still producing one complete JSON report.
+Ctrl-C returns retained completed rows and a `Cancelled` execution state.
+Finite samples or acceptable growth do not prove integrability or the absence of
+thresholds.
 
 Benchmark and boundary routines are public Rust APIs under
 `fastsecdec::diagnostics`. Ctrl-C preserves completed diagnostic rows and labelled

@@ -7,7 +7,7 @@ mod laurent;
 mod mapping;
 mod metadata;
 #[cfg(test)]
-mod profiling;
+pub(crate) mod profiling;
 mod subtraction;
 mod symmetry;
 mod types;

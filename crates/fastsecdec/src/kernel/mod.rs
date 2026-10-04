@@ -6,6 +6,9 @@ mod metadata;
 mod precision;
 mod precision_cache;
 mod weighted;
+
+#[cfg(test)]
+mod function_map_probe;
 use crate::generation::GeneratedIntegral;
 pub use precision::{PrecisionPolicy, PrecisionReport};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};

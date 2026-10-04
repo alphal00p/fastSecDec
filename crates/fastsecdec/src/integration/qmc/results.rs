@@ -1,3 +1,5 @@
+mod contributions;
+
 use super::*;
 use crate::{
     integration::VectorEstimate,

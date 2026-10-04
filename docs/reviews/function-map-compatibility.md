@@ -1,0 +1,15 @@
+# Native FunctionMap pullback compatibility
+
+The ignored unit diagnostic `kernel::function_map_probe::native_function_map_pullback_probe` passed all 32 cases and a fresh-process reconstruction of each case. It uses SymJIT 2.26.4 and Symbolica revision `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` (including the latest 3.0.1 release plus six upstream commits, with the already recorded essential local patches). This is compatibility evidence; the small expression does not establish a throughput or generation advantage.
+
+The source is the complete Laurent vector through order two of
+`Gamma(eps) * (log(1+x)/x + eps*x^2 + eps^2*y^3)`. The nontrivial pullback is
+`x=t0`, `y=t0*t1`, with real measure factor `t0`. Both real weight one and complex weight `2+3i` are tested. All coefficients are evaluated together.
+
+The 32 cases combine real/complex output, four expression representations, two native builder translation requests and two SymJIT translation settings. The representations are direct substituted Atoms, native argument-free aliases, functions registered with `InliningPolicy::Always`, and functions registered with `InliningPolicy::Never`. Native aliases always inline. Native `Never` forces the builder's direct translation internally, even when the test requests the other builder path; therefore those two requested rows are compatibility coverage rather than independent algorithms. Every JIT compilation explicitly uses portable O2.
+
+Each case agrees with its native interpreted evaluator and the other representations at fixed interior points. Native `ErrorPropagatingFloat` evaluators preserve the same values. Compiled native clones run on caller-owned workers. At `t0=1e-80`, the existing complete-vector precision rescue evaluates with weight `1e80` before binary64 conversion, agrees with the independent Gamma-series limit, and uses 704 bits under the conservative cancellation metadata. This also exercises fixed-argument transcendental constants and retained nested definitions in native MPFR remapping.
+
+The writer serializes each exact native evaluator using its public bincode support. A separate fresh process decodes the complete native evaluator IR, recompiles O2, repeats ordinary/conditioning/worker/weighted checks and recovers the same results. The production FastSecDec artifact format is unchanged; function definitions are not yet added to its coefficient-only transport.
+
+Evidence is `output/function-map-compatibility.log` and `output/probes/function-map-2.26.4/{cases.json,write.log,read.log}` with the adjacent native IR files. The complete writer/reader test took 5.64 seconds in the development test harness. JSON records separate source Laurent work, representation preparation, native evaluator building, O2 compilation, operation counts and native IR size. It does not time a meaningful steady-state workload. The next experiment must use the actual rank-five complete coefficients, preserve numerical checks and separate prior symbolic generation from evaluator representation.

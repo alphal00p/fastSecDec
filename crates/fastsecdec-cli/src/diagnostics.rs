@@ -1,7 +1,8 @@
 //! CLI presentation/cancellation adapter for the public diagnostic API.
-use std::ops::ControlFlow;
+use std::{io::IsTerminal, ops::ControlFlow};
 
-use fastsecdec::diagnostics::DiagnosticProgress;
+use crossterm::style::{Color, Stylize};
+use fastsecdec::diagnostics::{BoundaryScanProgress, BoundaryScanReport, DiagnosticProgress};
 
 use crate::display::Dashboard;
 
@@ -20,5 +21,41 @@ pub fn observe(
         ControlFlow::Break(())
     } else {
         ControlFlow::Continue(())
+    }
+}
+
+pub fn observe_scan(
+    dashboard: &Dashboard,
+    json_status: bool,
+    progress: &BoundaryScanProgress,
+) -> ControlFlow<()> {
+    if json_status && let Ok(message) = serde_json::to_string(progress) {
+        eprintln!("{message}");
+    }
+    if dashboard.cancelled() {
+        ControlFlow::Break(())
+    } else {
+        ControlFlow::Continue(())
+    }
+}
+
+pub fn display_scan(report: &BoundaryScanReport, plain: bool) {
+    let colored =
+        !plain && std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+    for line in report.to_string().lines() {
+        if colored && (line.starts_with('╭') || line.starts_with('╰') || line.contains("Attempt"))
+        {
+            println!(
+                "{}",
+                line.with(Color::Rgb {
+                    r: 68,
+                    g: 210,
+                    b: 188
+                })
+                .bold()
+            );
+        } else {
+            println!("{line}");
+        }
     }
 }

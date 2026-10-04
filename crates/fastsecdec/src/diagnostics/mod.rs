@@ -6,10 +6,12 @@
 
 mod benchmark;
 mod boundary;
+mod growth;
 mod types;
 
 pub use benchmark::benchmark;
 pub use boundary::boundaries;
+pub use growth::*;
 pub use types::*;
 
 #[derive(Debug, thiserror::Error)]

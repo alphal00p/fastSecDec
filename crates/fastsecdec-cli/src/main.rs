@@ -92,6 +92,12 @@ enum Action {
         max_codimension: usize,
         #[arg(long, default_value_t = 10_000)]
         max_probes: usize,
+        /// Sampled growth threshold per approached axis; not an integrability test.
+        #[arg(long, default_value_t = 0.5)]
+        growth_tolerance: f64,
+        /// Decreasing scales in (0,1), each relative to the original distances.
+        #[arg(long, value_delimiter = ',')]
+        retry_scales: Vec<f64>,
     },
 }
 
@@ -355,21 +361,34 @@ fn run(cli: Cli) -> CliResult<()> {
             exponents,
             max_codimension,
             max_probes,
+            growth_tolerance,
+            retry_scales,
         } => {
             let (_, mut kernels) = artifact::Artifact::load(&artifact)?;
             let dashboard = display::Dashboard::new(false, false)?;
-            let boundaries = fastsecdec::diagnostics::boundaries(
+            let boundaries = fastsecdec::diagnostics::scan_boundaries(
                 &mut kernels,
-                &fastsecdec::diagnostics::BoundaryOptions {
-                    exponents,
-                    max_codimension,
-                    max_probes,
-                    ..Default::default()
+                &fastsecdec::diagnostics::BoundaryScanOptions {
+                    sampling: fastsecdec::diagnostics::BoundaryOptions {
+                        exponents,
+                        max_codimension,
+                        max_probes,
+                        ..Default::default()
+                    },
+                    growth: fastsecdec::diagnostics::BoundaryGrowthOptions {
+                        max_power_per_axis: growth_tolerance,
+                        ..Default::default()
+                    },
+                    retry_scales,
                 },
-                |progress| diagnostics::observe(&dashboard, cli.status_json, progress),
+                |progress| diagnostics::observe_scan(&dashboard, cli.status_json, progress),
             )?;
-            let failed = boundaries.failures;
-            report(&serde_json::to_value(boundaries)?, render_json)?;
+            let failed = boundaries.diagnostics.failures;
+            if render_json {
+                println!("{}", serde_json::to_string_pretty(&boundaries)?);
+            } else {
+                diagnostics::display_scan(&boundaries, cli.plain);
+            }
             if failed > 0 {
                 return Err(ReportedFailure.into());
             }

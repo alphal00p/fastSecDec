@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{DiagnosticError, Result};
-use crate::status::EvaluationDiagnostics;
+use crate::status::{CoefficientComponent, EvaluationDiagnostics};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BenchmarkOptions {
@@ -157,6 +157,10 @@ pub struct BoundaryProbe {
     pub rescued: bool,
     pub precision_bits: Option<u32>,
     pub max_absolute_value: Option<f64>,
+    /// Physical Laurent components in the report's order/component layout.
+    /// Old serialized rows have no recoverable component values.
+    #[serde(default)]
+    pub values: Option<Vec<f64>>,
     pub error: Option<String>,
 }
 
@@ -174,8 +178,30 @@ pub struct BoundaryCoverage {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BoundarySector {
+    pub sector: usize,
+    pub dimension: usize,
+}
+
+fn unit_distance_scale() -> f64 {
+    1.0
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BoundaryReport {
     pub options: BoundaryOptions,
+    #[serde(default = "unit_distance_scale")]
+    pub distance_scale: f64,
+    /// Old reports are readable, but an absent layout cannot be reconstructed
+    /// for componentwise growth analysis without caller-supplied metadata.
+    #[serde(default)]
+    pub orders: Vec<i32>,
+    #[serde(default)]
+    pub components: Vec<CoefficientComponent>,
+    /// Includes every selected sector, even if cancellation/budget prevented
+    /// its first sample. This is required to describe incomplete coverage.
+    #[serde(default)]
+    pub sectors: Vec<BoundarySector>,
     pub probes: Vec<BoundaryProbe>,
     pub coverage: BoundaryCoverage,
     pub failures: usize,

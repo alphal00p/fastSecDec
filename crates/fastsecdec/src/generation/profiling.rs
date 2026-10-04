@@ -232,7 +232,7 @@ fn factor_sizes(input: &ParametricIntegrand) -> Vec<usize> {
         .collect()
 }
 
-fn input() -> ParametricIntegrand {
+pub(crate) fn input() -> ParametricIntegrand {
     use symbolica::atom::Atom;
     let model = Arc::new(
         Model::from_json(include_str!("../../../../examples/models/scalar.json")).unwrap(),

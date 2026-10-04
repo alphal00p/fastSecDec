@@ -1,0 +1,11 @@
+# Independent sector-contribution review
+
+The additive reporting adapter was reviewed independently against the existing QMC and Havana estimators. No actionable scientific or coverage defect was found.
+
+Democratic QMC contribution rows use the same `common_shift_rows()` selection as the authoritative total. Complete replicas available only in one sector remain visible in progress, but are excluded from both its reported marginal and the total until all sectors share them. The report distinguishes used replicas/points from completed work. Its explicit `SharedAcrossSectors` relation correctly warns that marginal covariance matrices omit inter-sector covariance and cannot be summed to recover total uncertainty.
+
+Adaptive QMC uses complete local production shifts at each sector's own allocation; Havana uses complete independent production batches. Both reuse native `QmcEstimate::from_shift_means`, matching the statistical operation already used by the sessions. Their independent sector covariances add to the total. Pilot work exposes progress while reporting zero used production replicas and no production estimates. Fewer than two selected replicas remains unavailable rather than inventing an uncertainty.
+
+The exact coefficient vector is retained separately and included only by the unchanged authoritative total. Sector multiplicities are already present in the evaluated coefficients; the adapter introduces no extra weighting. The complete real/imaginary layout is preserved. The total comes from the existing centered estimator, so callers need not reconstruct it by summing rounded absolute marginal means near large cancelling offsets.
+
+The focused tests exercise common coverage arriving at different times, nonzero marginal errors cancelling in the shared total, unequal adaptive allocations, pilot exclusion, local Havana coverage, transport roundtrip and all-exact problems. These are numerical contracts rather than display snapshots. The coordinated release build passed, followed by all 27 numeric tests: four contribution tests, fifteen QMC runtime tests and eight Havana runtime tests. Evidence: `output/sector-contributions-tests.log`, `output/sector-contributions-runtime-qmc.log` and `output/sector-contributions-runtime-mc.log`. These runs do not initialize Symbolica.

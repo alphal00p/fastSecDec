@@ -370,9 +370,9 @@ fn transcendental_laurent_artifact_loads_in_a_fresh_process() {
         String::from_utf8_lossy(&boundaries.stdout)
     );
     let report: serde_json::Value = serde_json::from_slice(&boundaries.stdout).unwrap();
-    assert_eq!(report["failures"], 0);
+    assert_eq!(report["diagnostics"]["failures"], 0);
     assert!(
-        report["probes"]
+        report["attempts"][0]["samples"]["probes"]
             .as_array()
             .unwrap()
             .iter()

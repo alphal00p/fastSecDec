@@ -78,6 +78,31 @@ changing sampling, numerical checkpoints or scientific artifact identity. The
 [dependency provenance review](reviews/dependency-provenance.md) additionally
 closes an untracked-source hashing gap and a Cargo watch issue in local builds.
 
+The [boundary-growth review](reviews/boundary-growth-independent.md) verifies a
+thin componentwise diagnostic over the existing sampler. Native Numerica
+logarithms handle finite extreme magnitudes without forming overflowing ratios;
+typed reports retain actual endpoint distances, missing observations, every
+retry and a shared evaluation budget. GammaLoop's existing constant-dropped
+multi-point fitter was inspected and has a different contract; no replacement
+fitting or sampling engine was added. Eleven new tests and five existing
+diagnostic tests pass, with six pure numerical cases independently rerun.
+
+The [sector-contribution review](reviews/sector-contributions-scientific-review.md)
+checks new QMC/Havana reporting adapters over native complete-replica statistics.
+Democratic sector rows use precisely the common complete shifts used by the
+total; independent rows use complete local replicas. Exact offsets remain
+separate, pilot observations remain progress only, and marginal covariances are
+explicitly distinguished from the authoritative total covariance. Four new
+scientific tests and the existing 15 QMC/eight Havana runtime tests pass. Public
+formatting rejects malformed imported layouts without indexing absent values.
+
+The [boundary CLI/HEPKit contract audit](reviews/boundary-cli-hepkit-contract-audit.md)
+reviews native ownership, streamed typed events, caller cancellation, portable
+metadata and presentation. It found a malformed imported attempt-index overflow
+in Display; checked presentation and a pure-data regression resolve that issue.
+Sampled growth flags remain diagnostic and cannot be mistaken for a proof of
+integrability or an evaluation failure.
+
 ## Factored direct generation
 
 The [reference implementation review](reviews/direct-generation-performance.md)
@@ -114,6 +139,16 @@ persistence, and control translation mode when comparing inlining policies.
 The [release verification](reviews/evaluator-release-verification.md) records
 Symbolica 3.0.1 and SymJIT 2.26.4 and the small development-only OneLOop cache
 compatibility patch.
+
+The [compatibility probe](reviews/function-map-compatibility.md) passes 32 native
+FunctionMap combinations, including complex coefficients, weighted MPFR replay,
+worker clones and fresh-process reconstruction. The [rank-five experiment](reviews/function-map-rank-five.md)
+adds an explicit controlled numerical pullback to actual generated coefficients;
+119 longer measured cases preserve the complete vectors. Aliases save preparation
+and builder work in that experiment, while retaining tiny function calls is
+slower. Existing phase-one production representation and artifacts remain
+unchanged because earlier symbolic work and general runtime gains are separate
+questions.
 
 The supplied Symbolica build could not convert fixed-argument external constants
 to its error-tracking domain when that function only registered a multiprecision

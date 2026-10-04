@@ -4,6 +4,7 @@
 //! partial statistics and grid adaptation reuse Numerica/Havana.
 mod adaptive;
 mod config;
+mod contributions;
 mod estimate;
 pub mod mc;
 mod qmc;
@@ -13,6 +14,7 @@ pub use crate::status::CoefficientComponent;
 pub use config::{
     IntegrationProblem, Periodization, QmcSettings, RuleSource, SectorSpec, Tolerance,
 };
+pub use contributions::{ContributionReport, ReplicaRelation, SectorContribution};
 pub use estimate::VectorEstimate;
 pub use qmc::{ProductionAllocation, QmcSession};
 pub use worker::{QmcReturn, QmcTask, QmcWorker};

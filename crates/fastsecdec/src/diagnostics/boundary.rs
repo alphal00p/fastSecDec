@@ -1,14 +1,14 @@
 use std::ops::ControlFlow;
 
 use super::{
-    AxisEndpoint, BoundaryCoverage, BoundaryOptions, BoundaryProbe, BoundaryReport, BoundarySide,
-    DiagnosticProgress, DiagnosticStop, Result,
+    AxisEndpoint, BoundaryCoverage, BoundaryOptions, BoundaryProbe, BoundaryReport, BoundarySector,
+    BoundarySide, DiagnosticError, DiagnosticProgress, DiagnosticStop, Result,
 };
 use crate::{kernel::KernelSet, status::EvaluationDiagnostics};
 
 // Count C(d,k)*2^k without constructing any point or assuming a machine-word
 // bit mask can hold a high-dimensional face. Overflow is explicit metadata.
-fn face_count(dimension: usize, codimension: usize) -> Option<u64> {
+pub(super) fn face_count(dimension: usize, codimension: usize) -> Option<u64> {
     let mut count = 0u128;
     let mut binomial = 1u128;
     let mut sides = 1u128;
@@ -29,15 +29,58 @@ fn face_count(dimension: usize, codimension: usize) -> Option<u64> {
 pub fn boundaries(
     kernels: &mut KernelSet,
     options: &BoundaryOptions,
+    progress: impl FnMut(&DiagnosticProgress) -> ControlFlow<()>,
+) -> Result<BoundaryReport> {
+    let selected = (0..kernels.sectors().len()).collect::<Vec<_>>();
+    boundaries_selected(kernels, options, &selected, 1.0, progress)
+}
+
+pub(super) fn scaled_distances(options: &BoundaryOptions, scale: f64) -> Result<Vec<f64>> {
+    if !scale.is_finite() || scale <= 0.0 || scale > 1.0 {
+        return Err(DiagnosticError::Invalid(
+            "boundary distance scale must lie in (0,1]",
+        ));
+    }
+    options.distances()?.into_iter().map(|distance| {
+        let distance = distance * scale;
+        let upper = 1.0 - distance;
+        if !(0.0 < distance && distance < 1.0 && 0.0 < upper && upper < 1.0) {
+            return Err(DiagnosticError::Invalid("scaled boundary distances must remain representable strictly inside both ends of the cube"));
+        }
+        Ok(distance)
+    }).collect()
+}
+
+pub(super) fn boundaries_selected(
+    kernels: &mut KernelSet,
+    options: &BoundaryOptions,
+    selected: &[usize],
+    scale: f64,
     mut progress: impl FnMut(&DiagnosticProgress) -> ControlFlow<()>,
 ) -> Result<BoundaryReport> {
-    let distances = options.distances()?;
+    let distances = scaled_distances(options, scale)?;
+    let mut seen = std::collections::BTreeSet::new();
+    if selected
+        .iter()
+        .any(|&index| index >= kernels.sectors().len() || !seen.insert(index))
+    {
+        return Err(DiagnosticError::Invalid(
+            "selected boundary sectors are invalid or duplicated",
+        ));
+    }
+    let sectors = selected
+        .iter()
+        .map(|&sector| BoundarySector {
+            sector,
+            dimension: kernels.sectors()[sector].dimension(),
+        })
+        .collect::<Vec<_>>();
     let count = |all: bool| {
-        kernels.sectors().iter().try_fold(0u64, |sum, kernel| {
+        sectors.iter().try_fold(0u64, |sum, kernel| {
             let count = face_count(
-                kernel.dimension(),
+                kernel.dimension,
                 if all {
-                    kernel.dimension()
+                    kernel.dimension
                 } else {
                     options.max_codimension
                 },
@@ -51,12 +94,15 @@ pub fn boundaries(
         count.min(options.max_probes as u64) as usize
     });
     let truncated = configured.is_none_or(|count| count > options.max_probes as u64);
-    let all_dimensions = kernels
-        .sectors()
+    let all_dimensions = sectors
         .iter()
-        .all(|k| k.dimension() <= options.max_codimension);
+        .all(|k| k.dimension <= options.max_codimension);
     let mut report = BoundaryReport {
         options: options.clone(),
+        distance_scale: scale,
+        orders: kernels.orders().to_vec(),
+        components: kernels.components().to_vec(),
+        sectors,
         probes: Vec::new(),
         failures: 0,
         diagnostics: EvaluationDiagnostics::default(),
@@ -81,7 +127,8 @@ pub fn boundaries(
         report.stop = DiagnosticStop::Cancelled;
         return Ok(report);
     }
-    'sectors: for (sector, kernel) in kernels.sectors_mut().iter_mut().enumerate() {
+    'sectors: for &sector in selected {
+        let kernel = &mut kernels.sectors_mut()[sector];
         let dimension = kernel.dimension();
         let mut output = vec![0.0; kernel.output_count()];
         for codimension in 1..=dimension.min(options.max_codimension) {
@@ -135,6 +182,7 @@ pub fn boundaries(
                                 .as_ref()
                                 .ok()
                                 .map(|_| output.iter().map(|x| x.abs()).fold(0.0, f64::max)),
+                            values: result.as_ref().ok().map(|_| output.clone()),
                             error: result.err().map(|e| e.to_string()),
                         };
                         report.probes.push(probe.clone());

@@ -1,4 +1,5 @@
 mod checkpoint;
+mod contributions;
 mod results;
 
 use std::collections::{BTreeMap, BTreeSet};
