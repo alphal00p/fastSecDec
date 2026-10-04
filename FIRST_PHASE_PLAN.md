@@ -13,7 +13,7 @@ At implementation start:
 3. Work directly on FastSecDec's local `main` branch. Commit the initial plan and repository scaffolding, then commit at each validated milestone.
 4. Create `codex/havana-qmc` in the separate Numerica repository. Commit its changes there and record the corresponding revisions in FastSecDec.
 5. Ignore the entire reference directory, build products, generated kernels, caches, and benchmark scratch data. Never commit reference checkouts into FastSecDec.
-6. Push validated FastSecDec milestones on `main` to `https://github.com/alphal00p/fastSecDec`, as authorized on 2026-10-04. The subsequent authorization also permits publishing the finished Numerica QMC feature branch as a PR against its main branch and requesting review from `BenRuijl`; verify readiness and the target branch first. Other reference repositories remain local.
+6. Push validated FastSecDec milestones on `main` to `https://github.com/alphal00p/fastSecDec`, as authorized on 2026-10-04. The subsequent authorization also permits publishing the finished Numerica QMC feature branch as a PR against its main branch and requesting review from `benruijl` (the user's corrected spelling); verify readiness and the target branch first. Other reference repositories remain local.
 
 **Use extensive subagent delegation throughout implementation.** The primary agent acts mainly as coordinator: it owns interfaces, task allocation, sequencing, integration, acceptance evidence, and milestone commits. Delegate bounded slices for implementation, dependency research, mathematical audits, test migration, debugging, profiling, and performance optimization.
 
@@ -500,8 +500,13 @@ and periodically push there when you reach milestones.
 (continue as planned, but if you already have a final version of the lattice QMC version for numerica, you can open a PR for merging into its main and tag BenRuijl as a reviewer)
 ```
 
+```text
+no the reviewer you must ask for is `benruijl`
+```
+
 ## Implementation record
 
+- 2026-10-04: the user corrected the requested reviewer to `benruijl`. Retrying that exact username still received GitHub's permissions denial. PR #8's description now contains the verified exact `@benruijl` mention, with the earlier casing removed; its formal review-request list remains empty.
 - 2026-10-04: the user authorized publishing the completed Numerica lattice-QMC feature as a PR targeting its main branch, with `BenRuijl` requested as reviewer. Upstream readiness, branch ancestry and the complete native test suite are checked before publication; this does not authorize publication of other reference repositories.
 - 2026-10-04: opened [Numerica PR #8](https://github.com/symbolica-dev/numerica/pull/8) against upstream `main` from the authenticated user's fork, at `e4638da22a17cfa931fa14c6829d3350b7a8de2b`. Full default, serde and alternative-backend suites passed 237, 240 and 217 tests respectively, plus the serial/threaded example, formatting and package-content checks. No existing MC algorithm changes or new runtime dependencies are included. GitHub denied formal reviewer assignment for insufficient permissions; `@BenRuijl` is explicitly tagged for review in the verified PR description. The CLA check was pending at publication; the feature has not been merged. See `docs/reviews/numerica-qmc-upstream-readiness.md`.
 - 2026-10-04: the user supplied `https://github.com/alphal00p/fastSecDec` and authorized the initial push and periodic pushes at validated milestones. This supersedes the initial no-push restriction for FastSecDec only; excluded reference repositories and raw outputs remain local.

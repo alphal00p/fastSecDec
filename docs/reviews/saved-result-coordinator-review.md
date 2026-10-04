@@ -27,7 +27,8 @@ order, retains a gap in one shift, and checks coverage both before and after
 filling the gap while ordinary numerical reduction fails. This is a meaningful
 reason for the small dependency extension, rather than duplicating Numerica's
 private coverage state in FastSecDec. The extension belongs on the existing
-local Numerica feature branch; publication of that repository is not authorized.
+Numerica feature branch. It initially remained local; the user's later
+publication authorization and upstream PR are recorded below.
 
 Numerica commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` passes all 30 QMC
 tests and nine existing MC tests. Evidence is retained locally in

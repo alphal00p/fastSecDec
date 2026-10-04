@@ -7,7 +7,7 @@ The reviewed head is `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on
 behind, with a clean checkout. The coordinator independently reviewed the
 branch scope and approved publication after these gates. User authorization
 now includes the feature-branch push, a PR against upstream main, and requesting
-BenRuijl as reviewer; publication remains coordinator-owned.
+`benruijl` as reviewer (the user's corrected spelling); publication remains coordinator-owned.
 
 ## Scope and API
 
@@ -81,9 +81,10 @@ upstream `main`, with head `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on
 upstream, so the branch was published through its fork. Upstream main was not
 modified or merged. The PR is attached to the implementation task.
 
-GitHub denied the formal `BenRuijl` reviewer assignment because the account
+GitHub denied the formal reviewer assignment, including the retry with the
+user's exact corrected username `benruijl`, because the account
 lacks permission for `RequestReviewsByLogin`. The PR description instead
-explicitly tags `@BenRuijl` for review; that mention was verified after updating
+explicitly tags `@benruijl` for review; that mention was verified after updating
 the PR. At publication, the `license/cla` check was pending. No contributor
 agreement was signed on the user's behalf. The PR description records the
 complete successful test gates and the preexisting all-target lint failures.
