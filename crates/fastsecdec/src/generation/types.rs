@@ -12,6 +12,13 @@ pub struct GenerationOptions {
     pub decomposition: DecompositionOptions,
     pub max_subtractions_per_axis: usize,
     pub max_subtraction_terms: usize,
+    pub subtraction: SubtractionStrategy,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SubtractionStrategy {
+    Taylor,
+    IntegrateByParts,
 }
 
 impl Default for GenerationOptions {
@@ -22,6 +29,7 @@ impl Default for GenerationOptions {
             decomposition: DecompositionOptions::default(),
             max_subtractions_per_axis: 64,
             max_subtraction_terms: 1_000_000,
+            subtraction: SubtractionStrategy::Taylor,
         }
     }
 }
@@ -29,16 +37,44 @@ impl Default for GenerationOptions {
 #[derive(Clone, Debug)]
 pub enum GenerationProgress {
     Decomposition(DecompositionProgress),
-    Factorization { sector: usize, total: usize },
-    Subtraction { sector: usize, terms: usize },
-    LaurentExpansion { sector: usize, total: usize },
-    Complete { sectors: usize, orders: Vec<i32> },
+    Factorization {
+        sector: usize,
+        total: usize,
+    },
+    Subtraction {
+        sector: usize,
+        total: usize,
+        terms: usize,
+    },
+    LaurentExpansion {
+        sector: usize,
+        total: usize,
+    },
+    PhaseTiming {
+        phase: GenerationPhase,
+        seconds: f64,
+    },
+    Complete {
+        sectors: usize,
+        orders: Vec<i32>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GenerationPhase {
+    Domain,
+    Geometry,
+    Mapping,
+    Symmetry,
+    Subtraction,
+    Laurent,
 }
 
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
     pub(crate) cancellation_degree: usize,
+    pub(crate) cancellation_terms: Vec<Vec<usize>>,
     pub(crate) parameters: Vec<Symbol>,
     pub(crate) coefficients: Vec<Atom>,
     pub(crate) map: SectorMap,
@@ -47,6 +83,9 @@ pub struct GeneratedSector {
 impl GeneratedSector {
     pub fn cancellation_degree(&self) -> usize {
         self.cancellation_degree
+    }
+    pub fn cancellation_terms(&self) -> &[Vec<usize>] {
+        &self.cancellation_terms
     }
     pub fn dimension(&self) -> usize {
         self.parameters.len()

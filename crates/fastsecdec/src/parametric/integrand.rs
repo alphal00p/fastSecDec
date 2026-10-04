@@ -163,6 +163,24 @@ impl ParametricIntegrand {
                 if factor.polynomial.is_zero() || factor.exponent.is_zero() {
                     continue;
                 }
+                // Native factored recognition avoids materializing a numerator's
+                // support merely to admit it on a nonprojective domain. Compound
+                // indeterminates are allowed only as parameter-independent
+                // coefficients; otherwise sparse conversion supplies the exact
+                // fallback. Projective homogeneity still requires support below.
+                if domain != ParametricDomain::ProjectiveSimplex
+                    && factor
+                        .polynomial
+                        .is_polynomial(true, false)
+                        .is_some_and(|indeterminates| {
+                            indeterminates.iter().all(|indeterminate| {
+                                atoms.iter().any(|p| *indeterminate == p.as_view())
+                                    || atoms.iter().all(|p| !indeterminate.contains(p.as_view()))
+                            })
+                        })
+                {
+                    continue;
+                }
                 let support = polynomial_support(&factor.polynomial, &parameters)?;
                 if domain == ParametricDomain::ProjectiveSimplex {
                     let degrees = support

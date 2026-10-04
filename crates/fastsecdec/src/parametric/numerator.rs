@@ -11,7 +11,7 @@ use std::collections::BTreeSet;
 use feynkit_graph::IntegralFamily;
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
-    id::Replacement,
+    id::{Pattern, Replacement},
     symbol,
     transcendental::TranscendentalFunctions,
 };
@@ -73,8 +73,8 @@ fn parameterize_family(
     }
     let replace_dimension = |expression: Atom| match native_dimension.as_view() {
         AtomView::Var(_) => expression
-            .replace(native_dimension.to_pattern())
-            .with(dimension.to_pattern()),
+            .replace(Pattern::Literal(native_dimension.clone()))
+            .with(Pattern::Literal(dimension.clone())),
         _ => expression,
     };
     let (u, f) = family.symanzik(&parameter_atoms)?;
@@ -176,7 +176,12 @@ fn parameterize_family(
         .collect::<Vec<_>>();
     let zero_sources = sources
         .iter()
-        .map(|s| Replacement::new(Atom::var(*s).to_pattern(), Atom::Zero.to_pattern()))
+        .map(|s| {
+            Replacement::new(
+                Pattern::Literal(Atom::var(*s)),
+                Pattern::Literal(Atom::Zero),
+            )
+        })
         .collect::<Vec<_>>();
     let density_powers = powers.iter().map(|p| Atom::num(p - 1)).collect::<Vec<_>>();
     let mut terms = Vec::with_capacity(polynomial.nterms());

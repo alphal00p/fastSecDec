@@ -10,6 +10,7 @@ name = "fastsecdec"
 path = "src/main.rs"
 
 [dependencies]
+feynkit-model.workspace = true
 fastsecdec.workspace = true
 symbolica.workspace = true
 feynkit-graph.workspace = true

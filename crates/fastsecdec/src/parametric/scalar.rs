@@ -1,4 +1,5 @@
 use symbolica::atom::{Atom, AtomCore, AtomView};
+use symbolica::id::Pattern;
 use symbolica::transcendental::TranscendentalFunctions;
 
 use crate::{
@@ -149,8 +150,8 @@ impl ScalarParametricIntegral {
         let symbolic_dimension = family.kinematics().dimension().to_symbolic();
         let scalar_weight = match symbolic_dimension.as_view() {
             AtomView::Var(_) => numerator
-                .replace(symbolic_dimension)
-                .with(dimension.to_pattern()),
+                .replace(Pattern::Literal(symbolic_dimension))
+                .with(Pattern::Literal(dimension.clone())),
             _ if symbolic_dimension == dimension => numerator,
             _ => return Err(Error::ConcreteDimensionMismatch),
         };

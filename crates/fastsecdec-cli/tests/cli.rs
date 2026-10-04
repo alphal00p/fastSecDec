@@ -32,6 +32,45 @@ shifts = 4
 }
 
 #[test]
+fn every_shipped_run_card_loads_through_the_native_cli() {
+    let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/runs");
+    let mut cards = fs::read_dir(examples)
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "toml")
+        })
+        .collect::<Vec<_>>();
+    cards.sort();
+    assert!(
+        cards.len() >= 23,
+        "the migrated example collection is incomplete"
+    );
+    for card in cards {
+        let inspected = cli().arg("inspect").arg(&card).output().unwrap();
+        assert!(
+            inspected.status.success(),
+            "{} failed: {} {}",
+            card.display(),
+            String::from_utf8_lossy(&inspected.stdout),
+            String::from_utf8_lossy(&inspected.stderr)
+        );
+        let inspected: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
+        assert!(
+            inspected["name"].is_string(),
+            "{} has no name",
+            card.display()
+        );
+        assert!(
+            inspected["terms"].is_number(),
+            "{} has no term count",
+            card.display()
+        );
+    }
+}
+
+#[test]
 fn portable_generation_integration_resume_and_json_errors() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
@@ -40,6 +79,7 @@ fn portable_generation_integration_resume_and_json_errors() {
     card(&input);
     let generated = cli()
         .current_dir(dir.path())
+        .arg("--status-json")
         .arg("generate")
         .arg("input.toml")
         .arg("--output")
@@ -51,8 +91,60 @@ fn portable_generation_integration_resume_and_json_errors() {
         "{}",
         String::from_utf8_lossy(&generated.stderr)
     );
+    let compilation = String::from_utf8(generated.stderr)
+        .unwrap()
+        .lines()
+        .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+        .filter(|snapshot| snapshot["stage"] == "Compilation")
+        .collect::<Vec<_>>();
+    assert_eq!(compilation.first().unwrap()["completed"], 0);
+    assert_eq!(
+        compilation.last().unwrap()["completed"],
+        compilation.last().unwrap()["total"]
+    );
     let generated: serde_json::Value = serde_json::from_slice(&generated.stdout).unwrap();
     assert_eq!(generated["orders"], serde_json::json!([0]));
+    let timings = generated["generation_timings"].as_object().unwrap();
+    let stage_seconds: f64 = timings
+        .iter()
+        .filter(|(name, _)| *name != "total_seconds")
+        .map(|(_, value)| value.as_f64().unwrap())
+        .sum();
+    assert!(timings["compilation_seconds"].as_f64().unwrap() > 0.0);
+    assert!(timings["total_seconds"].as_f64().unwrap() >= stage_seconds);
+    let benchmarked = cli()
+        .arg("benchmark")
+        .arg(&artifact)
+        .args(["--points", "16", "--repetitions", "2"])
+        .output()
+        .unwrap();
+    assert!(
+        benchmarked.status.success(),
+        "{} {}",
+        String::from_utf8_lossy(&benchmarked.stdout),
+        String::from_utf8_lossy(&benchmarked.stderr)
+    );
+    let benchmarked: serde_json::Value = serde_json::from_slice(&benchmarked.stdout).unwrap();
+    assert_eq!(benchmarked["stop"], "Complete");
+    assert_eq!(
+        benchmarked["sectors"][0]["measurements"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert!(
+        benchmarked["sectors"][0]["measurements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|sample| sample["evaluations"] == 16 && sample["complete"] == true)
+    );
+    assert!(benchmarked["loading_seconds"].as_f64().unwrap() > 0.0);
+    assert_eq!(
+        benchmarked["generation_timings"],
+        generated["generation_timings"]
+    );
     let run = cli()
         .arg("integrate")
         .arg(&artifact)
@@ -67,6 +159,14 @@ fn portable_generation_integration_resume_and_json_errors() {
     );
     let run: serde_json::Value = serde_json::from_slice(&run.stdout).unwrap();
     assert!((run["estimate"]["mean"][0].as_f64().unwrap() - 0.5).abs() < 0.002);
+    assert!(run["loading_seconds"].as_f64().unwrap() > 0.0);
+    assert_eq!(run["generation_timings"], generated["generation_timings"]);
+    // Observations are not mathematical identity and must not invalidate a
+    // production checkpoint or the portable kernel's content certificate.
+    let mut stored: serde_json::Value =
+        serde_json::from_slice(&fs::read(&artifact).unwrap()).unwrap();
+    stored["generation_timings"]["total_seconds"] = 999.0.into();
+    fs::write(&artifact, serde_json::to_vec(&stored).unwrap()).unwrap();
     let resumed = cli()
         .arg("integrate")
         .arg(&artifact)
@@ -81,6 +181,7 @@ fn portable_generation_integration_resume_and_json_errors() {
         String::from_utf8_lossy(&resumed.stdout)
     );
     let resumed: serde_json::Value = serde_json::from_slice(&resumed.stdout).unwrap();
+    assert_eq!(resumed["generation_timings"]["total_seconds"], 999.0);
     assert_eq!(run["estimate"], resumed["estimate"]);
     assert_eq!(
         run["snapshot"]["completed_points"],

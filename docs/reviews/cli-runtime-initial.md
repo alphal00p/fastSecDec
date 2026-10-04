@@ -69,13 +69,18 @@ The author maintains CLI unit tests for capped lattice growth, adaptive budget
 growth, completed resume without repeated work, partial cancellation,
 nonresumable MC pilot cancellation, and changed-setting rejection. Process
 tests cover JSON output, portable integration/resume, and SIGINT checkpointing.
-The final shared workspace gate records execution after the changes above.
+The final shared workspace gate passed all 109 tests with no failures and two
+ignored performance probes. All eight CLI tests passed, including a fresh-process
+Gamma artifact reload, cross-directory/source-change resume checks, worker-count
+overrides, actual SIGINT, and diagnostics persistence. The transcript is retained
+in ignored `output/milestone-tests.log`; milestone commit: `f559059`.
 
 The reviewer also added `tests/complex_kernel.rs`, which exposed a separate
 scientific artifact roundtrip defect: a native complex coefficient could lose
-parentheses in its canonical text and change `(2+3i)*x` into `2+3i*x`. Its fix
-and regression belong to the kernel/Symbolica work; this CLI identity review
-does not treat hashing an ambiguous textual representation as sufficient.
+parentheses in its canonical text and change `(2+3i)*x` into `2+3i*x`. The native
+Symbolica printer fix and all eight precedence-context regressions passed in the
+same gate. Hashing an ambiguous textual representation alone would not have
+protected this scientific identity.
 
 Adaptive cost estimates are measured worker time, so allocation recommendations
 can differ with machine load or worker count before production is frozen.

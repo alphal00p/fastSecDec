@@ -110,11 +110,17 @@ pub(crate) fn extreme_rays(
         for &p in &positive {
             monitor.emit()?;
             for &n in &negative {
-                let mut common: BTreeSet<_> = rays[p]
-                    .zeros
-                    .intersection(&rays[n].zeros)
-                    .copied()
-                    .collect();
+                let shared = rays[p].zeros.intersection(&rays[n].zeros);
+                // A two-dimensional face has codimension dim-2 in this cone.
+                // Its common active constraints must have at least that rank,
+                // hence at least that cardinality. Reject smaller intersections
+                // before allocating a set or scanning every other ray. This is
+                // only a necessary condition; the exact adjacency test follows.
+                let minimum_active = dim.saturating_sub(2);
+                if shared.clone().take(minimum_active).count() < minimum_active {
+                    continue;
+                }
+                let mut common: BTreeSet<_> = shared.copied().collect();
                 // Two rays span an edge iff no third ray contains their common
                 // active facets. This is the exact combinatorial DD test.
                 if rays

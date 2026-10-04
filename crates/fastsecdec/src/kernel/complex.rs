@@ -1,16 +1,17 @@
 //! Native complex kernels preserve factored coefficient expressions. Numerical
 //! output uses adjacent real/imaginary components for each Laurent coefficient.
-use super::{KernelError, PrecisionPolicy, PrecisionReport, precision};
+use super::{KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, precision};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{
-        float::{Complex, ErrorPropagatingFloat, RealLike},
+        float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
     evaluate::{ExpressionEvaluator, JITCompilationSettings, JITCompiledEvaluator},
 };
 
 pub(super) struct ComplexKernel {
+    precision_cache: super::precision_cache::PrecisionCache<Complex<Float>>,
     exact: ExpressionEvaluator<Complex<Rational>>,
     evaluator: JITCompiledEvaluator<Complex<f64>>,
     conditioning: ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>,
@@ -18,7 +19,7 @@ pub(super) struct ComplexKernel {
     output: Vec<Complex<f64>>,
     check_input: Vec<Complex<ErrorPropagatingFloat<f64>>>,
     check_output: Vec<Complex<ErrorPropagatingFloat<f64>>>,
-    cancellation_degree: usize,
+    cancellation: Cancellation,
     precision: PrecisionPolicy,
 }
 
@@ -26,7 +27,7 @@ impl ComplexKernel {
     pub(super) fn new(
         parameters: &[Symbol],
         coefficients: &[Atom],
-        cancellation_degree: usize,
+        cancellation: Cancellation,
         precision: PrecisionPolicy,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
@@ -47,6 +48,7 @@ impl ComplexKernel {
             .jit_compile::<Complex<f64>>(JITCompilationSettings::default().optimization_level(2))
             .map_err(KernelError::Compilation)?;
         Ok(Self {
+            precision_cache: Default::default(),
             exact,
             evaluator,
             conditioning,
@@ -54,7 +56,7 @@ impl ComplexKernel {
             output: vec![Complex::new(0.0, 0.0); coefficients.len()],
             check_input: vec![Complex::new(tracked(0.0), tracked(0.0)); parameters.len()],
             check_output: vec![Complex::new(tracked(0.0), tracked(0.0)); coefficients.len()],
-            cancellation_degree,
+            cancellation,
             precision,
         })
     }
@@ -90,10 +92,9 @@ impl ComplexKernel {
             target.copy_from_slice(&[value.re, value.im]);
         }
         let nonfinite = output.iter().any(|value| !value.is_finite());
-        let boundary = self.cancellation_degree > 0
-            && point
-                .iter()
-                .any(|value| *value < self.precision.boundary_threshold);
+        let boundary = self
+            .cancellation
+            .needs_check(point, self.precision.boundary_threshold);
         if boundary && !nonfinite {
             for (input, value) in self.check_input.iter_mut().zip(point) {
                 *input = Complex::new(tracked(*value), tracked(0.0));
@@ -130,9 +131,10 @@ impl ComplexKernel {
         if nonfinite || boundary {
             return precision::rescue_complex(
                 &self.exact,
+                &mut self.precision_cache,
                 point,
                 output,
-                self.cancellation_degree,
+                &self.cancellation,
                 &self.precision,
             );
         }
@@ -145,6 +147,7 @@ impl ComplexKernel {
 
     pub(super) fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            precision_cache: Default::default(),
             exact: self.exact.clone(),
             evaluator: self.evaluator.clone(),
             conditioning: self.conditioning.clone(),
@@ -152,7 +155,7 @@ impl ComplexKernel {
             output: self.output.clone(),
             check_input: self.check_input.clone(),
             check_output: self.check_output.clone(),
-            cancellation_degree: self.cancellation_degree,
+            cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
         })
     }
@@ -197,8 +200,13 @@ mod tests {
     fn native_complex_outputs_and_constants_preserve_component_order() {
         let x = symbol!("complex_test::x");
         let expressions = [weight() * parse!("(1+complex_test::x)^2"), Atom::num(5)];
-        let mut kernel =
-            ComplexKernel::new(&[x], &expressions, 0, PrecisionPolicy::default()).unwrap();
+        let mut kernel = ComplexKernel::new(
+            &[x],
+            &expressions,
+            Cancellation::new(0, None, 1).unwrap(),
+            PrecisionPolicy::default(),
+        )
+        .unwrap();
         let mut output = [0.0; 4];
         kernel.evaluate(&[0.5], &mut output).unwrap();
         assert_eq!(output, [4.5, 6.75, 5.0, 0.0]);
@@ -215,7 +223,7 @@ mod tests {
         let mut kernel = ComplexKernel::new(
             &[symbol!("complex_test::x")],
             &[weight() * parse!("1+complex_test::x")],
-            1,
+            Cancellation::new(1, None, 1).unwrap(),
             PrecisionPolicy::default(),
         )
         .unwrap();
@@ -232,7 +240,7 @@ mod tests {
         let kernel = ComplexKernel::new(
             &[symbol!("complex_test::x")],
             &[weight() * parse!("log(1+complex_test::x)/complex_test::x")],
-            1,
+            Cancellation::new(1, None, 1).unwrap(),
             PrecisionPolicy::default(),
         )
         .unwrap();

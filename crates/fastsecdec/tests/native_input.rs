@@ -341,3 +341,46 @@ fn scalar_overrides_cannot_bypass_mass_and_width_admission() {
             .is_ok()
     );
 }
+
+#[test]
+fn scalar_bindings_and_dimension_names_ending_in_underscore_are_literal() {
+    let dimension = parse!("native_dimension_");
+    let kin = Kinematics::in_dimension(&dimension)
+        .unwrap()
+        .with_mass_squared(
+            &symbols::external_momentum().call(1),
+            parse!("native_invariant_"),
+        )
+        .unwrap();
+    let graph = GraphIntegral::from_dot(model(), BUBBLE, &kin)
+        .unwrap()
+        .with_measure_multiplier(parse!("native_weight_*(native_dimension_+untouched)"))
+        .with_scalar_values(&BTreeMap::from([
+            (symbol!("native_invariant_"), Atom::num(-1)),
+            (symbol!("native_weight_"), Atom::num(3)),
+        ]))
+        .unwrap();
+    assert_eq!(
+        graph.measure_multiplier(),
+        &parse!("3*(native_dimension_+untouched)")
+    );
+    let scalar = ScalarParametricIntegral::from_graph(
+        &graph,
+        vec![parse!("x"), parse!("y")],
+        parse!("4-2*eps"),
+    )
+    .unwrap();
+    assert_eq!(scalar.f(), &parse!("x*y"));
+    assert_eq!(
+        scalar.prefactor(),
+        &parse!("3*(4-2*eps+untouched)*gamma(eps)")
+    );
+    let general = fastsecdec::parametric::ParametricIntegrand::from_graph(
+        &graph,
+        vec![symbol!("x"), symbol!("y")],
+        symbol!("eps"),
+        parse!("4-2*eps"),
+    )
+    .unwrap();
+    assert_eq!(general.terms()[0].prefactor(), scalar.prefactor());
+}

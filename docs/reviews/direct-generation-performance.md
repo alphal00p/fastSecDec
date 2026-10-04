@@ -72,4 +72,109 @@ taking 70.1 seconds. Thus rescue is not rare for this workload. The production
 fallback now uses previously built native numeric evaluator IR, with exact
 constants remapped to Float precision and no Atom/Workspace operations on
 workers. The short mathematical and complex-worker regressions pass; throughput
-of this new fallback remains to be measured. Accuracy policy was not loosened.
+of this new fallback is measured below. Accuracy policy was not loosened.
+
+The saved 152-sector artifact isolates precision evaluation from generation and
+compilation. On the fixed Kuo-1024/shift-481/Korobov-3 diagnostic points (64 per
+sector), native numeric rescue evaluated 9,728 vectors in **24.729 seconds**:
+3,289 received conditioning checks and 2,465 required MPFR. The full 48,640
+coefficient values and chosen precision counts are retained in
+`output/probes/double-box-precision-numeric-uncached.json`.
+
+The first worker-local cache experiment rounded starting precision upward to
+binary tiers and retained at most four native evaluator/buffer sets per worker
+sector. It returned **bitwise identical coefficient values**, but regressed to
+**38.533 seconds**. Binary rounding moved 1,184 rescues to 512 bits and another
+44 to 1,024 bits; the original calculation often needed only 258–498 bits.
+The cache therefore did not establish a performance improvement. The next
+controlled experiment keeps the same bounded native cache but rounds starting
+precision in 32-bit steps, preserving the lost-bit lower bound and the required
+agreement between two distinct increasing precisions. It completed in
+**19.601 seconds**, again with identical check/rescue counts and all 48,640
+coefficient values bitwise unchanged: approximately 1.26 times the throughput
+of the uncached numeric evaluator on these diagnostic points. Artifact loading
+and compilation took 34.246 seconds and are excluded from this measurement.
+The report is `output/probes/double-box-precision-numeric-cached32.json`.
+Cache memory is bounded per sector; the aggregate budget for thousands of
+sectors and several workers still needs measurement.
+
+Reference precision dispatch also explains an important performance difference:
+its 32-decimal-digit lane uses Symbolica's native `DoubleFloat` evaluator, not
+MPFR. In the reference Python binding, `python_api/evaluator.rs` around line
+1237 calls `evaluate_double_float_complex`; the higher precision path around
+line 1244 caches a native Float evaluator for the selected bit count. Reference
+boundary checks inspect singular axes. The initial Rust metadata has only a
+single conservative cancellation degree and checks every coordinate. Planned
+per-piece, per-axis metadata must preserve the actual lost-bit guard and full
+vector cancellation while avoiding checks triggered by unrelated coordinates.
+
+The next implementation slice carries the actual cancellation orders of each
+retained Taylor remainder. A point's conservative lost-bit estimate is the
+maximum, over these remainder terms, of the sum of
+`degree[axis] * log2(1 / coordinate[axis])`. This also controls the conditioning
+trigger: a high Taylor degree can require checking an ordinary interior point,
+while a tiny coordinate unrelated to any subtraction should not trigger it.
+The raw per-term data and derived degree are stored in artifact identity;
+historical artifacts without those rows retain their old conservative total
+degree bound. All precision thresholds and the two-precision agreement policy
+remain unchanged.
+
+Common parameter-independent prefactors are detached before differentiation and
+reattached around the complete sum of endpoint pieces. Terms with identical
+endpoint powers but different prefactors are first recombined, so factoring
+does not remove a cancellation that makes their sum integrable. Complete mapped
+densities, including these prefactors and every numerator, are passed to native
+graph canonization and exact permutation verification before representatives
+are integrated with their multiplicities.
+
+The library also exposes explicit Taylor and integration-by-parts strategies.
+For a regulated power `lambda = a + b*eps` with `a <= -2`, the latter repeatedly
+uses the exact meromorphic identity
+`I(lambda,f) = f(1)/(lambda+1) - I(lambda+1,f')/(lambda+1)`
+until a single Taylor subtraction is sufficient. Native Symbolica owns the
+derivatives, substitutions and Laurent series. The boundary at one and its
+epsilon-dependent denominator remain in the same correlated output vector.
+The default remains Taylor while independent integral identities and the
+representative workload measurements validate the new strategy. Pointwise
+Taylor formulas must not be compared to an IBP integrand: their integrals agree,
+but their finite integrands need not agree at individual sample points.
+
+The paired fresh double-box probes use the same input, precision policy and
+64-point-per-representative rule. Complete-density symmetry reduces the 152
+charts to 102 verified representatives in both strategies:
+
+| Strategy | Generation | O2 compilation | Portable artifact | 6,528 evaluations | MPFR rescues |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Factored Taylor | 6.849 s | 6.527 s | 33.13 MB | 1.667 s | 2,302 |
+| Factored IBP | 11.107 s | 11.421 s | 59.04 MB | 1.548 s | 1,309 |
+
+Taylor therefore remains the default. IBP lowers the frequency of rescue but
+enlarges the expressions and generation work on this example. The independent
+strategy tests compare complete integral identities, including higher endpoint
+powers, rather than individual Taylor/IBP sample values. These diagnostics do
+not establish full double-box accuracy or matched reference performance.
+Artifacts and stage reports are retained as
+`output/probes/double-box-{taylor,ibp}-factored.fsd` and
+`double-box-generation-{taylor,ibp}-factored.json`.
+
+After these paired measurements, an exact cleanup removes the derivative taken
+after the last requested Taylor coefficient; that derivative was never used.
+The next whole-integral measurements will include this cleanup.
+
+The mapped-factor cleanup preserves the primary factored Atom whenever no
+coordinate monomial needs removal. In nonnegative charts, nonvanishing
+coordinate faces provide a fast path that avoids enumerating the support of
+regular weights such as `(1+x)^10000` and `(x+y)^10000`; those weights remain
+compact through Laurent coefficient generation. When stripping is necessary,
+native signed polynomial collection followed by `mul_exp` handles ordinary and
+orthant-infinity charts, with checked exponent bounds. Singular residuals still
+receive exact native coefficient/constant-term and boundary validation.
+
+A factored Taylor identity need not normalize to literal zero. The final
+required derivative provides a sufficient exactness test: if it is independent
+of the current axis, the Taylor polynomial exhausts that regular function and
+its remainder is zero. This eliminates spurious numerical pieces without an
+expansion or an unused additional derivative. The existing three-axis
+polynomial identity exercises intersecting faces and negative regulator slopes;
+the compact-power regression guards against reintroducing dense primary
+expressions during mapping or Laurent cleanup.

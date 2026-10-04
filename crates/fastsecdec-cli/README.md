@@ -5,6 +5,11 @@ and TOML run cards. Paths inside a run card are relative to that card. External
 scalar products use the graph's native `P(index)` basis; `inspect` reports that
 basis. The shipped run cards in `examples/runs` provide complete inputs.
 
+Inline `[parameters]` values remain exact Symbolica expressions. Derived model
+parameters and couplings use their analytic definitions at the selected point;
+cached values from another point are not reused. Explicit internal values in a
+native restriction card remain fixed unless overridden inline.
+
 ```sh
 fastsecdec inspect examples/runs/bubble.toml
 fastsecdec generate examples/runs/bubble.toml --output output/bubble.fsd.json
@@ -18,6 +23,14 @@ fastsecdec check-boundaries output/bubble.fsd.json
 document to stdout; `--status-json` streams public status snapshots to stderr.
 The documented Symbolica banner display setting is applied before library
 initialization so machine-readable stdout remains clean. Licensing is unchanged.
+
+Generation snapshots update after each compiled kernel and include cumulative
+stage timings. Final JSON and artifacts retain input, parametrization, domain
+checks, geometry, mapping, verified symmetry, subtraction, Laurent expansion,
+and compilation times. Generation total ends after preparing artifact metadata,
+before the final file write. Artifact commands also report cold loading and
+recompilation time. These observations are excluded from scientific content
+identity and checkpoint compatibility.
 
 Integration methods are `qmc`, `adaptive_qmc`, `mc`, and `adaptive_mc`.
 Bundled QMC rules support powers of two from 1024 through 2^20 points.
@@ -41,9 +54,19 @@ report marks this as `pilot_restart_required`.
 Precision diagnostics count cumulative evaluation attempts, conditioning
 checks, and rescues across pilots and refinement rounds. Checkpoints preserve
 these counters. They differ from the current stage's completed-point count.
-Boundary diagnostics include individual faces and simultaneous lower, upper,
-and alternating corner approaches; these probes diagnose numerical evaluation
-and do not prove the absence of thresholds.
+Boundary diagnostics enumerate coordinate subsets and every lower/upper side
+assignment through `--max-codimension` (default 2), up to `--max-probes` total
+points (default 10,000). Reports state configured/planned/completed coverage and
+whether the budget truncated it. Increasing codimension includes higher face
+intersections; finite samples do not prove the absence of thresholds.
+
+Benchmark and boundary routines are public Rust APIs under
+`fastsecdec::diagnostics`. Ctrl-C preserves completed diagnostic rows and labelled
+partial benchmark repetitions; incomplete repetitions do not enter the timing
+median. `--status-json` streams their typed progress events. Kernel benchmark
+timings include coordinate generation and checked evaluation, and exclude time
+spent displaying progress. The final report retains load/generation timings
+separately from the measured repetitions.
 
 Portable artifacts store exact expressions, compilation policy, source hashes,
 normalization, domain assertions and exact dependency identities. Loading an

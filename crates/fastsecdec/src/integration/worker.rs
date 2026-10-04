@@ -81,6 +81,17 @@ impl QmcWorker {
         task: QmcTask,
         mut evaluate: impl FnMut(&[f64], &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<QmcReturn> {
+        self.evaluate_with_weight(task, |point, _, output| evaluate(point, output))
+    }
+
+    /// Expose the known periodization weight for evaluation error budgeting.
+    /// The callback writes unweighted coefficients; this worker applies the
+    /// supplied weight exactly once after the callback returns.
+    pub fn evaluate_with_weight<E: Display>(
+        &mut self,
+        task: QmcTask,
+        mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<QmcReturn> {
         if task.content_id != self.content_id
             || task.epoch != self.epoch
             || task.sector_id != self.sector_id
@@ -101,7 +112,7 @@ impl QmcWorker {
                 Periodization::Korobov3 => Korobov3::transform_in_place(&mut self.point)?,
             };
             self.values.fill(f64::NAN);
-            evaluate(&self.point, &mut self.values)
+            evaluate(&self.point, weight, &mut self.values)
                 .map_err(|error| IntegrationError::Evaluation(error.to_string()))?;
             for value in &mut self.values {
                 *value *= weight;

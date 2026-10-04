@@ -8,6 +8,35 @@ use fastsecdec::{
 use numerica::numerical_integration::qmc::QmcPartial;
 
 #[test]
+fn callback_observes_periodization_weight_applied_exactly_once() {
+    let mut configuration = settings();
+    configuration.periodization = Periodization::Korobov3;
+    let mut session = QmcSession::democratic(problem(), configuration).unwrap();
+    let mut nontrivial = false;
+    for task in tasks(&mut session) {
+        let value = session
+            .worker_context(task.sector_id())
+            .unwrap()
+            .evaluate_with_weight(task, |point, weight, output| {
+                assert!(point.iter().all(|x| (0.0..1.0).contains(x)));
+                assert!(weight > 0.0 && weight.is_finite());
+                nontrivial |= (weight - 1.0).abs() > 0.01;
+                output[0] = 1.0 / weight;
+                output[1] = -2.0 / weight;
+                Ok::<_, String>(())
+            })
+            .unwrap();
+        session.submit(value).unwrap();
+    }
+    assert!(nontrivial);
+    let estimate = session.estimate().unwrap();
+    // Two sectors plus the exact vector [1,-3]. The reciprocal cancels one
+    // application of the supplied Jacobian, so missing/double weighting fails.
+    assert!((estimate.mean[0] - 3.0).abs() < 1e-14);
+    assert!((estimate.mean[1] + 7.0).abs() < 1e-14);
+}
+
+#[test]
 fn complex_coefficients_retain_real_imaginary_covariance() {
     use fastsecdec::integration::CoefficientComponent::{Imag, Real};
     let problem = IntegrationProblem::new_with_components(

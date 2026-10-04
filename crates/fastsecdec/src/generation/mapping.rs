@@ -1,21 +1,24 @@
 use super::GenerationError;
-use crate::parametric::{FactorRole, ParametricIntegrand};
+use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::integer::Integer,
-    id::Replacement,
+    id::{Pattern, Replacement},
 };
 
 pub(super) struct MappedTerm {
     pub powers: Vec<Atom>,
+    pub prefactor: Atom,
     pub regular: Atom,
 }
 
 /// Extract monomials using exact Newton support, leaving nonnegative powers in
 /// every residual polynomial. Numerator factors share the map but do not refine
-/// the fan. Symbolica owns substitution, expansion and coefficient arithmetic.
+/// the fan. Symbolica owns substitution, sparse polynomial collection and
+/// coefficient arithmetic; mapped factors stay factored unless a nonzero
+/// monomial valuation must actually be removed.
 pub(super) fn map_terms(
     input: &ParametricIntegrand,
     map: &SectorMap,
@@ -32,7 +35,12 @@ pub(super) fn map_terms(
                 .product::<Atom>()
         })
         .collect::<Vec<_>>();
-    let mut combined = BTreeMap::<Vec<Atom>, Atom>::new();
+    let nonnegative_map = map
+        .exponent_matrix
+        .iter()
+        .flatten()
+        .all(|power| power >= &0);
+    let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     for term in input.terms() {
         let mut powers = map
             .jacobian_powers
@@ -45,48 +53,93 @@ pub(super) fn map_terms(
                 *current += power * Atom::num(exponent.clone());
             }
         }
-        let mut regular = term.prefactor() * Atom::num(map.determinant.clone());
+        let prefactor = term.prefactor() * Atom::num(map.determinant.clone());
+        let mut regular = Atom::one();
         for factor in term.factors() {
             if factor.exponent().is_zero() {
                 continue;
             }
-            let support = factor.support(input.parameters())?;
-            let transformed = support
-                .exponents()
-                .iter()
-                .map(|row| {
-                    (0..parameters.len())
-                        .map(|j| {
-                            row.iter()
-                                .zip(&map.exponent_matrix)
-                                .fold(Integer::from(0), |sum, (a, m)| sum + a * &m[j])
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>();
-            let minima = (0..parameters.len())
-                .map(|j| transformed.iter().map(|row| &row[j]).min().unwrap().clone())
-                .collect::<Vec<_>>();
             let mapped =
                 factor
                     .polynomial()
                     .replace_multiple(input.parameters().iter().zip(&images).map(
                         |(source, target)| {
-                            Replacement::new(Atom::var(*source).to_pattern(), target.to_pattern())
+                            Replacement::new(
+                                Pattern::Literal(Atom::var(*source)),
+                                Pattern::Literal(target.clone()),
+                            )
                         },
                     ));
-            let inverse_monomial = variables
-                .iter()
-                .zip(&minima)
-                .map(|(variable, power)| variable.pow(Atom::num(-power)))
-                .product::<Atom>();
-            let residual = (mapped * inverse_monomial).expand();
-            // Check the actual expression after substitution, rather than trusting
-            // exponent supports when coefficients might have cancelled.
-            crate::parametric::polynomial_support(&residual, parameters)?;
-            let regular_polynomial = super::subtraction::rational(factor.exponent())
-                .is_some_and(|power| power.is_integer() && power >= 0);
-            if factor.role() == FactorRole::Singularity && !regular_polynomial {
+            // For a polynomial map, nonvanishing coordinate faces exclude a
+            // common coordinate monomial without enumerating dense support.
+            // This preserves both (1+x)^10000 and (x+y)^10000. Singular factors
+            // still receive exact polynomial residual/domain validation below.
+            let zero_valuation = nonnegative_map
+                && variables.iter().all(|variable| {
+                    !mapped
+                        .replace(Pattern::Literal(variable.clone()))
+                        .with(Atom::Zero)
+                        .is_zero()
+                });
+            let (minima, residual) = if zero_valuation {
+                (vec![Integer::from(0); parameters.len()], mapped)
+            } else {
+                let support = factor.support(input.parameters())?;
+                let transformed = support
+                    .exponents()
+                    .iter()
+                    .map(|row| {
+                        (0..parameters.len())
+                            .map(|j| {
+                                row.iter()
+                                    .zip(&map.exponent_matrix)
+                                    .fold(Integer::from(0), |sum, (a, m)| sum + a * &m[j])
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .collect::<Vec<_>>();
+                let minima = (0..parameters.len())
+                    .map(|j| transformed.iter().map(|row| &row[j]).min().unwrap().clone())
+                    .collect::<Vec<_>>();
+                let residual = if minima.iter().all(|power| power == &0) {
+                    mapped
+                } else {
+                    // Signed native polynomial exponents support orthant
+                    // infinity charts. Bound conversion before invoking the
+                    // fixed-width native collector and monomial shift.
+                    let signed = |value: &Integer| {
+                        value
+                            .to_i64()
+                            .and_then(|v| i32::try_from(v).ok())
+                            .ok_or(GenerationError::ResourceLimit("mapped polynomial exponent"))
+                    };
+                    for row in &transformed {
+                        for (power, minimum) in row.iter().zip(&minima) {
+                            signed(power)?;
+                            signed(&(power - minimum))?;
+                        }
+                    }
+                    let shifts = minima
+                        .iter()
+                        .map(|value| signed(&-value))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let polynomial = mapped
+                        .to_polynomial_in_vars::<i32>(&variables)
+                        .mul_exp(&shifts);
+                    if polynomial
+                        .exponents_iter()
+                        .flatten()
+                        .any(|power| *power < 0)
+                    {
+                        return Err(GenerationError::Invariant(
+                            "negative exponent after monomial extraction".into(),
+                        ));
+                    }
+                    polynomial.flatten(false)
+                };
+                (minima, residual)
+            };
+            if super::domain::is_singular(factor) {
                 super::domain::check_residual(&residual, parameters)?;
             }
             for (power, valuation) in powers.iter_mut().zip(minima) {
@@ -95,11 +148,30 @@ pub(super) fn map_terms(
             regular *= residual.pow(factor.exponent());
         }
         let powers = powers.into_iter().map(|p| p.expand()).collect();
-        *combined.entry(powers).or_insert(Atom::Zero) += regular;
+        *combined
+            .entry(powers)
+            .or_default()
+            .entry(prefactor)
+            .or_insert(Atom::Zero) += regular;
     }
     Ok(combined
         .into_iter()
-        .filter(|(_, regular)| !regular.is_zero())
-        .map(|(powers, regular)| MappedTerm { powers, regular })
+        .filter_map(|(powers, mut prefactors)| {
+            // Preserve cancellation between terms with the same endpoint powers.
+            // Only detach a genuinely common, parameter-independent factor.
+            let (prefactor, regular) = if prefactors.len() == 1 {
+                prefactors.pop_first().unwrap()
+            } else {
+                (
+                    Atom::one(),
+                    prefactors.into_iter().map(|(p, r)| p * r).sum(),
+                )
+            };
+            (!regular.is_zero() && !prefactor.is_zero()).then_some(MappedTerm {
+                powers,
+                prefactor,
+                regular,
+            })
+        })
         .collect())
 }

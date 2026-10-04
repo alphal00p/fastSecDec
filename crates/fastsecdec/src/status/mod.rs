@@ -1,7 +1,9 @@
 //! Serializable status snapshots with terminal-independent display functions.
 mod diagnostics;
+mod timings;
 pub use diagnostics::{DiagnosticsOverflow, EvaluationDiagnostics};
 use std::fmt;
+pub use timings::GenerationTimings;
 
 use serde::{Deserialize, Serialize};
 
@@ -117,6 +119,8 @@ pub enum GenerationStage {
     Input,
     Parametrization,
     Geometry,
+    Mapping,
+    Symmetry,
     Subtraction,
     Expansion,
     Compilation,
@@ -131,6 +135,8 @@ pub struct GenerationSnapshot {
     pub sectors: usize,
     pub kernels: usize,
     pub elapsed_seconds: f64,
+    #[serde(default)]
+    pub timings: GenerationTimings,
     pub detail: String,
 }
 

@@ -82,11 +82,15 @@ enum Action {
         #[arg(long, default_value_t = 5)]
         repetitions: usize,
     },
-    /// Probe finite evaluation while approaching every boundary from inside.
+    /// Sample bounded coordinate faces from inside, including face intersections.
     CheckBoundaries {
         artifact: PathBuf,
         #[arg(long, value_delimiter = ',', default_value = "3,6,9,12,15")]
         exponents: Vec<i32>,
+        #[arg(long, default_value_t = 2)]
+        max_codimension: usize,
+        #[arg(long, default_value_t = 10_000)]
+        max_probes: usize,
     },
 }
 
@@ -198,7 +202,7 @@ fn run(cli: Cli) -> CliResult<()> {
             let (artifact, kernels) = generate::generate(&input, &output, &mut dashboard)?;
             drop(dashboard);
             report(
-                &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders()}),
+                &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings}),
                 render_json,
             )?;
         }
@@ -276,7 +280,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 report(
                     &serde_json::json!({"content_id":artifact.content_id,"provenance":artifact.provenance,
                     "orders":kernels.orders(),"sectors":kernels.sectors().len(),"dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
-                    "exact_coefficients":kernels.exact_coefficients()}),
+                    "exact_coefficients":kernels.exact_coefficients(),"generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds}),
                     render_json,
                 )?;
             }
@@ -286,29 +290,47 @@ fn run(cli: Cli) -> CliResult<()> {
             points,
             repetitions,
         } => {
-            let (_, mut kernels) = artifact::Artifact::load(&artifact)?;
-            report(
-                &serde_json::to_value(diagnostics::benchmark(&mut kernels, points, repetitions)?)?,
-                render_json,
+            let (artifact, mut kernels) = artifact::Artifact::load(&artifact)?;
+            let dashboard = display::Dashboard::new(false, false)?;
+            let benchmark = fastsecdec::diagnostics::benchmark(
+                &mut kernels,
+                &fastsecdec::diagnostics::BenchmarkOptions {
+                    points,
+                    repetitions,
+                    ..Default::default()
+                },
+                |progress| diagnostics::observe(&dashboard, cli.status_json, progress),
             )?;
+            let failed =
+                benchmark.stop == fastsecdec::diagnostics::DiagnosticStop::EvaluationFailure;
+            let mut result = serde_json::to_value(benchmark)?;
+            result["loading_seconds"] = artifact.loading_seconds.into();
+            result["generation_timings"] = serde_json::to_value(artifact.generation_timings)?;
+            report(&result, render_json)?;
+            if failed {
+                return Err(ReportedFailure.into());
+            }
         }
         Action::CheckBoundaries {
             artifact,
             exponents,
+            max_codimension,
+            max_probes,
         } => {
-            if exponents
-                .iter()
-                .any(|exponent| !(1..=15).contains(exponent))
-            {
-                return Err("boundary exponents must lie between 1 and 15 for representable upper-boundary distances".into());
-            }
             let (_, mut kernels) = artifact::Artifact::load(&artifact)?;
-            let probes = diagnostics::boundaries(&mut kernels, &exponents);
-            let failed = probes.iter().filter(|probe| !probe.finite).count();
-            report(
-                &serde_json::json!({"probes":probes,"failures":failed}),
-                render_json,
+            let dashboard = display::Dashboard::new(false, false)?;
+            let boundaries = fastsecdec::diagnostics::boundaries(
+                &mut kernels,
+                &fastsecdec::diagnostics::BoundaryOptions {
+                    exponents,
+                    max_codimension,
+                    max_probes,
+                    ..Default::default()
+                },
+                |progress| diagnostics::observe(&dashboard, cli.status_json, progress),
             )?;
+            let failed = boundaries.failures;
+            report(&serde_json::to_value(boundaries)?, render_json)?;
             if failed > 0 {
                 return Err(ReportedFailure.into());
             }

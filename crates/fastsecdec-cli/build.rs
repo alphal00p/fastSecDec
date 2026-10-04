@@ -67,7 +67,8 @@ fn main() {
         }
         // Reference sources are local path dependencies; Cargo detects their
         // recompilation, while these paths refresh embedded provenance too.
-        println!("cargo:rerun-if-changed={}", path.join("src").display());
+        let sources = if name == "FEYNKIT" { "crates" } else { "src" };
+        println!("cargo:rerun-if-changed={}", path.join(sources).display());
         println!(
             "cargo:rerun-if-changed={}",
             path.join("Cargo.toml").display()

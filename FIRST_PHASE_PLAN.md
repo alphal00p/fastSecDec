@@ -58,6 +58,20 @@ Before implementing any computer-algebra or graph capability:
 
 Record the evidence and the narrow missing operation. Implement new functionality only after these checks establish the gap.
 
+Repeat a broad HEPKit integration and ecosystem-reuse audit at every major
+subsystem milestone, before accepting a new dependency patch, and before final
+phase-one acceptance. Assign the review to a subagent independent of the relevant
+implementation. Review native graph, model, kinematics and Atom ownership;
+public library interfaces; typed status, errors and persistence; caller-owned
+execution; unnecessary serialization; and any duplicated graph, algebra or
+numerical functionality. Include existing one-loop scalar masters and reduction
+as numerical cross-check providers, without limiting the audit to those examples.
+Require API, source/test and executable evidence for reuse decisions. Record
+findings, fixes, justified gaps and the next audit boundary in `docs/reviews/`
+and `docs/REUSE_AUDIT.md`. Resolve avoidable duplication and integration blockers
+before accepting the affected milestone; do not claim future compatibility from
+an unchecked interface alone.
+
 Preserve factored Symbolica expressions throughout the pipeline. Avoid expansion
 unless a specific operation requires it, and document those boundaries. Exact
 support extraction may require polynomial coefficients; it does not justify
@@ -82,6 +96,7 @@ Use the following existing owners:
 | JIT and batch evaluation | Symbolica's SymJIT interfaces |
 | MC integration and numeric types | Numerica/Havana |
 | Symbolic integration, if needed | Existing Rust `symbolica-integrate` functionality |
+| One-loop scalar master references and reduction | Existing native HEPKit/FeynKit integral APIs |
 
 **Use Linnet directly.** `FeynmanDiagram` already owns a Linnet `HedgeGraph` and exposes its underlying graph. Reuse stable edge/vertex IDs, connectivity, bridges, cycles, subgraphs, spanning forests and traversal primitives. Do not create another physical graph representation, DOT parser, momentum-routing implementation, or graph canonicalizer.
 
@@ -451,6 +466,10 @@ Continue as planned, but note that the `All 15 historical DOT` must not remain i
 (Continue as planned, but indeed avoiding expansions unless absolutely necessary is key for a powerful use of Symbolica (which unlike FORM does not need to ever expand))
 ```
 
+```text
+Continue as planned, but periodically run an audit verifying that your implementation is perfectly setup for a future integration in HEPKit and also uses HEPKit primitives wherever it can, without re-implementing its own versions (e.g. for numerical test/cross-checks the one-loop master scalar integrals are already available there, and even on-loop reduction if need be; that's just an example, your auditing subagents should review that aspect broadly).
+```
+
 ## Implementation record
 
 - 2026-10-04: implementation authorized; goal activated; plan saved. FastSecDec remains on `main`. Isolated pinned dependency worktrees prepared. Three agents assigned native input/dependency integration, exact sector geometry, and Numerica QMC. Acceptance gates remain pending.
@@ -458,3 +477,5 @@ Continue as planned, but note that the `All 15 historical DOT` must not remain i
 - 2026-10-04: Numerica QMC implementation committed independently as `e26d3dd3ee0683c5acd9706eb95fb6b66f24147b`, followed by peer-review fixes in `e9b7481d66b8f9d0c5e58ccabc4d6644e7fd479a` on `codex/havana-qmc`. The author reports 174 library, 14 API regression, 23 QMC and 22 documentation tests passing with serde. Independent review identified and drove corrections to large-offset covariance and maximum-modulus periodic shifts; the reviewer executed both reproductions against the fix and verified their expected results. No pushes or changes to existing MC interfaces.
 - 2026-10-04: native fixtures now cover all 15 historical DOT examples, plus a bubble, with 19 graph TOML cards and three direct-polynomial cards. The two example-input tests pass, including exact numerator and propagator-multiset checks for all five numerator graphs. This validates native topology and routing, not numerical integration of every card. Historical targets retain provenance; the double-box file's manually supplied target has no usable reference uncertainty. The triangle-numerator card resolves the historical unused-leg inconsistency while preserving its actual explicit-propagator integral. See `examples/README.md`.
 - 2026-10-04: direct-generation and standalone-runtime milestone: native Gaussian polynomial numerators, factored endpoint subtraction and full Laurent vectors, portable SymJIT O2 kernels with native MPFR rescue, caller-driven QMC/MC sessions, checkpoint validation, and CLI generation/integration/inspection/boundary diagnostics with typed status and a live terminal dashboard. The complete workspace gate passed 109 tests, with two expensive probes explicitly ignored. Native two-worker bubble, triangle and analytic endpoint runs, fresh-process complex/Gamma artifact reloads, and terminal cancellation/checkpoint restoration were exercised. Three small Symbolica fixes are recorded as upstream-ready patches; Numerica is pinned at `617f7a56f8f168cd7498177c7db4a40b098eb135`. There are now 23 run cards. Boundary assertions cannot override unresolved singular faces. Factored Laurent templates reduced the diagnostic double-box generation time from 100.309 to 26.211 seconds; these development-build observations do not establish performance parity. Complete-density symmetry, further cancellation/IBP and geometry optimization, all-example numerical certification, and matched performance acceptance remain pending.
+- 2026-10-04: subsequent workspace gate passed 133 tests with four explicit performance probes ignored. It includes verified full-density Graphica symmetry, independent integral multiplicity checks, all 23 native run-card loads, native massless-box numerical validation, literal caller-symbol regressions, Taylor/IBP identities, per-axis cancellation metadata and typed stage timings. The release geometry stress case improved from 99.351 to 11.276 seconds with matching ordered-map fingerprints. Fresh factored double-box generation produced 102 representatives from 152 charts; Taylor was faster to generate and compile than IBP and remains the default. These are local diagnostic measurements, not matched performance acceptance. The recurring HEPKit audit identified a reproducible stale model-cache bug, CLI-only reusable diagnostics and remaining mapped-factor expansion; their fixes and native one-loop master cross-checks are in progress before accepting the next milestone. See `docs/reviews/hepkit-integration-audit-2026-10-04.md`.
+- 2026-10-04: HEPKit reuse/diagnostics milestone validated: **147 workspace tests passed**, four performance probes intentionally ignored; formatting and all-target Clippy pass. The audit's model-cache, reusable-diagnostic and mapped-expansion findings are fixed. Three native master tests cover eleven one-loop points with exact normalization and scales. Boundary diagnostics now expose bounded typed face coverage, streamed results and cancellation; benchmarks preserve partial repetitions. Regular degree-10,000 factors stay compact, and a three-axis Taylor/IBP integral identity passes without forced expansion. Production dependencies still exclude Python, pySecDec and CLI presentation crates; the native master provider is development-only. Future wrapper accessors are documented for the bridge phase. Weighted-sample replay, complete multiloop/numerator/orthant numerical certification, and matched performance gates remain open.

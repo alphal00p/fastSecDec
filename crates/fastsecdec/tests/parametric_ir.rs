@@ -103,3 +103,78 @@ fn regulator_dependent_singularities_and_parameter_dependent_exponents_are_rejec
         .is_err()
     );
 }
+
+#[test]
+fn native_polynomial_predicate_distinguishes_factored_coordinates_and_coefficients() {
+    let compact = parse!("(x+y)^10000");
+    let coordinates = compact.is_polynomial(true, false).unwrap();
+    assert_eq!(coordinates.len(), 2);
+    assert!(coordinates.contains(&parse!("x").as_view()));
+    assert!(coordinates.contains(&parse!("y").as_view()));
+
+    // Native polynomial variables may be compound indeterminates. Admission
+    // must verify that these do not hide coordinate dependence.
+    for expression in [parse!("sin(x)"), parse!("x^eps"), parse!("(1+x)^(-2)")] {
+        assert!(
+            expression
+                .is_polynomial(true, false)
+                .is_none_or(|variables| {
+                    variables.iter().any(|variable| {
+                        variable.contains(parse!("x").as_view())
+                            && *variable != parse!("x").as_view()
+                    })
+                })
+        );
+    }
+    // The general native predicate treats s and sin(s) as conflicting
+    // indeterminates even though both are harmless scalar coefficients in x.
+    let coefficient = parse!("x*(sin(s)+s)");
+    assert!(coefficient.is_polynomial(true, false).is_none());
+    assert!(polynomial_support(&coefficient, &[symbol!("x")]).is_ok());
+}
+
+#[test]
+fn nonprojective_admission_keeps_large_powers_factored_with_exact_fallback() {
+    for domain in [
+        ParametricDomain::UnitCube,
+        ParametricDomain::PositiveOrthant,
+    ] {
+        for polynomial in [parse!("(x+y)^10000"), parse!("x*(sin(s)+s)")] {
+            let integral = ParametricIntegrand::new(
+                vec![symbol!("x"), symbol!("y")],
+                symbol!("eps"),
+                domain,
+                vec![ParametricTerm::new(
+                    Atom::one(),
+                    vec![Atom::Zero; 2],
+                    vec![PolynomialFactor::new(
+                        polynomial.clone(),
+                        Atom::one(),
+                        FactorRole::Polynomial,
+                    )],
+                )],
+            )
+            .unwrap();
+            assert_eq!(integral.terms()[0].factors()[0].polynomial(), &polynomial);
+        }
+        for polynomial in [parse!("sin(x)"), parse!("x^eps"), parse!("(1+x)^(-2)")] {
+            assert!(
+                ParametricIntegrand::new(
+                    vec![symbol!("x"), symbol!("y")],
+                    symbol!("eps"),
+                    domain,
+                    vec![ParametricTerm::new(
+                        Atom::one(),
+                        vec![Atom::Zero; 2],
+                        vec![PolynomialFactor::new(
+                            polynomial,
+                            Atom::one(),
+                            FactorRole::Polynomial
+                        )],
+                    )],
+                )
+                .is_err()
+            );
+        }
+    }
+}

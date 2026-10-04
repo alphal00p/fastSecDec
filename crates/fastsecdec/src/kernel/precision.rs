@@ -1,4 +1,4 @@
-use super::KernelError;
+use super::{KernelError, cancellation::Cancellation, precision_cache::PrecisionCache};
 use symbolica::{
     domains::{
         float::{Complex, Float, RealLike},
@@ -59,53 +59,49 @@ pub struct PrecisionReport {
 
 pub(super) fn rescue(
     exact: &ExpressionEvaluator<Complex<Rational>>,
+    cache: &mut PrecisionCache<Float>,
     point: &[f64],
     output: &mut [f64],
-    cancellation_degree: usize,
+    cancellation: &Cancellation,
     policy: &PrecisionPolicy,
 ) -> Result<PrecisionReport, KernelError> {
-    let count = output.len();
-    converge(point, output, cancellation_degree, policy, 1, |bits| {
-        let mut evaluator = exact.clone().map_coeff_with_prec(
-            &|coefficient| coefficient.re.to_multi_prec_float(bits),
-            bits,
-        );
-        let input = point
+    converge(point, output, cancellation, policy, 1, |bits| {
+        cache
+            .evaluate(
+                exact,
+                point,
+                bits,
+                |coefficient| coefficient.re.to_multi_prec_float(bits),
+                |value| Float::with_val(bits, value),
+            )
             .iter()
-            .map(|value| Float::with_val(bits, *value))
-            .collect::<Vec<_>>();
-        let mut values = vec![Float::with_val(bits, 0); count];
-        evaluator.evaluate(&input, &mut values);
-        values.iter().map(RealLike::to_f64).collect()
+            .map(RealLike::to_f64)
+            .collect()
     })
 }
 
 pub(super) fn rescue_complex(
     exact: &ExpressionEvaluator<Complex<Rational>>,
+    cache: &mut PrecisionCache<Complex<Float>>,
     point: &[f64],
     output: &mut [f64],
-    cancellation_degree: usize,
+    cancellation: &Cancellation,
     policy: &PrecisionPolicy,
 ) -> Result<PrecisionReport, KernelError> {
-    let count = output.len() / 2;
-    converge(point, output, cancellation_degree, policy, 2, |bits| {
-        let mut evaluator = exact.clone().map_coeff_with_prec(
-            &|coefficient| {
-                Complex::new(
-                    coefficient.re.to_multi_prec_float(bits),
-                    coefficient.im.to_multi_prec_float(bits),
-                )
-            },
-            bits,
-        );
-        let input = point
-            .iter()
-            .map(|value| Complex::new(Float::with_val(bits, *value), Float::with_val(bits, 0)))
-            .collect::<Vec<_>>();
-        let mut values =
-            vec![Complex::new(Float::with_val(bits, 0), Float::with_val(bits, 0)); count];
-        evaluator.evaluate(&input, &mut values);
-        values
+    converge(point, output, cancellation, policy, 2, |bits| {
+        cache
+            .evaluate(
+                exact,
+                point,
+                bits,
+                |coefficient| {
+                    Complex::new(
+                        coefficient.re.to_multi_prec_float(bits),
+                        coefficient.im.to_multi_prec_float(bits),
+                    )
+                },
+                |value| Complex::new(Float::with_val(bits, value), Float::with_val(bits, 0)),
+            )
             .iter()
             .flat_map(|value| [value.re.to_f64(), value.im.to_f64()])
             .collect()
@@ -117,27 +113,23 @@ pub(super) fn rescue_complex(
 fn converge(
     point: &[f64],
     output: &mut [f64],
-    cancellation_degree: usize,
+    cancellation: &Cancellation,
     policy: &PrecisionPolicy,
     width: usize,
     mut evaluate: impl FnMut(u32) -> Vec<f64>,
 ) -> Result<PrecisionReport, KernelError> {
-    let smallest = point
-        .iter()
-        .copied()
-        .filter(|x| *x > 0.0)
-        .fold(1.0, f64::min);
     // Taylor differences can lose degree * log2(1/x) bits. Account for this
     // before testing agreement, so two equally rounded zeros are not accepted.
-    let lost_bits = (-smallest.log2() * cancellation_degree as f64).ceil();
-    let mut bits = policy
+    let lost_bits = cancellation.lost_bits(point).ceil();
+    let required = policy
         .initial_bits
         .max((lost_bits.min(u32::MAX as f64) as u32).saturating_add(64));
-    if bits.saturating_mul(2) > policy.max_bits {
+    if required > policy.max_bits / 2 {
         return Err(KernelError::PrecisionExhausted {
             bits: policy.max_bits,
         });
     }
+    let mut bits = initial_tier(required, policy);
     let mut previous = evaluate(bits);
     loop {
         bits = bits.saturating_mul(2).min(policy.max_bits);
@@ -168,5 +160,34 @@ fn converge(
             return Err(KernelError::PrecisionExhausted { bits });
         }
         previous = current;
+    }
+}
+
+// Round upward in half-limb steps: doubling for the agreement check adds at
+// most one native 64-bit limb, unlike binary tiers which can double arithmetic
+// cost. Never reject a point merely because the final tier is incomplete.
+fn initial_tier(required: u32, policy: &PrecisionPolicy) -> u32 {
+    (required.saturating_add(31) / 32 * 32)
+        .max(policy.initial_bits)
+        .min(policy.max_bits / 2)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tiers_preserve_usable_precision_for_non_binary_limits() {
+        let policy = PrecisionPolicy {
+            max_bits: 3000,
+            ..Default::default()
+        };
+        for required in 128..=1500 {
+            let tier = initial_tier(required, &policy);
+            assert!(tier >= required && 2 * tier <= policy.max_bits);
+        }
+        assert_eq!(initial_tier(1400, &policy), 1408);
+        assert_eq!(initial_tier(1490, &policy), 1500);
+        assert_eq!(initial_tier(129, &policy), 160);
     }
 }

@@ -1,14 +1,16 @@
 //! Portable SymJIT O2 vector kernels. Worker ownership is explicit.
 mod artifact;
+mod cancellation;
 mod complex;
 mod precision;
+mod precision_cache;
 use crate::generation::GeneratedIntegral;
 pub use precision::{PrecisionPolicy, PrecisionReport};
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
     domains::{
-        float::{Complex, ErrorPropagatingFloat, RealLike},
+        float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
     evaluate::{ExpressionEvaluator, JITCompilationSettings, JITCompiledEvaluator},
@@ -16,6 +18,8 @@ use symbolica::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
+    #[error("kernel compilation cancelled")]
+    Cancelled,
     #[error("invalid kernel artifact: {0}")]
     Artifact(String),
     #[error("invalid precision rescue policy")]
@@ -38,12 +42,25 @@ pub enum KernelError {
     Serialization(#[from] serde_json::Error),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct CompilationProgress {
+    pub completed: usize,
+    pub total: usize,
+    pub elapsed_seconds: f64,
+}
+
 pub struct SectorKernel {
-    cancellation_degree: usize,
+    cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
     parameters: Vec<Symbol>,
     coefficients: Vec<Atom>,
     backend: Backend,
+}
+
+struct SectorExpressions {
+    parameters: Vec<Symbol>,
+    coefficients: Vec<Atom>,
+    cancellation: cancellation::Cancellation,
 }
 
 enum Backend {
@@ -52,6 +69,7 @@ enum Backend {
 }
 
 struct RealKernel {
+    precision_cache: precision_cache::PrecisionCache<Float>,
     evaluator: JITCompiledEvaluator<f64>,
     exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
     conditioning: ExpressionEvaluator<ErrorPropagatingFloat<f64>>,
@@ -105,8 +123,9 @@ impl SectorKernel {
         };
         backend.evaluator.evaluate(point, output);
         let nonfinite = output.iter().any(|value| !value.is_finite());
-        let boundary = self.cancellation_degree > 0
-            && point.iter().any(|x| *x < self.precision.boundary_threshold);
+        let boundary = self
+            .cancellation
+            .needs_check(point, self.precision.boundary_threshold);
         if boundary && !nonfinite {
             for (target, value) in backend.check_input.iter_mut().zip(point) {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
@@ -141,9 +160,10 @@ impl SectorKernel {
         if nonfinite || boundary {
             return precision::rescue(
                 &backend.exact_evaluator,
+                &mut backend.precision_cache,
                 point,
                 output,
-                self.cancellation_degree,
+                &self.cancellation,
                 &self.precision,
             );
         }
@@ -157,13 +177,14 @@ impl SectorKernel {
     /// Clone native evaluator state and buffers for an independently owned worker.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
-            cancellation_degree: self.cancellation_degree,
+            cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
             parameters: self.parameters.clone(),
             coefficients: self.coefficients.clone(),
             backend: match &self.backend {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
+                    precision_cache: Default::default(),
                     evaluator: kernel.evaluator.clone(),
                     exact_evaluator: kernel.exact_evaluator.clone(),
                     conditioning: kernel.conditioning.clone(),
@@ -216,20 +237,40 @@ impl GeneratedIntegral {
         &self,
         precision: PrecisionPolicy,
     ) -> Result<KernelSet, KernelError> {
-        KernelSet::from_expressions(
+        self.compile_with_precision_and_progress(precision, |_| ControlFlow::Continue(()))
+    }
+
+    pub fn compile_with_progress(
+        &self,
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_precision_and_progress(PrecisionPolicy::default(), progress)
+    }
+
+    pub fn compile_with_precision_and_progress(
+        &self,
+        precision: PrecisionPolicy,
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        KernelSet::from_expressions_with_progress(
             self.orders().to_vec(),
             self.sectors()
                 .iter()
                 .map(|sector| {
-                    (
-                        sector.parameters().to_vec(),
-                        sector.coefficients().to_vec(),
-                        sector.cancellation_degree(),
-                    )
+                    Ok(SectorExpressions {
+                        parameters: sector.parameters().to_vec(),
+                        coefficients: sector.coefficients().to_vec(),
+                        cancellation: cancellation::Cancellation::new(
+                            sector.cancellation_degree(),
+                            Some(sector.cancellation_terms().to_vec()),
+                            sector.dimension(),
+                        )?,
+                    })
                 })
-                .collect(),
+                .collect::<Result<_, KernelError>>()?,
             self.exact_coefficients().to_vec(),
             precision,
+            progress,
         )
     }
 }
@@ -237,23 +278,60 @@ impl GeneratedIntegral {
 impl KernelSet {
     fn from_expressions(
         orders: Vec<i32>,
-        expressions: Vec<(Vec<Symbol>, Vec<Atom>, usize)>,
+        expressions: Vec<SectorExpressions>,
         exact_expressions: Vec<Atom>,
         precision: PrecisionPolicy,
     ) -> Result<Self, KernelError> {
+        Self::from_expressions_with_progress(
+            orders,
+            expressions,
+            exact_expressions,
+            precision,
+            |_| ControlFlow::Continue(()),
+        )
+    }
+
+    fn from_expressions_with_progress(
+        orders: Vec<i32>,
+        expressions: Vec<SectorExpressions>,
+        exact_expressions: Vec<Atom>,
+        precision: PrecisionPolicy,
+        mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<Self, KernelError> {
         precision.validate()?;
+        let started = Instant::now();
+        let total = expressions.len();
+        let mut emit = |completed| {
+            if progress(&CompilationProgress {
+                completed,
+                total,
+                elapsed_seconds: started.elapsed().as_secs_f64(),
+            })
+            .is_break()
+            {
+                Err(KernelError::Cancelled)
+            } else {
+                Ok(())
+            }
+        };
+        emit(0)?;
         let use_complex = expressions
             .iter()
-            .flat_map(|(_, coefficients, _)| coefficients)
+            .flat_map(|sector| &sector.coefficients)
             .chain(&exact_expressions)
             .any(has_complex_coefficients);
         let mut sectors = Vec::with_capacity(expressions.len());
-        for (parameters, coefficients, cancellation_degree) in expressions {
+        for SectorExpressions {
+            parameters,
+            coefficients,
+            cancellation,
+        } in expressions
+        {
             let backend = if use_complex {
                 Backend::Complex(complex::ComplexKernel::new(
                     &parameters,
                     &coefficients,
-                    cancellation_degree,
+                    cancellation.clone(),
                     precision.clone(),
                 )?)
             } else {
@@ -269,6 +347,7 @@ impl KernelSet {
                     .jit_compile::<f64>(JITCompilationSettings::default().optimization_level(2))
                     .map_err(KernelError::Compilation)?;
                 Backend::Real(RealKernel {
+                    precision_cache: Default::default(),
                     conditioning,
                     check_input: vec![ErrorPropagatingFloat::new(0.0, 15.0); parameters.len()],
                     check_output: vec![ErrorPropagatingFloat::new(0.0, 15.0); coefficients.len()],
@@ -277,12 +356,13 @@ impl KernelSet {
                 })
             };
             sectors.push(SectorKernel {
-                cancellation_degree,
+                cancellation,
                 precision: precision.clone(),
                 parameters,
                 coefficients,
                 backend,
             });
+            emit(sectors.len())?;
         }
         let constants = HashMap::<Atom, f64>::new();
         let exact_coefficients = if use_complex {

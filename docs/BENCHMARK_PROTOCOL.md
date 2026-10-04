@@ -6,7 +6,9 @@ Reference source: FastSecDecPathFinder
 `582d8c7f6dde9bf750750d4c2a2d85a94ce940cd`.
 Record the actual installed Symbolica, SymJIT, pySecDec, QMCPy, Python and Rust
 versions together with both source revisions and complete command lines.
-Reference setup and baseline runs are pending; no measured parity is claimed.
+The external reference environment is prepared. Initial diagnostic runs are
+recorded in `reviews/reference-evaluator-smoke.md`; matched repeated baselines
+and performance acceptance remain pending. No measured parity is claimed.
 
 Use representative triangle/box, double-box, numerator-heavy multiloop, and hard
 four-loop positive-orthant examples. Record exact measure multipliers, parameter
@@ -21,6 +23,14 @@ sector support and complete Laurent-vector outputs. The reference's QMCPy linear
 rank-one backend can use the same Kuo vector, lattice size, and shift count.
 Where needed provide identical shifts explicitly for pointwise comparisons.
 Record any unavoidable dependency-version differences instead of hiding them.
+
+The installed reference wheel uses Symbolica 2.1.0 with embedded SymJIT 2.18.6;
+FastSecDec uses the recorded Symbolica 3.0.1 worktree and SymJIT 2.26.0. Initial
+box checks show that the reference's real O2 JIT path returns wrong coefficients,
+whereas its complex O2 JIT path agrees with its eager evaluator and the analytic
+result. Use the independently checked complex path for reference trials until
+the real-path defect is resolved. Keep that backend difference explicit in every
+report; incorrect real-path timings cannot establish an acceptance baseline.
 
 Do not compare a scalar coefficient kernel with an entire Laurent-vector kernel,
 or compare per-sector medians when their decompositions differ. Measure complete

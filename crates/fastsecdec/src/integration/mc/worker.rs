@@ -67,6 +67,17 @@ impl HavanaWorker {
         task: HavanaTask,
         mut evaluate: impl FnMut(&[f64], &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaReturn> {
+        self.evaluate_with_weight(task, |point, _, output| evaluate(point, output))
+    }
+
+    /// Expose the sampled importance weight for evaluation error budgeting.
+    /// The callback writes unweighted coefficients; the worker applies this
+    /// weight exactly once to statistics and retains native training semantics.
+    pub fn evaluate_with_weight<E: Display>(
+        &mut self,
+        task: HavanaTask,
+        mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<HavanaReturn> {
         if task.sector_id != self.sector_id
             || task.grid_id != self.grid_id
             || task.points != self.points
@@ -88,7 +99,7 @@ impl HavanaWorker {
                 unreachable!("ContinuousGrid produces continuous samples")
             };
             self.values.fill(f64::NAN);
-            evaluate(point, &mut self.values)
+            evaluate(point, *weight, &mut self.values)
                 .map_err(|e| IntegrationError::Evaluation(e.to_string()))?;
             if !weight.is_finite()
                 || self

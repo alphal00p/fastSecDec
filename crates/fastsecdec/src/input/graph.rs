@@ -6,7 +6,7 @@ use feynkit_model::Model;
 use idenso::tensor::AlgebraSettings;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    id::Replacement,
+    id::{Pattern, Replacement},
 };
 
 use crate::{Error, Result, input::contract_numerator};
@@ -139,7 +139,10 @@ impl GraphIntegral {
 
     fn bind(&self, expression: &Atom) -> Atom {
         expression.replace_multiple(self.scalar_values.iter().map(|(symbol, value)| {
-            Replacement::new(Atom::var(*symbol).to_pattern(), value.to_pattern())
+            Replacement::new(
+                Pattern::Literal(Atom::var(*symbol)),
+                Pattern::Literal(value.clone()),
+            )
         }))
     }
 

@@ -63,7 +63,9 @@ pub(super) fn expand(
                 **out = value.clone();
             }
         });
-        let restored = if restored.as_view().get_byte_size() <= 256 {
+        let restored = if restored.as_view().get_byte_size() <= 256
+            && restored.is_polynomial(true, false).is_none()
+        {
             restored.together()
         } else {
             restored

@@ -1,8 +1,9 @@
 //! Reproducible diagnostics, intentionally excluded from ordinary unit tests.
 use fastsecdec::{
     Atom, Kinematics, Model,
-    generation::{GenerationOptions, GenerationProgress, generate},
+    generation::{GenerationOptions, GenerationProgress, SubtractionStrategy, generate},
     input::GraphIntegral,
+    kernel::KernelSet,
     parametric::ParametricIntegrand,
 };
 use feynkit_graph::symbols;
@@ -55,45 +56,89 @@ fn double_box_boundary_precision_probe() {
         parse!("4-2*eps"),
     )
     .unwrap();
+    let strategy =
+        std::env::var("FASTSECDEC_GENERATION_PROBE_STRATEGY").unwrap_or_else(|_| "taylor".into());
+    let subtraction = match strategy.as_str() {
+        "taylor" => SubtractionStrategy::Taylor,
+        "ibp" => SubtractionStrategy::IntegrateByParts,
+        other => panic!("unknown probe strategy {other}"),
+    };
+    let label = format!("{strategy}-factored");
+    let mut phases = BTreeMap::<String, f64>::new();
     let started = Instant::now();
     let mut last = started;
-    let generated = generate(&input, &GenerationOptions::default(), |status| {
-        let early = match status {
-            GenerationProgress::Factorization { sector, .. }
-            | GenerationProgress::Subtraction { sector, .. }
-            | GenerationProgress::LaurentExpansion { sector, .. } => *sector < 3,
-            _ => false,
-        };
-        if early || last.elapsed() > Duration::from_secs(5) {
-            eprintln!("{status:?}, {:.1}s", started.elapsed().as_secs_f64());
-            last = Instant::now();
-        }
-        ControlFlow::Continue(())
-    })
+    let generated = generate(
+        &input,
+        &GenerationOptions {
+            subtraction,
+            ..Default::default()
+        },
+        |status| {
+            if let GenerationProgress::PhaseTiming { phase, seconds } = status {
+                *phases.entry(format!("{phase:?}")).or_default() += seconds;
+            }
+            let early = match status {
+                GenerationProgress::Factorization { sector, .. }
+                | GenerationProgress::Subtraction { sector, .. }
+                | GenerationProgress::LaurentExpansion { sector, .. } => *sector < 3,
+                _ => false,
+            };
+            if early || last.elapsed() > Duration::from_secs(5) {
+                eprintln!("{status:?}, {:.1}s", started.elapsed().as_secs_f64());
+                last = Instant::now();
+            }
+            ControlFlow::Continue(())
+        },
+    )
     .unwrap();
+    let generation_seconds = started.elapsed().as_secs_f64();
     eprintln!(
         "generation: {} sectors, orders {:?}, {:.3}s",
         generated.sectors().len(),
         generated.orders(),
-        started.elapsed().as_secs_f64()
+        generation_seconds
     );
     let evidence = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../output/probes");
     std::fs::create_dir_all(&evidence).unwrap();
-    std::fs::write(
-        evidence.join("double-box-generated.fsd"),
-        generated.to_kernel_bytes(Default::default()).unwrap(),
-    )
-    .unwrap();
+    let bytes = generated.to_kernel_bytes(Default::default()).unwrap();
+    std::fs::write(evidence.join(format!("double-box-{label}.fsd")), &bytes).unwrap();
     let compiled = Instant::now();
     let mut kernels = generated.compile().unwrap();
-    eprintln!("compile {:.3}s", compiled.elapsed().as_secs_f64());
-    std::fs::write(
-        evidence.join("double-box-compiled.fsd"),
-        kernels.to_bytes().unwrap(),
-    )
-    .unwrap();
+    let compile_seconds = compiled.elapsed().as_secs_f64();
+    eprintln!(
+        "compile {compile_seconds:.3}s, artifact {} bytes, phases {phases:?}",
+        bytes.len()
+    );
+    std::fs::write(evidence.join(format!("double-box-generation-{label}.json")), serde_json::to_vec(&serde_json::json!({
+        "content_id": kernels.content_id(), "strategy": strategy, "sectors": generated.sectors().len(), "orders": generated.orders(),
+        "generation_seconds": generation_seconds, "compile_seconds": compile_seconds, "phases": phases, "artifact_bytes": bytes.len()
+    })).unwrap()).unwrap();
+    measure(&mut kernels, &label);
+}
+
+#[test]
+#[ignore = "saved double-box numeric precision performance probe"]
+fn saved_double_box_precision_probe() {
+    let evidence = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../output/probes");
+    let started = Instant::now();
+    let mut kernels =
+        KernelSet::from_bytes(&std::fs::read(evidence.join("double-box-generated.fsd")).unwrap())
+            .unwrap();
+    eprintln!(
+        "artifact load/compile {:.3}s",
+        started.elapsed().as_secs_f64()
+    );
+    measure(
+        &mut kernels,
+        &std::env::var("FASTSECDEC_PRECISION_PROBE_LABEL").unwrap_or_else(|_| "numeric".into()),
+    );
+}
+
+fn measure(kernels: &mut KernelSet, label: &str) {
     let started = Instant::now();
     let (mut points, mut checked, mut rescued) = (0, 0, 0);
+    let mut values = Vec::new();
+    let mut precisions = BTreeMap::<u32, usize>::new();
     for (id, kernel) in kernels.sectors_mut().iter_mut().enumerate() {
         let plan =
             QmcPlan::new(Rank1Rule::kuo(1024, kernel.dimension()).unwrap(), 1, 481, 0).unwrap();
@@ -108,6 +153,8 @@ fn double_box_boundary_precision_probe() {
             points += 1;
             checked += usize::from(report.checked);
             rescued += usize::from(report.rescued);
+            *precisions.entry(report.bits).or_default() += 1;
+            values.extend_from_slice(&output);
         }
         if id % 25 == 0 {
             eprintln!(
@@ -120,4 +167,10 @@ fn double_box_boundary_precision_probe() {
         "precision probe: {points} evaluations, {checked} conditioning checks, {rescued} MPFR rescues, {:.3}s",
         started.elapsed().as_secs_f64()
     );
+    let evidence = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../output/probes");
+    std::fs::write(evidence.join(format!("double-box-precision-{label}.json")), serde_json::to_vec(&serde_json::json!({
+        "content_id": kernels.content_id(), "points": points, "checked": checked, "rescued": rescued,
+        "seconds": started.elapsed().as_secs_f64(), "precision_counts": precisions, "values": values,
+        "point_rule": "kuo1024-shift481-index13k-korobov3-64-per-sector"
+    })).unwrap()).unwrap();
 }

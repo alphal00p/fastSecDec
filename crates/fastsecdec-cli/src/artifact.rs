@@ -2,9 +2,11 @@ use std::{
     fs::{self, OpenOptions},
     io::Write,
     path::Path,
+    time::Instant,
 };
 
 use fastsecdec::kernel::KernelSet;
+use fastsecdec::status::GenerationTimings;
 use serde::{Deserialize, Serialize};
 
 use crate::CliResult;
@@ -71,6 +73,11 @@ pub struct Artifact {
     pub content_id: String,
     pub provenance: Provenance,
     kernel: serde_json::Value,
+    /// Observations are intentionally excluded from the scientific content hash.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation_timings: Option<GenerationTimings>,
+    #[serde(skip)]
+    pub loading_seconds: f64,
 }
 
 impl Artifact {
@@ -81,6 +88,8 @@ impl Artifact {
             content_id: String::new(),
             provenance,
             kernel,
+            generation_timings: None,
+            loading_seconds: 0.0,
         };
         result.content_id = result.identity()?;
         Ok(result)
@@ -116,7 +125,8 @@ impl Artifact {
         Ok(())
     }
     pub fn load(path: &Path) -> CliResult<(Self, KernelSet)> {
-        let artifact: Self = serde_json::from_slice(&fs::read(path)?)?;
+        let started = Instant::now();
+        let mut artifact: Self = serde_json::from_slice(&fs::read(path)?)?;
         if artifact.format_version != 1 || artifact.content_id != artifact.identity()? {
             return Err("artifact version or complete content identity is invalid".into());
         }
@@ -124,6 +134,7 @@ impl Artifact {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
         let kernels = KernelSet::from_bytes(&serde_json::to_vec(&artifact.kernel)?)?;
+        artifact.loading_seconds = started.elapsed().as_secs_f64();
         Ok((artifact, kernels))
     }
 }

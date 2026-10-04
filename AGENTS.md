@@ -7,6 +7,12 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
   primitives; reuse Symbolica/Numerica algebra, numeric types, and evaluators.
 - Before new algebra or graph helpers, check public APIs, source/tests, and a
   focused Rust probe. Record the reuse evidence and actual missing operation.
+- At each major subsystem milestone, assign an independent HEPKit integration
+  and ecosystem-reuse audit. Review native objects, public APIs, status/error
+  boundaries, caller-owned execution, and existing numerical reference APIs,
+  including one-loop masters and reduction. Fix avoidable duplication before
+  accepting the milestone; record findings and unresolved limitations in
+  `docs/reviews/` and update `docs/REUSE_AUDIT.md`.
 - The root agent primarily coordinates. Delegate implementation, research,
   independent review, debugging, and performance tasks to subagents with explicit
   file ownership. Do not edit another active agent's files without coordination.

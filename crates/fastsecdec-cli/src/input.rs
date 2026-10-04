@@ -3,6 +3,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Instant,
 };
 
 use fastsecdec::{
@@ -12,7 +13,12 @@ use fastsecdec::{
         FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
     },
 };
-use symbolica::{atom::AtomView, id::Replacement, parser::ParseSettings};
+use feynkit_model::ParameterNature;
+use symbolica::{
+    atom::AtomView,
+    id::{Pattern, Replacement},
+    parser::ParseSettings,
+};
 
 use crate::{CliResult, config::RunCard};
 
@@ -25,6 +31,8 @@ pub struct LoadedInput {
     pub sources: Vec<crate::artifact::SourceFile>,
     pub independent_externals: Vec<String>,
     pub dependent_externals: Vec<String>,
+    pub input_seconds: f64,
+    pub parametrization_seconds: f64,
 }
 
 pub fn expression(text: &str) -> CliResult<Atom> {
@@ -41,7 +49,10 @@ pub fn symbol(text: &str) -> CliResult<Symbol> {
 
 fn bind(expression: &Atom, values: &BTreeMap<Symbol, Atom>) -> Atom {
     expression.replace_multiple(values.iter().map(|(symbol, value)| {
-        Replacement::new(Atom::var(*symbol).to_pattern(), value.to_pattern())
+        Replacement::new(
+            Pattern::Literal(Atom::var(*symbol)),
+            Pattern::Literal(value.clone()),
+        )
     }))
 }
 
@@ -75,10 +86,19 @@ fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     }
 }
 
-fn model_values(model: &Model) -> CliResult<BTreeMap<Symbol, Atom>> {
+fn model_values(model: &Model, restriction: &ParameterCard) -> CliResult<BTreeMap<Symbol, Atom>> {
     let mut result = BTreeMap::new();
     for parameter in model.parameters() {
-        let value = if let Some(value) = parameter.value {
+        // Cached numeric dependents belong to the model's original point. Keep
+        // native analytic definitions for exact inline values; explicit internal
+        // restriction-card values remain authoritative, as in native recomputation.
+        let analytic = parameter.expression.as_ref().filter(|_| {
+            parameter.nature == ParameterNature::Internal
+                && !restriction.contains_key(&parameter.name)
+        });
+        let value = if let Some(expression) = analytic {
+            expression.clone()
+        } else if let Some(value) = parameter.value {
             expression(&format!("({})+({})*i", value.re, value.im))?
         } else if let Some(expression) = &parameter.expression {
             expression.clone()
@@ -88,17 +108,16 @@ fn model_values(model: &Model) -> CliResult<BTreeMap<Symbol, Atom>> {
         result.insert(symbol(&format!("UFO::{}", parameter.name))?, value);
     }
     for coupling in model.couplings() {
-        let value = if let Some(value) = coupling.value {
-            expression(&format!("({})+({})*i", value.re, value.im))?
-        } else {
-            coupling.expression.clone()
-        };
-        result.insert(symbol(&format!("UFO::{}", coupling.name))?, value);
+        result.insert(
+            symbol(&format!("UFO::{}", coupling.name))?,
+            coupling.expression.clone(),
+        );
     }
     Ok(result)
 }
 
 pub fn load(path: &Path) -> CliResult<LoadedInput> {
+    let started = Instant::now();
     let mut sources = Vec::new();
     let read = |path: &Path, sources: &mut Vec<crate::artifact::SourceFile>| -> CliResult<String> {
         let text = fs::read_to_string(path)?;
@@ -118,13 +137,15 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
     match (&card.input, &card.direct) {
         (Some(input), None) => {
             let mut model = Model::from_json(&read(&base.join(&input.model), &mut sources)?)?;
-            if let Some(parameter_card) = &input.parameter_card {
-                model.apply_parameter_card(&ParameterCard::from_json(&read(
-                    &base.join(parameter_card),
-                    &mut sources,
-                )?)?)?;
-            }
-            let mut all = model_values(&model)?;
+            let restriction = if let Some(parameter_card) = &input.parameter_card {
+                let restriction =
+                    ParameterCard::from_json(&read(&base.join(parameter_card), &mut sources)?)?;
+                model.apply_parameter_card(&restriction)?;
+                restriction
+            } else {
+                ParameterCard::new()
+            };
+            let mut all = model_values(&model, &restriction)?;
             all.extend(values);
             let values = resolve(all)?;
             let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
@@ -169,6 +190,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             let parameters = (0..propagators)
                 .map(|i| symbol(&format!("fastsecdec::x{i}")))
                 .collect::<CliResult<Vec<_>>>()?;
+            let input_seconds = started.elapsed().as_secs_f64();
+            let parametrization_started = Instant::now();
             let integrand = ParametricIntegrand::from_graph(
                 &graph,
                 parameters,
@@ -188,6 +211,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 sources,
                 independent_externals,
                 dependent_externals,
+                input_seconds,
+                parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
             })
         }
         (None, Some(direct)) => {
@@ -260,6 +285,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 ));
             }
             let propagators = parameters.len();
+            let input_seconds = started.elapsed().as_secs_f64();
+            let parametrization_started = Instant::now();
             let integrand = ParametricIntegrand::new(parameters, regulator, domain, terms)?;
             Ok(LoadedInput {
                 card,
@@ -274,6 +301,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 sources,
                 independent_externals: Vec::new(),
                 dependent_externals: Vec::new(),
+                input_seconds,
+                parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
             })
         }
         _ => Err(
@@ -288,4 +317,86 @@ pub fn artifact_path(card: &Path) -> PathBuf {
         "{}.fsd.json",
         card.file_stem().unwrap_or_default().to_string_lossy()
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn caller_parameter_names_are_literal_not_pattern_wildcards() {
+        let values = BTreeMap::from([(symbol("user_value_").unwrap(), expression("2").unwrap())]);
+        assert_eq!(
+            bind(&expression("user_value_+untouched").unwrap(), &values),
+            expression("2+untouched").unwrap()
+        );
+    }
+
+    #[test]
+    fn native_model_cached_dependents_follow_exact_overrides_and_restrictions() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut model: serde_json::Value =
+            serde_json::from_str(include_str!("../../../examples/models/scalar.json")).unwrap();
+        model["parameters"].as_array_mut().unwrap().extend([
+            serde_json::json!({"name":"a","nature":"external","parameter_type":"real","value":[2.0,0.0],"expression":null}),
+            serde_json::json!({"name":"b","nature":"internal","parameter_type":"real","value":[4.0,0.0],"expression":"2*UFO::a"}),
+            serde_json::json!({"name":"fixed","nature":"internal","parameter_type":"real","value":[11.0,0.0],"expression":null}),
+        ]);
+        model["couplings"] = serde_json::json!([
+            {"name":"GC_check","expression":"UFO::b","orders":[],"value":[4.0,0.0]}
+        ]);
+        fs::write(
+            directory.path().join("model.json"),
+            serde_json::to_vec(&model).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            directory.path().join("bubble.dot"),
+            include_str!("../../../examples/graphs/bubble.dot"),
+        )
+        .unwrap();
+        for (inline, restriction, expected) in [
+            ("'UFO::a' = '3'", None, "23*gamma(eps)"),
+            (
+                "'UFO::a' = 'symbolica::pi'",
+                None,
+                "(11+4*symbolica::pi)*gamma(eps)",
+            ),
+            ("'UFO::a' = '3'", Some(r#"{"b":[5,0]}"#), "21*gamma(eps)"),
+            (
+                "'UFO::a' = '3'\n'UFO::b' = '7'",
+                Some(r#"{"b":[5,0]}"#),
+                "25*gamma(eps)",
+            ),
+        ] {
+            let restriction_field = if let Some(restriction) = restriction {
+                fs::write(directory.path().join("restriction.json"), restriction).unwrap();
+                "parameter_card = 'restriction.json'"
+            } else {
+                ""
+            };
+            let card = format!(
+                r#"
+[input]
+graph = 'bubble.dot'
+model = 'model.json'
+{restriction_field}
+[kinematics]
+products = [{{left=1,right=1,value='-1'}}]
+[parameters]
+{inline}
+[integral]
+measure_multiplier = 'UFO::b+UFO::GC_check+UFO::fixed'
+"#
+            );
+            let path = directory.path().join("input.toml");
+            fs::write(&path, card).unwrap();
+            let loaded = load(&path).unwrap();
+            assert_eq!(
+                loaded.integrand.terms()[0].prefactor(),
+                &expression(expected).unwrap(),
+                "inline {inline}, restriction {restriction:?}"
+            );
+        }
+    }
 }

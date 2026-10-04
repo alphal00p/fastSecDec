@@ -5,7 +5,11 @@ existing FeynKit JSON format. End-to-end validation is being extended
 as the generation and CLI slices land; a graph's presence alone is not a claim
 of numerical parity. The 19 native graph run cards now in `runs/` cover these
 topologies, numerator variants, off-shell kinematics and massive one-loop cases.
-Native bubble and triangle CLI runs pass initial analytic checks. The remaining
+All 23 graph and direct-parametric run cards pass native CLI input loading.
+Native bubble and triangle CLI runs pass initial analytic checks, and the native
+massless box passes its complete Laurent-vector QMC regression. Eleven native
+one-loop graph cases also pass complete-vector comparisons against HEPKit's Rust
+scalar masters, including masses, off-shell legs and nontrivial scales. The remaining
 multiloop and numerator cards still require full integration validation.
 
 `models/scalar.json` provides the real mass parameter `mt`, zero widths, and
@@ -38,9 +42,9 @@ the original one-off-shell, two-on-shell triangle.
 
 | Graph family | Loops | Propagators | Current coverage |
 |---|---:|---:|---|
-| Bubble | 1 | 2 | Native input, normalization and U/F tests |
-| Triangle | 1 | 3 | Native input, analytic Laurent vector, initial CLI integration |
-| Box | 1 | 4 | Native topology fixture |
+| Bubble | 1 | 2 | Native input, normalization, U/F and native B0 comparisons |
+| Triangle | 1 | 3 | Native input, analytic Laurent vector, CLI integration and native C0 comparisons |
+| Box | 1 | 4 | Native input, complete Laurent vector against an analytic identity, frozen external target and native D0 comparisons |
 | Double box | 2 | 7 | Native input and exact U/F/measure equality to the independent polynomial fixture |
 | Triple box | 3 | 10 | Native topology fixture |
 | Kite | 2 | 5 | Native topology fixture |

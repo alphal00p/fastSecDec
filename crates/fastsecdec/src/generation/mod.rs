@@ -6,15 +6,17 @@ mod domain;
 mod laurent;
 mod mapping;
 mod subtraction;
+mod symmetry;
 mod types;
 
 pub use types::{
-    GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationProgress,
+    GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationPhase,
+    GenerationProgress, SubtractionStrategy,
 };
 
-use crate::parametric::{FactorRole, ParametricIntegrand};
+use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::{PolynomialSupport, decompose};
-use std::{collections::BTreeMap, ops::ControlFlow};
+use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{Atom, AtomCore},
     symbol,
@@ -25,7 +27,6 @@ pub fn generate(
     options: &GenerationOptions,
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
-    domain::check(input, options.assume_no_threshold)?;
     let mut emit = |status| {
         if progress(&status).is_break() {
             Err(GenerationError::Cancelled)
@@ -33,10 +34,17 @@ pub fn generate(
             Ok(())
         }
     };
+    let started = Instant::now();
+    domain::check(input, options.assume_no_threshold)?;
+    emit(GenerationProgress::PhaseTiming {
+        phase: GenerationPhase::Domain,
+        seconds: started.elapsed().as_secs_f64(),
+    })?;
+    let started = Instant::now();
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
-            if factor.role() == FactorRole::Singularity && !factor.exponent().is_zero() {
+            if domain::is_singular(factor) {
                 let support = factor.support(input.parameters())?;
                 if !supports.contains(&support) {
                     supports.push(support);
@@ -67,11 +75,17 @@ pub fn generate(
         )?)
     };
     let total = decomposition.as_ref().map_or(0, |d| d.sectors.len());
+    emit(GenerationProgress::PhaseTiming {
+        phase: GenerationPhase::Geometry,
+        seconds: started.elapsed().as_secs_f64(),
+    })?;
     let source_symbols = input.density().get_all_symbols(true);
     let mut pending = Vec::new();
     let mut exact = BTreeMap::<i32, Atom>::new();
     let mut minimum = options.max_order.min(0);
     let mut templates = laurent::TemplateCache::default();
+    let mut registry = symmetry::SymmetryRegistry::default();
+    let mut representatives = BTreeMap::new();
     for (index, map) in decomposition
         .into_iter()
         .flat_map(|d| d.sectors)
@@ -94,24 +108,82 @@ pub fn generate(
             }
             namespace += 1;
         };
+        let started = Instant::now();
         let mapped = mapping::map_terms(input, &map, &parameters)?;
-        let (expression, terms, cancellation_degree) =
+        emit(GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Mapping,
+            seconds: started.elapsed().as_secs_f64(),
+        })?;
+        let started = Instant::now();
+        let density = mapped
+            .iter()
+            .map(|term| {
+                &term.prefactor
+                    * &term.regular
+                    * parameters
+                        .iter()
+                        .zip(&term.powers)
+                        .map(|(parameter, power)| Atom::var(*parameter).pow(power))
+                        .product::<Atom>()
+            })
+            .sum::<Atom>();
+        let matched = registry.register(index, &parameters, &density)?;
+        debug_assert_eq!(matched.permutation.len(), parameters.len());
+        if matched.representative == index {
+            representatives.insert(index, (map, parameters, mapped, 1usize));
+        } else {
+            let representative = representatives
+                .get_mut(&matched.representative)
+                .ok_or_else(|| {
+                    GenerationError::Invariant("missing symmetry representative".into())
+                })?;
+            representative.3 += 1;
+        }
+        emit(GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Symmetry,
+            seconds: started.elapsed().as_secs_f64(),
+        })?;
+    }
+    let total = representatives.len();
+    for (index, (map, parameters, mapped, multiplicity)) in
+        representatives.into_values().enumerate()
+    {
+        let started = Instant::now();
+        let (expression, terms, cancellation_terms) =
             subtraction::subtract(mapped, &parameters, input.regulator(), options)?;
+        let cancellation_degree = cancellation_terms
+            .iter()
+            .map(|row| row.iter().sum::<usize>())
+            .max()
+            .unwrap_or(0);
+        emit(GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Subtraction,
+            seconds: started.elapsed().as_secs_f64(),
+        })?;
         emit(GenerationProgress::Subtraction {
             sector: index,
+            total,
             terms,
         })?;
         emit(GenerationProgress::LaurentExpansion {
             sector: index,
             total,
         })?;
+        let started = Instant::now();
         let coefficients = laurent::expand(
             &expression,
             &parameters,
             input.regulator(),
             options.max_order,
             &mut templates,
-        )?;
+        )?
+        .into_iter()
+        .map(|(order, coefficient)| (order, coefficient * Atom::num(multiplicity)))
+        .collect::<BTreeMap<_, _>>();
+        emit(GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Laurent,
+            seconds: started.elapsed().as_secs_f64(),
+        })?;
         if let Some(order) = coefficients.keys().next() {
             minimum = minimum.min(*order);
         }
@@ -124,21 +196,30 @@ pub fn generate(
                 *exact.entry(order).or_insert(Atom::Zero) += coefficient;
             }
         } else {
-            pending.push((map, parameters, coefficients, cancellation_degree));
+            pending.push((
+                map,
+                parameters,
+                coefficients,
+                cancellation_degree,
+                cancellation_terms,
+            ));
         }
     }
     let orders = (minimum..=options.max_order).collect::<Vec<_>>();
     let sectors = pending
         .into_iter()
         .map(
-            |(map, parameters, coefficients, cancellation_degree)| GeneratedSector {
-                cancellation_degree,
-                parameters,
-                map,
-                coefficients: orders
-                    .iter()
-                    .map(|order| coefficients.get(order).cloned().unwrap_or(Atom::Zero))
-                    .collect(),
+            |(map, parameters, coefficients, cancellation_degree, cancellation_terms)| {
+                GeneratedSector {
+                    cancellation_degree,
+                    cancellation_terms,
+                    parameters,
+                    map,
+                    coefficients: orders
+                        .iter()
+                        .map(|order| coefficients.get(order).cloned().unwrap_or(Atom::Zero))
+                        .collect(),
+                }
             },
         )
         .collect();

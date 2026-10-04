@@ -6,6 +6,42 @@ use fastsecdec::{
     status::{IntegrationStage, UncertaintyStatus},
 };
 
+#[test]
+fn callback_observes_nonuniform_importance_weight_applied_once() {
+    let mut session = HavanaSession::pilot(problem(), settings()).unwrap();
+    for task in tasks(&mut session) {
+        let value = session
+            .worker_context(task.sector_id())
+            .unwrap()
+            .evaluate(task, |point, output| {
+                output.fill(0.001 + point[0].powi(12));
+                Ok::<_, String>(())
+            })
+            .unwrap();
+        session.submit(value).unwrap();
+    }
+    session.freeze_production(0.5, 256, 4).unwrap();
+    let mut nontrivial = false;
+    for task in tasks(&mut session) {
+        let value = session
+            .worker_context(task.sector_id())
+            .unwrap()
+            .evaluate_with_weight(task, |_, weight, output| {
+                assert!(weight.is_finite() && weight > 0.0);
+                nontrivial |= (weight - 1.0).abs() > 0.01;
+                output[0] = 1.0 / weight;
+                output[1] = -2.0 / weight;
+                Ok::<_, String>(())
+            })
+            .unwrap();
+        session.submit(value).unwrap();
+    }
+    assert!(nontrivial);
+    let estimate = session.estimate().unwrap();
+    assert!((estimate.mean[0] - 2.0).abs() < 1e-14);
+    assert!((estimate.mean[1] + 4.0).abs() < 1e-14);
+}
+
 fn problem() -> IntegrationProblem {
     IntegrationProblem::new(
         "havana-complete-vector".into(),

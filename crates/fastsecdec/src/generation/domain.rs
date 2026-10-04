@@ -1,13 +1,18 @@
 //! Conservative, exact no-threshold checks. Numerical sampling is never used
 //! as a positivity certificate. Rational witnesses can disprove the assertion.
 use super::{GenerationError, subtraction::rational};
-use crate::parametric::{FactorRole, ParametricIntegrand};
+use crate::parametric::{FactorRole, ParametricIntegrand, PolynomialFactor};
 use fastsecdec_sectors::ParametricDomain;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::rational::Rational,
-    id::Replacement,
+    id::{Pattern, Replacement},
 };
+
+pub(super) fn is_singular(factor: &PolynomialFactor) -> bool {
+    factor.role() == FactorRole::Singularity
+        && !rational(factor.exponent()).is_some_and(|power| power.is_integer() && power >= 0)
+}
 
 /// Certify actual resolved residuals, including exceptional faces introduced by
 /// the Newton map. Original-domain face checks cannot detect a vanishing leading
@@ -45,7 +50,7 @@ pub(super) fn check_residual(
     let resolved = variables.iter().all(|variable| {
         [0, 1].into_iter().all(|endpoint| {
             let face = residual
-                .replace(variable.to_pattern())
+                .replace(Pattern::Literal(variable.clone()))
                 .with(Atom::num(endpoint))
                 .expand();
             if !uniform_sign(&face) {
@@ -53,10 +58,12 @@ pub(super) fn check_residual(
             }
             // A nonzero constant plus coefficients of one sign bounds this face
             // away from zero on its entire closed cube, including intersections.
-            let constant =
-                face.replace_multiple(variables.iter().map(|variable| {
-                    Replacement::new(variable.to_pattern(), Atom::Zero.to_pattern())
-                }));
+            let constant = face.replace_multiple(variables.iter().map(|variable| {
+                Replacement::new(
+                    Pattern::Literal(variable.clone()),
+                    Pattern::Literal(Atom::Zero),
+                )
+            }));
             rational(&constant).is_some_and(|value| !value.is_zero())
         })
     });
@@ -75,20 +82,11 @@ pub(super) fn check(input: &ParametricIntegrand, asserted: bool) -> Result<(), G
         .collect::<Vec<_>>();
     for term in input.terms() {
         for factor in term.factors() {
-            if factor.role() == FactorRole::Polynomial || factor.exponent().is_zero() {
+            if !is_singular(factor) {
                 continue;
             }
             let exponent = rational(factor.exponent());
-            if exponent
-                .as_ref()
-                .is_some_and(|p| p.is_integer() && p >= &Rational::from(0))
-            {
-                continue;
-            }
-            let polynomial = factor
-                .polynomial()
-                .expand()
-                .to_polynomial_in_vars::<u32>(&variables);
+            let polynomial = factor.polynomial().to_polynomial_in_vars::<u32>(&variables);
             let signs = (&polynomial)
                 .into_iter()
                 .map(|term| rational(term.coefficient))
@@ -123,8 +121,8 @@ pub(super) fn check(input: &ParametricIntegrand, asserted: bool) -> Result<(), G
                         .polynomial()
                         .replace_multiple(variables.iter().enumerate().map(|(axis, variable)| {
                             Replacement::new(
-                                variable.to_pattern(),
-                                Atom::num((corner >> axis) & 1).to_pattern(),
+                                Pattern::Literal(variable.clone()),
+                                Pattern::Literal(Atom::num((corner >> axis) & 1)),
                             )
                         }))
                         .expand();
@@ -158,7 +156,10 @@ pub(super) fn check(input: &ParametricIntegrand, asserted: bool) -> Result<(), G
                 let value = factor
                     .polynomial()
                     .replace_multiple(variables.iter().zip(point).map(|(variable, value)| {
-                        Replacement::new(variable.to_pattern(), Atom::num(value).to_pattern())
+                        Replacement::new(
+                            Pattern::Literal(variable.clone()),
+                            Pattern::Literal(Atom::num(value)),
+                        )
                     }))
                     .expand();
                 if let Some(value) = rational(&value) {
@@ -187,7 +188,7 @@ pub(super) fn check(input: &ParametricIntegrand, asserted: bool) -> Result<(), G
                     [0, 1].into_iter().all(|endpoint| {
                         let face = factor
                             .polynomial()
-                            .replace(variable.to_pattern())
+                            .replace(Pattern::Literal(variable.clone()))
                             .with(Atom::num(endpoint))
                             .expand();
                         if face.is_zero() {

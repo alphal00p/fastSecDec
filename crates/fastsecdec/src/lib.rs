@@ -5,6 +5,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod diagnostics;
 pub mod error;
 pub mod generation;
 pub mod input;

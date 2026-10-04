@@ -1,4 +1,6 @@
-use super::{KernelError, KernelSet, PrecisionPolicy};
+use super::{
+    KernelError, KernelSet, PrecisionPolicy, SectorExpressions, cancellation::Cancellation,
+};
 use serde::{Deserialize, Serialize};
 use symbolica::atom::{Atom, AtomCore, AtomView};
 
@@ -19,6 +21,8 @@ struct PortableSector {
     parameters: Vec<String>,
     coefficients: Vec<String>,
     cancellation_degree: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    cancellation_terms: Option<Vec<Vec<usize>>>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -70,6 +74,7 @@ impl crate::generation::GeneratedIntegral {
                         .map(AtomCore::to_canonical_string)
                         .collect(),
                     cancellation_degree: sector.cancellation_degree(),
+                    cancellation_terms: Some(sector.cancellation_terms().to_vec()),
                 })
                 .collect(),
         };
@@ -106,7 +111,8 @@ impl KernelSet {
                         .iter()
                         .map(AtomCore::to_canonical_string)
                         .collect(),
-                    cancellation_degree: sector.cancellation_degree,
+                    cancellation_degree: sector.cancellation.degree(),
+                    cancellation_terms: sector.cancellation.terms().map(<[Vec<usize>]>::to_vec),
                 })
                 .collect(),
         }
@@ -170,15 +176,20 @@ impl KernelSet {
             {
                 return Err(KernelError::Artifact("duplicate sector parameters".into()));
             }
-            sectors.push((
+            let cancellation = Cancellation::new(
+                sector.cancellation_degree,
+                sector.cancellation_terms,
+                parameters.len(),
+            )?;
+            sectors.push(SectorExpressions {
                 parameters,
-                sector
+                coefficients: sector
                     .coefficients
                     .into_iter()
                     .map(atom)
                     .collect::<Result<Vec<_>, _>>()?,
-                sector.cancellation_degree,
-            ));
+                cancellation,
+            });
         }
         let restored = Self::from_expressions(
             payload.orders,
