@@ -35,10 +35,51 @@ impl ParametricIntegrand {
     ) -> Result<Self> {
         let numerator =
             integral.scalar_numerator(&default_algebra_settings())? * integral.measure_multiplier();
-        parameterize_family(
+        Self::from_family(
             integral.family(),
             integral.powers(),
             numerator,
+            parameters,
+            regulator,
+            dimension,
+        )
+    }
+
+    /// Parameterize a native propagator family with strictly positive powers.
+    ///
+    /// `weighted_numerator` is the already contracted scalar numerator in the
+    /// family's scalar-product notation, including every projector, graph
+    /// factor and extra measure multiplier exactly once. This method adds only
+    /// the normalized Minkowski loop measure `prod(d^D k / (i*pi^(D/2)))` and
+    /// its Feynman-parameter Gamma/sign factors. It does not inspect a graph,
+    /// perform partial fractions or apply another overall weight.
+    ///
+    /// For a term returned by [`IntegralFamily::partial_fraction`], callers can
+    /// use [`IntegralFamily::sector`] to retain the positive-power denominators,
+    /// keep their powers in the same order, and multiply the native coefficient
+    /// and any negative-power denominator factors into `weighted_numerator`.
+    /// Branches with different parameter lists must be parameterized separately.
+    /// No loop shift or removal of a scaleless term is inferred from a projection.
+    ///
+    /// Parameters must be fresh, distinct symbols, separate from the regulator,
+    /// weighted numerator and dimension. Native Symanzik construction validates
+    /// collisions with the family expressions. A concrete tensor dimension
+    /// cannot be changed; symbolic tensor dimensions are replaced literally.
+    /// If propagator or kinematic coefficients themselves depend on that native
+    /// dimension symbol, specialize the family first before changing dimension;
+    /// this entry rejects leaving a stale native dimension in U or F.
+    pub fn from_family(
+        family: &IntegralFamily,
+        powers: &[u32],
+        weighted_numerator: Atom,
+        parameters: Vec<Symbol>,
+        regulator: Symbol,
+        dimension: Atom,
+    ) -> Result<Self> {
+        parameterize_family(
+            family,
+            powers,
+            weighted_numerator,
             parameters,
             regulator,
             dimension,
@@ -54,20 +95,35 @@ fn parameterize_family(
     regulator: Symbol,
     dimension: Atom,
 ) -> Result<ParametricIntegrand> {
-    if parameters.len() != powers.len() || parameters.len() != family.denominators().len() {
+    if powers.len() != family.denominators().len() || powers.contains(&0) {
+        return Err(super::ParametricError::Invalid(
+            "family parameterization requires one strictly positive power per denominator".into(),
+        )
+        .into());
+    }
+    if parameters.len() != family.denominators().len() {
         return Err(Error::ParameterCount {
             expected: family.denominators().len(),
             actual: parameters.len(),
         });
     }
+    // Reuse common parameter/regulator admission before native Gaussian work;
+    // native symanzik separately owns collisions with the family expressions.
+    ParametricIntegrand::new(
+        parameters.clone(),
+        regulator,
+        ParametricDomain::ProjectiveSimplex,
+        vec![],
+    )?;
+    let native_dimension = family.kinematics().dimension().to_symbolic();
     let parameter_atoms = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
-    if let Some(parameter) = parameter_atoms
-        .iter()
-        .find(|p| numerator.contains(p.as_view()) || dimension.contains(p.as_view()))
-    {
+    if let Some(parameter) = parameter_atoms.iter().find(|p| {
+        numerator.contains(p.as_view())
+            || dimension.contains(p.as_view())
+            || native_dimension.contains(p.as_view())
+    }) {
         return Err(Error::ParameterCollision(parameter.clone()));
     }
-    let native_dimension = family.kinematics().dimension().to_symbolic();
     if !matches!(native_dimension.as_view(), AtomView::Var(_)) && native_dimension != dimension {
         return Err(Error::ConcreteDimensionMismatch);
     }
@@ -78,6 +134,15 @@ fn parameterize_family(
         _ => expression,
     };
     let (u, f) = family.symanzik(&parameter_atoms)?;
+    if matches!(native_dimension.as_view(), AtomView::Var(_))
+        && native_dimension != dimension
+        && (u.contains(native_dimension.as_view()) || f.contains(native_dimension.as_view()))
+    {
+        return Err(super::ParametricError::Invalid(
+            "specialize dimension-dependent propagator/kinematic coefficients before changing the native tensor dimension".into(),
+        )
+        .into());
+    }
     if u.is_zero() {
         return Err(Error::SingularLoopForm);
     }

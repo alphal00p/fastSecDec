@@ -3,6 +3,7 @@ mod artifact;
 mod cancellation;
 mod complex;
 mod metadata;
+pub use metadata::PortableMetadata;
 mod precision;
 mod precision_cache;
 mod weighted;

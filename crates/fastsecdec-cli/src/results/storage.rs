@@ -2,7 +2,7 @@ use fastsecdec::{
     integration::Tolerance,
     kernel::KernelSet,
     reference::{ReferenceProvenance, ReferenceValidation},
-    results::{KernelResultManifest, ResultScope, ResultTimings, SavedIntegrationResult},
+    results::{KernelResultManifest, ResultTimings, SavedIntegrationResult},
 };
 
 use crate::{
@@ -55,7 +55,7 @@ pub fn assemble(
     }
     let result = SavedIntegrationResult {
         manifest: KernelResultManifest::from_kernels(kernels),
-        scope: ResultScope::FullIntegral,
+        scope: settings.scope.clone(),
         contributions: report.contributions.clone(),
         stopping_reason: report
             .snapshot

@@ -5,6 +5,7 @@ mod display;
 mod driver;
 mod generate;
 mod input;
+mod inspect;
 mod reference;
 mod results;
 
@@ -118,6 +119,15 @@ enum Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    /// Clear a stored/card subset and integrate the complete parent integral.
+    #[arg(long, conflicts_with_all = ["sectors", "exact_contributions"])]
+    full_integral: bool,
+    /// Compiled kernel IDs, comma-separated; use none for an explicit empty subset.
+    #[arg(long, requires = "exact_contributions")]
+    sectors: Option<String>,
+    /// Include or exclude the complete folded exact offset for selected scope.
+    #[arg(long, requires = "sectors", value_parser = ["include", "exclude"])]
+    exact_contributions: Option<String>,
     #[arg(long)]
     method: Option<String>,
     #[arg(long)]
@@ -148,7 +158,32 @@ struct IntegrationArgs {
 }
 
 impl IntegrationArgs {
-    fn apply(&self, settings: &mut IntegrationInput) {
+    fn apply(&self, settings: &mut IntegrationInput) -> CliResult<()> {
+        if self.full_integral {
+            settings.scope = fastsecdec::results::ResultScope::FullIntegral;
+        }
+        if let Some(ids) = &self.sectors {
+            let sector_ids = if ids == "none" {
+                Vec::new()
+            } else {
+                ids.split(',')
+                    .map(str::parse)
+                    .collect::<Result<Vec<u64>, _>>()?
+            };
+            let exact_policy = match self.exact_contributions.as_deref() {
+                Some("include") => fastsecdec::results::ExactContributionPolicy::IncludeAll,
+                Some("exclude") => fastsecdec::results::ExactContributionPolicy::ExcludeAll,
+                _ => {
+                    return Err(
+                        "sector selection requires an explicit exact-contributions policy".into(),
+                    );
+                }
+            };
+            settings.scope = fastsecdec::results::ResultScope::SelectedSectors {
+                sector_ids,
+                exact_policy,
+            };
+        }
         if let Some(value) = &self.method {
             settings.method = value.clone();
         }
@@ -173,6 +208,7 @@ impl IntegrationArgs {
         if let Some(value) = self.relative_tolerance {
             settings.relative_tolerance = value;
         }
+        Ok(())
     }
 }
 
@@ -271,7 +307,9 @@ fn run(cli: Cli) -> CliResult<()> {
             }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
-            integration.apply(&mut settings);
+            integration.apply(&mut settings)?;
+            settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
+                .canonical_scope(&settings.scope)?;
             let checkpoint = integration
                 .checkpoint
                 .unwrap_or_else(|| output.with_extension("checkpoint.json"));
@@ -327,7 +365,9 @@ fn run(cli: Cli) -> CliResult<()> {
             }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
-            integration.apply(&mut settings);
+            integration.apply(&mut settings)?;
+            settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
+                .canonical_scope(&settings.scope)?;
             let checkpoint = integration
                 .checkpoint
                 .unwrap_or_else(|| path.with_extension("checkpoint.json"));
@@ -388,13 +428,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 }
                 report(&value, render_json)?;
             } else {
-                let (artifact, kernels) = artifact::Artifact::load(&path)?;
-                report(
-                    &serde_json::json!({"content_id":artifact.content_id,"provenance":artifact.provenance,
-                    "orders":kernels.orders(),"sectors":kernels.sectors().len(),"dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
-                    "exact_coefficients":kernels.exact_coefficients(),"generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds}),
-                    render_json,
-                )?;
+                inspect::artifact(&path, expressions, render_json)?;
             }
         }
         Action::Benchmark {
@@ -501,6 +535,7 @@ fn integration_report(
         return report(&value, true);
     }
     println!("╭─ FastSecDec · Laurent coefficients ───────────────────────────────────╮");
+    println!("  Scope: {}", result.scope);
     println!("  {:12} {:>23} {:>15}", "Order", "Value", "Std. error");
     if let Some(estimate) = &result.estimate {
         for (i, order) in estimate.orders.iter().enumerate() {

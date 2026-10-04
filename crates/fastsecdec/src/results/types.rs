@@ -25,14 +25,50 @@ pub enum ExactContributionPolicy {
     ExcludeAll,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum ResultScope {
+    #[default]
     FullIntegral,
     SelectedSectors {
         sector_ids: Vec<u64>,
         exact_policy: ExactContributionPolicy,
     },
+}
+
+impl ResultScope {
+    pub fn is_full_integral(&self) -> bool {
+        matches!(self, Self::FullIntegral)
+    }
+}
+
+impl std::fmt::Display for ResultScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FullIntegral => f.write_str("full integral"),
+            Self::SelectedSectors {
+                sector_ids,
+                exact_policy,
+            } => {
+                write!(
+                    f,
+                    "selected sectors {:?}",
+                    &sector_ids[..sector_ids.len().min(6)]
+                )?;
+                if sector_ids.len() > 6 {
+                    write!(f, " … ({} total)", sector_ids.len())?;
+                }
+                write!(
+                    f,
+                    "; folded exact contribution {}",
+                    match exact_policy {
+                        ExactContributionPolicy::IncludeAll => "included",
+                        ExactContributionPolicy::ExcludeAll => "excluded",
+                    }
+                )
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

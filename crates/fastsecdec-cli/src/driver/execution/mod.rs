@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{CliResult, artifact::Artifact, config::IntegrationInput, display::Dashboard};
 use fastsecdec::{
-    integration::{IntegrationError, IntegrationProblem, SectorSpec, Tolerance},
+    integration::{IntegrationError, IntegrationProblem, Tolerance},
     kernel::{KernelSet, ReplayState, WeightedEvaluationContext},
     status::EvaluationDiagnostics,
 };
@@ -65,22 +65,15 @@ pub(super) fn submit_package<T>(
     replay.accept(sector, &state)
 }
 
-pub(super) fn problem(artifact: &Artifact, kernels: &KernelSet) -> CliResult<IntegrationProblem> {
-    Ok(IntegrationProblem::new_with_components(
-        artifact.content_id.clone(),
-        kernels.orders().to_vec(),
-        kernels.components().to_vec(),
-        kernels
-            .sectors()
-            .iter()
-            .enumerate()
-            .map(|(id, kernel)| SectorSpec {
-                id: id as u64,
-                dimension: kernel.dimension(),
-            })
-            .collect(),
-        kernels.exact_coefficients().to_vec(),
-    )?)
+pub(super) fn problem(
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    scope: &fastsecdec::results::ResultScope,
+) -> CliResult<IntegrationProblem> {
+    Ok(
+        fastsecdec::results::KernelResultManifest::from_kernels(kernels)
+            .integration_problem(scope, artifact.content_id.clone())?,
+    )
 }
 
 pub fn integrate(
@@ -97,7 +90,8 @@ pub fn integrate(
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(settings.workers)
         .build()?;
-    let problem = problem(artifact, kernels)?;
+    let problem = problem(artifact, kernels, &settings.scope)?;
+    dashboard.set_scope(settings.scope.clone());
     let tolerance = Tolerance::new(settings.absolute_tolerance, settings.relative_tolerance)?;
     let started = Instant::now();
     let last_checkpoint = Instant::now();

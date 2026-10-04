@@ -35,6 +35,7 @@ pub struct Dashboard {
     last_frame: Instant,
     last_log: Instant,
     json_status: bool,
+    scope: fastsecdec::results::ResultScope,
 }
 
 impl Dashboard {
@@ -63,6 +64,7 @@ impl Dashboard {
             last_frame: Instant::now() - Duration::from_secs(2),
             last_log: Instant::now() - Duration::from_secs(2),
             json_status,
+            scope: Default::default(),
         })
     }
 
@@ -153,9 +155,19 @@ impl Dashboard {
         Ok(())
     }
 
+    pub fn set_scope(&mut self, scope: fastsecdec::results::ResultScope) {
+        self.scope = scope;
+    }
+
     pub fn integration(&mut self, snapshot: &IntegrationSnapshot, elapsed: f64) -> CliResult<()> {
         if self.json_status {
-            eprintln!("{}", serde_json::to_string(snapshot)?);
+            eprintln!(
+                "{}",
+                serde_json::to_string(&ScopedStatus {
+                    snapshot,
+                    scope: &self.scope
+                })?
+            );
             return Ok(());
         }
         if let Some(terminal) = &mut self.terminal {
@@ -174,7 +186,7 @@ impl Dashboard {
                     Constraint::Length(3),
                 ])
                 .split(frame.area());
-                frame.render_widget(title("Integration"), chunks[0]);
+                frame.render_widget(title(&format!("Integration · {}", self.scope)), chunks[0]);
                 let ratio = if snapshot.planned_points == 0 {
                     1.0
                 } else {
@@ -289,7 +301,7 @@ impl Dashboard {
         } else if self.last_log.elapsed() >= Duration::from_secs(1)
             || snapshot.completed_points == snapshot.planned_points
         {
-            eprintln!("{snapshot}");
+            eprintln!("{} · {snapshot}", self.scope);
             self.last_log = Instant::now();
         }
         Ok(())
@@ -364,4 +376,11 @@ fn title(stage: &str) -> Paragraph<'_> {
         Span::raw(format!(" · {stage}")),
     ]))
     .block(panel(""))
+}
+
+#[derive(serde::Serialize)]
+struct ScopedStatus<'a> {
+    #[serde(flatten)]
+    snapshot: &'a IntegrationSnapshot,
+    scope: &'a fastsecdec::results::ResultScope,
 }

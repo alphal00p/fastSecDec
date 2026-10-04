@@ -39,6 +39,12 @@ output/reference.json` explicitly selects the computed estimate; `--source
 stored` selects the original comparison target. Saving a result does not grant
 it independent validation.
 
+For diagnostics, `--sectors 0,3 --exact-contributions include` selects compiled
+kernel IDs and retains an explicitly qualified result. `--full-integral` clears
+a stored selection. Inspect a generated artifact to view its retained chart,
+coordinate-map and domain metadata. See the [CLI guide](crates/fastsecdec-cli/README.md)
+for scope, checkpoint and reference-export rules.
+
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)
 - [Correctness and performance comparison protocol](docs/BENCHMARK_PROTOCOL.md)

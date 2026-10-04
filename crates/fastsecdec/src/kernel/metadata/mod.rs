@@ -9,12 +9,15 @@ use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct PortableMetadata {
+/// The same canonical semantic record used in portable kernel artifacts.
+/// This is a transport/presentation value; native computation continues to use
+/// [`GenerationMetadata`]. Loading a kernel revalidates the record natively.
+pub struct PortableMetadata {
     domain: domain::PortableAssessment,
     charts: Vec<chart::PortableChart>,
 }
 impl PortableMetadata {
-    pub(super) fn from_native(value: &GenerationMetadata) -> Self {
+    pub fn from_native(value: &GenerationMetadata) -> Self {
         Self {
             domain: domain::PortableAssessment::from_native(value.domain_assessment()),
             charts: value

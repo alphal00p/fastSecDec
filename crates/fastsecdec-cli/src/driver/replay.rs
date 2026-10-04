@@ -36,12 +36,17 @@ impl AcceptedReplay {
     pub(super) fn contexts(
         &self,
         kernels: &KernelSet,
-    ) -> CliResult<Vec<WeightedEvaluationContext>> {
-        self.states
+        sectors: &[fastsecdec::integration::SectorSpec],
+    ) -> CliResult<std::collections::BTreeMap<u64, WeightedEvaluationContext>> {
+        sectors
             .iter()
-            .enumerate()
-            .map(|(sector, state)| {
-                Ok(kernels.restore_evaluation_context(sector, self.policy.clone(), state)?)
+            .map(|sector| {
+                let index = usize::try_from(sector.id)?;
+                let state = self.states.get(index).ok_or("unknown replay sector")?;
+                Ok((
+                    sector.id,
+                    kernels.restore_evaluation_context(index, self.policy.clone(), state)?,
+                ))
             })
             .collect()
     }

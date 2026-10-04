@@ -39,8 +39,8 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `double_box` | Both; complete 64-shift five-coefficient run | Exact native rational proof of the leading zero only; higher target errors unavailable | Independent higher-coefficient reference and matched convergence |
 | `double_box_from_uf` | Exact equality to the graph density; generation/integration family above | Same leading-pole proof applies to the identical density | Optional fresh CLI transport closure; no duplicate scientific integral campaign |
 | `triple_box` | Full G/V pending; native input checked | No frozen independently certified full vector | Bounded staged full-vector campaign |
-| `triple_box_offshell` | Full G/V pending; native input checked | No frozen independently certified full vector | Bounded scalar off-shell campaign before its numerator |
-| `triple_box_offshell_rank2_numerator` | Full G/V pending; exact numerator/routing checked | No independent integrated vector; native one-loop reducer is inapplicable | Coupled-Gaussian gate, then bounded full-vector campaign |
+| `triple_box_offshell` | Both; 2496 charts, 1182 kernels and complete 1024-by-eight full-vector allocation | Exact native domain/normalization and repeated-propagator audit; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
+| `triple_box_offshell_rank2_numerator` | Both; same full coverage and 9,682,944 accepted evaluations, zero failures | Exact numerator/routing and coupled-Gaussian control; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
 | `kite_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `self_energy_3loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `three_point_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
@@ -97,6 +97,18 @@ one-loop reducer remains outside this two-loop reference path. See the
    180-second numerical watchdog and full-vector/coverage reporting. The
    numerator follows with identical kinematics and its independently checked
    native routing; it is not compared sector-by-sector with the scalar result.
+   Both original-graph campaigns now completed within those budgets, retaining
+   every order `[-3,-2,-1,0]` and all 1,182 representative kernels. Scalar and
+   numerator generation took 51.705 and 55.406 seconds respectively; fresh-process
+   integration took 146.205 and 56.313 seconds, including loading, full status
+   snapshots and checkpoint I/O. Both complete allocations report zero evaluation
+   failures and unmet tolerance. These are preliminary estimates, not isolated
+   throughput or independently certified values. The historical topology has
+   two pairs of repeated propagators, so it is not the ordinary undotted ladder
+   and off-shell kinematics do not imply finiteness. Native `partial_fraction`
+   and `sector` APIs exactly reduce it to eight active propagators while retaining
+   total power ten; that separate reuse probe does not change either baseline.
+   See [the full diagnostics](triple-box-offshell-diagnostics.md).
 3. **On-shell triple box and issue-1 orthant.** The on-shell triple box adds
    multiple poles at masses zero, null external legs and `s=t=-1`; require the
    complete requested Laurent vector through zero. Issue-1 instead retains its

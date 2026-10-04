@@ -96,6 +96,9 @@ impl Default for GenerationInput {
 #[derive(Clone, Debug, serde::Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct IntegrationInput {
+    /// Native scope; absent historical settings continue to mean the full integral.
+    #[serde(skip_serializing_if = "fastsecdec::results::ResultScope::is_full_integral")]
+    pub scope: fastsecdec::results::ResultScope,
     pub method: String,
     pub points: u64,
     pub shifts: u32,
@@ -116,6 +119,7 @@ pub struct IntegrationInput {
 impl Default for IntegrationInput {
     fn default() -> Self {
         Self {
+            scope: Default::default(),
             method: "qmc".into(),
             points: 4096,
             shifts: 64,

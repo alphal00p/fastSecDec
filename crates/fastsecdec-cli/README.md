@@ -222,3 +222,46 @@ marginals. Imported selected-sector records retain their declared restricted
 scope and exact-offset policy and cannot be promoted to full-integral references.
 Malformed or unsupported result documents are rejected by the native reader;
 unversioned historical CLI output is not inferred to be a saved result.
+
+Compiled-sector subsets use original kernel IDs and an explicit policy for the
+folded exact offset:
+
+```sh
+fastsecdec integrate integral.json --sectors 2,7 --exact-contributions include --save-result subset.json
+fastsecdec integrate integral.json --sectors none --exact-contributions exclude
+```
+
+`include` adds the complete exact coefficient vector; `exclude` adds none of it.
+An empty list is spelled `none`. Even a selection naming every stochastic sector
+remains a qualified subset, so its final `converged` field is false;
+`scoped_target_reached` reports whether its own requested tolerance was reached.
+Live status, final JSON and saved results retain the native scope. Native
+comparison and estimate-reference export do not treat a subset as a full-integral
+reference. The original stored reference can still be exported explicitly.
+
+The same native scope can be placed in a run card:
+
+```toml
+[integration.scope.SelectedSectors]
+sector_ids = [2, 7]
+exact_policy = "IncludeAll"
+```
+
+IDs refer to compiled representatives, whose existing symmetry multiplicities
+remain included; they are not geometric chart IDs. Unknown or duplicate IDs are
+rejected. ID order is canonicalized. Resume permits worker-count changes but
+rejects scope or exact-policy changes, including selected-all versus full scope.
+`--full-integral` explicitly clears a scoped card/artifact default and is mutually
+exclusive with the subset flags. Omitting scope continues to mean the full integral and preserves historical
+full-run checkpoint settings. Only selected worker evaluators and integration
+work are created; loading the artifact still compiles its complete kernel set.
+
+`inspect integral.json` shows retained native domain certificates, chart to
+representative/kernel associations, permutations, exact exponent matrices and
+support valuations. `--expressions` adds canonical coordinate images and the
+positive real measure in plain output. JSON includes the existing complete native
+portable metadata record. Projective images are gauge-fixed, and valuation rows
+use the native deduplicated support order rather than invented U/F names. A chart
+with no kernel can be exact, cancelled or truncated; individual chart exact
+coefficients are not retained. Legacy artifacts explicitly report unavailable
+metadata.

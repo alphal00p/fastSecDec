@@ -5,6 +5,8 @@ mod refinement;
 mod replay;
 mod report;
 #[cfg(test)]
+mod selection_tests;
+#[cfg(test)]
 mod tests;
 
 pub use execution::integrate;

@@ -15,7 +15,7 @@ use rayon::prelude::*;
 use std::{collections::BTreeMap, time::Instant};
 
 struct McSlot {
-    contexts: Vec<WeightedEvaluationContext>,
+    contexts: BTreeMap<u64, WeightedEvaluationContext>,
     workers: BTreeMap<u64, HavanaWorker>,
 }
 
@@ -58,7 +58,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         let mut slots = (0..settings.workers)
             .map(|_| {
                 Ok(McSlot {
-                    contexts: replay.contexts(kernels)?,
+                    contexts: replay.contexts(kernels, &problem.sectors)?,
                     workers: session
                         .problem()
                         .sectors
@@ -77,7 +77,10 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             }
             for (slot, task) in slots.iter_mut().zip(&tasks) {
                 let id = task.sector_id() as usize;
-                slot.contexts[id].merge_state(replay.state(id))?;
+                slot.contexts
+                    .get_mut(&(id as u64))
+                    .unwrap()
+                    .merge_state(replay.state(id))?;
             }
             let returns = pool.install(|| {
                 slots
@@ -85,7 +88,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     .zip(tasks.into_par_iter())
                     .map(|(slot, task)| {
                         let id = task.sector_id();
-                        let kernel = &mut slot.contexts[id as usize];
+                        let kernel = slot.contexts.get_mut(&id).unwrap();
                         let mut local = EvaluationDiagnostics::default();
                         let result = slot.workers.get_mut(&id).unwrap().evaluate_weighted(
                             task,
@@ -181,6 +184,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         tolerance,
         started.elapsed().as_secs_f64(),
         ExecutionOutcome {
+            scope: settings.scope.clone(),
             cancelled,
             failure,
             resume_status,

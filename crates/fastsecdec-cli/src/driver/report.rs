@@ -12,7 +12,10 @@ pub struct IntegrationReport {
     pub elapsed_seconds: f64,
     pub loading_seconds: f64,
     pub generation_timings: Option<GenerationTimings>,
+    /// Only a full-integral target can establish unqualified convergence.
     pub converged: bool,
+    pub scoped_target_reached: bool,
+    pub scope: fastsecdec::results::ResultScope,
     pub stopping_reason: String,
     pub estimate: Option<VectorEstimate>,
     pub snapshot: IntegrationSnapshot,
@@ -41,6 +44,7 @@ pub(super) fn with_diagnostics(
 }
 
 pub(super) struct ExecutionOutcome {
+    pub scope: fastsecdec::results::ResultScope,
     pub cancelled: bool,
     pub failure: Option<String>,
     pub resume_status: ResumeStatus,
@@ -61,7 +65,7 @@ pub(super) fn finish(
     {
         outcome.failure.get_or_insert_with(|| reason.clone());
     }
-    let converged = outcome.failure.is_none()
+    let scoped_target_reached = outcome.failure.is_none()
         && !outcome.cancelled
         && snapshot
             .estimate
@@ -84,7 +88,7 @@ pub(super) fn finish(
             }
             .into(),
         )
-    } else if converged {
+    } else if scoped_target_reached {
         (StoppingReason::TargetReached, "accuracy reached".into())
     } else {
         (StoppingReason::WorkLimit, "work limit".into())
@@ -95,7 +99,9 @@ pub(super) fn finish(
         elapsed_seconds,
         loading_seconds: artifact.loading_seconds,
         generation_timings: artifact.generation_timings.clone(),
-        converged,
+        converged: scoped_target_reached && outcome.scope.is_full_integral(),
+        scoped_target_reached,
+        scope: outcome.scope,
         stopping_reason,
         estimate: snapshot.estimate.clone(),
         snapshot,

@@ -217,9 +217,16 @@ fn failed_prefix_and_rejected_submission_never_advance_replay_state() {
     let settings = settings("qmc");
     let mut accepted = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
     let initial = accepted.clone();
-    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let mut context = accepted
+        .contexts(
+            &kernels,
+            &fastsecdec::results::KernelResultManifest::from_kernels(&kernels).sectors,
+        )
+        .unwrap()
+        .remove(&0)
+        .unwrap();
     let mut session = QmcSession::democratic(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         QmcSettings {
             points: 1024,
             shifts: 2,
@@ -260,7 +267,14 @@ fn failed_prefix_and_rejected_submission_never_advance_replay_state() {
 
     // Retry from accepted state, then reject a duplicate numerical return with
     // a deliberately larger local envelope. Neither failed submission commits.
-    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let mut context = accepted
+        .contexts(
+            &kernels,
+            &fastsecdec::results::KernelResultManifest::from_kernels(&kernels).sectors,
+        )
+        .unwrap()
+        .remove(&0)
+        .unwrap();
     let returned = worker
         .evaluate_weighted(task, |point, weight, output| {
             context.evaluate_weighted(point, weight, output).map(|_| ())
@@ -298,9 +312,16 @@ fn partial_weighted_checkpoint_resumes_new_work_with_different_worker_count() {
     let mut settings = settings("qmc");
     settings.max_rounds = 1;
     let mut accepted = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
-    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let mut context = accepted
+        .contexts(
+            &kernels,
+            &fastsecdec::results::KernelResultManifest::from_kernels(&kernels).sectors,
+        )
+        .unwrap()
+        .remove(&0)
+        .unwrap();
     let mut session = QmcSession::democratic(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         QmcSettings {
             points: 1024,
             shifts: 4,
@@ -370,7 +391,7 @@ fn checkpoint_rejects_missing_or_incompatible_replay_state_and_old_version() {
     let settings = settings("qmc");
     let checkpoint = dir.path().join("replay.json");
     let session = QmcSession::democratic(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         settings.qmc_settings().unwrap(),
     )
     .unwrap();
@@ -419,7 +440,7 @@ fn cancelled_partial_qmc_preserves_complete_replica_diagnostics() {
     let (dir, artifact, kernels) = fixture();
     let settings = settings("qmc");
     let mut session = QmcSession::democratic(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         QmcSettings {
             points: 1024,
             shifts: 4,
@@ -478,7 +499,7 @@ fn pilot_mc_checkpoint_is_skipped_and_cancellation_requires_restart() {
     let settings = settings("adaptive_mc");
     let checkpoint = dir.path().join("pilot.json");
     let pilot = HavanaSession::pilot(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         HavanaSettings::default(),
     )
     .unwrap();
@@ -519,7 +540,7 @@ fn checkpoint_settings_allow_only_worker_count_changes() {
     let settings = settings("qmc");
     let checkpoint = dir.path().join("identity.json");
     let session = QmcSession::democratic(
-        problem(&artifact, &kernels).unwrap(),
+        problem(&artifact, &kernels, &Default::default()).unwrap(),
         settings.qmc_settings().unwrap(),
     )
     .unwrap();
@@ -545,7 +566,7 @@ fn checkpoint_binds_native_catalogue_method_and_refinement_to_outer_settings() {
     use fastsecdec::integration::{PublishedLattice, RuleSource};
     let (dir, artifact, kernels) = fixture();
     let settings = settings("qmc");
-    let expected_problem = problem(&artifact, &kernels).unwrap();
+    let expected_problem = problem(&artifact, &kernels, &Default::default()).unwrap();
     let mut alternative = settings.qmc_settings().unwrap();
     alternative.rule = RuleSource::Published(PublishedLattice::HkknAlpha3);
     let sessions = [

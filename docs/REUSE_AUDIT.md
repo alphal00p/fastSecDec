@@ -259,3 +259,66 @@ reference providers. Evidence is in `output/saved-sunset-workspace-tests.log`,
 `output/saved-result-boxed-{native,cli}-tests.log`,
 `output/saved-sunset-clippy.log` and
 `output/saved-sunset-production-dependencies.log`.
+
+## Qualified selection and retained metadata inspection
+
+The [independent selection review](reviews/selected-sector-independent.md)
+finds no blocking issue after 31 CLI and 17 native tests pass, including an
+independent repeat of the two native projection tests. Scope projection belongs
+to the native `KernelResultManifest`; saved-result validation and CLI execution
+reuse that one implementation. Original sector IDs, complete coefficient layouts,
+shared-shift statistics and explicit exact-offset policies are preserved.
+Completing an explicitly selected allocation does not become a full-integral
+claim, even when all IDs were selected. Checkpoints bind that scope declaration.
+The CLI constructs selected worker contexts, while artifact loading still
+validates and compiles the complete kernel set.
+
+Inspection exports the existing owner's `PortableMetadata` and borrows its
+native domain/chart/map records for display. It adds no graph reconstruction,
+support extraction, map serializer or symbolic conversion. Legacy absence is
+explicit. The [author's evidence](reviews/selected-sector-implementation.md)
+records nonempty QMC/MC/adaptive-MC execution, partial resume, empty/exact-only
+selection, full-scope overrides, metadata equivalence and missing-DOT handling.
+The next interface audit covers the native `IntegralFamily` parameterization
+entry point; scientific calibration and matched performance remain open.
+
+## Native family entry and repeated-propagator reuse
+
+The [family-entry evidence](reviews/native-family-entry.md) and
+[independent review](reviews/native-family-entry-independent.md) expose the
+existing Gaussian implementation to borrowed HEPKit `IntegralFamily` objects.
+Graph entry contracts its native numerator and applies its measure weight once,
+then delegates. Native `partial_fraction` owns affine/repeated-denominator
+reduction; native `sector` owns positive-power projection, with the native
+one-loop reducer providing an existing composition example. Public API, source
+and tests, and executable exact reconstructions all support this reuse. No
+automatic graph reduction or alternate family representation is introduced.
+
+Four focused family tests verify an independently integrated raised-power
+Gaussian moment, literal parameter symbols, exactly-once graph weights, strict
+positive powers and collision admission. An independent review identified
+dimension-dependent physical coefficients that could retain a stale tensor
+dimension in U/F; a typed rejection now requires explicit caller specialization
+when the requested dimension changes. Native label and common parameter
+validators are reused. The focused gate passed 49 tests, including existing
+native input and Gaussian controls.
+
+The [off-shell triple-box audit](reviews/triple-box-offshell-diagnostics.md)
+establishes two repeated propagator pairs in the physically equivalent native
+fixture. Existing HEPKit APIs reduce ten original edges to eight active
+propagators with two squared powers, with exact canonical rational-product
+equality. Both unreduced scalar and numerator baselines complete their entire
+four-coefficient allocations without evaluation failures. Those estimates are
+preliminary; ordinary undotted-ladder formulas are not applicable references.
+The next performance audit measures projected-family generation and CLI
+snapshot/checkpoint costs, preserving the original baselines and full coverage.
+
+The combined acceptance gate passed **264 workspace tests**, with twelve
+explicit probes ignored. A final test-only legacy-inspection byte-slice cleanup
+passed its focused regression; formatting and all-target Clippy then passed.
+The production dependency tree still has one native backend ownership chain
+and excludes Python, pySecDec, CLI rendering and development reference providers.
+Evidence is in `output/selection-family-workspace-tests.log`,
+`output/selection-family-legacy-inspect-tests.log`,
+`output/selection-family-{fmt,clippy}.log` and
+`output/selection-family-production-dependencies.log`.

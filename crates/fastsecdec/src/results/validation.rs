@@ -34,29 +34,11 @@ impl SavedIntegrationResult {
             .iter()
             .map(|s| (s.id, s.dimension))
             .collect();
-        let (selected, exact) = match &self.scope {
-            ResultScope::FullIntegral => (
-                all.keys().copied().collect::<BTreeSet<_>>(),
-                manifest.exact_coefficients.clone(),
-            ),
-            ResultScope::SelectedSectors {
-                sector_ids,
-                exact_policy,
-            } => {
-                let ids: BTreeSet<_> = sector_ids.iter().copied().collect();
-                require(
-                    ids.len() == sector_ids.len() && ids.iter().all(|id| all.contains_key(id)),
-                    "selected IDs must be a unique subset of the full manifest",
-                )?;
-                let exact = match exact_policy {
-                    ExactContributionPolicy::IncludeAll => manifest.exact_coefficients.clone(),
-                    ExactContributionPolicy::ExcludeAll => vec![0.0; manifest.orders.len()],
-                };
-                (ids, exact)
-            }
-        };
+        let projected = manifest.integration_problem(&self.scope, &manifest.kernel_content_id)?;
+        let selected: BTreeSet<_> = projected.sectors.iter().map(|s| s.id).collect();
+        let exact = &projected.exact_coefficients;
         require(
-            report.exact_coefficients == exact,
+            report.exact_coefficients.as_slice() == exact.as_slice(),
             "exact contribution differs from the declared scope policy",
         )?;
         let row_ids: BTreeSet<_> = report.sectors.iter().map(|s| s.progress.id).collect();
@@ -136,7 +118,7 @@ impl SavedIntegrationResult {
             )?;
             if report.sectors.is_empty() {
                 require(
-                    total.mean == exact
+                    total.mean.as_slice() == exact.as_slice()
                         && total.standard_error.iter().all(|v| *v == 0.0)
                         && total.covariance_of_mean.iter().all(|v| *v == 0.0),
                     "exact-only estimate differs from exact vector/zero covariance",

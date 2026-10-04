@@ -6,6 +6,8 @@ mod domain;
 mod laurent;
 mod mapping;
 mod metadata;
+mod metadata_display;
+pub use metadata_display::MetadataView;
 #[cfg(test)]
 pub(crate) mod profiling;
 mod subtraction;
