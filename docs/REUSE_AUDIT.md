@@ -19,6 +19,8 @@ in the plan: public API, implementation/tests, and an executable Rust probe.
 | Factored polynomial admission | Symbolica `AtomCore::is_polynomial` and `to_polynomial_in_vars` | `parametric_ir` accepts a compact power of 10,000, retains external-function coefficients through the native fallback, and rejects hidden coordinate dependence | Check declared variables and input domain; no expansion for the common admission path |
 | Complete-density variable symmetry | Symbolica's reexport of Graphica `Graph::canonize`, followed by native literal `replace_multiple` | Seven author tests and three independent full-integral tests, including asymmetric numerators and opposite/unequal prefactors | Encode the existing factored Atom DAG; merge only when the proposed permutation reproduces the entire density exactly |
 | One-loop scalar master references | Community HEPKit's `oneloop` dependency, `evaluate_with_backend` and `ScalarIntegral` | Three `hepkit_one_loop` tests compare complete generated/JIT/QMC vectors at 11 B0/C0/D0 points, with explicit native normalization and scales | Development-only cross-check composition; no copied master formulas or reduction algorithm |
+| One-loop numerator reduction references | Native `oneloopreduce::reduce_family`, public reduction terms and `OneLoopMasters::symbol_with_scale`; community bridge composition | Five `hepkit_numerator_reduction` tests compare complete generated/JIT/QMC vectors at eight rank-one/rank-two/rank-five points, including zero external Gram determinant | Test-only composition of native reduction, Symbolica coefficient series and native masters; no duplicated reduction or Gram solver |
+| Rational antiderivative diagnostics | Current Symbolica `RationalPolynomial::integrate`; the separate Rubi wrapper delegates its rational fallback to this native API | `full_double_box_integration::double_box_leading_pole_is_an_exact_total_derivative` verifies the actual ten nonzero leading-coefficient terms using native integration, differentiation and cancelling boundary values | Diagnostic proof that the generated leading pole integrates to zero; no replacement antiderivative engine or production analytic lowering |
 
 The initial probes establish the existing owners. The implementation must add
 evidence to this record before introducing further algebraic functionality.
@@ -63,8 +65,9 @@ the pure-Rust `oneloop` dependency already used by symbolica-community as the
 scalar-master provider; FeynKit's tensor routines are a separate reduction API.
 The [native master review](reviews/hepkit-one-loop-native.md) records the passed
 normalization probe, eleven graph-to-master comparisons and the CLI model-cache
-reproducer/fix. Further numerator reduction comparisons and all-example
-certification remain separate work.
+reproducer/fix. The [native numerator reference review](reviews/hepkit-numerator-reduction.md)
+records the reduction API/source/probe evidence and complete comparisons.
+All-example certification remains separate work.
 
 ## Factored direct generation
 

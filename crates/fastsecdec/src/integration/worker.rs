@@ -90,6 +90,26 @@ impl QmcWorker {
     pub fn evaluate_with_weight<E: Display>(
         &mut self,
         task: QmcTask,
+        evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<QmcReturn> {
+        self.evaluate_inner(task, false, evaluate)
+    }
+
+    /// Accumulate final weighted coefficients supplied by the callback.
+    /// The callback receives the periodization weight and must apply it before
+    /// writing the vector. This method never multiplies that vector again.
+    pub fn evaluate_weighted<E: Display>(
+        &mut self,
+        task: QmcTask,
+        evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<QmcReturn> {
+        self.evaluate_inner(task, true, evaluate)
+    }
+
+    fn evaluate_inner<E: Display>(
+        &mut self,
+        task: QmcTask,
+        already_weighted: bool,
         mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<QmcReturn> {
         if task.content_id != self.content_id
@@ -114,8 +134,10 @@ impl QmcWorker {
             self.values.fill(f64::NAN);
             evaluate(&self.point, weight, &mut self.values)
                 .map_err(|error| IntegrationError::Evaluation(error.to_string()))?;
-            for value in &mut self.values {
-                *value *= weight;
+            if !already_weighted {
+                for value in &mut self.values {
+                    *value *= weight;
+                }
             }
             partial.push(&self.values)?;
         }

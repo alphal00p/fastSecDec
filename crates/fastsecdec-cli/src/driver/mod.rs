@@ -2,6 +2,7 @@
 mod checkpoint;
 mod execution;
 mod refinement;
+mod replay;
 mod report;
 #[cfg(test)]
 mod tests;

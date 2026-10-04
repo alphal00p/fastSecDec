@@ -25,6 +25,13 @@ pub enum IntegrationError {
     InvalidReturn(String),
     #[error("integrand evaluation failed: {0}")]
     Evaluation(String),
+    #[error(
+        "weighted MC pilot envelope {weighted_envelope} cannot be represented by the native Havana training API at sampled weight {sampled_weight}; production accepts final weighted coefficients without inverse scaling"
+    )]
+    UnrepresentablePilotEnvelope {
+        weighted_envelope: f64,
+        sampled_weight: f64,
+    },
     #[error("integration uncertainty is not available: {0}")]
     Unavailable(String),
     #[error(transparent)]

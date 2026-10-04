@@ -4,18 +4,18 @@ use super::super::{
     refinement::{adaptive_budget, qmc_design},
     report::{stopped, with_diagnostics},
 };
-use super::{Context, cloned_kernels, evaluate_tracked};
+use super::{Context, evaluate_tracked, submit_package};
 use crate::CliResult;
 use fastsecdec::{
     integration::{Periodization, QmcSession, QmcSettings, QmcWorker, RuleSource},
-    kernel::SectorKernel,
+    kernel::WeightedEvaluationContext,
     status::{EvaluationDiagnostics, IntegrationStage},
 };
 use rayon::prelude::*;
 use std::{collections::BTreeMap, time::Instant};
 
 struct QmcSlot {
-    kernels: Vec<SectorKernel>,
+    contexts: Vec<WeightedEvaluationContext>,
     workers: BTreeMap<u64, QmcWorker>,
 }
 pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationReport> {
@@ -32,6 +32,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         mut last_checkpoint,
         restored,
         mut diagnostics,
+        mut replay,
     } = context;
     qmc_design(settings.points, settings.shifts, 0)?;
     let options = QmcSettings {
@@ -46,20 +47,22 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         },
         rule: RuleSource::Kuo,
     };
-    let mut session = if let Some((_, _, bytes)) = &restored {
-        QmcSession::restore(bytes, &problem)?
+    let mut session = if let Some(checkpoint) = &restored {
+        QmcSession::restore(&checkpoint.session, &problem)?
     } else if method == "adaptive_qmc" {
         QmcSession::adaptive(problem.clone(), options.clone())?
     } else {
         QmcSession::democratic(problem.clone(), options.clone())?
     };
     let mut cancelled = false;
-    let mut round = restored.as_ref().map_or(0, |(round, _, _)| *round);
+    let mut round = restored
+        .as_ref()
+        .map_or(0, |checkpoint| checkpoint.round_index);
     loop {
         let mut slots = (0..settings.workers)
             .map(|_| {
                 Ok(QmcSlot {
-                    kernels: cloned_kernels(kernels)?,
+                    contexts: replay.contexts(kernels)?,
                     workers: session
                         .problem()
                         .sectors
@@ -79,33 +82,36 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             if tasks.is_empty() {
                 return Err("QMC scheduler has no work before completion".into());
             }
+            for (slot, task) in slots.iter_mut().zip(&tasks) {
+                let id = task.sector_id() as usize;
+                slot.contexts[id].merge_state(replay.state(id))?;
+            }
             let returns = pool.install(|| {
                 slots
                     .par_iter_mut()
                     .zip(tasks.into_par_iter())
                     .map(|(slot, task)| {
                         let id = task.sector_id();
-                        let kernel = &mut slot.kernels[id as usize];
+                        let kernel = &mut slot.contexts[id as usize];
                         let mut local = EvaluationDiagnostics::default();
-                        let result = slot
-                            .workers
-                            .get_mut(&id)
-                            .unwrap()
-                            .evaluate(task, |point, output| {
-                                evaluate_tracked(kernel, point, output, &mut local)
-                            });
-                        (result, local)
+                        let result = slot.workers.get_mut(&id).unwrap().evaluate_weighted(
+                            task,
+                            |point, weight, output| {
+                                evaluate_tracked(kernel, point, weight, output, &mut local)
+                            },
+                        );
+                        let state = result.as_ref().ok().map(|_| kernel.state().clone());
+                        (id as usize, result, local, state)
                     })
                     .collect::<Vec<_>>()
             });
             let mut failure = None;
-            for (result, local) in returns {
+            for (id, result, local, state) in returns {
                 diagnostics.merge(&local)?;
-                match result {
-                    Ok(result) => session.submit(result)?,
-                    Err(error) => {
-                        failure.get_or_insert(error);
-                    }
+                if let Err(error) = submit_package(result, id, state, &mut replay, |result| {
+                    session.submit(result)
+                }) {
+                    failure.get_or_insert(error);
                 }
             }
             dashboard.integration(
@@ -120,8 +126,9 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     round,
                     session.checkpoint()?,
                     &diagnostics,
+                    &replay,
                 )?;
-                return Err(error.into());
+                return Err(error);
             }
             if last_checkpoint.elapsed().as_secs() >= 5 {
                 save_checkpoint(
@@ -131,6 +138,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     round,
                     session.checkpoint()?,
                     &diagnostics,
+                    &replay,
                 )?;
                 last_checkpoint = Instant::now();
             }
@@ -171,6 +179,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         round,
         session.checkpoint()?,
         &diagnostics,
+        &replay,
     )?;
     let snapshot = with_diagnostics(session.snapshot()?, &diagnostics);
     let estimate = snapshot.estimate.clone();

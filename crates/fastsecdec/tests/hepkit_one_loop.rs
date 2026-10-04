@@ -114,7 +114,7 @@ fn compare(family: ScalarIntegral, arguments: &[i64], actual: &VectorEstimate) {
             .map(|index| (actual.mean[index], actual.standard_error[index]))
             .unwrap_or((0.0, 0.0));
         assert!(
-            expected.re.is_finite() && expected.im.abs() < 1e-10,
+            expected.re.is_finite() && expected.im.is_finite() && expected.im.abs() < 1e-10,
             "{} {arguments:?}: non-Euclidean or nonfinite native master {expected:?}",
             family.name()
         );

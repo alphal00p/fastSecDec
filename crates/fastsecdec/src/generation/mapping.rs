@@ -1,4 +1,4 @@
-use super::GenerationError;
+use super::{CoordinateMap, GenerationError};
 use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
@@ -22,19 +22,11 @@ pub(super) struct MappedTerm {
 pub(super) fn map_terms(
     input: &ParametricIntegrand,
     map: &SectorMap,
-    parameters: &[Symbol],
+    coordinates: &CoordinateMap,
 ) -> Result<Vec<MappedTerm>, GenerationError> {
+    let parameters = coordinates.target_parameters();
     let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
-    let images = map
-        .exponent_matrix
-        .iter()
-        .map(|row| {
-            row.iter()
-                .zip(&variables)
-                .map(|(power, variable)| variable.pow(Atom::num(power.clone())))
-                .product::<Atom>()
-        })
-        .collect::<Vec<_>>();
+    let images = coordinates.images();
     let nonnegative_map = map
         .exponent_matrix
         .iter()
@@ -42,18 +34,13 @@ pub(super) fn map_terms(
         .all(|power| power >= &0);
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     for term in input.terms() {
-        let mut powers = map
-            .jacobian_powers
-            .iter()
-            .cloned()
-            .map(Atom::num)
-            .collect::<Vec<_>>();
+        let mut powers = coordinates.measure_powers.clone();
         for (row, power) in map.exponent_matrix.iter().zip(term.monomial_powers()) {
             for (current, exponent) in powers.iter_mut().zip(row) {
                 *current += power * Atom::num(exponent.clone());
             }
         }
-        let prefactor = term.prefactor() * Atom::num(map.determinant.clone());
+        let prefactor = term.prefactor() * &coordinates.measure_factor;
         let mut regular = Atom::one();
         for factor in term.factors() {
             if factor.exponent().is_zero() {
@@ -62,7 +49,7 @@ pub(super) fn map_terms(
             let mapped =
                 factor
                     .polynomial()
-                    .replace_multiple(input.parameters().iter().zip(&images).map(
+                    .replace_multiple(input.parameters().iter().zip(images).map(
                         |(source, target)| {
                             Replacement::new(
                                 Pattern::Literal(Atom::var(*source)),
@@ -174,4 +161,54 @@ pub(super) fn map_terms(
             })
         })
         .collect())
+}
+
+pub(super) fn coordinates(
+    input: &ParametricIntegrand,
+    map: &SectorMap,
+    parameters: &[Symbol],
+) -> CoordinateMap {
+    coordinates_from_parts(input.parameters(), input.domain(), map, parameters)
+}
+
+pub(crate) fn coordinates_from_parts(
+    source: &[Symbol],
+    domain: fastsecdec_sectors::ParametricDomain,
+    map: &SectorMap,
+    parameters: &[Symbol],
+) -> CoordinateMap {
+    let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
+    let images = map
+        .exponent_matrix
+        .iter()
+        .map(|row| {
+            row.iter()
+                .zip(&variables)
+                .map(|(power, variable)| variable.pow(Atom::num(power.clone())))
+                .product()
+        })
+        .collect();
+    let measure_factor = Atom::num(map.determinant.clone());
+    let measure_powers = map
+        .jacobian_powers
+        .iter()
+        .cloned()
+        .map(Atom::num)
+        .collect::<Vec<_>>();
+    let measure_jacobian = &measure_factor
+        * measure_powers
+            .iter()
+            .zip(&variables)
+            .map(|(power, variable)| variable.pow(power))
+            .product::<Atom>();
+    CoordinateMap {
+        source_parameters: source.to_vec(),
+        target_parameters: parameters.to_vec(),
+        images,
+        measure_jacobian,
+        measure_factor,
+        measure_powers,
+        source_domain: domain,
+        projective_fixed_parameter: map.fixed_parameter,
+    }
 }

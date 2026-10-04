@@ -96,6 +96,7 @@ pub struct IntegrationInput {
     pub relative_tolerance: f64,
     pub production_seconds: f64,
     pub max_rounds: usize,
+    pub replay: fastsecdec::kernel::ReplayPolicy,
 }
 
 impl Default for IntegrationInput {
@@ -112,6 +113,7 @@ impl Default for IntegrationInput {
             relative_tolerance: 1e-3,
             production_seconds: 10.0,
             max_rounds: 1,
+            replay: Default::default(),
         }
     }
 }

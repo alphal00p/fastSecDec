@@ -64,8 +64,10 @@ pub(super) fn rescue(
     output: &mut [f64],
     cancellation: &Cancellation,
     policy: &PrecisionPolicy,
+    weight: f64,
 ) -> Result<PrecisionReport, KernelError> {
     converge(point, output, cancellation, policy, 1, |bits| {
+        let scale = Float::with_val(bits, weight);
         cache
             .evaluate(
                 exact,
@@ -75,7 +77,7 @@ pub(super) fn rescue(
                 |value| Float::with_val(bits, value),
             )
             .iter()
-            .map(RealLike::to_f64)
+            .map(|value| (value.clone() * &scale).to_f64())
             .collect()
     })
 }
@@ -87,8 +89,10 @@ pub(super) fn rescue_complex(
     output: &mut [f64],
     cancellation: &Cancellation,
     policy: &PrecisionPolicy,
+    weight: f64,
 ) -> Result<PrecisionReport, KernelError> {
     converge(point, output, cancellation, policy, 2, |bits| {
+        let scale = Float::with_val(bits, weight);
         cache
             .evaluate(
                 exact,
@@ -103,7 +107,12 @@ pub(super) fn rescue_complex(
                 |value| Complex::new(Float::with_val(bits, value), Float::with_val(bits, 0)),
             )
             .iter()
-            .flat_map(|value| [value.re.to_f64(), value.im.to_f64()])
+            .flat_map(|value| {
+                [
+                    (value.re.clone() * &scale).to_f64(),
+                    (value.im.clone() * &scale).to_f64(),
+                ]
+            })
             .collect()
     })
 }

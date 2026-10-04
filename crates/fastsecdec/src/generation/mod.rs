@@ -5,10 +5,17 @@
 mod domain;
 mod laurent;
 mod mapping;
+mod metadata;
 mod subtraction;
 mod symmetry;
 mod types;
+pub(crate) use domain::check_factors;
+pub(crate) use mapping::coordinates_from_parts;
 
+pub use metadata::{
+    BranchPolicy, ChartRecord, CoordinateMap, DomainAssessment, FactorAssessment,
+    FactorCertificate, GenerationMetadata,
+};
 pub use types::{
     GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationPhase,
     GenerationProgress, SubtractionStrategy,
@@ -35,7 +42,7 @@ pub fn generate(
         }
     };
     let started = Instant::now();
-    domain::check(input, options.assume_no_threshold)?;
+    let domain = domain::check(input, options.assume_no_threshold)?;
     emit(GenerationProgress::PhaseTiming {
         phase: GenerationPhase::Domain,
         seconds: started.elapsed().as_secs_f64(),
@@ -79,13 +86,18 @@ pub fn generate(
         phase: GenerationPhase::Geometry,
         seconds: started.elapsed().as_secs_f64(),
     })?;
-    let source_symbols = input.density().get_all_symbols(true);
+    let mut source_symbols = input.density().get_all_symbols(true);
+    // Unused input coordinates still belong to the source chart and must not
+    // be reused as target symbols merely because the density omits them.
+    source_symbols.extend(input.parameters().iter().copied());
+    source_symbols.extend(std::iter::once(input.regulator()));
     let mut pending = Vec::new();
     let mut exact = BTreeMap::<i32, Atom>::new();
     let mut minimum = options.max_order.min(0);
     let mut templates = laurent::TemplateCache::default();
     let mut registry = symmetry::SymmetryRegistry::default();
     let mut representatives = BTreeMap::new();
+    let mut charts = Vec::new();
     for (index, map) in decomposition
         .into_iter()
         .flat_map(|d| d.sectors)
@@ -109,7 +121,8 @@ pub fn generate(
             namespace += 1;
         };
         let started = Instant::now();
-        let mapped = mapping::map_terms(input, &map, &parameters)?;
+        let coordinates = mapping::coordinates(input, &map, &parameters);
+        let mapped = mapping::map_terms(input, &map, &coordinates)?;
         emit(GenerationProgress::PhaseTiming {
             phase: GenerationPhase::Mapping,
             seconds: started.elapsed().as_secs_f64(),
@@ -129,6 +142,14 @@ pub fn generate(
             .sum::<Atom>();
         let matched = registry.register(index, &parameters, &density)?;
         debug_assert_eq!(matched.permutation.len(), parameters.len());
+        charts.push(ChartRecord {
+            source_index: index,
+            representative: matched.representative,
+            representative_permutation: matched.permutation.clone(),
+            kernel_sector: None,
+            coordinates,
+            geometry: map.clone(),
+        });
         if matched.representative == index {
             representatives.insert(index, (map, parameters, mapped, 1usize));
         } else {
@@ -145,8 +166,9 @@ pub fn generate(
         })?;
     }
     let total = representatives.len();
-    for (index, (map, parameters, mapped, multiplicity)) in
-        representatives.into_values().enumerate()
+    let mut kernel_indices = BTreeMap::new();
+    for (index, (representative_index, (map, parameters, mapped, multiplicity))) in
+        representatives.into_iter().enumerate()
     {
         let started = Instant::now();
         let (expression, terms, cancellation_terms) =
@@ -196,6 +218,7 @@ pub fn generate(
                 *exact.entry(order).or_insert(Atom::Zero) += coefficient;
             }
         } else {
+            kernel_indices.insert(representative_index, pending.len());
             pending.push((
                 map,
                 parameters,
@@ -204,6 +227,9 @@ pub fn generate(
                 cancellation_terms,
             ));
         }
+    }
+    for chart in &mut charts {
+        chart.kernel_sector = kernel_indices.get(&chart.representative).copied();
     }
     let orders = (minimum..=options.max_order).collect::<Vec<_>>();
     let sectors = pending
@@ -228,6 +254,7 @@ pub fn generate(
         .map(|order| exact.get(order).cloned().unwrap_or(Atom::Zero))
         .collect();
     let result = GeneratedIntegral {
+        metadata: GenerationMetadata { domain, charts },
         orders,
         sectors,
         exact_coefficients,

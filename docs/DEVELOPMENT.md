@@ -18,9 +18,10 @@ registry resolution. Local dependency source identities are:
 |---|---|
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit` | `8f834d9c62ae06fb327e4ef0b14abffda755b610` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `617f7a56f8f168cd7498177c7db4a40b098eb135` on `codex/havana-qmc`; includes the reviewed numerical fixes and an additive completed-package accessor for checkpoint validation |
+| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `55072895f98be8830bcf6400e32546bc9470de7a` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package access for checkpoint validation, and explicit interior periodization-underflow/subnormal-range errors |
 | Published SymJIT Rust crate | `2.26.0`, registry checksum in Cargo.lock |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster` | Development-only scalar references at community lock revision `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`; default features disabled |
+| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/one-loop-reduce` | Development-only numerator references at community lock revision `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
 
 The first two checkouts are detached worktrees of the supplied repositories. The
 FeynKit worktree has one small literal-substitution fix for kinematic symbols
@@ -59,11 +60,14 @@ See [REUSE_AUDIT.md](REUSE_AUDIT.md) for the API/source/probe record. The standa
 Numerica feature branch has its own tests and commits; its dependency revision
 is recorded at each reviewed milestone.
 
-The native one-loop reference crate is a development dependency only. It shares
-the workspace's Symbolica and SymJIT versions and introduces no Python or Fortran
-runtime. The separate ignored `one-loop-reduce` checkout at community lock
-revision `b53a70776a43bd14c6562c52a03bc4909568e473` is available for reuse inspection;
-it is not currently a FastSecDec dependency.
+The native one-loop master and numerator-reduction crates are development
+dependencies only. They share the workspace's Symbolica, SymJIT, FeynKit graph
+and kinematics identities and introduce no Python or Fortran runtime. Cargo
+source patches also redirect the reducer's Git dependencies to these existing
+owners. The [numerator reference review](reviews/hepkit-numerator-reduction.md)
+records the native API probe and distinguishes it from complete integration
+validation. Neither reference provider restricts the production Gaussian
+parameterization to its own reduction or degeneracy limits.
 
 Keep source and tests within their owning subsystem. Current parallel ownership:
 native graph ingestion and parametric construction; exact sector geometry;

@@ -37,6 +37,14 @@ symbolica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
 graphica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
 numerica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }
 
+# The native one-loop reduction reference must share HEPKit's graph/Atom owners.
+[patch."https://github.com/alphal00p/gammaloop"]
+feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-graph" }
+feynkit-kinematics = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-kinematics" }
+
+[patch."https://github.com/alphal00p/oneloopmaster"]
+oneloop = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster" }
+
 [profile.dev.package.symbolica]
 opt-level = 2
 

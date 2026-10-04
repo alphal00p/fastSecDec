@@ -2,8 +2,10 @@
 mod artifact;
 mod cancellation;
 mod complex;
+mod metadata;
 mod precision;
 mod precision_cache;
+mod weighted;
 use crate::generation::GeneratedIntegral;
 pub use precision::{PrecisionPolicy, PrecisionReport};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};
@@ -15,6 +17,7 @@ use symbolica::{
     },
     evaluate::{ExpressionEvaluator, JITCompilationSettings, JITCompiledEvaluator},
 };
+pub use weighted::{ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationContext};
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
@@ -36,6 +39,10 @@ pub enum KernelError {
     OutputCount { expected: usize, actual: usize },
     #[error("kernel input must lie in the finite closed unit cube")]
     InvalidPoint,
+    #[error("integration weight must be finite and nonnegative")]
+    InvalidWeight,
+    #[error("weighted replay failed: {0}")]
+    Replay(String),
     #[error("kernel produced a non-finite value at the supplied point")]
     NonFinite,
     #[error("portable evaluator serialization failed: {0}")]
@@ -99,6 +106,15 @@ impl SectorKernel {
         point: &[f64],
         output: &mut [f64],
     ) -> Result<PrecisionReport, KernelError> {
+        self.evaluate_scaled(point, output, 1.0)
+    }
+
+    fn evaluate_scaled(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+    ) -> Result<PrecisionReport, KernelError> {
         if point.len() != self.dimension() {
             return Err(KernelError::Dimension {
                 expected: self.dimension(),
@@ -118,15 +134,27 @@ impl SectorKernel {
             return Err(KernelError::InvalidPoint);
         }
         let backend = match &mut self.backend {
-            Backend::Complex(kernel) => return kernel.evaluate(point, output),
+            Backend::Complex(kernel) => return kernel.evaluate_scaled(point, output, weight),
             Backend::Real(kernel) => kernel,
         };
         backend.evaluator.evaluate(point, output);
+        // Native replay must scale before conversion: an amplifying weight can
+        // make a raw zero/subnormal result materially inaccurate.
+        let range_loss = weight > 1.0
+            && output
+                .iter()
+                .zip(&self.coefficients)
+                .any(|(value, expression)| {
+                    value.abs() < f64::MIN_POSITIVE && !expression.is_zero()
+                });
+        for value in output.iter_mut() {
+            *value *= weight;
+        }
         let nonfinite = output.iter().any(|value| !value.is_finite());
         let boundary = self
             .cancellation
             .needs_check(point, self.precision.boundary_threshold);
-        if boundary && !nonfinite {
+        if boundary && !nonfinite && !range_loss {
             for (target, value) in backend.check_input.iter_mut().zip(point) {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
             }
@@ -142,11 +170,11 @@ impl SectorKernel {
                     if expression.is_zero() {
                         return *compiled == 0.0;
                     }
-                    let value = checked.to_f64();
+                    let value = checked.to_f64() * weight;
                     let tolerance = self.precision.absolute_tolerance
                         + self.precision.relative_tolerance * value.abs();
                     value.is_finite()
-                        && checked.get_absolute_error() <= tolerance
+                        && checked.get_absolute_error() * weight <= tolerance
                         && (value - compiled).abs() <= tolerance
                 });
             if stable {
@@ -157,7 +185,7 @@ impl SectorKernel {
                 });
             }
         }
-        if nonfinite || boundary {
+        if nonfinite || boundary || range_loss {
             return precision::rescue(
                 &backend.exact_evaluator,
                 &mut backend.precision_cache,
@@ -165,6 +193,7 @@ impl SectorKernel {
                 output,
                 &self.cancellation,
                 &self.precision,
+                weight,
             );
         }
         Ok(PrecisionReport {
@@ -172,6 +201,29 @@ impl SectorKernel {
             checked: false,
             bits: 53,
         })
+    }
+
+    fn replay_scaled(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+        minimum_bits: u32,
+    ) -> Result<PrecisionReport, KernelError> {
+        let mut policy = self.precision.clone();
+        policy.initial_bits = policy.initial_bits.max(minimum_bits);
+        match &mut self.backend {
+            Backend::Real(kernel) => precision::rescue(
+                &kernel.exact_evaluator,
+                &mut kernel.precision_cache,
+                point,
+                output,
+                &self.cancellation,
+                &policy,
+                weight,
+            ),
+            Backend::Complex(kernel) => kernel.replay_scaled(point, output, weight, &policy),
+        }
     }
 
     /// Clone native evaluator state and buffers for an independently owned worker.
@@ -197,6 +249,7 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    metadata: Option<crate::generation::GenerationMetadata>,
     coefficient_orders: Vec<i32>,
     components: Vec<crate::status::CoefficientComponent>,
     precision: PrecisionPolicy,
@@ -208,6 +261,10 @@ pub struct KernelSet {
 }
 
 impl KernelSet {
+    /// Legacy version-one artifacts have no retained generation metadata.
+    pub fn generation_metadata(&self) -> Option<&crate::generation::GenerationMetadata> {
+        self.metadata.as_ref()
+    }
     pub fn components(&self) -> &[crate::status::CoefficientComponent] {
         &self.components
     }
@@ -270,6 +327,7 @@ impl GeneratedIntegral {
                 .collect::<Result<_, KernelError>>()?,
             self.exact_coefficients().to_vec(),
             precision,
+            Some(self.metadata().clone()),
             progress,
         )
     }
@@ -281,12 +339,14 @@ impl KernelSet {
         expressions: Vec<SectorExpressions>,
         exact_expressions: Vec<Atom>,
         precision: PrecisionPolicy,
+        metadata: Option<crate::generation::GenerationMetadata>,
     ) -> Result<Self, KernelError> {
         Self::from_expressions_with_progress(
             orders,
             expressions,
             exact_expressions,
             precision,
+            metadata,
             |_| ControlFlow::Continue(()),
         )
     }
@@ -296,6 +356,7 @@ impl KernelSet {
         expressions: Vec<SectorExpressions>,
         exact_expressions: Vec<Atom>,
         precision: PrecisionPolicy,
+        metadata: Option<crate::generation::GenerationMetadata>,
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
@@ -381,6 +442,7 @@ impl KernelSet {
             return Err(KernelError::NonFinite);
         }
         let mut result = KernelSet {
+            metadata,
             components: orders
                 .iter()
                 .flat_map(|_| {

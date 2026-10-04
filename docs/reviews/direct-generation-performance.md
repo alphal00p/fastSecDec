@@ -178,3 +178,17 @@ expansion or an unused additional derivative. The existing three-axis
 polynomial identity exercises intersecting faces and negative regulator slopes;
 the compact-power regression guards against reintroducing dense primary
 expressions during mapping or Laurent cleanup.
+
+## First complete native double-box integration
+
+The preserved Taylor artifact `81d8f31509947ae4dcb7dd55b8066630eefc6961e0a5f9ac05b21cc7921ec2c9` was integrated over all 102 representative sectors with 1024 lattice points per shift, eight complete independent shifts, seed 18931 and Korobov3 periodization. The already-weighted callback and native whole-vector replay were used. All 835,584 samples completed with zero evaluation failures; 299,215 samples required native rescue, with a maximum of 448 bits. There were 181 additional first/growth replays. Artifact loading took 17.443 s and serial diagnostic integration took 164.505 s. This was a development-build diagnostic, not a matched performance acceptance measurement.
+
+| Laurent order | Native estimate | Estimated standard error |
+| --- | ---: | ---: |
+| −4 | 0.00504150447 | 0.00141677163 |
+| −3 | 1.49731323279 | 0.01383094434 |
+| −2 | 1.20170491109 | 0.02692830320 |
+| −1 | 2.87390202263 | 0.06227307302 |
+| 0 | −15.48864782850 | 0.34970095575 |
+
+The complete covariance, settings, precision counts and historical-target differences are retained in `output/probes/double-box-integral-taylor-1024x8.json`; the runtime log is adjacent. The historical target came from a manual numeric result and has no certified uncertainty. Its leading zero differs from this estimate by about 3.56 of the reported native standard errors. This requires an independent pole/convergence investigation; neither the filename nor this small-shift diagnostic establishes a certified discrepancy or successful scientific parity. No code or target was adjusted to force agreement.

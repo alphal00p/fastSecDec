@@ -161,6 +161,21 @@ fn portable_generation_integration_resume_and_json_errors() {
     assert!((run["estimate"]["mean"][0].as_f64().unwrap() - 0.5).abs() < 0.002);
     assert!(run["loading_seconds"].as_f64().unwrap() > 0.0);
     assert_eq!(run["generation_timings"], generated["generation_timings"]);
+    assert!(
+        run["snapshot"]["evaluation_diagnostics"]["weighted_checks"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert!(
+        run["snapshot"]["evaluation_diagnostics"]["additional_replays"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    let saved: serde_json::Value = serde_json::from_slice(&fs::read(&checkpoint).unwrap()).unwrap();
+    assert_eq!(saved["format_version"], 3);
+    assert_eq!(saved["replay"]["states"][0]["verified"], true);
     // Observations are not mathematical identity and must not invalidate a
     // production checkpoint or the portable kernel's content certificate.
     let mut stored: serde_json::Value =
@@ -301,7 +316,7 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
     assert_eq!(report["stopping_reason"], "cancelled");
     assert_eq!(report["resume_status"], "checkpoint_saved");
     let state: serde_json::Value = serde_json::from_slice(&fs::read(checkpoint).unwrap()).unwrap();
-    assert_eq!(state["format_version"], 2);
+    assert_eq!(state["format_version"], 3);
     assert_eq!(state["round_index"], 0);
 }
 

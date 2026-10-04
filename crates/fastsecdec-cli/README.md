@@ -54,6 +54,22 @@ report marks this as `pilot_restart_required`.
 Precision diagnostics count cumulative evaluation attempts, conditioning
 checks, and rescues across pilots and refinement rounds. Checkpoints preserve
 these counters. They differ from the current stage's completed-point count.
+Weighted checks examine complete coefficients after the known sampling weight
+is applied. A new or sufficiently larger weighted value is checked at higher
+precision; the `additional_replays` counter distinguishes a new whole-vector
+evaluation from a check already satisfied by ordinary precision rescue.
+`[integration.replay]` accepts `growth_factor` (default 16) and `minimum_bits`
+(default 128). The weight is applied once, before conversion from rescue
+precision to binary64.
+
+Replay maxima advance only for complete work packages accepted by the session.
+Checkpoints preserve that accepted state and policy across worker-count changes,
+pilot/production transitions, and refinement rounds. Failed package prefixes
+do not influence resumed replay decisions. Checkpoint version 3 is required;
+older development checkpoints require restarting integration. Different worker
+schedules can change rounding within the precision policy, so bitwise equality
+across schedules is not promised.
+
 Boundary diagnostics enumerate coordinate subsets and every lower/upper side
 assignment through `--max-codimension` (default 2), up to `--max-probes` total
 points (default 10,000). Reports state configured/planned/completed coverage and

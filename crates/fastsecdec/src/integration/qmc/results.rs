@@ -3,9 +3,64 @@ use crate::{
     integration::VectorEstimate,
     status::{IntegrationSnapshot, SectorSnapshot, UncertaintyStatus},
 };
-use numerica::numerical_integration::qmc::QmcEstimate;
+use numerica::numerical_integration::qmc::{QmcEstimate, ShiftEstimate};
 
 impl QmcSession {
+    /// Complete same-shift totals across every stochastic sector, including
+    /// exact contributions, in increasing shift-ID order. A partial sector
+    /// never contributes a row. Only democratic production shares shift IDs;
+    /// adaptive allocations must use their separate sector estimates instead.
+    /// An all-exact problem has no stochastic replicas and returns an empty list.
+    ///
+    /// These absolute binary64 vectors are diagnostics. `estimate()` retains
+    /// sector-centered differences to preserve covariance beside large offsets.
+    pub fn complete_shift_estimates(&self) -> Result<Vec<ShiftEstimate>> {
+        if self.stage != IntegrationStage::Production
+            || self.method != IntegrationMethod::DemocraticQmc
+        {
+            return Err(IntegrationError::Unavailable(
+                "common shift totals require democratic QMC production".into(),
+            ));
+        }
+        self.common_shift_rows()?
+            .iter()
+            .map(|rows| {
+                Ok(ShiftEstimate {
+                    shift: rows[0].shift,
+                    mean: (0..self.problem.orders.len())
+                        .map(|j| {
+                            precise_sum(
+                                rows.iter()
+                                    .map(|row| row.mean[j])
+                                    .chain([self.problem.exact_coefficients[j]]),
+                            )
+                        })
+                        .collect::<Result<_>>()?,
+                })
+            })
+            .collect()
+    }
+
+    fn common_shift_rows(&self) -> Result<Vec<Vec<ShiftEstimate>>> {
+        let means: Vec<_> = self
+            .runs
+            .iter()
+            .map(|run| run.accumulator.shift_estimates())
+            .collect::<std::result::Result<_, _>>()?;
+        let Some(first_sector) = means.first() else {
+            return Ok(Vec::new());
+        };
+        Ok(first_sector
+            .iter()
+            .filter_map(|first| {
+                means
+                    .iter()
+                    .map(|rows| rows.iter().find(|row| row.shift == first.shift).cloned())
+                    .collect()
+            })
+            .collect())
+    }
+
     pub fn estimate(&self) -> Result<VectorEstimate> {
         if self.stage == IntegrationStage::Pilot {
             return Err(IntegrationError::Unavailable(
@@ -24,21 +79,7 @@ impl QmcSession {
             });
         }
         let value = if self.method == IntegrationMethod::DemocraticQmc {
-            let means: Vec<_> = self
-                .runs
-                .iter()
-                .map(|r| r.accumulator.shift_estimates())
-                .collect::<std::result::Result<_, _>>()?;
-            let mut complete_rows = Vec::new();
-            for first in &means[0] {
-                let rows: Option<Vec<_>> = means
-                    .iter()
-                    .map(|row| row.iter().find(|v| v.shift == first.shift))
-                    .collect();
-                if let Some(rows) = rows {
-                    complete_rows.push(rows);
-                }
-            }
+            let complete_rows = self.common_shift_rows()?;
             let Some(anchor) = complete_rows.first() else {
                 return Err(
                     numerica::numerical_integration::qmc::QmcError::InsufficientShifts {

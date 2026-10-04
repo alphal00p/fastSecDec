@@ -171,7 +171,7 @@ impl Dashboard {
                     Constraint::Length(3),
                     Constraint::Min(6),
                     Constraint::Min(5),
-                    Constraint::Length(2),
+                    Constraint::Length(3),
                 ])
                 .split(frame.area());
                 frame.render_widget(title("Integration"), chunks[0]);
@@ -270,11 +270,13 @@ impl Dashboard {
                 );
                 frame.render_widget(
                     Paragraph::new(format!(
-                        "  Worker time {:.2} s · checks {} · rescues {} · max {} bits\n  q / Esc stops{}",
+                        "  Worker time {:.2} s · checks {} · rescues {} · max {} bits\n  Weighted checks {} · additional replays {}\n  q / Esc stops{}",
                         snapshot.worker_seconds,
                         snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.conditioning_checks),
                         snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.rescues),
                         snapshot.evaluation_diagnostics.as_ref().map_or(53, |d|d.max_precision_bits),
+                        snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.weighted_checks),
+                        snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.additional_replays),
                         if snapshot.method == fastsecdec::status::IntegrationMethod::HavanaMc
                             && snapshot.stage == fastsecdec::status::IntegrationStage::Pilot {
                             "; restart this MC pilot to continue"

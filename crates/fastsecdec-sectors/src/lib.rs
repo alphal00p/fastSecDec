@@ -7,6 +7,7 @@
 mod arithmetic;
 mod cone;
 mod decompose;
+mod map_validation;
 mod support;
 mod triangulate;
 mod types;

@@ -37,6 +37,28 @@ fn callback_observes_periodization_weight_applied_exactly_once() {
 }
 
 #[test]
+fn already_weighted_callback_is_accumulated_without_another_jacobian() {
+    let mut configuration = settings();
+    configuration.periodization = Periodization::Korobov3;
+    let mut session = QmcSession::democratic(problem(), configuration).unwrap();
+    let mut nontrivial = false;
+    for task in tasks(&mut session) {
+        let value = session
+            .worker_context(task.sector_id())
+            .unwrap()
+            .evaluate_weighted(task, |_, weight, output| {
+                nontrivial |= (weight - 1.0).abs() > 0.01;
+                output.copy_from_slice(&[1.0, -2.0]);
+                Ok::<_, String>(())
+            })
+            .unwrap();
+        session.submit(value).unwrap();
+    }
+    assert!(nontrivial);
+    assert_eq!(session.estimate().unwrap().mean, vec![3.0, -7.0]);
+}
+
+#[test]
 fn complex_coefficients_retain_real_imaginary_covariance() {
     use fastsecdec::integration::CoefficientComponent::{Imag, Real};
     let problem = IntegrationProblem::new_with_components(
@@ -163,11 +185,16 @@ fn democratic_errors_wait_for_common_full_sector_coverage() {
         session.snapshot().unwrap().uncertainty,
         UncertaintyStatus::WaitingForCoverage
     );
+    assert!(session.complete_shift_estimates().unwrap().is_empty());
     let others: Vec<_> = work.into_iter().filter(|t| t.sector_id() == 20).collect();
     session
         .submit(evaluate(&session, others[0].clone()))
         .unwrap();
     assert!(session.estimate().is_err());
+    let replicas = session.complete_shift_estimates().unwrap();
+    assert_eq!(replicas.len(), 1);
+    assert_eq!(replicas[0].shift, 0);
+    assert_eq!(replicas[0].mean, [1.0, -3.0]);
     session
         .submit(evaluate(&session, others[1].clone()))
         .unwrap();
@@ -178,6 +205,15 @@ fn democratic_errors_wait_for_common_full_sector_coverage() {
     for task in others.into_iter().skip(2) {
         session.submit(evaluate(&session, task)).unwrap();
     }
+    assert_eq!(
+        session
+            .complete_shift_estimates()
+            .unwrap()
+            .iter()
+            .map(|row| row.shift)
+            .collect::<Vec<_>>(),
+        [0, 1, 2, 3]
+    );
     assert!(
         session
             .estimate()
@@ -293,6 +329,43 @@ fn cross_sector_and_exact_cancellations_retain_small_contributions() {
     }
     assert_eq!(session.estimate().unwrap().mean, vec![1.0, 2.0]);
     assert_eq!(session.estimate().unwrap().standard_error, vec![0.0, 0.0]);
+    assert!(
+        session
+            .complete_shift_estimates()
+            .unwrap()
+            .iter()
+            .all(|row| row.mean == [1.0, 2.0])
+    );
+}
+
+#[test]
+fn absolute_shift_diagnostics_do_not_erase_centered_uncertainty() {
+    let mut input = problem();
+    input.exact_coefficients = vec![1e16, 0.0];
+    let mut session = QmcSession::democratic(input, settings()).unwrap();
+    for task in tasks(&mut session) {
+        let factor = if task.sector_id() == 10 { 0.25 } else { 0.0 };
+        let result = synthetic(
+            &session,
+            task,
+            |shift| vec![factor * shift as f64, 0.0],
+            1.0,
+        );
+        session.submit(result).unwrap();
+    }
+    // Binary64 cannot retain these quarter-unit differences beside 1e16 in
+    // diagnostic absolute vectors. The actual estimate uses centered sectors.
+    assert!(
+        session
+            .complete_shift_estimates()
+            .unwrap()
+            .iter()
+            .all(|row| row.mean[0] == 1e16)
+    );
+    assert_eq!(
+        session.estimate().unwrap().covariance_of_mean[0],
+        5.0 / 192.0
+    );
 }
 
 #[test]
@@ -326,6 +399,7 @@ fn exact_problems_finish_without_work_and_tolerances_validate() {
 #[test]
 fn adaptive_pilot_cost_allocation_and_production_are_separate() {
     let mut session = QmcSession::adaptive(problem(), settings()).unwrap();
+    assert!(session.complete_shift_estimates().is_err());
     assert!(session.recommend_allocation(100.0, 2, &[1.0, 1.0]).is_err());
     for task in tasks(&mut session) {
         let factor = if task.sector_id() == 10 { 1.0 } else { 4.0 };

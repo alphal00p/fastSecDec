@@ -13,6 +13,8 @@ struct Payload {
     exact: Vec<String>,
     precision: PrecisionPolicy,
     sectors: Vec<PortableSector>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    metadata: Option<super::metadata::PortableMetadata>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -32,14 +34,18 @@ struct Artifact {
     payload: Payload,
 }
 
-fn atom(expression: String) -> Result<Atom, KernelError> {
+pub(super) fn atom(expression: String) -> Result<Atom, KernelError> {
     Atom::parse(expression, "fastsecdec::artifact", Default::default())
         .map_err(KernelError::Artifact)
 }
 
 fn content_id(payload: &Payload) -> Result<String, KernelError> {
     let mut hasher = blake3::Hasher::new();
-    hasher.update(b"fastsecdec-portable-kernel-v1:symbolica-3:symjit-2.26:f64");
+    hasher.update(if payload.version == 1 {
+        b"fastsecdec-portable-kernel-v1:symbolica-3:symjit-2.26:f64"
+    } else {
+        b"fastsecdec-portable-kernel-v2:symbolica-3:symjit-2.26:f64"
+    });
     hasher.update(&serde_json::to_vec(payload)?);
     Ok(hasher.finalize().to_hex().to_string())
 }
@@ -50,7 +56,10 @@ impl crate::generation::GeneratedIntegral {
     pub fn to_kernel_bytes(&self, precision: PrecisionPolicy) -> Result<Vec<u8>, KernelError> {
         precision.validate()?;
         let payload = Payload {
-            version: 1,
+            version: 2,
+            metadata: Some(super::metadata::PortableMetadata::from_native(
+                self.metadata(),
+            )),
             symjit_optimization: 2,
             orders: self.orders().to_vec(),
             exact: self
@@ -88,7 +97,11 @@ impl crate::generation::GeneratedIntegral {
 impl KernelSet {
     fn payload(&self) -> Payload {
         Payload {
-            version: 1,
+            version: if self.metadata.is_some() { 2 } else { 1 },
+            metadata: self
+                .metadata
+                .as_ref()
+                .map(super::metadata::PortableMetadata::from_native),
             symjit_optimization: 2,
             orders: self.coefficient_orders.clone(),
             exact: self
@@ -134,9 +147,17 @@ impl KernelSet {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
         let artifact: Artifact = serde_json::from_slice(bytes)?;
         let payload = artifact.payload;
-        if payload.version != 1 || payload.symjit_optimization != 2 {
+        if !matches!(payload.version, 1 | 2)
+            || payload.symjit_optimization != 2
+            || (payload.version == 2) != payload.metadata.is_some()
+        {
             return Err(KernelError::Artifact(
                 "unsupported artifact version or compiler policy".into(),
+            ));
+        }
+        if content_id(&payload)? != artifact.content_id {
+            return Err(KernelError::Artifact(
+                "kernel content identity mismatch".into(),
             ));
         }
         if payload.orders.is_empty()
@@ -191,6 +212,10 @@ impl KernelSet {
                 cancellation,
             });
         }
+        let metadata = payload
+            .metadata
+            .map(|metadata| metadata.into_native(&sectors))
+            .transpose()?;
         let restored = Self::from_expressions(
             payload.orders,
             sectors,
@@ -200,6 +225,7 @@ impl KernelSet {
                 .map(atom)
                 .collect::<Result<Vec<_>, _>>()?,
             payload.precision,
+            metadata,
         )?;
         if restored.content_id != artifact.content_id {
             return Err(KernelError::Artifact(

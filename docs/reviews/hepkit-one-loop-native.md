@@ -12,8 +12,9 @@ The community reference lockfile selects:
 - `one-loop-reduce`: `b53a70776a43bd14c6562c52a03bc4909568e473`.
 
 Both were copied into isolated, ignored reference checkouts without changing the
-original repositories. Only `oneloop` is currently a FastSecDec development
-dependency, with default features disabled. The dependency graph retains one
+original repositories. Both are now FastSecDec development dependencies, with
+default features disabled, as the subsequent numerator-validation slice reuses
+the native reducer. The dependency graph retains one
 Symbolica kernel and SymJIT 2.26.0. No Python or Fortran library is introduced.
 
 The API/source/probe checks are:
@@ -91,4 +92,5 @@ orders of the masters. Any Rust test adapter must preserve those checks and use
 Symbolica's native series arithmetic. Merely evaluating a reduction coefficient
 at dimension four would discard terms that multiply divergent master
 coefficients. No numerator master comparison is claimed until that separate
-API/probe/test slice is executed.
+API/probe/test slice is executed; its evidence is recorded separately in
+`hepkit-numerator-reduction.md`.

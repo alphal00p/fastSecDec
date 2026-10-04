@@ -21,6 +21,8 @@ pub(super) struct ComplexKernel {
     check_output: Vec<Complex<ErrorPropagatingFloat<f64>>>,
     cancellation: Cancellation,
     precision: PrecisionPolicy,
+    exact_zero: Vec<bool>,
+    real_coefficients: Vec<bool>,
 }
 
 impl ComplexKernel {
@@ -58,13 +60,31 @@ impl ComplexKernel {
             check_output: vec![Complex::new(tracked(0.0), tracked(0.0)); coefficients.len()],
             cancellation,
             precision,
+            exact_zero: coefficients.iter().map(|value| value.is_zero()).collect(),
+            // Phase-one coordinates and residual functions are real. Native
+            // real constants therefore certify an identically zero imaginary
+            // component without inventing a symbolic real/imaginary splitter.
+            real_coefficients: coefficients
+                .iter()
+                .map(|value| !super::has_complex_coefficients(value))
+                .collect(),
         })
     }
 
+    #[cfg(test)]
     pub(super) fn evaluate(
         &mut self,
         point: &[f64],
         output: &mut [f64],
+    ) -> Result<PrecisionReport, KernelError> {
+        self.evaluate_scaled(point, output, 1.0)
+    }
+
+    pub(super) fn evaluate_scaled(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
     ) -> Result<PrecisionReport, KernelError> {
         if point.len() != self.input.len() {
             return Err(KernelError::Dimension {
@@ -91,11 +111,25 @@ impl ComplexKernel {
         for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(&self.output) {
             target.copy_from_slice(&[value.re, value.im]);
         }
+        let range_loss = weight > 1.0
+            && self
+                .output
+                .iter()
+                .zip(&self.exact_zero)
+                .zip(&self.real_coefficients)
+                .any(|((value, zero), real)| {
+                    !zero
+                        && (value.re.abs() < f64::MIN_POSITIVE
+                            || (!real && value.im.abs() < f64::MIN_POSITIVE))
+                });
+        for value in output.iter_mut() {
+            *value *= weight;
+        }
         let nonfinite = output.iter().any(|value| !value.is_finite());
         let boundary = self
             .cancellation
             .needs_check(point, self.precision.boundary_threshold);
-        if boundary && !nonfinite {
+        if boundary && !nonfinite && !range_loss {
             for (input, value) in self.check_input.iter_mut().zip(point) {
                 *input = Complex::new(tracked(*value), tracked(0.0));
             }
@@ -109,15 +143,15 @@ impl ComplexKernel {
                 .iter()
                 .zip(&self.output)
                 .all(|(checked, compiled)| {
-                    let scale = checked.re.to_f64().abs().max(checked.im.to_f64().abs());
+                    let scale = checked.re.to_f64().abs().max(checked.im.to_f64().abs()) * weight;
                     let tolerance = self.precision.absolute_tolerance
                         + self.precision.relative_tolerance * scale;
                     [(checked.re, compiled.re), (checked.im, compiled.im)]
                         .iter()
                         .all(|(value, compiled)| {
                             value.to_f64().is_finite()
-                                && value.get_absolute_error() <= tolerance
-                                && (value.to_f64() - compiled).abs() <= tolerance
+                                && value.get_absolute_error() * weight <= tolerance
+                                && ((value.to_f64() - compiled) * weight).abs() <= tolerance
                         })
                 });
             if stable {
@@ -128,7 +162,7 @@ impl ComplexKernel {
                 });
             }
         }
-        if nonfinite || boundary {
+        if nonfinite || boundary || range_loss {
             return precision::rescue_complex(
                 &self.exact,
                 &mut self.precision_cache,
@@ -136,6 +170,7 @@ impl ComplexKernel {
                 output,
                 &self.cancellation,
                 &self.precision,
+                weight,
             );
         }
         Ok(PrecisionReport {
@@ -143,6 +178,24 @@ impl ComplexKernel {
             checked: false,
             bits: 53,
         })
+    }
+
+    pub(super) fn replay_scaled(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+        policy: &PrecisionPolicy,
+    ) -> Result<PrecisionReport, KernelError> {
+        precision::rescue_complex(
+            &self.exact,
+            &mut self.precision_cache,
+            point,
+            output,
+            &self.cancellation,
+            policy,
+            weight,
+        )
     }
 
     pub(super) fn try_clone(&self) -> Result<Self, KernelError> {
@@ -157,6 +210,8 @@ impl ComplexKernel {
             check_output: self.check_output.clone(),
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
+            exact_zero: self.exact_zero.clone(),
+            real_coefficients: self.real_coefficients.clone(),
         })
     }
 }

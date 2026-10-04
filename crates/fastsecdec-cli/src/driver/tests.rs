@@ -1,8 +1,9 @@
 use super::*;
 use super::{
     checkpoint::{Checkpoint, restore_checkpoint, save_checkpoint, save_mc_checkpoint},
-    execution::problem,
+    execution::{problem, submit_package},
     refinement::{adaptive_budget, qmc_design},
+    replay::AcceptedReplay,
 };
 use crate::{artifact::Artifact, config::IntegrationInput, display::Dashboard};
 use fastsecdec::{
@@ -74,8 +75,9 @@ fn lattice_refinement_caps_points_then_grows_independent_shifts() {
 #[test]
 fn completed_checkpoint_resume_does_not_refine_or_repeat_work() {
     let (dir, artifact, kernels) = fixture();
-    for method in ["qmc", "mc"] {
-        let settings = settings(method);
+    for method in ["qmc", "mc", "adaptive_qmc", "adaptive_mc"] {
+        let mut settings = settings(method);
+        settings.production_seconds = 1.0;
         let checkpoint = dir.path().join(format!("{method}.json"));
         let original = integrate(
             &artifact,
@@ -88,6 +90,14 @@ fn completed_checkpoint_resume_does_not_refine_or_repeat_work() {
         .unwrap();
         let state: Checkpoint = serde_json::from_slice(&fs::read(&checkpoint).unwrap()).unwrap();
         assert_eq!(state.round_index, 1);
+        let accepted = restore_checkpoint(&checkpoint, &artifact, &settings)
+            .unwrap()
+            .replay;
+        assert!(accepted.state(0).verified());
+        let diagnostics = original.snapshot.evaluation_diagnostics.as_ref().unwrap();
+        assert!(diagnostics.weighted_checks > 0);
+        assert!(diagnostics.additional_replays > 0);
+        settings.workers = 3;
         let resumed = integrate(
             &artifact,
             &kernels,
@@ -113,6 +123,215 @@ fn completed_checkpoint_resume_does_not_refine_or_repeat_work() {
         assert_eq!(
             original.snapshot.worker_seconds,
             resumed.snapshot.worker_seconds
+        );
+        assert_eq!(
+            accepted,
+            restore_checkpoint(&checkpoint, &artifact, &settings)
+                .unwrap()
+                .replay
+        );
+    }
+}
+
+#[test]
+fn failed_prefix_and_rejected_submission_never_advance_replay_state() {
+    let (_dir, artifact, kernels) = fixture();
+    let settings = settings("qmc");
+    let mut accepted = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
+    let initial = accepted.clone();
+    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let mut session = QmcSession::democratic(
+        problem(&artifact, &kernels).unwrap(),
+        QmcSettings {
+            points: 1024,
+            shifts: 2,
+            package_points: 1024,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let task = session.next_work().unwrap().unwrap();
+    let mut worker = session.worker_context(0).unwrap();
+    let mut count = 0;
+    let failed = worker.evaluate_weighted(task.clone(), |point, weight, output| {
+        count += 1;
+        if count == 3 {
+            return Err("injected package evaluation failure".to_owned());
+        }
+        context
+            .evaluate_weighted(point, weight, output)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    });
+    assert!(
+        context.state().verified(),
+        "prefix must actually advance local state"
+    );
+    assert!(
+        submit_package(
+            failed,
+            0,
+            Some(context.state().clone()),
+            &mut accepted,
+            |result| session.submit(result)
+        )
+        .is_err()
+    );
+    assert_eq!(accepted, initial);
+    assert_eq!(session.snapshot().unwrap().completed_points, 0);
+
+    // Retry from accepted state, then reject a duplicate numerical return with
+    // a deliberately larger local envelope. Neither failed submission commits.
+    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let returned = worker
+        .evaluate_weighted(task, |point, weight, output| {
+            context.evaluate_weighted(point, weight, output).map(|_| ())
+        })
+        .unwrap();
+    submit_package(
+        Ok(returned.clone()),
+        0,
+        Some(context.state().clone()),
+        &mut accepted,
+        |result| session.submit(result),
+    )
+    .unwrap();
+    let prior = accepted.clone();
+    context
+        .evaluate_weighted(&[1.0], 100.0, &mut [0.0])
+        .unwrap();
+    assert!(context.state().maxima()[0] > prior.state(0).maxima()[0]);
+    assert!(
+        submit_package(
+            Ok(returned),
+            0,
+            Some(context.state().clone()),
+            &mut accepted,
+            |result| session.submit(result)
+        )
+        .is_err()
+    );
+    assert_eq!(accepted, prior);
+}
+
+#[test]
+fn partial_weighted_checkpoint_resumes_new_work_with_different_worker_count() {
+    let (dir, artifact, kernels) = fixture();
+    let mut settings = settings("qmc");
+    settings.max_rounds = 1;
+    let mut accepted = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
+    let mut context = accepted.contexts(&kernels).unwrap().remove(0);
+    let mut session = QmcSession::democratic(
+        problem(&artifact, &kernels).unwrap(),
+        QmcSettings {
+            points: 1024,
+            shifts: 4,
+            package_points: 1024,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let mut worker = session.worker_context(0).unwrap();
+    let mut diagnostics = EvaluationDiagnostics::default();
+    for _ in 0..2 {
+        let task = session.next_work().unwrap().unwrap();
+        let result = worker.evaluate_weighted(task, |point, weight, output| {
+            let report = context
+                .evaluate_weighted(point, weight, output)
+                .map_err(|e| e.to_string())?;
+            diagnostics.record_replay(report).map_err(|e| e.to_string())
+        });
+        submit_package(
+            result,
+            0,
+            Some(context.state().clone()),
+            &mut accepted,
+            |result| session.submit(result),
+        )
+        .unwrap();
+    }
+    let prior_maxima = accepted.state(0).maxima().to_vec();
+    let checkpoint = dir.path().join("partial-weighted.json");
+    save_checkpoint(
+        &checkpoint,
+        &artifact,
+        &settings,
+        0,
+        session.checkpoint().unwrap(),
+        &diagnostics,
+        &accepted,
+    )
+    .unwrap();
+    settings.workers = 3;
+    let report = integrate(
+        &artifact,
+        &kernels,
+        &settings,
+        &checkpoint,
+        true,
+        &mut Dashboard::new(false, false).unwrap(),
+    )
+    .unwrap();
+    let estimate = report.estimate.unwrap();
+    assert!(estimate.production_complete);
+    assert_eq!(report.snapshot.completed_points, 4096);
+    assert_eq!(report.snapshot.planned_points, 4096);
+    assert!((estimate.mean[0] - 0.5).abs() < 2e-5);
+    let restored = restore_checkpoint(&checkpoint, &artifact, &settings).unwrap();
+    assert_eq!(restored.diagnostics.evaluations, 4096);
+    assert!(restored.diagnostics.weighted_checks >= diagnostics.weighted_checks);
+    assert!(restored.diagnostics.additional_replays >= diagnostics.additional_replays);
+    for (current, prior) in restored.replay.state(0).maxima().iter().zip(prior_maxima) {
+        assert!(*current >= prior);
+    }
+}
+
+#[test]
+fn checkpoint_rejects_missing_or_incompatible_replay_state_and_old_version() {
+    let (dir, artifact, kernels) = fixture();
+    let settings = settings("qmc");
+    let checkpoint = dir.path().join("replay.json");
+    let session = QmcSession::democratic(
+        problem(&artifact, &kernels).unwrap(),
+        QmcSettings::default(),
+    )
+    .unwrap();
+    save_checkpoint(
+        &checkpoint,
+        &artifact,
+        &settings,
+        0,
+        session.checkpoint().unwrap(),
+        &EvaluationDiagnostics::default(),
+        &AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap(),
+    )
+    .unwrap();
+    let original: serde_json::Value =
+        serde_json::from_slice(&fs::read(&checkpoint).unwrap()).unwrap();
+    let mutations: [fn(&mut serde_json::Value); 7] = [
+        |v| v["format_version"] = 2.into(),
+        |v| v["replay"]["states"] = serde_json::json!([]),
+        |v| v["replay"]["policy"]["growth_factor"] = 17.0.into(),
+        |v| v["replay"]["states"][0]["content_id"] = "another-kernel".into(),
+        |v| v["replay"]["states"][0]["sector"] = 1.into(),
+        |v| v["replay"]["states"][0]["maximum_absolute_weighted"] = serde_json::json!([]),
+        |v| v["replay"]["states"][0]["policy"]["growth_factor"] = 17.0.into(),
+    ];
+    for (case, mutate) in mutations.into_iter().enumerate() {
+        let mut value = original.clone();
+        mutate(&mut value);
+        fs::write(&checkpoint, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(
+            integrate(
+                &artifact,
+                &kernels,
+                &settings,
+                &checkpoint,
+                true,
+                &mut Dashboard::new(false, false).unwrap()
+            )
+            .is_err(),
+            "tamper case {case}"
         );
     }
 }
@@ -153,6 +372,7 @@ fn cancelled_partial_qmc_preserves_complete_replica_diagnostics() {
         0,
         session.checkpoint().unwrap(),
         &EvaluationDiagnostics::default(),
+        &AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap(),
     )
     .unwrap();
     let mut dashboard = Dashboard::new(false, false).unwrap();
@@ -191,7 +411,8 @@ fn pilot_mc_checkpoint_is_skipped_and_cancellation_requires_restart() {
             &settings,
             0,
             &pilot,
-            &EvaluationDiagnostics::default()
+            &EvaluationDiagnostics::default(),
+            &AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap(),
         )
         .unwrap(),
         ResumeStatus::PilotRestartRequired
@@ -231,6 +452,7 @@ fn checkpoint_settings_allow_only_worker_count_changes() {
         0,
         session.checkpoint().unwrap(),
         &EvaluationDiagnostics::default(),
+        &AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap(),
     )
     .unwrap();
     let mut changed = settings.clone();

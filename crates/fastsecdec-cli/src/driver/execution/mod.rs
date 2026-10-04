@@ -1,10 +1,14 @@
 mod mc;
 mod qmc;
-use super::{IntegrationReport, checkpoint::restore_checkpoint};
+use super::{
+    IntegrationReport,
+    checkpoint::{RestoredCheckpoint, restore_checkpoint},
+    replay::AcceptedReplay,
+};
 use crate::{CliResult, artifact::Artifact, config::IntegrationInput, display::Dashboard};
 use fastsecdec::{
-    integration::{IntegrationProblem, SectorSpec, Tolerance},
-    kernel::{KernelSet, SectorKernel},
+    integration::{IntegrationError, IntegrationProblem, SectorSpec, Tolerance},
+    kernel::{KernelSet, ReplayState, WeightedEvaluationContext},
     status::EvaluationDiagnostics,
 };
 use std::{path::Path, time::Instant};
@@ -20,19 +24,21 @@ struct Context<'a> {
     tolerance: Tolerance,
     started: Instant,
     last_checkpoint: Instant,
-    restored: Option<(usize, EvaluationDiagnostics, Vec<u8>)>,
+    restored: Option<RestoredCheckpoint>,
     diagnostics: EvaluationDiagnostics,
+    replay: AcceptedReplay,
 }
 
 fn evaluate_tracked(
-    kernel: &mut SectorKernel,
+    kernel: &mut WeightedEvaluationContext,
     point: &[f64],
+    weight: f64,
     output: &mut [f64],
     diagnostics: &mut EvaluationDiagnostics,
 ) -> Result<(), String> {
-    match kernel.evaluate_with_diagnostics(point, output) {
+    match kernel.evaluate_weighted(point, weight, output) {
         Ok(report) => diagnostics
-            .record(report)
+            .record_replay(report)
             .map_err(|error| error.to_string()),
         Err(error) => {
             diagnostics
@@ -41,6 +47,22 @@ fn evaluate_tracked(
             Err(error.to_string())
         }
     }
+}
+
+/// Evaluation failure or rejected numerical submission must not advance the
+/// accepted replay envelope. Validate metadata before either accepted update.
+pub(super) fn submit_package<T>(
+    result: Result<T, IntegrationError>,
+    sector: usize,
+    state: Option<ReplayState>,
+    replay: &mut AcceptedReplay,
+    submit: impl FnOnce(T) -> Result<(), IntegrationError>,
+) -> CliResult<()> {
+    let result = result?;
+    let state = state.ok_or("successful work package has no replay state")?;
+    replay.validate_candidate(sector, &state)?;
+    submit(result)?;
+    replay.accept(sector, &state)
 }
 
 pub(super) fn problem(artifact: &Artifact, kernels: &KernelSet) -> CliResult<IntegrationProblem> {
@@ -59,14 +81,6 @@ pub(super) fn problem(artifact: &Artifact, kernels: &KernelSet) -> CliResult<Int
             .collect(),
         kernels.exact_coefficients().to_vec(),
     )?)
-}
-
-fn cloned_kernels(kernels: &KernelSet) -> CliResult<Vec<SectorKernel>> {
-    Ok(kernels
-        .sectors()
-        .iter()
-        .map(SectorKernel::try_clone)
-        .collect::<Result<Vec<_>, _>>()?)
 }
 
 pub fn integrate(
@@ -95,8 +109,14 @@ pub fn integrate(
     };
     let diagnostics = restored
         .as_ref()
-        .map(|(_, diagnostics, _)| diagnostics.clone())
+        .map(|checkpoint| checkpoint.diagnostics.clone())
         .unwrap_or_default();
+    let replay = if let Some(checkpoint) = &restored {
+        checkpoint.replay.validate(kernels, &settings.replay)?;
+        checkpoint.replay.clone()
+    } else {
+        AcceptedReplay::new(kernels, settings.replay.clone())?
+    };
     let context = Context {
         artifact,
         kernels,
@@ -110,6 +130,7 @@ pub fn integrate(
         last_checkpoint,
         restored,
         diagnostics,
+        replay,
     };
     match method.as_str() {
         "mc" | "adaptive_mc" => mc::run(context, &method),

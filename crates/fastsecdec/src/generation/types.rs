@@ -103,12 +103,16 @@ impl GeneratedSector {
 
 #[derive(Clone, Debug)]
 pub struct GeneratedIntegral {
+    pub(crate) metadata: super::GenerationMetadata,
     pub(crate) orders: Vec<i32>,
     pub(crate) sectors: Vec<GeneratedSector>,
     pub(crate) exact_coefficients: Vec<Atom>,
 }
 
 impl GeneratedIntegral {
+    pub fn metadata(&self) -> &super::GenerationMetadata {
+        &self.metadata
+    }
     pub fn orders(&self) -> &[i32] {
         &self.orders
     }
