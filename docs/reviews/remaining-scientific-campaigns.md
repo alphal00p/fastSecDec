@@ -39,8 +39,8 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `double_box` | Both; complete 64-shift five-coefficient run | Exact native rational proof of the leading zero only; higher target errors unavailable | Independent higher-coefficient reference and matched convergence |
 | `double_box_from_uf` | Exact equality to the graph density; generation/integration family above | Same leading-pole proof applies to the identical density | Optional fresh CLI transport closure; no duplicate scientific integral campaign |
 | `triple_box` | First full-generation trial timed out during Laurent extraction; no artifact or V | No frozen independently certified full vector | Capture/replay of expensive native series and reduced-family cost probe before repeating full generation |
-| `triple_box_offshell` | Both; 2496 charts, 1182 kernels and complete 1024-by-eight full-vector allocation | Exact native domain/normalization and repeated-propagator audit; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
-| `triple_box_offshell_rank2_numerator` | Both; same full coverage and 9,682,944 accepted evaluations, zero failures | Exact numerator/routing and coupled-Gaussian control; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
+| `triple_box_offshell` | Both; 2496 charts, 1182 kernels and complete 1024-by-eight full-vector allocation; projected eight-propagator family also complete | Exact native domain/normalization and repeated-propagator identity; no independent integrated vector | Independent full-vector reference, convergence and matched projection cost |
+| `triple_box_offshell_rank2_numerator` | Both original and projected families; each accepts all 9,682,944 evaluations with zero failures | Exact numerator/routing, family identity and coupled-Gaussian control; no independent integrated vector | Independent full-vector reference, convergence and matched projection cost |
 | `kite_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `self_energy_3loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `three_point_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
@@ -48,8 +48,8 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `three_point_3loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `three_point_3loop_8line` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
 | `analytic_endpoint` | Both, independent analytic full-vector and CLI artifact/resume tests | Analytic coefficients through order `eps^1` | Retain as a cheap operational/control fixture |
-| `issue_1` | Input checked; full G/V pending | Manual decimal target through `eps^2`, uncertainty unavailable | Bounded orthant G/V, independent external reference, then convergence |
-| `four_loop_hard` | Input and exact 9D geometry/maps checked; full Laurent G/V pending | Rounded historical full-vector QMC target, uncertified errors | Bounded whole-integrand generation/compilation, all-sector numerical diagnostics, independent reference and convergence |
+| `issue_1` | Both; 328 kernels, complete orders `[0,1,2]` and 2,686,976 accepted evaluations without failures | Manual decimal target through `eps^2`, uncertainty unavailable | Independent external reference and prespecified convergence |
+| `four_loop_hard` | Both; 2760 physical F-support charts, 699 kernels, orders `[-2,-1,0]` and all 5,726,208 evaluations without failures | Rounded historical full-vector QMC target, uncertified errors | Independent full-orthant reference and prespecified convergence |
 | `sunset_2loop_numerator` | Both, complete vector through epsilon one at two spacelike scales | Nine independent external density points and analytic Gamma identity; convergent scalar sign control | Retain as a coupled-Gaussian control for the triple-box numerator |
 
 No example above currently establishes the overall matched performance gate.
@@ -109,6 +109,14 @@ one-loop reducer remains outside this two-loop reference path. See the
    and `sector` APIs exactly reduce it to eight active propagators while retaining
    total power ten; that separate reuse probe does not change either baseline.
    See [the full diagnostics](triple-box-offshell-diagnostics.md).
+   Both projected-family trials now also complete, retaining 1,182 kernels and
+   the same full coefficient layout in seven rather than nine dimensions.
+   Their exact native denominator identity is the equivalence proof; the first
+   numerical estimates remain preliminary. The shared seed can correlate the
+   two parameterizations, so their errors are not combined as independent.
+   Projected generation and artifact sizes are smaller, but different caller
+   persistence/status policies and builds preclude a matched speedup claim.
+   See [the projected-family evidence](native-family-projection-diagnostics.md).
 3. **On-shell triple box and issue-1 orthant.** The on-shell triple box adds
    multiple poles at masses zero, null external legs and `s=t=-1`; require the
    complete requested Laurent vector through zero. Issue-1 instead retains its
@@ -126,6 +134,12 @@ one-loop reducer remains outside this two-loop reference path. See the
    No artifact or usable partial integral was produced. Retain this failure
    while a test-only native-template replay and eight-propagator family probe
    investigate the bottleneck; extending the same run is not the next step.
+   Issue-1 completed its first full generation in 3.463 seconds and integration
+   process in 4.065 seconds, retaining all three generated coefficients and their
+   covariance. It reached the work limit without meeting tolerance. The stored
+   historical decimal target remains statistically ineligible because its
+   uncertainties are unknown. See the
+   [bounded on-shell/orthant evidence](onshell-triple-box-and-issue-one.md).
 4. **Hard four-loop positive orthant.** Preserve all nine variables and density
    `U*F^(eps-3)` with unit prefactor. Integer-power negative U is intentional.
    The already passed 3496-map geometry test does not establish successful
@@ -135,6 +149,14 @@ one-loop reducer remains outside this two-loop reference path. See the
    production work; do not silently run only a convenient sector subset.
    Use native caller-owned QMC work/precision/status APIs throughout. A partial
    allocation remains coverage-incomplete and supplies no fabricated total.
+   The first complete trial now passes: generation/compilation took 36.755
+   process seconds; all 699 kernels completed 1024 points times eight shifts in
+   124.493 process seconds including loading. The full three-coefficient vector
+   and covariance remain saved, with zero evaluation failures and work-limit
+   stopping without convergence. Production decomposes only the singular F
+   support (2760 charts); the earlier combined-U/F 3496-map stress test has a
+   different workload. The independent-reference and convergence gates remain
+   open. See [the full evidence](hard-four-loop-diagnostics.md).
 
 These are first diagnostic budgets, not acceptance limits or permission to
 silently omit a hard case. A timeout identifies the stage for evidence-based

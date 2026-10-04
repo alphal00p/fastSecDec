@@ -348,3 +348,34 @@ qualification and both numerical failure paths with final saved evidence and
 nonzero exits. Formatting and all-target Clippy pass. Future HEPKit callers keep
 control over when they request the same native status; no library timer or worker
 pool was introduced. A paired full-artifact timing remains pending.
+
+## Bounded orthant and projected-family execution
+
+The [projected-family campaign](reviews/native-family-projection-diagnostics.md)
+uses native partial fractions, sector projection and the reviewed public
+`from_family` entry. Both original ten-entry and projected eight-propagator
+families preserve the native weighted numerator and exact rational density.
+Both projected scalar/rank-two allocations complete with full coefficient
+vectors and covariance. An [independent source review](reviews/native-family-projection-independent.md)
+finds no duplicated parser, graph reduction, estimator or worker ownership.
+These experiments do not automatically alter graph entry; multi-term and signed
+power policies would require separate design and review.
+
+The [issue-1 campaign](reviews/onshell-triple-box-and-issue-one.md) and
+[hard four-loop campaign](reviews/hard-four-loop-diagnostics.md) complete their
+full positive-orthant densities using the existing production pipeline. The
+coordinator read issue-1 through the numerical-only saved-result API and checked
+its complete vector, native covariance, coverage and diagnostics. The
+[independent hard-case audit](reviews/hard-four-loop-independent.md) checks
+input/build identities, exact accepted package coverage, common shift plans,
+native saved-result validation and consistent estimates across reports. No
+independent estimator or algebra implementation was needed. Both results remain
+unverified and unconverged; historical target uncertainty is not promoted to a
+scientific certificate.
+
+The on-shell triple-box generation timeout is retained as an open scientific
+gap. A test-only capture/replay diagnostic now measures the existing native
+series API and expression representation. Its pending acceptance must not be
+confused with a production Laurent change. The next broader audits cover that
+evidence, actual current-artifact convergence preparation and paired CLI cadence
+timings before any numerical-policy or performance claim.
