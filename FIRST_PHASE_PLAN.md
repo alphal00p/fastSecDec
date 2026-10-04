@@ -13,7 +13,7 @@ At implementation start:
 3. Work directly on FastSecDec's local `main` branch. Commit the initial plan and repository scaffolding, then commit at each validated milestone.
 4. Create `codex/havana-qmc` in the separate Numerica repository. Commit its changes there and record the corresponding revisions in FastSecDec.
 5. Ignore the entire reference directory, build products, generated kernels, caches, and benchmark scratch data. Never commit reference checkouts into FastSecDec.
-6. Do not push until the user supplies the remote and requests pushing.
+6. Push validated FastSecDec milestones on `main` to `https://github.com/alphal00p/fastSecDec`, as authorized on 2026-10-04. Numerica remains a separate local feature branch unless separately authorized for publication.
 
 **Use extensive subagent delegation throughout implementation.** The primary agent acts mainly as coordinator: it owns interfaces, task allocation, sequencing, integration, acceptance evidence, and milestone commits. Delegate bounded slices for implementation, dependency research, mathematical audits, test migration, debugging, profiling, and performance optimization.
 
@@ -472,6 +472,7 @@ Continue as planned, but periodically run an audit verifying that your implement
 
 ## Implementation record
 
+- 2026-10-04: the user supplied `https://github.com/alphal00p/fastSecDec` and authorized the initial push and periodic pushes at validated milestones. This supersedes the initial no-push restriction for FastSecDec only; excluded reference repositories and raw outputs remain local.
 - 2026-10-04: implementation authorized; goal activated; plan saved. FastSecDec remains on `main`. Isolated pinned dependency worktrees prepared. Three agents assigned native input/dependency integration, exact sector geometry, and Numerica QMC. Acceptance gates remain pending.
 - 2026-10-04: foundation milestone prepared: three-crate workspace and local Nix shell; native HEPKit/Linnet input and scalar U/F normalization; executable CAS/JIT reuse probes; exact normal-fan sector geometry. Native library tests passed (14); geometry author and independent tests passed (11 + 8). The hard nine-dimensional support probe produced 3,496 sectors in approximately 125 seconds in its initial mixed-optimization build. This is feasibility evidence, not performance acceptance. Full numerator conversion, symmetry reduction, subtraction, runtime and CLI remain in progress. See `docs/reviews/sector-geometry-initial.md` and `docs/REUSE_AUDIT.md`.
 - 2026-10-04: Numerica QMC implementation committed independently as `e26d3dd3ee0683c5acd9706eb95fb6b66f24147b`, followed by peer-review fixes in `e9b7481d66b8f9d0c5e58ccabc4d6644e7fd479a` on `codex/havana-qmc`. The author reports 174 library, 14 API regression, 23 QMC and 22 documentation tests passing with serde. Independent review identified and drove corrections to large-offset covariance and maximum-modulus periodic shifts; the reviewer executed both reproductions against the fix and verified their expected results. No pushes or changes to existing MC interfaces.

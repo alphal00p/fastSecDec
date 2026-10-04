@@ -17,7 +17,10 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
   independent review, debugging, and performance tasks to subagents with explicit
   file ownership. Do not edit another active agent's files without coordination.
 - Keep FastSecDec on local `main` and commit validated milestones. Numerica QMC
-  belongs to its separate `codex/havana-qmc` branch. Do not push.
+  belongs to its separate `codex/havana-qmc` branch. The user authorized pushing
+  validated FastSecDec milestones to `https://github.com/alphal00p/fastSecDec`.
+  Push `main` there after milestone checks; no authorization to push Numerica or
+  any other reference repository has been given.
 - Never track `DO_NOT_PUSH_FOR_REFERENCE_ONLY`, build artifacts, caches, or raw
   benchmark output. Keep dependency fixes small and evidence-based; preserve
   existing worktrees and unrelated host workloads.
