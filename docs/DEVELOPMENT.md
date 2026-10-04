@@ -18,7 +18,7 @@ registry resolution. Local dependency source identities are:
 |---|---|
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit` | `8f834d9c62ae06fb327e4ef0b14abffda755b610` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | `codex/havana-qmc`, based on `a8a8fcb8941752e265e3c4fa507c02a3f06bb70e` |
+| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | Reviewed QMC commit `e9b7481d66b8f9d0c5e58ccabc4d6644e7fd479a` on `codex/havana-qmc` |
 | Published SymJIT Rust crate | `2.26.0`, registry checksum in Cargo.lock |
 
 The first two checkouts are detached worktrees of the supplied repositories. The

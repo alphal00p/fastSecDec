@@ -1,0 +1,26 @@
+# Native HEPKit P(index) scalar products; paths are relative to this card.
+# Reproduces the historical explicit propagators: the second outgoing leg
+# has virtuality 2*s. See ../README.md for the legacy annotation inconsistency.
+[input]
+graph = "../graphs/triangle_numerator.dot"
+model = "../models/scalar.json"
+parameter_card = "../models/massless.json"
+
+[kinematics]
+products = [
+  { left = 0, right = 0, value = "s" },
+  { left = 1, right = 1, value = "0" },
+  { left = 0, right = 1, value = "-s/2" },
+]
+
+[parameters]
+s = "-1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 0
+assume_no_threshold = false

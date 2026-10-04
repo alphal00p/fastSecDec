@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "repository": "FastSecDecPathFinder",
+    "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+    "source_file": "examples/outputs/dot_double_box_pysecdec_target.json",
+    "recorded_utc": "2026-06-13T17:12:21.444593+00:00",
+    "engine": "numeric",
+    "convention": "pysecdec"
+  },
+  "orders": [
+    -4,
+    -3,
+    -2,
+    -1,
+    0
+  ],
+  "coefficients": [
+    {
+      "re": 0.0,
+      "im": 0.0
+    },
+    {
+      "re": 1.5001796679734083,
+      "im": 0.0
+    },
+    {
+      "re": 1.2684093542100614,
+      "im": 0.0
+    },
+    {
+      "re": 2.997033429901522,
+      "im": 0.0
+    },
+    {
+      "re": -14.8578873849863,
+      "im": 0.0
+    }
+  ],
+  "standard_errors": null,
+  "validation_status": "historical numeric target; independent uncertainty unavailable"
+}

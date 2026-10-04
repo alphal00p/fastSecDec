@@ -1,0 +1,26 @@
+# Native HEPKit P(index) scalar products; paths are relative to this card.
+[input]
+graph = "../graphs/three_point_3loop_8line.dot"
+model = "../models/scalar.json"
+parameter_card = "../models/massive.json"
+
+[kinematics]
+products = [
+  { left = 0, right = 0, value = "s11" },
+  { left = 1, right = 1, value = "s22" },
+  { left = 0, right = 1, value = "(s33-s11-s22)/2" },
+]
+
+[parameters]
+s11 = "-1"
+s22 = "-1"
+s33 = "-1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 0
+assume_no_threshold = false

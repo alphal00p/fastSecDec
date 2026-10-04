@@ -1,0 +1,24 @@
+# Explicit scalar density; no topology-derived measure or prefactor is implied.
+[direct]
+domain = "projective_simplex"
+parameters = ["x0", "x1", "x2", "x3", "x4", "x5", "x6"]
+
+[[direct.terms]]
+prefactor = "-gamma(3+2*eps)"
+
+[[direct.terms.factors]]
+polynomial_file = "../parametric/double_box_u.sym"
+exponent = "1+3*eps"
+role = "singularity"
+
+[[direct.terms.factors]]
+polynomial_file = "../parametric/double_box_f.sym"
+exponent = "-3-2*eps"
+role = "singularity"
+
+[integral]
+regulator = "eps"
+
+[generation]
+order = 0
+assume_no_threshold = false

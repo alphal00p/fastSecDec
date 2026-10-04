@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "repository": "FastSecDecPathFinder",
+    "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+    "source_file": "examples/outputs/dot_box_pysecdec_target.json",
+    "recorded_utc": "2026-06-22T17:59:33.557370+00:00",
+    "engine": "pysecdec",
+    "convention": "pysecdec"
+  },
+  "orders": [
+    -2,
+    -1,
+    0
+  ],
+  "coefficients": [
+    {
+      "re": 4.0,
+      "im": 0.0
+    },
+    {
+      "re": -2.3088626596072386,
+      "im": 0.0
+    },
+    {
+      "re": -12.493116687182301,
+      "im": 0.0
+    }
+  ],
+  "standard_errors": [
+    {
+      "re": 1.800655920241179E-16,
+      "im": 0.0
+    },
+    {
+      "re": 1.6772546548736222E-11,
+      "im": 0.0
+    },
+    {
+      "re": 3.123755578645524E-10,
+      "im": 0.0
+    }
+  ],
+  "validation_status": "historical external target; requires matched Rust validation"
+}

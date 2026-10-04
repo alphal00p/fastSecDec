@@ -1,0 +1,22 @@
+# Native HEPKit P(index) scalar products; paths are relative to this card.
+[input]
+graph = "../graphs/bubble.dot"
+model = "../models/scalar.json"
+parameter_card = "../models/massless.json"
+
+[kinematics]
+products = [
+  { left = 1, right = 1, value = "s" },
+]
+
+[parameters]
+s = "-1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 0
+assume_no_threshold = false

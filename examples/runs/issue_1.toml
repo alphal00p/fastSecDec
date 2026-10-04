@@ -1,0 +1,19 @@
+# Explicit scalar density; no topology-derived measure or prefactor is implied.
+[direct]
+domain = "positive_orthant"
+parameters = ["x1", "x2", "x3", "x4", "x5", "x6", "x7"]
+
+[[direct.terms]]
+prefactor = "1"
+
+[[direct.terms.factors]]
+polynomial_file = "../parametric/issue_1_f.sym"
+exponent = "eps-2"
+role = "singularity"
+
+[integral]
+regulator = "eps"
+
+[generation]
+order = 2
+assume_no_threshold = false

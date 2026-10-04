@@ -1,0 +1,21 @@
+digraph box_high_rank_numerator {
+  graph [
+    label="box_high_rank_numerator",
+    num="11*((-gammalooprs::K(0,spenso::mink(4,l0)))*gammalooprs::P(0,spenso::mink(4,l0)))*((-gammalooprs::K(0,spenso::mink(4,l1)))*gammalooprs::P(1,spenso::mink(4,l1)))*((-gammalooprs::K(0,spenso::mink(4,l2)))*gammalooprs::P(2,spenso::mink(4,l2)))*((-gammalooprs::K(0,spenso::mink(4,l3)))*gammalooprs::P(0,spenso::mink(4,l3)))*((-gammalooprs::K(0,spenso::mink(4,l4)))*gammalooprs::P(1,spenso::mink(4,l4)))-7*((-gammalooprs::K(0,spenso::mink(4,l5)))*gammalooprs::P(2,spenso::mink(4,l5)))*((-gammalooprs::K(0,spenso::mink(4,l6)))*gammalooprs::P(1,spenso::mink(4,l6)))*((-gammalooprs::K(0,spenso::mink(4,l7)))*gammalooprs::P(0,spenso::mink(4,l7)))*((-gammalooprs::K(0,spenso::mink(4,l8)))*gammalooprs::P(2,spenso::mink(4,l8)))*((-gammalooprs::K(0,spenso::mink(4,l9)))*gammalooprs::P(0,spenso::mink(4,l9)))+5*((-gammalooprs::K(0,spenso::mink(4,l10)))*gammalooprs::P(0,spenso::mink(4,l10)))*((-gammalooprs::K(0,spenso::mink(4,l11)))*gammalooprs::P(0,spenso::mink(4,l11)))*((-gammalooprs::K(0,spenso::mink(4,l12)))*gammalooprs::P(1,spenso::mink(4,l12)))*((-gammalooprs::K(0,spenso::mink(4,l13)))*gammalooprs::P(2,spenso::mink(4,l13)))*((-gammalooprs::K(0,spenso::mink(4,l14)))*gammalooprs::P(2,spenso::mink(4,l14)))+13*((-gammalooprs::K(0,spenso::mink(4,l15)))*gammalooprs::P(1,spenso::mink(4,l15)))*((-gammalooprs::K(0,spenso::mink(4,l16)))*gammalooprs::P(1,spenso::mink(4,l16)))*((-gammalooprs::K(0,spenso::mink(4,l17)))*gammalooprs::P(2,spenso::mink(4,l17)))*((-gammalooprs::K(0,spenso::mink(4,l18)))*gammalooprs::P(0,spenso::mink(4,l18)))*((-gammalooprs::K(0,spenso::mink(4,l19)))*gammalooprs::P(2,spenso::mink(4,l19)))-17*((-gammalooprs::K(0,spenso::mink(4,l20)))*gammalooprs::P(2,spenso::mink(4,l20)))*((-gammalooprs::K(0,spenso::mink(4,l21)))*gammalooprs::P(0,spenso::mink(4,l21)))*((-gammalooprs::K(0,spenso::mink(4,l22)))*gammalooprs::P(1,spenso::mink(4,l22)))*((-gammalooprs::K(0,spenso::mink(4,l23)))*gammalooprs::P(1,spenso::mink(4,l23)))*((-gammalooprs::K(0,spenso::mink(4,l24)))*gammalooprs::P(0,spenso::mink(4,l24)))+19*((-gammalooprs::K(0,spenso::mink(4,l25)))*gammalooprs::P(0,spenso::mink(4,l25)))*((-gammalooprs::K(0,spenso::mink(4,l26)))*gammalooprs::P(2,spenso::mink(4,l26)))*((-gammalooprs::K(0,spenso::mink(4,l27)))*gammalooprs::P(0,spenso::mink(4,l27)))*((-gammalooprs::K(0,spenso::mink(4,l28)))*gammalooprs::P(1,spenso::mink(4,l28)))*((-gammalooprs::K(0,spenso::mink(4,l29)))*gammalooprs::P(2,spenso::mink(4,l29)))-23*((-gammalooprs::K(0,spenso::mink(4,l30)))*gammalooprs::P(1,spenso::mink(4,l30)))*((-gammalooprs::K(0,spenso::mink(4,l31)))*gammalooprs::P(0,spenso::mink(4,l31)))*((-gammalooprs::K(0,spenso::mink(4,l32)))*gammalooprs::P(2,spenso::mink(4,l32)))*((-gammalooprs::K(0,spenso::mink(4,l33)))*gammalooprs::P(1,spenso::mink(4,l33)))*((-gammalooprs::K(0,spenso::mink(4,l34)))*gammalooprs::P(1,spenso::mink(4,l34)))+29*((-gammalooprs::K(0,spenso::mink(4,l35)))*gammalooprs::P(2,spenso::mink(4,l35)))*((-gammalooprs::K(0,spenso::mink(4,l36)))*gammalooprs::P(2,spenso::mink(4,l36)))*((-gammalooprs::K(0,spenso::mink(4,l37)))*gammalooprs::P(1,spenso::mink(4,l37)))*((-gammalooprs::K(0,spenso::mink(4,l38)))*gammalooprs::P(0,spenso::mink(4,l38)))*((-gammalooprs::K(0,spenso::mink(4,l39)))*gammalooprs::P(0,spenso::mink(4,l39)))"
+  ];
+  ext1 [style=invis];
+  ext2 [style=invis];
+  ext3 [style=invis];
+  ext4 [style=invis];
+  v1; v2; v3; v4;
+
+  v1 -> ext1 [id=0, particle="phi"];
+  v2 -> ext2 [id=1, particle="phi"];
+  v3 -> ext3 [id=2, particle="phi"];
+  v4 -> ext4 [id=3, particle="phi"];
+
+  v1 -> v2 [id=4, particle="phi"];
+  v2 -> v3 [id=5, particle="phi"];
+  v3 -> v4 [id=6, particle="phi"];
+  v4 -> v1 [id=7, particle="phi", lmb_id=0];
+}
