@@ -227,7 +227,7 @@ fn portable_generation_integration_resume_and_json_errors() {
         String::from_utf8_lossy(&cross_cwd.stdout)
     );
     let original = fs::read_to_string(&input).unwrap();
-    fs::write(&input, format!("{original}\n# changed source\n")).unwrap();
+    fs::write(&input, original.replace("shifts = 4", "shifts = 8")).unwrap();
     let changed = cli()
         .arg("run")
         .arg(&input)

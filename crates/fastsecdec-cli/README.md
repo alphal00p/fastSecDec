@@ -90,3 +90,49 @@ artifact recompiles portable SymJIT O2 kernels locally without repeating graph
 algebra or sector generation. `integrate` needs only the artifact. `run --resume`
 also verifies the original input files, including referenced model and graph
 files, before using its checkpoint.
+
+Reference comparisons are optional and never change sampling, stopping, or
+checkpoint statistics. Add a root run-card section such as:
+
+```toml
+[reference]
+path = "../targets/my_reference.json"
+normalization_evidence = "Both results use the same stated measure and prefactor."
+kinematics_evidence = "Masses and independent scalar products match this card."
+independence_evidence = "The reference uses an independent analytic calculation."
+```
+
+Evidence fields may be omitted; their status then remains unknown. They record
+the caller's assertions and perform no normalization or kinematic conversion.
+Reference validation and uncertainty remain those declared in the target file.
+Eligible comparisons require the library's complete coverage, validation,
+compatibility, independence, and uncertainty checks. Other rows remain clearly
+labelled diagnostics. Missing coefficients are never assumed zero, unknown
+reference errors produce no pull, and absent integration estimates report
+`waiting_for_coverage`.
+
+`run --reference FILE` and `integrate --reference FILE` override the target path.
+An override selecting a different resolved file clears inherited evidence;
+evidence for the previous target cannot certify its replacement. Selecting the
+same resolved file retains the configured evidence. Card paths are relative to the card;
+override paths are relative to the current directory. The selected file is
+parsed and validated before graph generation or portable-kernel compilation.
+Saved artifacts retain the resolved comparison settings outside scientific
+identity, so `integrate` can use them without reading the original card. Final
+JSON includes the typed comparison, evidence, and the target's path and digest;
+plain output uses the library's reference display.
+
+The native JSON transport is
+`{"format":"fastsecdec-reference","version":1,"reference":...}`, where
+`reference` is the library's `ReferenceResult`. Native callers can pass that
+type directly or use `fastsecdec::reference::encode_reference` to write a file.
+Historical target JSON with `schema_version: 1` is also accepted automatically.
+Historical imports remain unverified; null uncertainties remain unknown and
+numeric zero uncertainties remain reported standard errors. Mixed, unversioned,
+and unsupported document formats are rejected.
+
+New artifacts fingerprint the parsed run card with only its root `[reference]`
+section excluded. Changing comparison settings, comments, or TOML formatting
+does not invalidate their checkpoints; numerical fields and every other parsed
+root field do. Model, graph, and polynomial files retain their raw-byte checks.
+Older artifacts retain their original raw-byte run-card verification.

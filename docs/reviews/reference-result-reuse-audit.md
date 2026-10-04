@@ -96,8 +96,34 @@ large finite errors without overflow, unfinished estimates, mismatched identity
 or normalization, unverified references, and the actual historical null-error
 files. No terminal cosmetic tests or replacement numerical integrator is needed.
 
-## Status
+## Implementation and validation
 
-Proposal only. Implementation remains queued behind weighted-evaluation
-correctness and checkpoint persistence. No runtime or benchmark was necessary
-for this API/source/call-site audit.
+After milestone `d012d50`, the adapter is implemented in
+`fastsecdec::reference` with separate types, comparison, display, historical
+reader and document modules. `ReferenceResult::new` is the direct native entry
+point; `validate` permits early validation before expensive work. The comparison
+context uses typed `Independence::{Unknown, Independent { basis }, Correlated {
+detail }}` rather than a bare boolean, retaining the caller's evidence.
+Eligibility describes supplied coverage and assumptions, never mathematical
+truth. Kernel identity mismatch is a typed hard error and cannot be overridden
+by a compatibility assertion.
+
+`encode_reference` and `read_reference` implement the native transport envelope
+`{ "format": "fastsecdec-reference", "version": 1, "reference": ... }`.
+The reader dispatches explicitly to historical `schema_version: 1` targets and
+rejects mixed discriminators, unsupported versions, malformed lengths/shapes,
+and unversioned native objects. No format flag or serialization detour is needed
+for Rust/HEPKit callers. Imported historical validation prose is preserved as
+provenance and never interpreted as evidence of exactness or independent checks.
+
+All **nine focused tests** passed. They cover shuffled complex/sparse keys,
+missing rows, unknown versus declared-exact errors, zero targets and zero
+combined error, incomplete/unverified/incompatible/dependent evidence, hard
+identity mismatch, duplicate/invalid inputs, finite-input derived overflow,
+stable large-error `hypot`, all five historical files, native round trips and
+ambiguous/malformed transport. These tests perform no symbolic operations and
+do not add an uncertainty estimator. Focused Clippy passed with warnings denied
+for the library and reference test target; the existing Symbolica dependency
+warning is unchanged. The independent peer reran all nine tests and found no
+actionable issue; its scope and limitations are in
+`reference-result-independent.md`. CLI wiring belongs to its separate owner.

@@ -34,6 +34,7 @@ monomial_powers = ["1"]
         &card,
         &dir.path().join("integral.json"),
         &mut Dashboard::new(false, false).unwrap(),
+        None,
     )
     .unwrap();
     (dir, artifact, kernels)

@@ -124,10 +124,14 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
         sources.push(crate::artifact::SourceFile {
             path: fs::canonicalize(path)?.to_string_lossy().into_owned(),
             blake3: blake3::hash(text.as_bytes()).to_hex().to_string(),
+            fingerprint: crate::artifact::SourceFingerprint::Bytes,
         });
         Ok(text)
     };
-    let card: RunCard = toml::from_str(&read(path, &mut sources)?)?;
+    let text = read(path, &mut sources)?;
+    sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardWithoutReference;
+    sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
+    let card: RunCard = toml::from_str(&text)?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let mut values = BTreeMap::new();
     for (name, value) in &card.parameters {

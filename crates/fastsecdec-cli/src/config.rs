@@ -17,6 +17,17 @@ pub struct RunCard {
     pub generation: GenerationInput,
     #[serde(default)]
     pub integration: IntegrationInput,
+    pub reference: Option<ReferenceInput>,
+}
+
+/// Observational comparison steering; never part of numerical integration settings.
+#[derive(Clone, Debug, Default, serde::Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReferenceInput {
+    pub path: PathBuf,
+    pub normalization_evidence: Option<String>,
+    pub kinematics_evidence: Option<String>,
+    pub independence_evidence: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

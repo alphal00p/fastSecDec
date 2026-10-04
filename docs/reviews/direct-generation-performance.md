@@ -192,3 +192,29 @@ The preserved Taylor artifact `81d8f31509947ae4dcb7dd55b8066630eefc6961e0a5f9ac0
 | 0 | −15.48864782850 | 0.34970095575 |
 
 The complete covariance, settings, precision counts and historical-target differences are retained in `output/probes/double-box-integral-taylor-1024x8.json`; the runtime log is adjacent. The historical target came from a manual numeric result and has no certified uncertainty. Its leading zero differs from this estimate by about 3.56 of the reported native standard errors. This requires an independent pole/convergence investigation; neither the filename nor this small-shift diagnostic establishes a certified discrepancy or successful scientific parity. No code or target was adjusted to force agreement.
+
+## Independent leading-pole proof
+
+The complete generated coefficient of epsilon to power minus four has only ten nonzero sector contributions. Their sum depends on two coordinates, `x` and `y`, and is exactly the `x` derivative of
+
+```text
+9*x^2 * ((1 + (1+y)*x)^(-4) - (x + 1+y)^(-4)).
+```
+
+This primitive vanishes at both `x=0` and `x=1` for every remaining coordinate. The ignored regression `double_box_leading_pole_is_an_exact_total_derivative` reads the actual preserved artifact, verifies the derivative identity and both boundaries with native Symbolica, and independently obtains a rational primitive through native `RationalPolynomial::integrate`. It passed in 0.28 s; evidence is in `output/double-box-leading-pole-proof.log`. Thus the exact leading coefficient is zero independently of the historical target. The numerical output remains unchanged and is assessed against this identity in subsequent convergence checks.
+
+## Independent-seed 64-shift convergence diagnostic
+
+The same preserved artifact and precision policy were evaluated with 1024 points per shift, 64 complete shifts, independent seed 18932, and four caller-owned numeric workers. Fixed sector ownership preserves increasing shift/point order within each sector independently of worker count. All 6,684,672 evaluations completed, with zero failures, 2,394,073 native rescues, 156 additional weighted replays and a maximum of 512 bits. Loading took 18.634 s and integration 427.168 s. This development run overlapped unrelated compilation and is not a matched performance acceptance measurement.
+
+| Laurent order | Native estimate | Estimated standard error |
+| --- | ---: | ---: |
+| −4 | −0.000181020268 | 0.000588690140 |
+| −3 | 1.50134495037 | 0.00436800280 |
+| −2 | 1.26697148671 | 0.0120945978 |
+| −1 | 3.03985178803 | 0.0434962853 |
+| 0 | −14.5775888121 | 0.240008021 |
+
+The leading coefficient is −0.3075 estimated standard errors from its independently proven exact zero. This removes the earlier small-shift discrepancy as evidence of a systematic leading-pole error; it does not prove the uncertainty model for arbitrary inputs. Higher coefficients remain diagnostic comparisons because the historical target has no certified uncertainty. No coefficient was replaced by the analytic zero or adjusted toward that target.
+
+`output/probes/double-box-integral-taylor-1024x64-seed18932-workers4.json` retains the complete 5×5 covariance, all 64 native common-shift totals and IDs, worker ordering, settings, precision counts and historical target provenance. The adjacent `.log` records progress. The estimate and covariance come from the existing native QMC reduction; the raw totals are retained for independent inspection rather than used to construct another estimator.

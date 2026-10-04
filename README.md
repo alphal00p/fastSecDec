@@ -23,10 +23,12 @@ snapshots to stderr. Generated artifacts and checkpoints default to `output/`.
 SymJIT kernels use O2 even in a development build; performance comparisons also
 require a release build of the Rust orchestration code.
 
-Native bubble, triangle, and analytic endpoint CLI runs have passed initial
-checks. Full multiloop integration, statistical certification, and matched
-performance acceptance remain in progress; fixture coverage alone is not an
-integration result.
+Native HEPKit master and reduction comparisons now cover eleven scalar and
+eight numerator points, including rank five and a zero Gram determinant. A
+complete 64-shift double-box diagnostic is consistent with its independently
+proved zero leading pole. Complete multiloop certification and matched
+performance acceptance remain in progress; historical targets with unknown
+uncertainties remain explicitly unverified.
 
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)

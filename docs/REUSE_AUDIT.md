@@ -21,6 +21,7 @@ in the plan: public API, implementation/tests, and an executable Rust probe.
 | One-loop scalar master references | Community HEPKit's `oneloop` dependency, `evaluate_with_backend` and `ScalarIntegral` | Three `hepkit_one_loop` tests compare complete generated/JIT/QMC vectors at 11 B0/C0/D0 points, with explicit native normalization and scales | Development-only cross-check composition; no copied master formulas or reduction algorithm |
 | One-loop numerator reduction references | Native `oneloopreduce::reduce_family`, public reduction terms and `OneLoopMasters::symbol_with_scale`; community bridge composition | Five `hepkit_numerator_reduction` tests compare complete generated/JIT/QMC vectors at eight rank-one/rank-two/rank-five points, including zero external Gram determinant | Test-only composition of native reduction, Symbolica coefficient series and native masters; no duplicated reduction or Gram solver |
 | Rational antiderivative diagnostics | Current Symbolica `RationalPolynomial::integrate`; the separate Rubi wrapper delegates its rational fallback to this native API | `full_double_box_integration::double_box_leading_pole_is_an_exact_total_derivative` verifies the actual ten nonzero leading-coefficient terms using native integration, differentiation and cancelling boundary values | Diagnostic proof that the generated leading pole integrates to zero; no replacement antiderivative engine or production analytic lowering |
+| External reference comparison | Numerica accumulators/QMC covariance, HEPKit native reference providers, and GammaLoop comparison consumers | Nine author and independently repeated `reference` tests cover sparse real/imaginary keys, explicit uncertainty, compatibility evidence and strict versioned transport | Align the existing `VectorEstimate` with typed external results and present scalar differences; no new estimator, covariance model, normalization algebra or stopping rule |
 
 The initial probes establish the existing owners. The implementation must add
 evidence to this record before introducing further algebraic functionality.
@@ -68,6 +69,14 @@ normalization probe, eleven graph-to-master comparisons and the CLI model-cache
 reproducer/fix. The [native numerator reference review](reviews/hepkit-numerator-reduction.md)
 records the reduction API/source/probe evidence and complete comparisons.
 All-example certification remains separate work.
+
+The [reference API reuse audit](reviews/reference-result-reuse-audit.md) and
+[independent review](reviews/reference-result-independent.md) justify the small
+typed comparison adapter. Native HEPKit callers can construct references directly;
+JSON is only a persistence boundary. The CLI records comparison evidence without
+changing sampling, numerical checkpoints or scientific artifact identity. The
+[dependency provenance review](reviews/dependency-provenance.md) additionally
+closes an untracked-source hashing gap and a Cargo watch issue in local builds.
 
 ## Factored direct generation
 

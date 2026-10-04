@@ -5,6 +5,7 @@ mod display;
 mod driver;
 mod generate;
 mod input;
+mod reference;
 
 use clap::{Args, Parser, Subcommand};
 use config::IntegrationInput;
@@ -114,6 +115,9 @@ struct IntegrationArgs {
     checkpoint: Option<PathBuf>,
     #[arg(long)]
     resume: bool,
+    /// Compare with a versioned reference JSON file; relative paths use cwd.
+    #[arg(long)]
+    reference: Option<PathBuf>,
 }
 
 impl IntegrationArgs {
@@ -197,9 +201,14 @@ fn run(cli: Cli) -> CliResult<()> {
     let make_dashboard = || display::Dashboard::new(!cli.plain && !cli.json, cli.status_json);
     match cli.command {
         Action::Generate { input, output } => {
+            let reference = reference::from_card(&input, None)?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
-            let (artifact, kernels) = generate::generate(&input, &output, &mut dashboard)?;
+            let (artifact, kernels) =
+                generate::generate(&input, &output, &mut dashboard, reference.as_ref())?;
+            if let Some(reference) = &reference {
+                reference.validate_identity(kernels.content_id())?;
+            }
             drop(dashboard);
             report(
                 &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings}),
@@ -211,15 +220,24 @@ fn run(cli: Cli) -> CliResult<()> {
             output,
             integration,
         } => {
+            let reference = reference::from_card(&input, integration.reference.as_deref())?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
             let (artifact, kernels) = if integration.resume {
-                artifact::Artifact::load(&output)?
+                artifact::Artifact::load_with_preflight(&output, |artifact| {
+                    if let Some(reference) = &reference {
+                        reference.validate_identity(artifact.kernel_content_id()?)?;
+                    }
+                    Ok(())
+                })?
             } else {
-                generate::generate(&input, &output, &mut dashboard)?
+                generate::generate(&input, &output, &mut dashboard, reference.as_ref())?
             };
             if integration.resume {
                 artifact.verify_input_sources(&input)?;
+            }
+            if let Some(reference) = &reference {
+                reference.validate_identity(kernels.content_id())?;
             }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
@@ -236,13 +254,30 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
             )?;
             drop(dashboard);
-            integration_report(&result, render_json)?;
+            let comparison = reference
+                .as_ref()
+                .map(|reference| reference.report(kernels.content_id(), result.estimate.as_ref()))
+                .transpose()?;
+            integration_report(&result, comparison.as_ref(), render_json)?;
         }
         Action::Integrate {
             artifact: path,
             integration,
         } => {
-            let (artifact, kernels) = artifact::Artifact::load(&path)?;
+            let mut reference = None;
+            let (artifact, kernels) = artifact::Artifact::load_with_preflight(&path, |artifact| {
+                reference = reference::prepare(
+                    artifact.reference.clone(),
+                    integration.reference.as_deref(),
+                )?;
+                if let Some(reference) = &reference {
+                    reference.validate_identity(artifact.kernel_content_id()?)?;
+                }
+                Ok(())
+            })?;
+            if let Some(reference) = &reference {
+                reference.validate_identity(kernels.content_id())?;
+            }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
             integration.apply(&mut settings);
@@ -259,7 +294,11 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
             )?;
             drop(dashboard);
-            integration_report(&result, render_json)?;
+            let comparison = reference
+                .as_ref()
+                .map(|reference| reference.report(kernels.content_id(), result.estimate.as_ref()))
+                .transpose()?;
+            integration_report(&result, comparison.as_ref(), render_json)?;
         }
         Action::Inspect { path, expressions } => {
             if path
@@ -363,9 +402,17 @@ fn report(value: &serde_json::Value, json: bool) -> CliResult<()> {
     Ok(())
 }
 
-fn integration_report(result: &driver::IntegrationReport, json: bool) -> CliResult<()> {
+fn integration_report(
+    result: &driver::IntegrationReport,
+    comparison: Option<&reference::ReferenceReport>,
+    json: bool,
+) -> CliResult<()> {
     if json {
-        return report(&serde_json::to_value(result)?, true);
+        let mut value = serde_json::to_value(result)?;
+        if let Some(comparison) = comparison {
+            value["reference"] = serde_json::to_value(comparison)?;
+        }
+        return report(&value, true);
     }
     println!("╭─ FastSecDec · Laurent coefficients ───────────────────────────────────╮");
     println!("  {:12} {:>23} {:>15}", "Order", "Value", "Std. error");
@@ -384,5 +431,8 @@ fn integration_report(result: &driver::IntegrationReport, json: bool) -> CliResu
         result.stopping_reason, result.elapsed_seconds
     );
     println!("╰──────────────────────────────────────────────────────────────────────╯");
+    if let Some(comparison) = comparison {
+        print!("{comparison}");
+    }
     Ok(())
 }

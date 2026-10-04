@@ -50,6 +50,36 @@ pub fn dependencies() -> Vec<Dependency> {
 pub struct SourceFile {
     pub path: String,
     pub blake3: String,
+    #[serde(default, skip_serializing_if = "SourceFingerprint::is_bytes")]
+    pub fingerprint: SourceFingerprint,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceFingerprint {
+    #[default]
+    Bytes,
+    RunCardWithoutReference,
+}
+
+impl SourceFingerprint {
+    fn is_bytes(&self) -> bool {
+        matches!(self, Self::Bytes)
+    }
+
+    pub fn hash(self, bytes: &[u8]) -> CliResult<String> {
+        let hash = match self {
+            Self::Bytes => blake3::hash(bytes),
+            Self::RunCardWithoutReference => {
+                // Preserve every parsed root field except observational reference
+                // steering, including fields unknown to this application's schema.
+                let mut card: toml::Table = toml::from_str(std::str::from_utf8(bytes)?)?;
+                card.remove("reference");
+                blake3::hash(toml::to_string(&card)?.as_bytes())
+            }
+        };
+        Ok(hash.to_hex().to_string())
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -76,6 +106,9 @@ pub struct Artifact {
     /// Observations are intentionally excluded from the scientific content hash.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_timings: Option<GenerationTimings>,
+    /// Comparison steering is observational and excluded from scientific identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference: Option<crate::config::ReferenceInput>,
     #[serde(skip)]
     pub loading_seconds: f64,
 }
@@ -89,6 +122,7 @@ impl Artifact {
             provenance,
             kernel,
             generation_timings: None,
+            reference: None,
             loading_seconds: 0.0,
         };
         result.content_id = result.identity()?;
@@ -104,6 +138,11 @@ impl Artifact {
     pub fn save(&self, path: &Path) -> CliResult<()> {
         atomic_write(path, &serde_json::to_vec_pretty(self)?)
     }
+    pub fn kernel_content_id(&self) -> CliResult<&str> {
+        self.kernel["content_id"]
+            .as_str()
+            .ok_or_else(|| "portable artifact has no kernel content identity".into())
+    }
     pub fn verify_input_sources(&self, input: &Path) -> CliResult<()> {
         let first = self
             .provenance
@@ -114,7 +153,7 @@ impl Artifact {
             return Err("resume run card differs from the artifact's input; regenerate before integrating changed inputs".into());
         }
         for source in &self.provenance.sources {
-            if blake3::hash(&fs::read(&source.path)?).to_hex().as_str() != source.blake3 {
+            if source.fingerprint.hash(&fs::read(&source.path)?)? != source.blake3 {
                 return Err(format!(
                     "input source {} changed since generation; checkpoint resume refused",
                     source.path
@@ -125,6 +164,14 @@ impl Artifact {
         Ok(())
     }
     pub fn load(path: &Path) -> CliResult<(Self, KernelSet)> {
+        Self::load_with_preflight(path, |_| Ok(()))
+    }
+
+    /// Validate optional caller-side input before recompiling portable kernels.
+    pub fn load_with_preflight(
+        path: &Path,
+        preflight: impl FnOnce(&Self) -> CliResult<()>,
+    ) -> CliResult<(Self, KernelSet)> {
         let started = Instant::now();
         let mut artifact: Self = serde_json::from_slice(&fs::read(path)?)?;
         if artifact.format_version != 1 || artifact.content_id != artifact.identity()? {
@@ -133,6 +180,7 @@ impl Artifact {
         if artifact.provenance.dependencies != dependencies() {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
+        preflight(&artifact)?;
         let kernels = KernelSet::from_bytes(&serde_json::to_vec(&artifact.kernel)?)?;
         artifact.loading_seconds = started.elapsed().as_secs_f64();
         Ok((artifact, kernels))
@@ -163,4 +211,50 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> CliResult<()> {
     }
     result?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scientific_card_fingerprint_excludes_only_root_reference_and_preserves_legacy_bytes() {
+        let mode = SourceFingerprint::RunCardWithoutReference;
+        let original = b"unknown_root = 1\n[integration]\npoints = 1024\n";
+        let comparison =
+            b"unknown_root=1\n[integration]\npoints=1024\n[reference]\npath='target.json'\n";
+        assert_eq!(mode.hash(original).unwrap(), mode.hash(comparison).unwrap());
+        assert_ne!(
+            mode.hash(original).unwrap(),
+            mode.hash(b"unknown_root=2\n[integration]\npoints=1024\n")
+                .unwrap()
+        );
+        assert_ne!(
+            mode.hash(b"unknown_root=nan\n").unwrap(),
+            mode.hash(b"unknown_root=inf\n").unwrap()
+        );
+        assert_ne!(
+            mode.hash(b"unknown_root=2026-10-04\n").unwrap(),
+            mode.hash(b"unknown_root='2026-10-04'\n").unwrap()
+        );
+        assert_ne!(
+            mode.hash(original).unwrap(),
+            mode.hash(b"unknown_root=1\n[integration]\npoints=2048\n")
+                .unwrap()
+        );
+        let legacy: SourceFile =
+            serde_json::from_str(r#"{"path":"input.toml","blake3":"old"}"#).unwrap();
+        assert!(matches!(legacy.fingerprint, SourceFingerprint::Bytes));
+        assert!(
+            !serde_json::to_value(&legacy)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .contains_key("fingerprint")
+        );
+        assert_ne!(
+            legacy.fingerprint.hash(original).unwrap(),
+            legacy.fingerprint.hash(comparison).unwrap()
+        );
+    }
 }

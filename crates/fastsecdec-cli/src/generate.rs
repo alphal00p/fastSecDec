@@ -17,6 +17,7 @@ pub fn generate(
     path: &Path,
     output: &Path,
     dashboard: &mut Dashboard,
+    reference: Option<&crate::reference::PreparedReference>,
 ) -> CliResult<(Artifact, KernelSet)> {
     let started = Instant::now();
     let mut status = GenerationSnapshot {
@@ -147,6 +148,9 @@ pub fn generate(
         return Err(error.into());
     }
     let kernels = kernels?;
+    if let Some(reference) = reference {
+        reference.validate_identity(kernels.content_id())?;
+    }
     status.timings.compilation_seconds = compilation_started.elapsed().as_secs_f64();
     let provenance = Provenance {
         name: loaded.label,
@@ -167,6 +171,7 @@ pub fn generate(
         integration: serde_json::to_value(loaded.card.integration)?,
     };
     let mut artifact = Artifact::new(&kernels, provenance)?;
+    artifact.reference = reference.map(|value| value.settings.clone());
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());
     artifact.save(output)?;
