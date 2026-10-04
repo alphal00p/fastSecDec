@@ -322,3 +322,29 @@ Evidence is in `output/selection-family-workspace-tests.log`,
 `output/selection-family-legacy-inspect-tests.log`,
 `output/selection-family-{fmt,clippy}.log` and
 `output/selection-family-production-dependencies.log`.
+
+## Caller-owned observation cadence
+
+The [status attribution](reviews/cli-status-performance-attribution.md) restores
+actual native QMC checkpoints without loading a graph or evaluator. It measures
+native estimate/snapshot, serialization and checkpoint costs separately, using
+the existing owners. Complete native snapshots cost about 2.2 ms; cached JSON
+serialization costs about 0.2 ms. These endpoint measurements do not establish
+a full-run speedup.
+
+The resulting CLI-only policy requests snapshots when presentation is due,
+keeping native estimators and checkpoint formats unchanged. Its interval is
+outside sampling settings and mathematical identities. Stage and final events,
+cancellation and failures bypass the display deadline; every batch still accepts
+packages, handles worker/submission errors, merges replay and checks cancellation.
+Statistics-only range failures can be detected at the next observation or
+unconditional stage/final reduction. The
+[independent review](reviews/cli-status-cadence-independent.md) documents this
+explicit latency tradeoff and finds no blocker.
+
+All 33 focused CLI tests pass, including exact estimate/covariance/design/replay
+equality across different cadences, a real accepted-partial Ctrl-C/resume, scope
+qualification and both numerical failure paths with final saved evidence and
+nonzero exits. Formatting and all-target Clippy pass. Future HEPKit callers keep
+control over when they request the same native status; no library timer or worker
+pool was introduced. A paired full-artifact timing remains pending.

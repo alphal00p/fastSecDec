@@ -9,7 +9,7 @@ use crate::{CliResult, artifact::Artifact, config::IntegrationInput, display::Da
 use fastsecdec::{
     integration::{IntegrationError, IntegrationProblem, Tolerance},
     kernel::{KernelSet, ReplayState, WeightedEvaluationContext},
-    status::EvaluationDiagnostics,
+    status::{EvaluationDiagnostics, IntegrationSnapshot},
 };
 use std::{path::Path, time::Instant};
 
@@ -27,6 +27,42 @@ struct Context<'a> {
     restored: Option<RestoredCheckpoint>,
     diagnostics: EvaluationDiagnostics,
     replay: AcceptedReplay,
+}
+
+/// Snapshot/reduction is observational and can be expensive for many sectors.
+/// Package acceptance and cancellation remain checked by the caller every batch.
+fn observe(
+    dashboard: &mut Dashboard,
+    diagnostics: &EvaluationDiagnostics,
+    started: Instant,
+    force: bool,
+    snapshot: impl FnOnce() -> Result<IntegrationSnapshot, IntegrationError>,
+    failure: &mut Option<String>,
+) -> CliResult<()> {
+    if dashboard.integration_due(started.elapsed(), force) {
+        match snapshot() {
+            Ok(snapshot) => dashboard.integration(
+                &super::report::with_diagnostics(snapshot, diagnostics),
+                started.elapsed().as_secs_f64(),
+            )?,
+            Err(error) => {
+                failure.get_or_insert_with(|| error.to_string());
+            }
+        }
+    }
+    Ok(())
+}
+
+fn final_report(
+    dashboard: &mut Dashboard,
+    report: IntegrationReport,
+) -> CliResult<IntegrationReport> {
+    dashboard.integration_due(
+        std::time::Duration::from_secs_f64(report.elapsed_seconds),
+        true,
+    );
+    dashboard.integration(&report.snapshot, report.elapsed_seconds)?;
+    Ok(report)
 }
 
 fn evaluate_tracked(

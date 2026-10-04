@@ -298,7 +298,10 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
         );
         if serde_json::from_str::<serde_json::Value>(&line)
             .ok()
-            .is_some_and(|value| value.get("completed_points").is_some())
+            .is_some_and(|value| {
+                matches!((value["completed_points"].as_u64(), value["planned_points"].as_u64()),
+                    (Some(completed), Some(planned)) if completed > 0 && completed < planned)
+            })
         {
             break;
         }
@@ -321,6 +324,8 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
     let report: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(report["stopping_reason"], "cancelled");
     assert_eq!(report["resume_status"], "checkpoint_saved");
+    let completed = report["snapshot"]["completed_points"].as_u64().unwrap();
+    assert!(completed > 0 && completed < report["snapshot"]["planned_points"].as_u64().unwrap());
     let state: serde_json::Value = serde_json::from_slice(&fs::read(checkpoint).unwrap()).unwrap();
     assert_eq!(state["format_version"], 3);
     assert_eq!(state["round_index"], 0);

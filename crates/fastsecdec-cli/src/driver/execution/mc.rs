@@ -2,9 +2,9 @@ use super::super::{
     IntegrationReport,
     checkpoint::save_mc_checkpoint,
     refinement::mc_points,
-    report::{ExecutionOutcome, finish, with_diagnostics},
+    report::{ExecutionOutcome, finish},
 };
-use super::{Context, evaluate_tracked, submit_package};
+use super::{Context, evaluate_tracked, final_report, observe, submit_package};
 use crate::CliResult;
 use fastsecdec::{
     integration::mc::{HavanaSession, HavanaSettings, HavanaWorker},
@@ -55,6 +55,17 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         .map_or(0, |checkpoint| checkpoint.round_index);
     let mut current_points = mc_points(settings.points, round)?;
     'rounds: loop {
+        observe(
+            dashboard,
+            &diagnostics,
+            started,
+            true,
+            || session.snapshot(),
+            &mut failure,
+        )?;
+        if failure.is_some() {
+            break;
+        }
         let mut slots = (0..settings.workers)
             .map(|_| {
                 Ok(McSlot {
@@ -109,16 +120,16 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     failure.get_or_insert_with(|| error.to_string());
                 }
             }
-            match session.snapshot() {
-                Ok(snapshot) => dashboard.integration(
-                    &with_diagnostics(snapshot, &diagnostics),
-                    started.elapsed().as_secs_f64(),
-                )?,
-                Err(error) => {
-                    failure.get_or_insert_with(|| error.to_string());
-                }
-            }
-            if failure.is_some() {
+            cancelled = dashboard.cancelled();
+            observe(
+                dashboard,
+                &diagnostics,
+                started,
+                cancelled || failure.is_some() || session.is_complete(),
+                || session.snapshot(),
+                &mut failure,
+            )?;
+            if failure.is_some() || cancelled {
                 break 'rounds;
             }
             if last_checkpoint.elapsed().as_secs() >= 5 {
@@ -132,10 +143,6 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     &replay,
                 )?;
                 last_checkpoint = Instant::now();
-            }
-            if dashboard.cancelled() {
-                cancelled = true;
-                break;
             }
         }
         if cancelled {
@@ -177,7 +184,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         &diagnostics,
         &replay,
     )?;
-    finish(
+    let report = finish(
         artifact,
         session.diagnostic_observation()?,
         &diagnostics,
@@ -190,5 +197,6 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             resume_status,
             qmc_design: None,
         },
-    )
+    )?;
+    final_report(dashboard, report)
 }

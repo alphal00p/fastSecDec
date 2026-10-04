@@ -379,14 +379,15 @@ fn numerical_failure_saves_accepted_coverage_and_exits_unsuccessfully() {
             "prefactor = \"10^200\"\nmonomial_powers = [\"0\"]\n[[direct.terms.factors]]\npolynomial = \"x-1/2\"\nexponent = \"1\"\nrole = \"polynomial\"",
         ),
     ] {
-        let dir = tempfile::tempdir().unwrap();
-        let input = dir.path().join("input.toml");
-        let result_path = dir.path().join("failed.json");
-        let checkpoint = dir.path().join("checkpoint.json");
-        fs::write(
-            &input,
-            format!(
-                r#"
+        for interval in ["0", "60000"] {
+            let dir = tempfile::tempdir().unwrap();
+            let input = dir.path().join("input.toml");
+            let result_path = dir.path().join("failed.json");
+            let checkpoint = dir.path().join("checkpoint.json");
+            fs::write(
+                &input,
+                format!(
+                    r#"
 [direct]
 domain = "unit_cube"
 parameters = ["x"]
@@ -397,11 +398,11 @@ points = 1024
 shifts = 4
 periodization = "none"
 "#
-            ),
-        )
-        .unwrap();
-        let report = failure(
-            cli()
+                ),
+            )
+            .unwrap();
+            let output = cli()
+                .args(["--status-json", "--status-interval-ms", interval])
                 .arg("run")
                 .arg(&input)
                 .arg("--output")
@@ -411,47 +412,58 @@ periodization = "none"
                 .arg("--checkpoint")
                 .arg(&checkpoint)
                 .output()
-                .unwrap(),
-        );
-        assert!(
-            report["snapshot"]["stop_reason"]
-                .get("NumericalFailure")
-                .is_some(),
-            "{report}"
-        );
-        assert!(!report["converged"].as_bool().unwrap());
-        let saved = read_result(&fs::read(&result_path).unwrap()).unwrap();
-        assert!(matches!(
-            saved.stopping_reason,
-            StoppingReason::NumericalFailure(_)
-        ));
-        if name == "worker" {
-            assert!(saved.evaluation_diagnostics.as_ref().unwrap().failures > 0);
-            assert_eq!(saved.contributions.sectors[0].progress.completed_points, 0);
-        } else {
-            assert_eq!(saved.evaluation_diagnostics.as_ref().unwrap().failures, 0);
-            assert!(saved.contributions.sectors[0].progress.completed_points >= 2048);
+                .unwrap();
+            let statuses = String::from_utf8_lossy(&output.stderr)
+                .lines()
+                .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+                .filter(|status| status.get("method").is_some())
+                .collect::<Vec<_>>();
+            assert!(
+                statuses.last().unwrap()["stop_reason"]
+                    .get("NumericalFailure")
+                    .is_some()
+            );
+            let report = failure(output);
+            assert!(
+                report["snapshot"]["stop_reason"]
+                    .get("NumericalFailure")
+                    .is_some(),
+                "{report}"
+            );
+            assert!(!report["converged"].as_bool().unwrap());
+            let saved = read_result(&fs::read(&result_path).unwrap()).unwrap();
             assert!(matches!(
-                saved.contributions.uncertainty,
-                fastsecdec::status::UncertaintyStatus::StatisticalFailure { .. }
+                saved.stopping_reason,
+                StoppingReason::NumericalFailure(_)
             ));
+            if name == "worker" {
+                assert!(saved.evaluation_diagnostics.as_ref().unwrap().failures > 0);
+                assert_eq!(saved.contributions.sectors[0].progress.completed_points, 0);
+            } else {
+                assert_eq!(saved.evaluation_diagnostics.as_ref().unwrap().failures, 0);
+                assert!(saved.contributions.sectors[0].progress.completed_points >= 2048);
+                assert!(matches!(
+                    saved.contributions.uncertainty,
+                    fastsecdec::status::UncertaintyStatus::StatisticalFailure { .. }
+                ));
+            }
+            assert!(checkpoint.exists());
+            success(cli().arg("show-result").arg(&result_path).output().unwrap());
+            let rejected = failure(
+                cli()
+                    .arg("export-reference")
+                    .arg(&result_path)
+                    .args(["--source", "estimate", "--output"])
+                    .arg(dir.path().join("rejected.json"))
+                    .output()
+                    .unwrap(),
+            );
+            assert!(
+                rejected["error"]["message"]
+                    .as_str()
+                    .unwrap()
+                    .contains("ineligible")
+            );
         }
-        assert!(checkpoint.exists());
-        success(cli().arg("show-result").arg(&result_path).output().unwrap());
-        let rejected = failure(
-            cli()
-                .arg("export-reference")
-                .arg(&result_path)
-                .args(["--source", "estimate", "--output"])
-                .arg(dir.path().join("rejected.json"))
-                .output()
-                .unwrap(),
-        );
-        assert!(
-            rejected["error"]["message"]
-                .as_str()
-                .unwrap()
-                .contains("ineligible")
-        );
     }
 }

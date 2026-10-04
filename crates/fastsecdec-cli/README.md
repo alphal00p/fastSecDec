@@ -21,6 +21,19 @@ fastsecdec check-boundaries output/bubble.fsd.json
 
 `--plain` disables the live terminal dashboard. `--json` writes one final JSON
 document to stdout; `--status-json` streams public status snapshots to stderr.
+Integration JSON snapshots default to a minimum 100 ms interval. Set
+`--status-interval-ms 0` for every worker batch, or choose a longer interval to
+reduce observation work. This option affects neither numerical settings nor
+checkpoint identity; terminal/plain intervals remain 40 ms/1 s. Initial,
+stage/round-boundary and final states are always emitted, including cancelled or
+failed outcomes. Generation and standalone diagnostic progress are unchanged.
+
+Worker evaluation/submission failures, replay acceptance and cancellation remain
+checked after every batch. Numerical-statistics range failures discovered by
+snapshot reduction are checked at the selected observation cadence and
+unconditionally at stage/final reduction; this can delay their detection by the
+chosen interval. They still retain accepted data, save the supported checkpoint
+and exit unsuccessfully. No unavailable estimate is replaced by a zero.
 The documented Symbolica banner display setting is applied before library
 initialization so machine-readable stdout remains clean. Licensing is unchanged.
 

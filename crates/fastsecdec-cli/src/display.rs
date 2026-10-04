@@ -36,10 +36,19 @@ pub struct Dashboard {
     last_log: Instant,
     json_status: bool,
     scope: fastsecdec::results::ResultScope,
+    integration_cadence: crate::status_policy::StatusCadence,
 }
 
 impl Dashboard {
     pub fn new(enabled: bool, json_status: bool) -> CliResult<Self> {
+        Self::with_status_interval(enabled, json_status, 100)
+    }
+
+    pub fn with_status_interval(
+        enabled: bool,
+        json_status: bool,
+        json_interval_ms: u64,
+    ) -> CliResult<Self> {
         let interrupt = InterruptSignal::new()?;
         let terminal = if enabled && !json_status && io::stderr().is_terminal() {
             terminal::enable_raw_mode()?;
@@ -58,6 +67,13 @@ impl Dashboard {
         } else {
             None
         };
+        let interval = if json_status {
+            Duration::from_millis(json_interval_ms)
+        } else if terminal.is_some() {
+            Duration::from_millis(40)
+        } else {
+            Duration::from_secs(1)
+        };
         Ok(Self {
             interrupt,
             terminal,
@@ -65,6 +81,7 @@ impl Dashboard {
             last_log: Instant::now() - Duration::from_secs(2),
             json_status,
             scope: Default::default(),
+            integration_cadence: crate::status_policy::StatusCadence::new(interval),
         })
     }
 
@@ -159,6 +176,12 @@ impl Dashboard {
         self.scope = scope;
     }
 
+    /// Call before constructing the native integration snapshot. Forced events
+    /// include stage/round boundaries and every final/cancelled/failed report.
+    pub fn integration_due(&mut self, elapsed: Duration, force: bool) -> bool {
+        self.integration_cadence.due(elapsed, force)
+    }
+
     pub fn integration(&mut self, snapshot: &IntegrationSnapshot, elapsed: f64) -> CliResult<()> {
         if self.json_status {
             eprintln!(
@@ -171,12 +194,6 @@ impl Dashboard {
             return Ok(());
         }
         if let Some(terminal) = &mut self.terminal {
-            if self.last_frame.elapsed() < Duration::from_millis(40)
-                && snapshot.completed_points < snapshot.planned_points
-            {
-                return Ok(());
-            }
-            self.last_frame = Instant::now();
             terminal.draw(|frame| {
                 let chunks = Layout::vertical([
                     Constraint::Length(3),
@@ -298,11 +315,8 @@ impl Dashboard {
                     chunks[4],
                 );
             })?;
-        } else if self.last_log.elapsed() >= Duration::from_secs(1)
-            || snapshot.completed_points == snapshot.planned_points
-        {
+        } else {
             eprintln!("{} · {snapshot}", self.scope);
-            self.last_log = Instant::now();
         }
         Ok(())
     }

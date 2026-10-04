@@ -8,6 +8,7 @@ mod input;
 mod inspect;
 mod reference;
 mod results;
+mod status_policy;
 
 use clap::{Args, Parser, Subcommand};
 use config::IntegrationInput;
@@ -45,6 +46,9 @@ struct Cli {
         help = "Stream status snapshots as JSON lines to stderr"
     )]
     status_json: bool,
+    /// Minimum interval for JSON integration status; zero emits every worker batch.
+    #[arg(long, global = true, default_value_t = 100)]
+    status_interval_ms: u64,
     #[command(subcommand)]
     command: Action,
 }
@@ -264,7 +268,13 @@ fn main() -> ExitCode {
 
 fn run(cli: Cli) -> CliResult<()> {
     let render_json = cli.json;
-    let make_dashboard = || display::Dashboard::new(!cli.plain && !cli.json, cli.status_json);
+    let make_dashboard = || {
+        display::Dashboard::with_status_interval(
+            !cli.plain && !cli.json,
+            cli.status_json,
+            cli.status_interval_ms,
+        )
+    };
     match cli.command {
         Action::Generate { input, output } => {
             let reference = reference::from_card(&input, None)?;

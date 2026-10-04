@@ -38,7 +38,7 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `box_high_rank_numerator` | Both, native reduction/master suite; complete-vector support-cache equivalence verified | Native reducer + masters for all three coefficients | Matched performance and convergence |
 | `double_box` | Both; complete 64-shift five-coefficient run | Exact native rational proof of the leading zero only; higher target errors unavailable | Independent higher-coefficient reference and matched convergence |
 | `double_box_from_uf` | Exact equality to the graph density; generation/integration family above | Same leading-pole proof applies to the identical density | Optional fresh CLI transport closure; no duplicate scientific integral campaign |
-| `triple_box` | Full G/V pending; native input checked | No frozen independently certified full vector | Bounded staged full-vector campaign |
+| `triple_box` | First full-generation trial timed out during Laurent extraction; no artifact or V | No frozen independently certified full vector | Capture/replay of expensive native series and reduced-family cost probe before repeating full generation |
 | `triple_box_offshell` | Both; 2496 charts, 1182 kernels and complete 1024-by-eight full-vector allocation | Exact native domain/normalization and repeated-propagator audit; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
 | `triple_box_offshell_rank2_numerator` | Both; same full coverage and 9,682,944 accepted evaluations, zero failures | Exact numerator/routing and coupled-Gaussian control; no independent integrated vector | Native family projection cost probe, independent full-vector reference and convergence |
 | `kite_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
@@ -118,6 +118,14 @@ one-loop reducer remains outside this two-loop reference path. See the
    contributions and failures before increasing work. Historical manual targets
    remain diagnostic rows with unknown uncertainty; no eligible statistical
    pull is assigned to them.
+   The first on-shell trial reached 2,112 charts and 1,026 representatives, but
+   timed out at the 300-second generation limit plus five-second cancellation
+   grace. Completed Laurent work accounted for 282.024 seconds; geometry,
+   mapping and symmetry took 1.309, 1.905 and 1.622 seconds. Its last entry callback
+   was displayed representative 46 (zero-based index 45), at 288.504 seconds.
+   No artifact or usable partial integral was produced. Retain this failure
+   while a test-only native-template replay and eight-propagator family probe
+   investigate the bottleneck; extending the same run is not the next step.
 4. **Hard four-loop positive orthant.** Preserve all nine variables and density
    `U*F^(eps-3)` with unit prefactor. Integer-power negative U is intentional.
    The already passed 3496-map geometry test does not establish successful
