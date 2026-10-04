@@ -3,6 +3,29 @@
 This is a design proposal only. No result reader, writer, converter or CLI
 command is implemented by this document.
 
+## Full-integral and selected-sector scope
+
+The saved numerical scope must be explicit. A caller can construct an
+`IntegrationProblem` containing only selected sectors, so complete allocation
+and valid covariance do not establish coverage of the whole kernel. Store a
+typed full-integral or selected-sector scope, bound to the parent kernel
+identity, its full sector manifest and the selected sector identities, with
+the exact-contribution policy recorded. Validate a claimed full scope against
+that manifest. A selected-sector result may be displayed and exported with
+its restricted scope, but must never become full-integral convergence or a
+full-integral reference merely because its own work allocation completed.
+Reference extraction and comparison require compatible explicit scopes;
+missing scope in a legacy document cannot silently mean full integral. This
+retains the scientific requirement of regression-matrix test 6376 alongside
+the saved-result cases below.
+
+The first implementation should reject estimate-to-reference extraction for
+selected-sector results while the existing reference API has no typed scope.
+They remain readable and displayable. Freeform provenance is insufficient to
+prevent an accidental full-integral comparison; supporting scoped references
+can be a later deliberate extension without migrating all reference documents
+in this slice.
+
 ## Required scientific behavior
 
 Pathfinder tests `test_integrals.py:6401,6481,6524,6601,6673` require numerical
@@ -160,3 +183,163 @@ Meaningful validation for the eventual slice:
 
 The first implementation should remain a thin native data/validation adapter;
 CLI convenience and historical format migration can be reviewed separately.
+
+## Concrete implementation sequence after the catalogue milestone
+
+Keep the library slice in `fastsecdec::results` with separate `types`,
+`manifest`, `validation`, `document`, `reference` and `display` modules. No
+source changes are authorized by this section during the current source
+freeze; it specifies the next accepted implementation slice.
+
+The owned native types should include:
+
+```text
+KernelResultManifest {
+    kernel_content_id,
+    orders, components,
+    sectors: Vec<SectorSpec>,
+    exact_coefficients,
+}
+ResultScope = FullIntegral
+            | SelectedSectors { sector_ids, exact_policy }
+ExactContributionPolicy = IncludeAll | ExcludeAll
+SavedIntegrationResult {
+    manifest: KernelResultManifest,
+    scope: ResultScope,
+    contributions: ContributionReport,
+    stopping_reason: StoppingReason,
+    requested_tolerance: Option<Tolerance>,
+    evaluation_diagnostics: Option<EvaluationDiagnostics>,
+    qmc_design: Option<QmcDesign>,
+    provenance: ReferenceProvenance,
+    validation: ReferenceValidation,
+    stored_reference: Option<StoredReference>,
+    timings: optional descriptive elapsed/load/generation timings,
+}
+StoredReference { reference: ReferenceResult, context: ComparisonContext }
+```
+
+The manifest, scope and exact policy are native saved-document fields, never
+CLI-only metadata. `FullIntegral` selects the complete stochastic manifest and
+all exact coefficients. A selected scope names only stochastic sectors and
+explicitly includes or excludes the entire folded exact vector; it does not
+pretend to recover individually folded analytic sectors. Missing scope is an
+error. Empty selected stochastic support is still selected scope and must not
+be upgraded automatically to full scope.
+
+Provide an optional manifest constructor from public `KernelSet` metadata
+(identity, layout, dimensions and exact vector), plus a native-data constructor
+for callers that own equivalent metadata. The latter is an explicit declaration
+of the complete parent manifest, not proof that a caller-supplied hash is true.
+Reading, validating and displaying an existing document must not initialize
+Symbolica, touch an input graph or load a compiled evaluator. The numerical
+kernel identity remains distinct from a CLI artifact's source/provenance hash.
+
+Implement validation in this order:
+
+1. Extract the existing estimate representation checks from `reference::compare`
+   into the integration owner's reusable `VectorEstimate::validate` and make
+   comparison use that method. Factor reference/context metadata and identity
+   checks into reusable methods so stored references can be checked even when
+   the computed total is absent. Preserve current comparison arithmetic and
+   eligibility decisions; do not construct a dummy estimate to trigger them.
+2. Validate manifest layout, finite exact values, nonempty identity, unique
+   stochastic IDs and positive dimensions. Validate selected IDs as a subset.
+   Require contribution rows to match exactly the selected manifest IDs and
+   dimensions, and require the same full coefficient layout. Exact offsets
+   must match the selected include/exclude policy.
+3. Validate coverage and states from existing native fields: used counts cannot
+   exceed completed/planned counts; replica and point totals must agree with
+   the recorded design; pilots cannot contain production estimates; shared
+   democratic sectors must use the same complete common replica count.
+   `production_complete` must agree with complete support in the saved scope.
+   Exact-only status is valid only with empty stochastic support. Preserve
+   authoritative totals and all covariance entries without recomputing them
+   from rounded marginal values or constructing a covariance model.
+4. If a `QmcDesign` is present, validate its settings and selected allocation
+   identities/counts against the numerical payload. It is observational design
+   metadata, not an accumulation checkpoint. Keep cumulative precision counters
+   distinct from accepted production coverage: failed discarded attempts do not
+   automatically invalidate a later completed estimate.
+5. Validate typed stopping claims. `TargetReached` requires recorded tolerance
+   and the existing native `VectorEstimate::meets` check. `PlannedWorkComplete`
+   requires complete production support within the explicit scope. Work/time
+   limits may accompany incomplete or complete data, but never fabricate
+   convergence. Cancellation and numerical failure remain visible and prohibit
+   estimate-to-reference extraction even if some valid rows are retained.
+
+`read_result` and `encode_result` use the strict version-one envelope and call
+the same validation. Do not add legacy CLI-output guessing. New document-owned
+types reject unknown fields; existing nested native types retain their defined
+contracts. JSON float round trips use the existing workspace `float_roundtrip`
+feature. Imported malformed layouts must produce typed errors, not formatting
+panics or silently truncated output.
+
+Expose explicit estimate/stored-reference extraction and selected-sector
+rejection as typed errors suitable for a future Python bridge. Stored-reference
+extraction preserves the original object even when the computed run failed.
+Reusing that extracted object in a new comparison requires a fresh caller
+`ComparisonContext`; its historical independence assertion is not transferred.
+Full-scope complete estimates preserve their recorded `Unverified` or `Checked`
+evidence, and every exported error remains `StandardError`, including zero.
+
+Use native sorting of references to validated contribution rows for result-only
+views: ID order, absolute value of an explicit coefficient key, or that key's
+standard error. Sort missing estimates last and use sector ID for ties; never
+fill an absent coefficient. Scope and exact-offset policy must be visible in
+every rendered result, and marginal errors remain labelled as correlated when
+the replica relation requires it.
+
+The initial pure-data tests should include a partial one-sector allocation
+that is internally complete but selected from a two-sector manifest, proving
+that it stays viewable yet cannot become a full-integral reference. Add a
+scope/manifest mismatch, a full versus selected exact-offset-policy case,
+real/imaginary covariance round trips, all explicit reference-source choices,
+and malformed count/layout/stop claims. These test scientific boundaries rather
+than JSON field spelling. A thin subsequent CLI adapter can save this native
+document and add `show-result`/explicit `export-reference`; its fresh-process
+test must still work after removing graph and kernel files.
+
+## Failure-safe observation and CLI handoff
+
+The existing strict `snapshot()` and `contributions()` methods can themselves
+fail when finite accepted replicas produce a mean or covariance outside binary64
+range. For example, replica means `+1e200` and `-1e200` have finite observations
+but overflow the native second-moment calculation. A CLI failure finalizer that
+simply calls `contributions()?` would lose precisely the state it needs to save.
+
+Add a narrow diagnostic contribution accessor for QMC and Havana. It retains
+accepted coverage directly from the existing accumulator/record metadata,
+attempts the existing native total and marginal estimators independently, and
+keeps every estimate that those estimators can represent. Unavailable numerical
+statistics receive a typed statistical-failure status and no estimate; they are
+never assigned synthetic zero, `Available`, `Exact`, or merely waiting-for-work
+status. Ordinary `estimate()` and `contributions()` retain their strict behavior.
+The QMC metadata accessor should live in Numerica and reuse stored per-shift
+counts, rather than make FastSecDec duplicate coverage reconstruction or perform
+an alternative summation. No arithmetic fallback or new statistical estimator
+belongs in this reporting path.
+
+The saved validator must allow structurally consistent completed-but-unestimable
+records. A valid total may coexist with an unavailable marginal (or conversely),
+so do not erase independent valid fields solely because another estimator
+failed. The authoritative total continues to govern numerical comparisons;
+`StoppingReason::NumericalFailure` blocks estimate-reference extraction even
+when some estimates survived. A retained original stored reference remains
+selectable. This behavior needs a native numeric regression with accepted
+large finite replicas, as well as the ordinary worker-evaluation failure test.
+
+The CLI should finalize actual accepted state, save/display the typed failed
+result, and return a nonzero exit status. Setup, validation and filesystem errors
+remain ordinary errors without a fabricated numerical record. MC pilot failure
+retains pilot-only coverage and caller-side restart-required information. Result
+scope binds to the inner `KernelSet::content_id()`; the existing outer artifact
+identity continues to isolate checkpoints and appears only as result provenance.
+No checkpoint identity migration is needed.
+
+For view coordination, the native result API will provide `Display` and
+`sector_order(ResultSectorSort::{Id, Magnitude(CoefficientKey),
+StandardError(CoefficientKey)})`. Numeric ordering is descending, absent estimates
+are last, and sector IDs break ties. Unknown coefficient keys are typed errors.
+The returned ordering does not mutate the saved payload; CLI JSON views may
+retain the original result and separately label derived comparison and order.

@@ -193,5 +193,6 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         estimate,
         snapshot: stopped(snapshot, cancelled, converged),
         resume_status,
+        qmc_design: None,
     })
 }

@@ -1,16 +1,15 @@
 use crate::{CliResult, config::IntegrationInput};
 
-// The bundled lattice stops at 2^20 points; beyond that size, add independent
-// shifts without requesting an unavailable rule.
-pub(super) fn qmc_design(points: u64, shifts: u32, round: usize) -> CliResult<(u64, u32)> {
-    const MAX_POINTS: u64 = 1 << 20;
-    if !(1024..=MAX_POINTS).contains(&points) || !points.is_power_of_two() {
-        return Err("bundled QMC points must be a power of two in 1024..=2^20".into());
-    }
-    let (mut points, mut shifts) = (points, shifts);
+// Grow within the selected native catalogue, then add independent shifts.
+pub(super) fn qmc_design(settings: &IntegrationInput, round: usize) -> CliResult<(u64, u32)> {
+    settings.qmc_settings()?;
+    let maximum = settings.published_lattice()?.max_points();
+    let (mut points, mut shifts) = (settings.points, settings.shifts);
     for _ in 0..round {
-        if points < MAX_POINTS {
-            points *= 2;
+        if points < maximum {
+            points = points
+                .checked_mul(2)
+                .ok_or("lattice point growth overflow")?;
         } else {
             shifts = shifts
                 .checked_mul(2)
@@ -30,7 +29,7 @@ pub(super) fn mc_points(points: u64, round: usize) -> CliResult<u64> {
 }
 
 pub(super) fn adaptive_budget(settings: &IntegrationInput, round: usize) -> CliResult<(f64, u32)> {
-    let (_, shifts) = qmc_design(settings.points, settings.shifts, round)?;
+    let (_, shifts) = qmc_design(settings, round)?;
     let multiplier = shifts
         .checked_div(settings.shifts)
         .ok_or("at least two shifts are required")?;

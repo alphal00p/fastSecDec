@@ -32,7 +32,8 @@ fn mapped(
     map.validate(domain).unwrap();
     let target = [symbol!("mapped_factor::s"), symbol!("mapped_factor::t")];
     let coordinates = coordinates(&input, &map, &target[..parameters.len()]);
-    map_terms(&input, &map, &coordinates).unwrap()
+    let mut supports = super::super::support::SupportCache::new(input.parameters());
+    map_terms(&input, &map, &coordinates, &mut supports).unwrap()
 }
 
 #[test]

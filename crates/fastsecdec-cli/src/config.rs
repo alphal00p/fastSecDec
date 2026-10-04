@@ -103,6 +103,9 @@ pub struct IntegrationInput {
     pub package_points: u64,
     pub workers: usize,
     pub periodization: String,
+    /// Omitted in legacy/default serialization to preserve old checkpoint settings.
+    #[serde(skip_serializing_if = "is_legacy_lattice")]
+    pub lattice: String,
     pub absolute_tolerance: f64,
     pub relative_tolerance: f64,
     pub production_seconds: f64,
@@ -120,12 +123,53 @@ impl Default for IntegrationInput {
             package_points: 1024,
             workers: 1,
             periodization: "korobov3".into(),
+            lattice: "kuo33002".into(),
             absolute_tolerance: 1e-8,
             relative_tolerance: 1e-3,
             production_seconds: 10.0,
             max_rounds: 1,
             replay: Default::default(),
         }
+    }
+}
+
+fn is_legacy_lattice(value: &str) -> bool {
+    value == "kuo33002"
+}
+
+impl IntegrationInput {
+    pub fn published_lattice(&self) -> crate::CliResult<fastsecdec::integration::PublishedLattice> {
+        use fastsecdec::integration::PublishedLattice;
+        match self.lattice.as_str() {
+            "kuo33002" => Ok(PublishedLattice::Kuo33002),
+            "kuo38005" => Ok(PublishedLattice::Kuo38005),
+            "kuo39101" => Ok(PublishedLattice::Kuo39101),
+            "hkkn-alpha3" => Ok(PublishedLattice::HkknAlpha3),
+            _ => Err("lattice must be kuo33002, kuo38005, kuo39101, or hkkn-alpha3".into()),
+        }
+    }
+
+    pub fn qmc_settings(&self) -> crate::CliResult<fastsecdec::integration::QmcSettings> {
+        use fastsecdec::integration::{Periodization, PublishedLattice, QmcSettings, RuleSource};
+        let catalogue = self.published_lattice()?;
+        let settings = QmcSettings {
+            points: self.points,
+            shifts: self.shifts,
+            seed: self.seed,
+            package_points: self.package_points,
+            periodization: match self.periodization.as_str() {
+                "none" => Periodization::None,
+                "korobov3" => Periodization::Korobov3,
+                _ => return Err("periodization must be none or korobov3".into()),
+            },
+            rule: if catalogue == PublishedLattice::Kuo33002 {
+                RuleSource::Kuo
+            } else {
+                RuleSource::Published(catalogue)
+            },
+        };
+        settings.validate()?;
+        Ok(settings)
     }
 }
 

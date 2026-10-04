@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use numerica::numerical_integration::qmc::{QmcPlan, Rank1Rule};
 use serde::{Deserialize, Serialize};
 
-use super::{CoefficientComponent, IntegrationError, Result};
+use super::{CoefficientComponent, IntegrationError, PublishedLattice, Result};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SectorSpec {
@@ -117,6 +117,9 @@ pub enum RuleSource {
     /// A caller-supplied generating vector, truncated only to each sector's
     /// declared full dimension. No generating-vector search is performed.
     Supplied(Vec<u64>),
+    /// Explicit attributed catalogue; unsupported counts or full sector
+    /// dimensions are errors rather than a fallback to another vector.
+    Published(PublishedLattice),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,16 +146,25 @@ impl Default for QmcSettings {
 }
 
 impl QmcSettings {
-    pub(crate) fn validate(&self) -> Result<()> {
+    /// Validate configuration before constructing kernels or scheduling work.
+    ///
+    /// Published count bounds are checked even for an all-exact problem.
+    /// Full sector dimensions and supplied-vector coprimality are checked when
+    /// the session constructs each concrete native rule.
+    pub fn validate(&self) -> Result<()> {
         if self.shifts < 2 || self.package_points == 0 || !(2..=1u64 << 53).contains(&self.points) {
             return Err(IntegrationError::Invalid(
                 "at least two shifts, a positive package size and a lattice size in 2..=2^53 are required".into(),
             ));
         }
-        if let RuleSource::Kuo = self.rule {
+        if let Some(catalogue) = match self.rule {
+            RuleSource::Kuo => Some(PublishedLattice::Kuo33002),
+            RuleSource::Published(catalogue) => Some(catalogue),
+            RuleSource::Supplied(_) => None,
+        } {
             // Reuse the catalog constructor for supported-count validation,
             // including an all-exact problem that does not need worker plans.
-            Rank1Rule::kuo(self.points, 1)?;
+            Rank1Rule::published(catalogue, self.points, 1)?;
         }
         if matches!(&self.rule, RuleSource::Supplied(vector) if vector.is_empty()) {
             return Err(IntegrationError::Invalid(
@@ -180,6 +192,9 @@ impl QmcSettings {
         }
         let rule = match &self.rule {
             RuleSource::Kuo => Rank1Rule::kuo(points, dimension)?,
+            RuleSource::Published(catalogue) => {
+                Rank1Rule::published(*catalogue, points, dimension)?
+            }
             RuleSource::Supplied(vector) => {
                 let prefix = vector.get(..dimension).ok_or_else(|| {
                     IntegrationError::Invalid(

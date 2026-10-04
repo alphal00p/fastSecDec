@@ -250,34 +250,7 @@ fn native_triangle_matches_hepkit_c0_across_euclidean_virtualities_and_masses() 
 fn native_box_matches_hepkit_d0_across_euclidean_channels_and_masses() {
     with_stack(|| {
         for (s, t, mass, mu_squared) in [(-1, -1, 0, 1), (-2, -3, 0, 4), (-1, -2, 1, 1)] {
-            let momenta = (0..4)
-                .map(|index| symbols::external_momentum().call(index))
-                .collect::<Vec<_>>();
-            let twice_gram = [
-                [0, s, -s - t, t],
-                [s, 0, t, -s - t],
-                [-s - t, t, 0, s],
-                [t, -s - t, s, 0],
-            ];
-            let mut kin = Kinematics::in_dimension(&parse!("D"))
-                .unwrap()
-                .with_momenta(momenta.clone())
-                .unwrap();
-            for i in 0..4 {
-                for j in i..4 {
-                    kin = kin
-                        .with_scalar_product(
-                            &momenta[i],
-                            &momenta[j],
-                            Atom::num((twice_gram[i][j], 2)),
-                        )
-                        .unwrap();
-                }
-            }
-            let actual = integrate(
-                graph(include_str!("../../../examples/graphs/box.dot"), &kin, mass),
-                mu_squared,
-            );
+            let actual = integrate(box_graph(s, t, mass), mu_squared);
             compare(
                 ScalarIntegral::D0,
                 &[
@@ -296,5 +269,43 @@ fn native_box_matches_hepkit_d0_across_euclidean_channels_and_masses() {
                 &actual,
             );
         }
+    });
+}
+
+fn box_graph(s: i64, t: i64, mass: i64) -> GraphIntegral {
+    let momenta = (0..4)
+        .map(|index| symbols::external_momentum().call(index))
+        .collect::<Vec<_>>();
+    let twice_gram = [
+        [0, s, -s - t, t],
+        [s, 0, t, -s - t],
+        [-s - t, t, 0, s],
+        [t, -s - t, s, 0],
+    ];
+    let mut kin = Kinematics::in_dimension(&parse!("D"))
+        .unwrap()
+        .with_momenta(momenta.clone())
+        .unwrap();
+    for i in 0..4 {
+        for j in i..4 {
+            kin = kin
+                .with_scalar_product(&momenta[i], &momenta[j], Atom::num((twice_gram[i][j], 2)))
+                .unwrap();
+        }
+    }
+    graph(include_str!("../../../examples/graphs/box.dot"), &kin, mass)
+}
+
+#[test]
+fn native_box_massive_shipped_point_matches_hepkit_d0() {
+    with_stack(|| {
+        // The shipped massive card has s=t=-1, whereas the existing massive
+        // family test uses s=-1,t=-2. Keep this distinct point explicit.
+        let actual = integrate(box_graph(-1, -1, 1), 1);
+        compare(
+            ScalarIntegral::D0,
+            &[0, 0, 0, 0, -1, -1, 1, 1, 1, 1, 1],
+            &actual,
+        );
     });
 }

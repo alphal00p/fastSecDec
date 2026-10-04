@@ -85,6 +85,8 @@ fn run() {
     let variant = std::env::var("FASTSECDEC_RANK_FIVE_VARIANT").unwrap_or_else(|_| "both".into());
     let stripping =
         std::env::var("FASTSECDEC_RANK_FIVE_STRIPPING").unwrap_or_else(|_| "factored".into());
+    let support_cache =
+        std::env::var("FASTSECDEC_RANK_FIVE_SUPPORT_CACHE").unwrap_or_else(|_| "enabled".into());
     let build = if cfg!(debug_assertions) {
         "development"
     } else {
@@ -93,7 +95,9 @@ fn run() {
     assert!(limit_seconds.is_finite() && limit_seconds > 0.0 && chart_limit > 0);
     assert!(["both", "unchanged", "collected"].contains(&variant.as_str()));
     assert!(["sparse", "factored"].contains(&stripping.as_str()));
+    assert!(["enabled", "disabled"].contains(&support_cache.as_str()));
     super::mapping::profile_sparse_only(stripping == "sparse");
+    let _support_profile = super::support::profile_bypass(support_cache == "disabled");
     let parameterization_started = Instant::now();
     let original = input();
     let parameterization_seconds = parameterization_started.elapsed().as_secs_f64();
@@ -168,6 +172,7 @@ fn run() {
         );
 
         symmetry::begin_profile();
+        super::mapping::profile::begin();
         let started = Instant::now();
         let mut timings = BTreeMap::<String, f64>::new();
         let mut charts_started = 0;
@@ -191,9 +196,31 @@ fn run() {
         });
         let generation_seconds = started.elapsed().as_secs_f64();
         let graphs = symmetry::take_profile();
-        let (completed, numerical_sectors) = match result {
-            Ok(generated) => (true, Some(generated.sectors().len())),
-            Err(GenerationError::Cancelled) => (false, None),
+        let mapping = super::mapping::profile::take();
+        let (completed, numerical_sectors, vector_fingerprint) = match result {
+            Ok(generated) => {
+                // Native canonical printing and hashing are outside all timed
+                // stages; paired cache modes must preserve the full vector.
+                let vector = serde_json::json!({
+                    "orders": generated.orders(),
+                    "exact": generated.exact_coefficients().iter().map(AtomCore::to_canonical_string).collect::<Vec<_>>(),
+                    "sectors": generated.sectors().iter().map(|sector| serde_json::json!({
+                        "parameters": sector.parameters().iter().map(|p| symbolica::atom::Atom::var(*p).to_canonical_string()).collect::<Vec<_>>(),
+                        "coefficients": sector.coefficients().iter().map(AtomCore::to_canonical_string).collect::<Vec<_>>(),
+                        "cancellation_terms": sector.cancellation_terms(),
+                    })).collect::<Vec<_>>(),
+                });
+                (
+                    true,
+                    Some(generated.sectors().len()),
+                    Some(
+                        blake3::hash(&serde_json::to_vec(&vector).unwrap())
+                            .to_hex()
+                            .to_string(),
+                    ),
+                )
+            }
+            Err(GenerationError::Cancelled) => (false, None, None),
             Err(error) => panic!("rank-five {name}: {error}"),
         };
         eprintln!(
@@ -206,15 +233,17 @@ fn run() {
             "factor_bytes_before": factors_before, "factor_bytes_after": factors_after,
             "generation_seconds": generation_seconds, "stage_seconds": timings,
             "completed": completed, "numerical_sectors": numerical_sectors,
+            "laurent_vector_fingerprint": vector_fingerprint,
             "charts_started": charts_started, "total_charts": total_charts,
             "graphs": graphs, "chart_limit": chart_limit, "cooperative_seconds_limit": limit_seconds,
+            "mapping_factors": mapping.factors, "support_cache": mapping.support_cache,
             "limit_semantics": "checked at existing generation progress boundaries; native CAS/canonization calls are not interrupted",
             "build": build,
             "measurement_scope": "native generation diagnostic; no reference performance acceptance claim",
         });
         std::fs::write(
             evidence.join(format!(
-                "rank-five-generation-{build}-{stripping}-{name}.json"
+                "rank-five-generation-{build}-{stripping}-{name}-support-{support_cache}.json"
             )),
             serde_json::to_vec_pretty(&report).unwrap(),
         )

@@ -55,13 +55,23 @@ fn settings(method: &str) -> IntegrationInput {
 
 #[test]
 fn lattice_refinement_caps_points_then_grows_independent_shifts() {
-    assert_eq!(qmc_design(1 << 19, 8, 0).unwrap(), (1 << 19, 8));
-    assert_eq!(qmc_design(1 << 19, 8, 1).unwrap(), (1 << 20, 8));
-    assert_eq!(qmc_design(1 << 19, 8, 2).unwrap(), (1 << 20, 16));
-    assert_eq!(qmc_design(1 << 19, 8, 3).unwrap(), (1 << 20, 32));
-    assert!(qmc_design(1 << 20, u32::MAX, 1).is_err());
-    assert!(qmc_design(3, 8, 0).is_err());
-    assert!(qmc_design(1 << 21, 8, 0).is_err());
+    let design = |points, shifts, round| {
+        qmc_design(
+            &IntegrationInput {
+                points,
+                shifts,
+                ..Default::default()
+            },
+            round,
+        )
+    };
+    assert_eq!(design(1 << 19, 8, 0).unwrap(), (1 << 19, 8));
+    assert_eq!(design(1 << 19, 8, 1).unwrap(), (1 << 20, 8));
+    assert_eq!(design(1 << 19, 8, 2).unwrap(), (1 << 20, 16));
+    assert_eq!(design(1 << 19, 8, 3).unwrap(), (1 << 20, 32));
+    assert!(design(1 << 20, u32::MAX, 1).is_err());
+    assert!(design(3, 8, 0).is_err());
+    assert!(design(1 << 21, 8, 0).is_err());
     let settings = IntegrationInput {
         points: 1 << 19,
         shifts: 8,
@@ -71,6 +81,60 @@ fn lattice_refinement_caps_points_then_grows_independent_shifts() {
     assert_eq!(adaptive_budget(&settings, 1).unwrap(), (1.25, 2));
     assert_eq!(adaptive_budget(&settings, 2).unwrap(), (2.5, 4));
     assert_eq!(adaptive_budget(&settings, 3).unwrap(), (5.0, 8));
+}
+
+#[test]
+fn published_catalogue_uses_native_bounds_and_preserves_legacy_settings_identity() {
+    use fastsecdec::integration::{PublishedLattice, RuleSource};
+    let legacy = IntegrationInput::default();
+    let old_identity = checkpoint::settings_identity(&legacy).unwrap();
+    assert!(old_identity.get("lattice").is_none());
+    let restored: IntegrationInput = serde_json::from_value(old_identity.clone()).unwrap();
+    assert_eq!(restored.lattice, "kuo33002");
+    assert_eq!(restored.qmc_settings().unwrap().rule, RuleSource::Kuo);
+    assert_eq!(
+        checkpoint::settings_identity(&restored).unwrap(),
+        old_identity
+    );
+    for (name, catalogue) in [
+        ("kuo38005", PublishedLattice::Kuo38005),
+        ("kuo39101", PublishedLattice::Kuo39101),
+        ("hkkn-alpha3", PublishedLattice::HkknAlpha3),
+    ] {
+        let selected = IntegrationInput {
+            lattice: name.into(),
+            points: catalogue.min_points(),
+            ..Default::default()
+        };
+        assert_eq!(
+            selected.qmc_settings().unwrap().rule,
+            RuleSource::Published(catalogue)
+        );
+        assert_ne!(
+            checkpoint::settings_identity(&selected).unwrap(),
+            old_identity
+        );
+        assert_eq!(
+            qmc_design(&selected, 1).unwrap(),
+            (catalogue.min_points() * 2, selected.shifts)
+        );
+        let capped = IntegrationInput {
+            points: catalogue.max_points(),
+            ..selected
+        };
+        assert_eq!(
+            qmc_design(&capped, 1).unwrap(),
+            (catalogue.max_points(), capped.shifts * 2)
+        );
+    }
+    assert!(
+        IntegrationInput {
+            points: 2,
+            ..legacy
+        }
+        .qmc_settings()
+        .is_err()
+    );
 }
 
 #[test]
@@ -125,6 +189,19 @@ fn completed_checkpoint_resume_does_not_refine_or_repeat_work() {
             original.snapshot.worker_seconds,
             resumed.snapshot.worker_seconds
         );
+        assert_eq!(original.qmc_design, resumed.qmc_design);
+        if method.ends_with("qmc") {
+            let design = original.qmc_design.as_ref().unwrap();
+            assert_eq!(design.settings.points, 2048);
+            assert!(
+                design
+                    .allocations
+                    .iter()
+                    .all(|allocation| allocation.points == 2048)
+            );
+        } else {
+            assert!(original.qmc_design.is_none());
+        }
         assert_eq!(
             accepted,
             restore_checkpoint(&checkpoint, &artifact, &settings)
@@ -294,7 +371,7 @@ fn checkpoint_rejects_missing_or_incompatible_replay_state_and_old_version() {
     let checkpoint = dir.path().join("replay.json");
     let session = QmcSession::democratic(
         problem(&artifact, &kernels).unwrap(),
-        QmcSettings::default(),
+        settings.qmc_settings().unwrap(),
     )
     .unwrap();
     save_checkpoint(
@@ -443,7 +520,7 @@ fn checkpoint_settings_allow_only_worker_count_changes() {
     let checkpoint = dir.path().join("identity.json");
     let session = QmcSession::democratic(
         problem(&artifact, &kernels).unwrap(),
-        QmcSettings::default(),
+        settings.qmc_settings().unwrap(),
     )
     .unwrap();
     save_checkpoint(
@@ -461,4 +538,66 @@ fn checkpoint_settings_allow_only_worker_count_changes() {
     assert!(restore_checkpoint(&checkpoint, &artifact, &changed).is_ok());
     changed.points *= 2;
     assert!(restore_checkpoint(&checkpoint, &artifact, &changed).is_err());
+}
+
+#[test]
+fn checkpoint_binds_native_catalogue_method_and_refinement_to_outer_settings() {
+    use fastsecdec::integration::{PublishedLattice, RuleSource};
+    let (dir, artifact, kernels) = fixture();
+    let settings = settings("qmc");
+    let expected_problem = problem(&artifact, &kernels).unwrap();
+    let mut alternative = settings.qmc_settings().unwrap();
+    alternative.rule = RuleSource::Published(PublishedLattice::HkknAlpha3);
+    let sessions = [
+        (
+            "catalogue",
+            0,
+            QmcSession::democratic(expected_problem.clone(), alternative).unwrap(),
+        ),
+        (
+            "method",
+            0,
+            QmcSession::adaptive(expected_problem.clone(), settings.qmc_settings().unwrap())
+                .unwrap(),
+        ),
+        (
+            "round",
+            1,
+            QmcSession::democratic(expected_problem, settings.qmc_settings().unwrap()).unwrap(),
+        ),
+    ];
+    for (case, round, session) in sessions {
+        let path = dir.path().join(format!("mismatch-{case}.json"));
+        save_checkpoint(
+            &path,
+            &artifact,
+            &settings,
+            round,
+            session.checkpoint().unwrap(),
+            &EvaluationDiagnostics::default(),
+            &AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap(),
+        )
+        .unwrap();
+        let saved = fs::read(&path).unwrap();
+        let error = match integrate(
+            &artifact,
+            &kernels,
+            &settings,
+            &path,
+            true,
+            &mut Dashboard::new(false, false).unwrap(),
+        ) {
+            Ok(_) => panic!("{case}: incompatible native checkpoint accepted"),
+            Err(error) => error,
+        };
+        assert!(
+            error.to_string().contains("native QMC design"),
+            "{case}: {error}"
+        );
+        assert_eq!(
+            fs::read(path).unwrap(),
+            saved,
+            "mismatched checkpoints must not advance work"
+        );
+    }
 }

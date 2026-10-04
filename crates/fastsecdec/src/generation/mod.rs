@@ -9,6 +9,7 @@ mod metadata;
 #[cfg(test)]
 pub(crate) mod profiling;
 mod subtraction;
+mod support;
 mod symmetry;
 mod types;
 pub(crate) use domain::check_factors;
@@ -50,13 +51,14 @@ pub fn generate(
         seconds: started.elapsed().as_secs_f64(),
     })?;
     let started = Instant::now();
+    let mut source_supports = support::SupportCache::new(input.parameters());
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
             if domain::is_singular(factor) {
-                let support = factor.support(input.parameters())?;
-                if !supports.contains(&support) {
-                    supports.push(support);
+                let support = source_supports.get(factor)?;
+                if !supports.contains(support) {
+                    supports.push(support.clone());
                 }
             }
         }
@@ -124,7 +126,7 @@ pub fn generate(
         };
         let started = Instant::now();
         let coordinates = mapping::coordinates(input, &map, &parameters);
-        let mapped = mapping::map_terms(input, &map, &coordinates)?;
+        let mapped = mapping::map_terms(input, &map, &coordinates, &mut source_supports)?;
         emit(GenerationProgress::PhaseTiming {
             phase: GenerationPhase::Mapping,
             seconds: started.elapsed().as_secs_f64(),

@@ -1,4 +1,5 @@
 mod checkpoint;
+mod design;
 mod results;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -18,6 +19,17 @@ pub struct ProductionAllocation {
     pub sector_id: u64,
     pub points: u64,
     pub shifts: u32,
+}
+
+/// Effective numerical design, requested explicitly for reporting or saving.
+///
+/// Settings identify the rule, seed and transform. Allocations are authoritative
+/// for the current stage's points and shifts in each sector; adaptive production
+/// may differ from the base settings. This is not an accumulation checkpoint.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct QmcDesign {
+    pub settings: QmcSettings,
+    pub allocations: Vec<ProductionAllocation>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -50,6 +62,20 @@ pub struct QmcSession {
 }
 
 impl QmcSession {
+    /// Statistical method whose stream and coverage semantics this session uses.
+    pub fn method(&self) -> IntegrationMethod {
+        self.method
+    }
+
+    /// Copy the current design for a final report without embedding potentially
+    /// large caller-supplied generating vectors in every progress snapshot.
+    pub fn design(&self) -> QmcDesign {
+        QmcDesign {
+            settings: self.settings.clone(),
+            allocations: self.allocations.clone(),
+        }
+    }
+
     pub fn democratic(problem: IntegrationProblem, settings: QmcSettings) -> Result<Self> {
         Self::new(
             problem,

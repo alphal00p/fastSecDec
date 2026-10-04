@@ -109,6 +109,9 @@ struct IntegrationArgs {
     points: Option<u64>,
     #[arg(long)]
     shifts: Option<u32>,
+    /// Explicit published generating vector; the default remains kuo33002.
+    #[arg(long, value_parser = ["kuo33002", "kuo38005", "kuo39101", "hkkn-alpha3"])]
+    lattice: Option<String>,
     #[arg(long)]
     seed: Option<u64>,
     #[arg(long)]
@@ -136,6 +139,9 @@ impl IntegrationArgs {
         }
         if let Some(value) = self.shifts {
             settings.shifts = value;
+        }
+        if let Some(value) = &self.lattice {
+            settings.lattice = value.clone();
         }
         if let Some(value) = self.seed {
             settings.seed = value;
@@ -449,6 +455,9 @@ fn integration_report(
         "  {} · {:.2} s",
         result.stopping_reason, result.elapsed_seconds
     );
+    if let Some(design) = &result.qmc_design {
+        println!("  {design}");
+    }
     println!("╰──────────────────────────────────────────────────────────────────────╯");
     if let Some(comparison) = comparison {
         print!("{comparison}");

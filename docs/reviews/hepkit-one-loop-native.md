@@ -54,6 +54,11 @@ finished in 8.53 seconds in the development test profile. The local log is
 `output/hepkit-one-loop-tests.log`. This measures the regression workload, not
 the project's performance acceptance benchmark.
 
+The exact shipped `box_massive` point (`s=t=-1`, squared mass 1) was subsequently
+added as a separate focused graph-to-D0 complete-vector test. It passed in 1.95
+seconds (`output/massive-box-native-master-tests.log`), bringing scalar point
+coverage to twelve while retaining the earlier different massive box point.
+
 The same audit exposed a separate CLI model-composition error. Cached derived
 parameter/coupling values were read before exact inline overrides, so a model
 with `a=2`, `b=2*a` cached as four and an inline `a=3` retained the stale four.

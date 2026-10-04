@@ -178,9 +178,34 @@ adaptive vector search or CBC generator is justified by this evidence.
 
 The [mapping attribution](reviews/rank-five-mapping-attribution.md) measures
 repeated native original-support extraction as 99.63% of rank-five mapping time.
-It motivates a generation-owned lazy cache of existing `PolynomialSupport`
-results with native Atom keys and fixed parameter ordering. Such reuse must
-preserve the coordinate-face fast path before support extraction and all exact
-validation; it does not justify expanding regular factors or caching mapped
-densities. Implementation, independent review and measured results are separate
-acceptance steps.
+The implemented generation-owned lazy cache reuses existing `PolynomialSupport`
+results with native Atom keys and fixed parameter ordering. It preserves the
+coordinate-face fast path before support extraction and all exact validation;
+mapped densities and occurrence exponents remain outside the cache. The
+[independent review](reviews/native-cache-and-catalogue-independent.md) found no
+new algebra or native ownership issue. Sixty-one focused scientific tests pass;
+three alternating release pairs measure generation at 11.371 seconds uncached
+versus 2.522 seconds cached. Parameterization and separate diagnostic validation
+are outside those timers, and matched Pathfinder acceptance remains separate.
+
+The [catalogue proposal](reviews/qmc-catalogue-proposal.md) keeps published data,
+bounds and provenance validation in Numerica. The
+[cross-case campaign](reviews/qmc-catalogue-cross-case.md) reuses native covariance
+for 48 runs over four physical cases, four rules and three seeds. HKKN improves
+the uncertainty over the current rule in each tested dimension, while individual
+cases favor other rules. Explicit choices preserve old Kuo semantics; any default
+change requires a separate decision. The recurring review also checks binary
+data provenance, library-owned status and caller-owned execution. Remaining
+example acceptance is tracked in the
+[scientific campaign schedule](reviews/remaining-scientific-campaigns.md).
+
+The [CLI catalogue audit](reviews/cli-catalogue-independent.md) verifies thin
+native selection and refinement, legacy Kuo settings identity and reusable
+`QmcDesign` reporting. Review found and closed an outer-checkpoint versus native
+session consistency gap: resume now binds settings, method and refinement round
+before requesting work. The final design retains actual allocations without
+dumping generators into every streamed update. Twenty-three focused CLI tests
+pass; the subsequent combined workspace gate passes 231 tests with 12 explicit
+probes ignored. The exact shipped massive-box point also passes against the
+existing native D0 provider, bringing the scalar reference campaign to twelve
+physical points without another master implementation.

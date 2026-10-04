@@ -7,9 +7,9 @@ use super::super::{
 use super::{Context, evaluate_tracked, submit_package};
 use crate::CliResult;
 use fastsecdec::{
-    integration::{Periodization, QmcSession, QmcSettings, QmcWorker, RuleSource},
+    integration::{QmcSession, QmcWorker},
     kernel::WeightedEvaluationContext,
-    status::{EvaluationDiagnostics, IntegrationStage},
+    status::{EvaluationDiagnostics, IntegrationMethod, IntegrationStage},
 };
 use rayon::prelude::*;
 use std::{collections::BTreeMap, time::Instant};
@@ -34,21 +34,23 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         mut diagnostics,
         mut replay,
     } = context;
-    qmc_design(settings.points, settings.shifts, 0)?;
-    let options = QmcSettings {
-        points: settings.points,
-        shifts: settings.shifts,
-        seed: settings.seed,
-        package_points: settings.package_points,
-        periodization: match settings.periodization.as_str() {
-            "none" => Periodization::None,
-            "korobov3" => Periodization::Korobov3,
-            _ => return Err("periodization must be none or korobov3".into()),
-        },
-        rule: RuleSource::Kuo,
-    };
+    let options = settings.qmc_settings()?;
     let mut session = if let Some(checkpoint) = &restored {
-        QmcSession::restore(&checkpoint.session, &problem)?
+        let session = QmcSession::restore(&checkpoint.session, &problem)?;
+        let mut expected = options.clone();
+        (expected.points, expected.shifts) = qmc_design(settings, checkpoint.round_index)?;
+        let expected_method = if method == "adaptive_qmc" {
+            IntegrationMethod::AdaptiveQmc
+        } else {
+            IntegrationMethod::DemocraticQmc
+        };
+        if session.design().settings != expected || session.method() != expected_method {
+            return Err(
+                "checkpoint native QMC design differs from the outer settings or refinement round"
+                    .into(),
+            );
+        }
+        session
     } else if method == "adaptive_qmc" {
         QmcSession::adaptive(problem.clone(), options.clone())?
     } else {
@@ -165,7 +167,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         }
         round += 1;
         let mut next = options.clone();
-        (next.points, next.shifts) = qmc_design(settings.points, settings.shifts, round)?;
+        (next.points, next.shifts) = qmc_design(settings, round)?;
         session = if method == "adaptive_qmc" {
             QmcSession::adaptive(problem.clone(), next)?
         } else {
@@ -204,5 +206,6 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         estimate,
         snapshot: stopped(snapshot, cancelled, converged),
         resume_status: ResumeStatus::CheckpointSaved,
+        qmc_design: Some(session.design()),
     })
 }

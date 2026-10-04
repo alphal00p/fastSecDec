@@ -39,4 +39,24 @@ Populate the cache only at existing support-request sites. In particular, retain
 
 Keep exact exponent conversion bounds, signed infinity-chart handling, coefficient-aware adapter validation, residual certification, and direct factored output unchanged. The existing compact-degree-10000, hidden cancellation, orthant, literal-symbol and complete-vector scientific regressions remain relevant. A repeated-factor/different-exponent mathematical case can additionally guard against accidentally caching mapped density rather than source support. Measure the same bounded release probe after implementation, including retained sizes/hit counts; do not infer an achieved speedup from this attribution alone.
 
-Production caching remains subject to coordinator and independent design review. Coefficient-specific periodization, alias-aware symbolic generation and catalog changes are separate tasks, not part of this proposal.
+The coordinator approved this narrow cache after attribution and independent design review. Coefficient-specific periodization, alias-aware symbolic generation and catalogue changes remain separate tasks.
+
+## Implemented reuse and paired release evidence
+
+`generation/support.rs` now owns the exact original-support cache for one generation call. The ordered native parameter list belongs to the cache, and the key is the original native `Atom`. Geometry and mapping share it; role, exponent, factor occurrence, chart and residual certification stay outside each entry. Failed collection is not cached. Mapping still tries the existing zero-valuation coordinate-face path before requesting a support. Test-only bypass state is restored by an RAII guard, including cancellation, errors and unwinding; ordinary library builds expose no cache bypass or profiling switches.
+
+The new repeated-factor regression integrates the complete two-term Laurent vector whose singular and polynomial occurrences of the same source factor have different exponents and roles. Its exact density is `3*(x+y)^eps`, giving coefficients `3` and `3*(2*log(2)-3/2)`. It passed alongside the compact-power, signed-orthant, hidden-cancellation, literal-coordinate, independent endpoint-pole and complete-vector scientific gates: 61 tests passed, three diagnostic tests were ignored. Evidence: `output/support-reuse-scientific-tests.log`. Independent native-object/API reviews found no actionable defect; see `native-cache-and-catalogue-independent.md`.
+
+Three paired release runs used the same binary and unchanged rank-five fixture, with the cache disabled or enabled only through the test-only bypass. Execution order was disabled/enabled, enabled/disabled, disabled/enabled. Our team's other runtime and build jobs were idle. The backend remains SymJIT 2.26.4 and the Symbolica revision recorded above. Every run completed all 12 charts and retained 12 numerical sectors.
+
+| Pair | Uncached generation (s) | Cached generation (s) | Uncached mapping (s) | Cached mapping (s) |
+| --- | ---: | ---: | ---: | ---: |
+| 0 | 11.466297 | 2.514280 | 11.207134 | 2.259424 |
+| 1 | 11.370525 | 2.524301 | 11.116936 | 2.270429 |
+| 2 | 11.362354 | 2.522102 | 11.110398 | 2.268205 |
+
+Median generation falls from 11.370525 to 2.522102 seconds, a 4.51-fold internal improvement. Native parameterization remains 2.23–2.27 seconds and the diagnostic's separate equivalence validation remains 2.59–2.64 seconds; neither is included in the generation timer. This is not an end-to-end Pathfinder parity claim.
+
+Each cached run makes 76 requests with six misses and retains six supports, comprising 1012 rows and 4048 native integers. The recorded storage is 97152 bytes for inline integer entries and 14914 bytes for native key expressions; it excludes collection capacities, allocation overhead and shared/native backing storage and is not peak RSS. The bypass runs make all 76 requests without retaining entries.
+
+Raw timing reports and logs are `output/probes/rank-five-support-{disabled,enabled}-{0,1,2}.{json,log}`. The fingerprint-only instrumentation edit missed that release compiler snapshot, so a separate development-build pair checked equivalence without supplying timing evidence. Both modes produced the same complete Laurent-vector fingerprint, `59b852056e2efe644dd381f1969a3ed6b9cee8710ca73bb293b5a5625c17b6f7`. The fingerprint covers all output orders, exact coefficients and each numerical sector's native parameter names, complete coefficients and cancellation metadata. Native canonical printing and hashing run after generation, outside its timers. Evidence: `output/support-fingerprint-build.log` and `output/probes/rank-five-support-fingerprint-{disabled,enabled}.{json,log}`. Both checks passed and completed all 12 charts and 12 numerical sectors.

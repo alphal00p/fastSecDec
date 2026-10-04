@@ -33,11 +33,32 @@ recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
 
 Integration methods are `qmc`, `adaptive_qmc`, `mc`, and `adaptive_mc`.
-Bundled QMC rules support powers of two from 1024 through 2^20 points.
-With multiple refinement rounds, the driver doubles points up to that cap and
+QMC uses the historical `kuo33002` catalogue by default. Select another native
+published catalogue explicitly, without regenerating the symbolic artifact:
+
+```sh
+fastsecdec integrate output/bubble.fsd.json --lattice hkkn-alpha3
+```
+
+The equivalent run-card setting is `[integration] lattice = "hkkn-alpha3"`.
+The available catalogues have these native capability bounds:
+
+| CLI/TOML value | Stochastic sector dimensions | Points (powers of two) |
+| --- | ---: | ---: |
+| `kuo33002` (default) | 1–9125 | 1024–2^20 |
+| `kuo38005` | 1–5000 | 1024–2^20 |
+| `kuo39101` | 1–3600 | 1024–2^20 |
+| `hkkn-alpha3` | 1–10 | 2–2^20 |
+
+Unsupported requests fail explicitly; the library does not substitute another
+catalogue. These are capability bounds, not uncertainty guarantees. With
+multiple refinement rounds, the driver doubles points up to the selected cap and
 then doubles independent shifts. Adaptive QMC also increases its frozen
 production budget after reaching the cap. The covariance matrix covers every
 Laurent output, including real/imaginary components for complex scalar weights.
+Final JSON includes the native `qmc_design`, with the effective settings and
+actual points/shifts allocated to each sector; plain output gives a compact
+summary. Adaptive allocations can differ from the initial requested counts.
 
 The caller owns the integration loop, worker pool, lattice point generation,
 stopping decisions, and checkpoint writes. The CLI is one such caller of the
@@ -50,6 +71,13 @@ Escape stops after the current worker batch and saves completed production
 work. QMC pilots can also be resumed. Havana MC pilots must be restarted because
 the upstream library does not expose its mutable pilot training state; the
 report marks this as `pilot_restart_required`.
+
+The selected catalogue and refinement round must agree with the native session
+inside a checkpoint. Missing historical `lattice` fields retain their original
+`kuo33002` meaning. A CLI lattice override leaves the symbolic kernel identity
+unchanged but changes sampling/checkpoint identity. Editing integration settings
+in a source run card still follows the artifact's existing source-fingerprint
+checks; it is not equivalent to overriding a saved artifact at integration time.
 
 Precision diagnostics count cumulative evaluation attempts, conditioning
 checks, and rescues across pilots and refinement rounds. Checkpoints preserve

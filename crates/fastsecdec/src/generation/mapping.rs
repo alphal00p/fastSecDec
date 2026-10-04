@@ -8,6 +8,24 @@ use symbolica::{
     id::{Pattern, Replacement},
 };
 
+#[cfg(test)]
+pub(super) mod profile;
+
+// Attribution is confined to the unit-test build. The ordinary production
+// expression is unchanged and has no timers or profile state.
+#[cfg(test)]
+macro_rules! measured {
+    ($stage:ident, $expression:expr) => {
+        profile::measure(profile::Stage::$stage, || $expression)
+    };
+}
+#[cfg(not(test))]
+macro_rules! measured {
+    ($stage:ident, $expression:expr) => {
+        $expression
+    };
+}
+
 pub(super) struct MappedTerm {
     pub powers: Vec<Atom>,
     pub prefactor: Atom,
@@ -23,7 +41,10 @@ pub(super) fn map_terms(
     input: &ParametricIntegrand,
     map: &SectorMap,
     coordinates: &CoordinateMap,
+    source_supports: &mut super::support::SupportCache,
 ) -> Result<Vec<MappedTerm>, GenerationError> {
+    #[cfg(test)]
+    profile::begin_chart();
     let parameters = coordinates.target_parameters();
     let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
     let images = coordinates.images();
@@ -43,10 +64,13 @@ pub(super) fn map_terms(
         let prefactor = term.prefactor() * &coordinates.measure_factor;
         let mut regular = Atom::one();
         for factor in term.factors() {
+            #[cfg(test)]
+            profile::begin_factor(factor);
             if factor.exponent().is_zero() {
                 continue;
             }
-            let mapped =
+            let mapped = measured!(
+                Substitution,
                 factor
                     .polynomial()
                     .replace_multiple(input.parameters().iter().zip(images).map(
@@ -56,38 +80,47 @@ pub(super) fn map_terms(
                                 Pattern::Literal(target.clone()),
                             )
                         },
-                    ));
+                    ))
+            );
             // For a polynomial map, nonvanishing coordinate faces exclude a
             // common coordinate monomial without enumerating dense support.
             // This preserves both (1+x)^10000 and (x+y)^10000. Singular factors
             // still receive exact polynomial residual/domain validation below.
-            let zero_valuation = nonnegative_map
-                && variables.iter().all(|variable| {
-                    !mapped
-                        .replace(Pattern::Literal(variable.clone()))
-                        .with(Atom::Zero)
-                        .is_zero()
-                });
+            let zero_valuation = measured!(
+                CoordinateFaces,
+                nonnegative_map
+                    && variables.iter().all(|variable| {
+                        !mapped
+                            .replace(Pattern::Literal(variable.clone()))
+                            .with(Atom::Zero)
+                            .is_zero()
+                    })
+            );
             let (minima, residual) = if zero_valuation {
                 (vec![Integer::from(0); parameters.len()], mapped)
             } else {
-                let support = factor.support(input.parameters())?;
-                let transformed = support
-                    .exponents()
-                    .iter()
-                    .map(|row| {
-                        (0..parameters.len())
-                            .map(|j| {
-                                row.iter()
-                                    .zip(&map.exponent_matrix)
-                                    .fold(Integer::from(0), |sum, (a, m)| sum + a * &m[j])
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .collect::<Vec<_>>();
-                let minima = (0..parameters.len())
-                    .map(|j| transformed.iter().map(|row| &row[j]).min().unwrap().clone())
-                    .collect::<Vec<_>>();
+                let support = measured!(SupportExtraction, source_supports.get(factor))?;
+                #[cfg(test)]
+                profile::support_size(support.exponents().len());
+                let (transformed, minima) = measured!(SupportTransformation, {
+                    let transformed = support
+                        .exponents()
+                        .iter()
+                        .map(|row| {
+                            (0..parameters.len())
+                                .map(|j| {
+                                    row.iter()
+                                        .zip(&map.exponent_matrix)
+                                        .fold(Integer::from(0), |sum, (a, m)| sum + a * &m[j])
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .collect::<Vec<_>>();
+                    let minima = (0..parameters.len())
+                        .map(|j| transformed.iter().map(|row| &row[j]).min().unwrap().clone())
+                        .collect::<Vec<_>>();
+                    (transformed, minima)
+                });
                 let residual = if minima.iter().all(|power| power == &0) {
                     mapped
                 } else {
@@ -113,9 +146,12 @@ pub(super) fn map_terms(
                     if let Some(residual) = factored_residual(&mapped, &variables, &shifts) {
                         residual
                     } else {
-                        let polynomial = mapped
-                            .to_polynomial_in_vars::<i32>(&variables)
-                            .mul_exp(&shifts);
+                        let polynomial = measured!(
+                            SparseFallback,
+                            mapped
+                                .to_polynomial_in_vars::<i32>(&variables)
+                                .mul_exp(&shifts)
+                        );
                         if polynomial
                             .exponents_iter()
                             .flatten()
@@ -131,7 +167,10 @@ pub(super) fn map_terms(
                 (minima, residual)
             };
             if super::domain::is_singular(factor) {
-                super::domain::check_residual(&residual, parameters)?;
+                measured!(
+                    ResidualCertification,
+                    super::domain::check_residual(&residual, parameters)
+                )?;
             }
             for (power, valuation) in powers.iter_mut().zip(minima) {
                 *power += factor.exponent() * Atom::num(valuation);
@@ -175,25 +214,28 @@ fn factored_residual(mapped: &Atom, variables: &[Atom], shifts: &[i32]) -> Optio
     if SPARSE_ONLY.with(std::cell::Cell::get) {
         return None;
     }
-    let residual = mapped.collect_factors()
+    let residual = measured!(FactorCollection, mapped.collect_factors())
         * variables
             .iter()
             .zip(shifts)
             .map(|(variable, shift)| variable.pow(Atom::num(*shift)))
             .product::<Atom>();
-    residual
-        .is_polynomial(true, false)
-        .is_some_and(|indeterminates| {
-            indeterminates.iter().all(|indeterminate| {
-                variables
-                    .iter()
-                    .any(|variable| *indeterminate == variable.as_view())
-                    || variables
+    measured!(
+        PolynomialRecognition,
+        residual
+            .is_polynomial(true, false)
+            .is_some_and(|indeterminates| {
+                indeterminates.iter().all(|indeterminate| {
+                    variables
                         .iter()
-                        .all(|variable| !indeterminate.contains(variable.as_view()))
+                        .any(|variable| *indeterminate == variable.as_view())
+                        || variables
+                            .iter()
+                            .all(|variable| !indeterminate.contains(variable.as_view()))
+                })
             })
-        })
-        .then_some(residual)
+            .then_some(residual)
+    )
 }
 
 #[cfg(test)]

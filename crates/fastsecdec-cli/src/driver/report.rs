@@ -1,5 +1,5 @@
 use fastsecdec::{
-    integration::VectorEstimate,
+    integration::{QmcDesign, VectorEstimate},
     status::{EvaluationDiagnostics, GenerationTimings, IntegrationSnapshot, StoppingReason},
 };
 use serde::Serialize;
@@ -15,6 +15,9 @@ pub struct IntegrationReport {
     pub estimate: Option<VectorEstimate>,
     pub snapshot: IntegrationSnapshot,
     pub resume_status: ResumeStatus,
+    /// Effective final-round design; adaptive sector allocations are authoritative.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qmc_design: Option<QmcDesign>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
