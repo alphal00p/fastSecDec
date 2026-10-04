@@ -113,7 +113,13 @@ fn capture_on_shell_triple_box_template() {
     let output = std::env::var_os("FASTSECDEC_LAURENT_CAPTURE")
         .map(PathBuf::from)
         .expect("explicit ignored output directory");
+    let mapped_only = std::env::var_os("FASTSECDEC_LAURENT_MAPPED_ONLY").is_some();
     let capture = Guard::new(target, output.clone());
+    let capture = if mapped_only {
+        capture.mapped_only()
+    } else {
+        capture
+    };
     let input = on_shell_input();
     let mut chart_count = None;
     let mut representative_count = None;

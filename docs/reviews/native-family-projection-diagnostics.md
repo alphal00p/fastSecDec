@@ -128,8 +128,34 @@ acceptance requires a matched execution/persistence policy and isolated repeats.
 Evidence is under `output/diagnostics/triple-box-projected/`, with scalar/rank2
 `generate` and `integrate` stdout, status, arguments and process records, native
 kernel transports and native integration checkpoints. No report is promoted to
-an external reference. The loader also represents the separate on-shell card
-explicitly, but that bounded projected run has not yet been executed.
+an external reference.
+
+## Bounded on-shell follow-up
+
+The same preserved optimized `projected-triple-fe3b72a` executable was then run
+with explicit `generate scalar onshell`, preserving the separate massless point
+with all external virtualities zero and `s=t=-1`. The native projection and
+parameterization use the identical checked eight-denominator route, with a
+300-second cooperative generation/compilation limit and 310-second external
+watchdog. The child was interrupted and reaped at **310.289317 seconds**, with
+sampled peak resident memory **2,384,552 KiB**. It produced no kernel artifact;
+no integration was attempted and no coefficient/coverage observation is inferred.
+
+The retained callbacks report geometry 0.094857 s, mapping 0.517412 s over 1,026
+representatives and symmetry 0.223666 s. Only 38 Laurent phases completed before
+the watchdog, totaling 146.296483 s; two alone took 39.816667 s and 99.408146 s.
+The 39th subtraction completed, but its following native Laurent call did not
+return before the outer bound. Completed-phase sums deliberately omit this
+unfinished call and must not be read as whole-process stage totals. They show
+that denominator projection leaves the on-shell Laurent-expansion cost in place.
+This is a bounded diagnostic failure, not evidence of an invalid integral or of
+numerical divergence.
+
+The raw prefix is
+`output/diagnostics/triple-box-projected/onshell-scalar.generate`, including the
+exact argv, partial phase stream, empty numerical stdout and final watchdog
+record. The independent native Laurent-depth experiment is a separate proposed
+remedy; this failed run does not test that change.
 
 The same native operation may help other real repeated-line topologies, including
 the double-box degree-two vertex. That is a reuse opportunity to investigate,

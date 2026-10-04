@@ -95,6 +95,27 @@ fn parameterize_family(
     regulator: Symbol,
     dimension: Atom,
 ) -> Result<ParametricIntegrand> {
+    let uf = validate_family_input(
+        family,
+        powers,
+        &numerator,
+        &parameters,
+        regulator,
+        &dimension,
+    )?;
+    parameterize_validated_family(
+        family, powers, numerator, parameters, regulator, dimension, uf,
+    )
+}
+
+pub(super) fn validate_family_input(
+    family: &IntegralFamily,
+    powers: &[u32],
+    numerator: &Atom,
+    parameters: &[Symbol],
+    regulator: Symbol,
+    dimension: &Atom,
+) -> Result<(Atom, Atom)> {
     if powers.len() != family.denominators().len() || powers.contains(&0) {
         return Err(super::ParametricError::Invalid(
             "family parameterization requires one strictly positive power per denominator".into(),
@@ -110,7 +131,7 @@ fn parameterize_family(
     // Reuse common parameter/regulator admission before native Gaussian work;
     // native symanzik separately owns collisions with the family expressions.
     ParametricIntegrand::new(
-        parameters.clone(),
+        parameters.to_vec(),
         regulator,
         ParametricDomain::ProjectiveSimplex,
         vec![],
@@ -127,12 +148,6 @@ fn parameterize_family(
     if !matches!(native_dimension.as_view(), AtomView::Var(_)) && native_dimension != dimension {
         return Err(Error::ConcreteDimensionMismatch);
     }
-    let replace_dimension = |expression: Atom| match native_dimension.as_view() {
-        AtomView::Var(_) => expression
-            .replace(Pattern::Literal(native_dimension.clone()))
-            .with(Pattern::Literal(dimension.clone())),
-        _ => expression,
-    };
     let (u, f) = family.symanzik(&parameter_atoms)?;
     if matches!(native_dimension.as_view(), AtomView::Var(_))
         && native_dimension != dimension
@@ -146,6 +161,26 @@ fn parameterize_family(
     if u.is_zero() {
         return Err(Error::SingularLoopForm);
     }
+    Ok((u, f))
+}
+
+pub(super) fn parameterize_validated_family(
+    family: &IntegralFamily,
+    powers: &[u32],
+    numerator: Atom,
+    parameters: Vec<Symbol>,
+    regulator: Symbol,
+    dimension: Atom,
+    (u, f): (Atom, Atom),
+) -> Result<ParametricIntegrand> {
+    let native_dimension = family.kinematics().dimension().to_symbolic();
+    let parameter_atoms = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
+    let replace_dimension = |expression: Atom| match native_dimension.as_view() {
+        AtomView::Var(_) => expression
+            .replace(Pattern::Literal(native_dimension.clone()))
+            .with(Pattern::Literal(dimension.clone())),
+        _ => expression,
+    };
     let basis = family.scalar_products();
     let polynomial = numerator.to_polynomial_in_vars::<u32>(basis);
     for term in &polynomial {

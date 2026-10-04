@@ -134,10 +134,54 @@ resume. Worker elapsed times are deliberately excluded from identity/equality
 assertions. Explicit-package formatting and all-target workspace Clippy also
 passed (`output/status-cadence-clippy.log`).
 
-A paired current-binary rank-two artifact measurement remains pending. The
-agreed first pair uses intervals zero and 100 ms on the same 1,182-kernel artifact,
-1,024 points, eight shifts, Kuo38005 and two workers, with 180-second process
-bounds. Only after complete-vector/design/coverage agreement will three
-alternating pairs be considered. Loading, integration, checkpoints and output
-costs remain separately recorded; this document makes no wall-time speedup claim
-before those measurements.
+## Executed alternating fixed-artifact pairs
+
+The preserved current CLI executable `fastsecdec-eb7e5d8` (SHA-256
+`b9bcec8797df82f1a124dc607c2f6a33eb064205257bd80b36ebb07321860851`)
+ran the unchanged saved rank-two artifact through its normal validated loader.
+The frozen build evidence records dependency/source identities; no artifact
+validation was bypassed. Its outer ID is
+`80148a88d6cf3bf9b57446c069cea058fa90e775d6b42edc41b0a231706b4519`.
+All runs used Kuo38005, 1,024 points, eight shifts, seed 20261004, two workers,
+ordinary periodic checkpointing and a final saved result. The only changed option
+was `--status-interval-ms`. Three pairs alternated execution order: 0/100,
+100/0, 0/100. The team ran no other symbolic computation or heavy build during
+these measurements; unrelated host load was not controlled.
+
+| Pair | Per-batch wall | 100 ms wall | Per-batch integration | 100 ms integration |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 56.431 s | 49.592 s | 35.339 s | 28.147 s |
+| 2 | 56.214 s | 49.030 s | 35.098 s | 28.059 s |
+| 3 | 56.485 s | 49.444 s | 35.183 s | 28.135 s |
+| Median | **56.431 s** | **49.444 s** | **35.183 s** | **28.135 s** |
+
+Median loading was 20.893/21.014 seconds. Median total wall time decreased by
+12.4%, and the integration loop including its ordinary status/checkpoint work
+decreased by 20.0%. Median status output decreased from 806,879,392 bytes in
+4,730 events to 41,420,645 bytes in 243 events. These are measurements of this
+artifact and output destination, not an evaluator throughput claim or a general
+percentage for small integrals. The wrapper used here detects completion at
+50 ms intervals, so wall times retain up to roughly one final polling interval
+plus scheduler latency. That uncertainty is much smaller than the observed
+seven-second difference. A separate native wait-based timer is prepared for
+future short acceptance cases.
+
+Every run completed all 1,182 kernels and all **9,682,944** planned samples.
+After removing only observed worker/load/elapsed times, all six complete JSON
+reports and saved results are exactly equal. Native checkpoints differ only in
+their per-package worker-cost observations: settings, accepted partials,
+coverage, replay state and diagnostics are exactly equal. The comparison includes
+every Laurent coefficient, the full covariance matrix, all sector marginals,
+exact offsets, effective QMC design, stopping reason and qualified scope. No
+variance or scientific term was removed to obtain equality.
+
+Raw argv, stdout, streamed status, checkpoint, saved-result and process records
+are retained under `output/diagnostics/status-cadence/pair{1,2,3}-{0,100}.*`.
+`paired-summary.json` retains each timing/output count and normalized comparison
+hashes. Its report/checkpoint/saved-result hashes are respectively
+`655204a87f7d4831d53dcefb11520bead4a5b20ef48321114965b5f5d83c1ef3`,
+`261af234f9e84d430a46163d71138fdc8ca0ca833f2b96eb2aeddaeda072b62a`, and
+`ae88324ff96bc1399eaaf029c49caea3c3f8cd300d37572221eae520e01ac116`.
+The run's sampling uncertainty and independent physical-reference status are
+unchanged; this is an observational-overhead comparison with complete numerical
+identity, not a new integral-convergence certification.

@@ -38,15 +38,15 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `box_high_rank_numerator` | Both, native reduction/master suite; complete-vector support-cache equivalence verified | Native reducer + masters for all three coefficients | Matched performance and convergence |
 | `double_box` | Both; complete 64-shift five-coefficient run | Exact native rational proof of the leading zero only; higher target errors unavailable | Independent higher-coefficient reference and matched convergence |
 | `double_box_from_uf` | Exact equality to the graph density; generation/integration family above | Same leading-pole proof applies to the identical density | Optional fresh CLI transport closure; no duplicate scientific integral campaign |
-| `triple_box` | First full-generation trial timed out during Laurent extraction; no artifact or V | No frozen independently certified full vector | Capture/replay of expensive native series and reduced-family cost probe before repeating full generation |
+| `triple_box` | Original and projected-family bounded trials timed out during Laurent extraction; no artifact or V | No frozen independently certified full vector | Compact native-series composition and guarded depth selection before repeating full generation |
 | `triple_box_offshell` | Both; 2496 charts, 1182 kernels and complete 1024-by-eight full-vector allocation; projected eight-propagator family also complete | Exact native domain/normalization and repeated-propagator identity; no independent integrated vector | Independent full-vector reference, convergence and matched projection cost |
 | `triple_box_offshell_rank2_numerator` | Both original and projected families; each accepts all 9,682,944 evaluations with zero failures | Exact numerator/routing, family identity and coupled-Gaussian control; no independent integrated vector | Independent full-vector reference, convergence and matched projection cost |
-| `kite_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
-| `self_energy_3loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
-| `three_point_2loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
-| `three_point_2loop_6line` | Both, initial and independent-seed higher-work runs | Frozen independently generated pySecDec finite result | Published-catalogue controlled comparison already isolates rule quality; retain all observations before default policy |
-| `three_point_3loop` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
-| `three_point_3loop_8line` | Both, six-case production CLI harness | Frozen independently generated pySecDec finite result | Multi-seed work-scaling and matched performance |
+| `kite_2loop` | Both; fixed Stage A work scaling with two rules and three seeds | Frozen independently generated pySecDec finite result; all Stage A comparisons below the investigation threshold | Prespecified higher-work block and matched performance |
+| `self_energy_3loop` | Both; fixed Stage A work scaling with two rules and three seeds | Frozen independently generated pySecDec finite result; all Stage A comparisons below the investigation threshold | Higher-work block; Kuo uncertainty plateau; matched performance |
+| `three_point_2loop` | Both; fixed Stage A work scaling with two rules and three seeds | Frozen independently generated pySecDec finite result; all Stage A comparisons below the investigation threshold | Prespecified higher-work block and matched performance |
+| `three_point_2loop_6line` | Both; original diagnostics and fixed Stage A with new seeds | Frozen independently generated pySecDec finite result; independent seeds reproduce the Kuo plateau and HKKN improvement | Prespecified higher-point and 64-shift controls; retain all observations before default policy |
+| `three_point_3loop` | Both; fixed Stage A work scaling with two rules and three seeds | Frozen independently generated pySecDec finite result; all Stage A comparisons below the investigation threshold | Higher-work block; Kuo uncertainty plateau; matched performance |
+| `three_point_3loop_8line` | Both; fixed Stage A work scaling with two rules and three seeds | Frozen independently generated pySecDec finite result; all Stage A comparisons below the investigation threshold | Higher-work block; uncertainty remains substantial under both rules; matched performance |
 | `analytic_endpoint` | Both, independent analytic full-vector and CLI artifact/resume tests | Analytic coefficients through order `eps^1` | Retain as a cheap operational/control fixture |
 | `issue_1` | Both; 328 kernels, complete orders `[0,1,2]` and 2,686,976 accepted evaluations without failures | Manual decimal target through `eps^2`, uncertainty unavailable | Independent external reference and prespecified convergence |
 | `four_loop_hard` | Both; 2760 physical F-support charts, 699 kernels, orders `[-2,-1,0]` and all 5,726,208 evaluations without failures | Rounded historical full-vector QMC target, uncertified errors | Independent full-orthant reference and prespecified convergence |
@@ -58,6 +58,14 @@ artifact; current-backend short scientific gates passed after upgrading to
 2.26.4, but that long diagnostic must not be relabelled a current-backend timing.
 The six massive comparisons used 2.26.4 and preserve complete native covariance;
 the external runs use an independent reference-only dependency stack.
+
+The fixed [Stage A campaign](massive-holdout-stage-a.md) completed all 72 rows
+and 223,838,208 accepted evaluations without failures or timeouts. No comparison
+crossed the prespecified five-combined-standard-error investigation threshold.
+HKKN has lower estimated uncertainty in all six cases at 8192 points, but higher
+uncertainty in four at 1024. Complete native shift vectors and cross-rule joint
+covariance are retained; these finite samples do not calibrate statistical
+coverage or justify a universal default change.
 
 ## Additional coupled two-loop numerator regression
 
@@ -134,6 +142,16 @@ one-loop reducer remains outside this two-loop reference path. See the
    No artifact or usable partial integral was produced. Retain this failure
    while a test-only native-template replay and eight-propagator family probe
    investigate the bottleneck; extending the same run is not the next step.
+   Those diagnostics are now available. Native relative-depth selection preserves
+   every coefficient of the captured representative while reducing its series
+   work from 148.974 to 37.332 seconds; its large final expressions remain.
+   The projected eight-propagator on-shell trial also timed out, at 310.289
+   seconds, after only 38 completed Laurent phases. It produced no artifact or
+   numerical observation. Native series composition before coordinate
+   differentiation is therefore being prototyped under exact small-vector and
+   native truncation-bound controls. See the
+   [depth attribution](native-laurent-depth-probe.md) and
+   [projected follow-up](native-family-projection-diagnostics.md).
    Issue-1 completed its first full generation in 3.463 seconds and integration
    process in 4.065 seconds, retaining all three generated coefficients and their
    covariance. It reached the work limit without meeting tolerance. The stored

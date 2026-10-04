@@ -14,6 +14,7 @@ struct Capture {
     current: Option<(usize, usize, usize)>,
     started: Instant,
     captured: bool,
+    mapped_only: bool,
 }
 
 thread_local! {
@@ -32,6 +33,7 @@ impl Guard {
                 current: None,
                 started: Instant::now(),
                 captured: false,
+                mapped_only: false,
             });
         });
         Self
@@ -39,6 +41,11 @@ impl Guard {
 
     fn captured(&self) -> bool {
         CAPTURE.with_borrow(|slot| slot.as_ref().unwrap().captured)
+    }
+
+    fn mapped_only(self) -> Self {
+        CAPTURE.with_borrow_mut(|slot| slot.as_mut().unwrap().mapped_only = true);
+        self
     }
 }
 
@@ -54,6 +61,44 @@ pub(crate) fn context(index: usize, source_chart: usize, multiplicity: usize) {
             state.current = Some((index, source_chart, multiplicity));
         }
     });
+}
+
+pub(crate) fn before_subtraction(
+    mapped: &[crate::generation::mapping::MappedTerm],
+    parameters: &[Symbol],
+    regulator: Symbol,
+    max_order: i32,
+) -> Result<(), GenerationError> {
+    CAPTURE.with_borrow_mut(|slot| {
+        let Some(state) = slot else { return Ok(()) };
+        let (index, source_chart, multiplicity) = state.current.unwrap();
+        if index != state.target { return Ok(()); }
+        std::fs::create_dir_all(&state.output).unwrap();
+        export(&state.output.join("regulator.atom"), &Atom::var(regulator));
+        for (i, parameter) in parameters.iter().enumerate() {
+            export(&state.output.join(format!("parameter-{i}.atom")), &Atom::var(*parameter));
+        }
+        let terms = mapped.iter().enumerate().map(|(i, term)| {
+            export(&state.output.join(format!("mapped-{i}-regular.atom")), &term.regular);
+            export(&state.output.join(format!("mapped-{i}-prefactor.atom")), &term.prefactor);
+            for (j, power) in term.powers.iter().enumerate() {
+                export(&state.output.join(format!("mapped-{i}-power-{j}.atom")), power);
+            }
+            serde_json::json!({"regular_bytes": term.regular.as_view().get_byte_size(), "powers": term.powers.len()})
+        }).collect::<Vec<_>>();
+        let report = serde_json::json!({
+            "representative_index": index, "displayed_ordinal": index+1,
+            "source_chart_index": source_chart, "multiplicity": multiplicity,
+            "parameters": parameters.len(), "terms": terms, "max_order": max_order,
+            "mapped_only": state.mapped_only,
+            "semantics": "test-only native mapped input; prior Laurent calls skipped; no usable partial integral",
+        });
+        std::fs::write(state.output.join("mapped.json"), serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        if state.mapped_only {
+            state.captured = true;
+            Err(GenerationError::Cancelled)
+        } else { Ok(()) }
+    })
 }
 
 pub(super) fn skip_current() -> bool {

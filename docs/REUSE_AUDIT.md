@@ -347,7 +347,9 @@ equality across different cadences, a real accepted-partial Ctrl-C/resume, scope
 qualification and both numerical failure paths with final saved evidence and
 nonzero exits. Formatting and all-target Clippy pass. Future HEPKit callers keep
 control over when they request the same native status; no library timer or worker
-pool was introduced. A paired full-artifact timing remains pending.
+pool was introduced. The subsequent three-pair full-artifact campaign preserves
+identical complete numerical state across all six runs, with median integration
+time reduced by 20.0%; the attribution report retains the timer and I/O limits.
 
 ## Bounded orthant and projected-family execution
 
@@ -413,3 +415,60 @@ coefficients before coordinate differentiation and substitutes them into a small
 endpoint expression. A future production composition must use native Symbolica
 series/derivative operations, preserve complete vectors and pass independent
 scientific controls; the current diagnostic changes no production strategy.
+
+## Conservative native-family preparation and completed holdout
+
+The [prepared-family library seam](reviews/native-family-preparation.md) borrows
+the original native family or owns FeynKit's exact projected sector. Native
+`is_independent`, bounded `partial_fraction`, `sector`, Symanzik construction
+and Atom canonical equality own the algebra. Admission accepts only one
+unit-coefficient term with fewer positive denominators, unchanged momentum bases
+and an exact denominator-product identity. Other valid decompositions retain
+the original family; invalid native inputs still fail. Original labels are
+validated before projection, and graph/numerator/measure weights are applied
+once. No graph contraction, parser, routing engine or alternative CAS is added.
+
+The [independent review](reviews/native-family-preparation-independent.md)
+finds no ownership or reuse blocker. Six new scientific/admission tests and
+eighteen existing family/input regressions pass. The CLI and portable metadata
+are a separately reviewed follow-up; default adoption still requires no-op cost
+and provenance checks. Existing explicit original-family entry points remain.
+
+The [fixed massive holdout](reviews/massive-holdout-stage-a.md) completed all
+72 allocations and 223,838,208 evaluations without failure. The
+[independent audit](reviews/convergence-stage-a-independent.md) verifies
+218,592 canonical packages, complete sectors and sixteen shifts per row, and
+the exact 48 aligned vectors in each of twelve native joint summaries. Native
+`QmcEstimate` owns every estimate/covariance; no local estimator was introduced.
+The observed lattice tradeoff depends on point count and does not authorize a
+default change or establish calibrated statistical coverage.
+
+The [native Series-first prototype](reviews/native-series-subtraction-proposal.md)
+uses Symbolica's coefficient mapping, differentiation, substitution, series
+arithmetic and actual remainder bounds. Five exact control groups and three
+capture/depth controls pass. The actual on-shell representative completes but
+is slower and uses more memory than the earlier ordering; its full-vector
+cross-comparison is still pending. The independent review retains this negative
+result and the explicit unregulated-endpoint fallback. No production strategy
+changes, custom coefficient convolution or derivative engine follow from it.
+
+The [first paired command campaign](reviews/first-paired-performance.md) completes
+all 28 triangle/box rows at matching physical sample counts and below the fixed
+reference-investigation threshold. Each program owns its numerical work and
+statistics. Different backend/precision/persistence boundaries remain explicit;
+these observations do not close strict matched-performance acceptance. Following
+the user's latest sequencing, broad generation/convergence/per-sector latency
+optimization follows complete capability coverage. Work on the on-shell
+generation bottleneck continues because it currently prevents that coverage.
+
+The combined milestone gate passes **280 workspace tests**, with seventeen
+explicit probes ignored, followed by formatting and all-target Clippy. Two
+needless-reference comparison warnings introduced by the validation refactor
+were corrected before the final gate. The production tree still has one
+Symbolica 3.0.1, SymJIT 2.26.4, Numerica and Linnet owner and excludes Python,
+pySecDec, CLI rendering and reference providers. Logs are
+`output/family-series-{workspace-tests,fmt,clippy,production-dependencies}.log`.
+The subsequent [formal-function audit](reviews/native-formal-functions-audit.md)
+rechecks current releases and confirms native exact evaluator persistence and
+retained function-body ownership; its new disconnected executable proof remains
+separate from this accepted production API.

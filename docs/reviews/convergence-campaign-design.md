@@ -36,9 +36,16 @@ limit is checked before starting; unsupported dimensions are errors.
 ## A. Holdout work scaling on the six massive cases
 
 Freeze the six existing input cards and independently generated reference
-transports. Reuse their unchanged physical artifacts only after validating the
-current loader and complete kernel/source identity. Loading an old artifact with
-a new compiler is a new recorded execution, not its old generation timing.
+transports. Regenerate the six artifacts through the current production CLI,
+then validate them with its existing `inspect`/artifact loader and bind that
+successful preflight to the exact frozen bytes, source fingerprints, outer and
+inner identities, dependency states and executable hash. The older exploratory
+artifacts retain their original provenance and remain separate observations.
+They record an older Numerica revision, so the current strict CLI loader properly
+rejects them; the campaign must not bypass that check or re-sign their headers.
+Compare new kernel identities and partitions with the original records and
+review any change before starting the 72 numerical rows. The numerical runner
+may load the inner native kernel only after this bound outer validation.
 
 | Setting | Prespecified value |
 | --- | --- |
@@ -252,9 +259,80 @@ Execution handoff: the coordinator approves each bounded stage and allocates the
 shared runtime window; a numerical owner records native statistics, a reference
 owner verifies the frozen oracle command/input, and an independent reviewer
 checks row completeness, identities, covariance use and timing boundaries before
-any parity or default-rule decision. No campaign was executed by this document.
+any parity or default-rule decision. The executed Stage A evidence is recorded
+below; the remaining stages still require their separate runtime handoffs.
 
 The independent reference owner reviewed the command and matching conditions
 against the executed complex-O2 smoke. No scientific-design blocker was found;
 the persistence-cost qualification above was added from that review. Runtime
 preflight still has to verify the effective prepared-artifact settings.
+
+## Stage A preparation executed
+
+The six input artifacts have now been regenerated and inspected successfully
+with the preserved production CLI `fastsecdec-eb7e5d8` (SHA-256
+`b9bcec8797df82f1a124dc607c2f6a33eb064205257bd80b36ebb07321860851`).
+All six newly generated inner kernel identities equal the historical identities;
+their current outer envelopes carry the current dependency and source evidence.
+The native partition counts remain 4, 60, 6, 6, 60 and 117. Preparation therefore
+froze exactly **72 prescribed rows and 223,838,208 planned kernel evaluations**.
+The subsequent fixed numerical campaign completed all 72 rows and all
+223,838,208 evaluations; its complete results are recorded in
+[Stage A results](massive-holdout-stage-a.md).
+
+The ignored runner was linked against a copied, hash-checked core rlib from that
+same release CLI build, before any new preparation/series source rebuild. Its
+SHA-256 is `e304fb622eff36d1d4c78ba503765fb1693e7ca89721493d662289984840248e`;
+the linked core SHA-256 is
+`c29ca3bfa77102d858fa63ef5f5ef2ae2a9bd4ccbb72d7601ca07a150ca66901`.
+The runner and its direct rlibs, exact link command, source hashes and inherited
+actual dependency/build evidence are retained in
+`output/diagnostics/massive-holdout-build/`. New source changes cannot silently
+enter this already-linked campaign executable.
+
+Current `generate` and `inspect` stdout, stderr, argv/process outcomes, exact
+outer bytes/digests, old/current inner identities, source fingerprints and the
+unchanged frozen references are retained per case in
+`output/diagnostics/massive-holdout-stage-a/`. Every preparation child exited
+successfully without reaching its watchdog. `plan.json` binds all this evidence
+and the complete fixed allocation. Independent review accepted this concrete
+evidence before the first row, with the audit retained as
+`independent-preparation-review.json`. Preparation success alone establishes no
+new convergence or reference-accuracy result.
+
+## Later per-sector evaluation-cost study
+
+The user's next optimization phase begins after the required capability and
+full-vector scientific gates, and covers generation, lattice/transform
+convergence, and maximum/average sample cost within each sector. Keep the current
+independent-reference work ahead of default or algorithm tuning.
+
+Existing native ownership is sufficient for the first profiling design:
+`diagnostics::benchmark` owns caller-cancellable per-sector timed repetitions and
+precision counters; `ContributionReport` retains real production sector IDs,
+accepted points and worker seconds; `ReplayReport` and `EvaluationDiagnostics`
+own weighted checks, rescues, extra replays and maximum precision. The current
+kernel benchmark uses deterministic interior points with
+`evaluate_with_diagnostics`, however, and does not include actual lattice points,
+Korobov weights or the caller's weighted-replay history. Label it accordingly.
+
+An eventual native diagnostic extension should offer an explicit actual-rule
+mode that consumes existing `QmcPlan`/worker points and
+`WeightedEvaluationContext`, returning the same entire Laurent vector and
+precision reports. Time point generation/transformation, ordinary evaluation,
+native rescue and caller orchestration separately where their existing callback
+boundaries permit. Preserve per-sector IDs, effective rule/count/seed/transform,
+accepted coverage and the full vector's covariance. Keep a fast batch timer for
+throughput and an explicit per-sample timing mode for observed maximum/average
+latency; measuring every sample changes overhead, so report the empty timing
+cost and paired batch result rather than treating those modes as identical.
+Worker/sector average time cannot supply a maximum sample latency.
+
+Retain cold and warm evaluator/cache measurements, first-sample verification and
+all later rescues. Do not discard expensive endpoint samples, time only one
+coefficient, or disable precision checks to improve a sector's figure. The
+existing native published-rule and periodization types remain the steering
+boundary; any later transform addition needs the same ecosystem reuse review,
+numerical validation and caller-owned orchestration as the existing lane. This
+is a proposed diagnostic extension, not an implemented profiler or a new
+statistical accumulator.

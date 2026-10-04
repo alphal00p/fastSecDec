@@ -358,6 +358,25 @@ Normal tests and builds must run without Python, pySecDec, FORM, Normaliz, or a 
 
 ### Performance acceptance
 
+Complete the plan's capability and scientific coverage before the broad
+optimization campaign. Performance work needed to make a required example
+generate or evaluate successfully remains part of closing that capability gap.
+Retain the current baselines and all unsuccessful experiments; do not replace
+missing full-vector coverage with a favourable throughput measurement.
+
+After coverage, assign separate agents to generation, convergence and evaluator
+optimization, with independent reviews. Profile factored generation and compiler
+costs; compare published lattice rules and periodizing transforms on frozen
+multi-seed workloads; and prioritize reducing both average and maximum observed
+sample evaluation time for each sector. Keep sector IDs, full coefficient
+vectors, dimensions, sample/batch sizes, ordinary arithmetic and rescue counts,
+precision, and point-generation/transform costs with those observations. Report
+batch-amortized time separately from individually timed sample latency, quantify
+instrumentation overhead, and retain tail observations rather than dropping
+slow boundary samples. Use caller-owned structured diagnostics so the same
+measurements can later be exposed through HEPKit. Distinguish a faster numerical
+kernel from fewer samples needed for verified accuracy.
+
 Benchmark on the same host with matched O2, worker count, numerical precision, transforms, lattice rules, shift counts, coefficient orders, and statistical targets.
 
 Measure separately:
@@ -368,6 +387,16 @@ Measure separately:
 - Fixed-work integration.
 - Time to verified accuracy.
 - Peak memory, point-generation cost, reduction cost, and rescue rates.
+
+Report an explicit eight-physical-core time to one-per-mille estimated relative
+uncertainty for the deepest nonzero Laurent pole, together with independent
+reference checks and the complete vector. Record the first observed crossing,
+actual work, seed/rule/transform and worker affinity; separate generation and
+loading from integration. For a residue known to vanish, use a labelled absolute
+zero check rather than dividing by zero or a noisy near-zero estimate. Do not
+infer eight-core timing by scaling a one- or two-worker measurement. Keep
+per-sector average worker cost, maximum sector-average cost and instrumented
+individual-sample maximum latency as distinct metrics.
 
 Use at least seven paired repetitions for ordinary cases and three for expensive cases. Alternate execution order. Require timing medians within the agreed **5% band per representative case**; investigate and resolve larger regressions.
 
@@ -504,7 +533,23 @@ and periodically push there when you reach milestones.
 no the reviewer you must ask for is `benruijl`
 ```
 
+```text
+Continue as planned, but once you have full capability coverage within goal plan, look into optimizing performance of both generation, lattice and transform choices for convergence, and evaluation time per sample and for each sectors (mostly focusing on getting max and average sample evaluation time per sector down).
+```
+
+```text
+Continue as planned, but summarize where you're at regarding what's planned to being implemented for the plan, and what are your current performance measurement (generation time, convergence time to 1 per mil convergence for deepest pole on 8 cores, and max and avg run time per sample and sector)
+```
+
+```text
+Continue as planned, but summarize where you're at regarding what's planned to being implemented for the plan, and what are your current performance measurement (generation time, convergence time to 1 per mil convergence for deepest pole on 8 cores, and max and avg run time per sample and sector). Organise the table showing your result putting them side-by-side with the same results from the FastSecDecPathFinder ref. code. Then continue with the implementation as planned.
+```
+
 ## Implementation record
+
+- 2026-10-04: native-family preparation and convergence milestone: **280 workspace tests passed**, seventeen explicit probes ignored; formatting and all-target Clippy pass. The production dependency audit retains one Symbolica 3.0.1/SymJIT 2.26.4/Numerica/Linnet ownership chain and excludes Python, pySecDec, CLI rendering and reference providers. The new conservative family-preparation API reuses native partial fractions/sector projection, preserves original labels and weights, and has independent review; automatic CLI adoption remains deferred. All 72 fixed massive holdout rows complete 223,838,208 evaluations without failures, with independently audited full coverage and native joint covariance. The three-pair CLI cadence study preserves identical numerical state and reduces median integration time by 20.0%. All 28 paired triangle/box command rows complete at matching sample counts, with median native/reference times 1.012/2.884 s and 1.232/4.404 s; differing backend/precision/persistence boundaries keep strict parity open. The test-only Series-first experiment passes its controls but is slower and more memory-intensive on the difficult on-shell representative; no production switch follows. Shared native FunctionMap bodies are the next bounded proof. The first independent double-box reference attempt times out during FORM/C++ package preparation at 600 seconds with no numerical result, retaining its complete failure evidence. Eight-core one-per-mille timing and individual-sample maxima are explicitly unmeasured in the new status report. Full capability, difficult scientific references and final performance/platform acceptance remain open.
+
+- 2026-10-04: the user specified the post-coverage optimization priorities: generation, lattice/transform convergence, and lower average and maximum per-sample evaluation cost for each sector. The performance section now sequences that campaign after full capability/scientific coverage, retaining work on generation bottlenecks that currently prevent required examples from completing. Native structured profiling, full-vector accuracy, rescue-tail costs and independent ecosystem audits remain mandatory.
 
 - 2026-10-04: native Laurent attribution milestone: three focused controls, fail-closed native capture, bounded absolute/relative replays and exact comparison of every template/restored coefficient pass; formatting and all-target Clippy pass. The captured on-shell representative has a 5.7 MB template and a 256 MB restored finite coefficient. Native relative depth one followed by the measured required width reduces its series work from 148.974 to 37.332 seconds with identical outputs; this is one-representative attribution, not full-generation acceptance. Independent review resolved a cold-import Gamma warning as a lazy-initialization false positive through native normalization, derivative, series and canonical-identity controls. Production parsing is separately covered, and no dependency patch is needed. The diagnostic is entirely `cfg(test)` and cannot return a partial generated integral. Production series behavior remains unchanged pending whole-input evidence and a compact regular-coefficient design informed by Pathfinder's direct path. Projected on-shell generation, current-artifact holdout preparation and matched benchmark execution remain queued or in progress.
 

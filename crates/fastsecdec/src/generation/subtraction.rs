@@ -7,6 +7,9 @@ use symbolica::{
     id::Pattern,
 };
 
+#[cfg(test)]
+pub(super) mod series_first;
+
 struct Piece {
     powers: Vec<Option<Atom>>,
     prefactor: Atom,

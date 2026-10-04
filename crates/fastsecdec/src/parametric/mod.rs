@@ -2,11 +2,16 @@
 
 mod integrand;
 mod numerator;
+mod preparation;
 mod scalar;
 
 pub use fastsecdec_sectors::ParametricDomain;
 pub use integrand::{
     FactorRole, ParametricError, ParametricIntegrand, ParametricTerm, PolynomialFactor,
     polynomial_support,
+};
+pub use preparation::{
+    FamilyPreparationFallback, FamilyPreparationPolicy, FamilyPreparationReport,
+    FamilyPreparationStatus, PreparedFamily, prepare_family,
 };
 pub use scalar::ScalarParametricIntegral;

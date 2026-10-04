@@ -176,6 +176,16 @@ pub fn generate(
     for (index, (representative_index, (map, parameters, mapped, multiplicity))) in
         representatives.into_iter().enumerate()
     {
+        #[cfg(test)]
+        {
+            laurent::profiling::context(index, representative_index, multiplicity);
+            laurent::profiling::before_subtraction(
+                &mapped,
+                &parameters,
+                input.regulator(),
+                options.max_order,
+            )?;
+        }
         let started = Instant::now();
         let (expression, terms, cancellation_terms) =
             subtraction::subtract(mapped, &parameters, input.regulator(), options)?;
@@ -198,8 +208,6 @@ pub fn generate(
             total,
         })?;
         let started = Instant::now();
-        #[cfg(test)]
-        laurent::profiling::context(index, representative_index, multiplicity);
         let coefficients = laurent::expand(
             &expression,
             &parameters,
