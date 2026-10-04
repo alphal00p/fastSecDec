@@ -1,0 +1,21 @@
+# Coupled two-loop numerator, native outgoing P(0), propagators K(0)^2,
+# K(1)^2 and (K(0)+K(1)+P(0))^2. No implicit Euler-gamma normalization.
+[input]
+graph = "../graphs/sunset_2loop_numerator.dot"
+model = "../models/scalar.json"
+parameter_card = "../models/massless.json"
+
+[kinematics]
+products = [{ left = 0, right = 0, value = "s" }]
+
+[parameters]
+s = "-1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 1
+assume_no_threshold = false

@@ -209,3 +209,50 @@ pass; the subsequent combined workspace gate passes 231 tests with 12 explicit
 probes ignored. The exact shipped massive-box point also passes against the
 existing native D0 provider, bringing the scalar reference campaign to twelve
 physical points without another master implementation.
+
+## Saved numerical results and coupled numerator
+
+The [saved-result HEPKit review](reviews/saved-result-hepkit-independent.md)
+checks the numerical-only `results` module and its public typed scope, manifest,
+validation, reference selection and display contracts. It reuses native
+contribution reports, complete covariance, reference objects, comparison logic
+and status types. No Atom, graph, kernel reconstruction or new estimator is
+required to read a result. A selected allocation remains explicitly distinct
+from a full integral, and exporting an estimate does not promote its evidence.
+The CLI remains a caller-side adapter for persistence, viewing and explicit
+reference extraction.
+
+The [coordinator review](reviews/saved-result-coordinator-review.md) verifies the
+minimal Numerica accepted-shift coverage accessor and requires numeric-range
+failures to remain distinct from structural errors. Failure-safe observation
+retains representable totals and marginals independently, including shared-shift
+cancellation with overflowing marginal covariance. Presentation uses borrowed
+rows and indexed ordering rather than copying covariance or repeatedly scanning
+sector IDs. Metadata validation reuses native rule checks without generating
+all random shifts. Numerica's local `e4638da22a17cfa931fa14c6829d3350b7a8de2b`
+passes 30 QMC and nine existing MC tests and remains unpublished.
+
+The [coupled-sunset campaign](reviews/coupled-sunset-numerator.md) and its
+[independent review](reviews/coupled-sunset-independent.md) close the mixed-loop
+and external-momentum numerator case using a native HEPKit graph. The scalar
+control uses `FeynmanDiagram::with_numerator`; density extraction, Gamma
+functions, substitution and Laurent series use existing owners. Nine frozen
+external parameterization points and integrated analytic identities at two
+spacelike scales agree. The separate convergent scalar control checks the
+measure sign before continuation. This adds no multiloop reducer or master
+implementation; it provides a control for the remaining triple-box numerator.
+
+The next audit boundary covers qualified CLI sector selection and inspection
+of retained native generation metadata, followed by difficult-case numerical
+calibration and matched performance. Those pending gates are not established
+by result transport or the sunset control.
+
+The combined gate passes 253 workspace tests with 12 explicit probes ignored.
+A final enum-layout adjustment is covered by eleven native result and five CLI
+result/reference tests; formatting and all-target Clippy pass. The production
+tree retains a single Symbolica 3.0.1/SymJIT 2.26.4/Numerica/Linnet ownership
+chain and excludes Python, pySecDec, CLI presentation and development-only
+reference providers. Evidence is in `output/saved-sunset-workspace-tests.log`,
+`output/saved-result-boxed-{native,cli}-tests.log`,
+`output/saved-sunset-clippy.log` and
+`output/saved-sunset-production-dependencies.log`.

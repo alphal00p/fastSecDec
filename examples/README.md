@@ -3,14 +3,16 @@
 These inputs use native HEPKit compact DOT. Models and parameter cards use the
 existing FeynKit JSON format. End-to-end validation is being extended
 as the generation and CLI slices land; a graph's presence alone is not a claim
-of numerical parity. The 19 native graph run cards now in `runs/` cover these
+of numerical parity. The 20 native graph run cards now in `runs/` cover these
 topologies, numerator variants, off-shell kinematics and massive one-loop cases.
-All 23 graph and direct-parametric run cards pass native CLI input loading.
+The inventory contains 24 graph and direct-parametric run cards and 17 native
+DOT files; the CLI input test covers every card.
 Native bubble and triangle CLI runs pass initial analytic checks, and the native
 massless box passes its complete Laurent-vector QMC regression. Eleven native
 one-loop graph cases also pass complete-vector comparisons against HEPKit's Rust
-scalar masters, including masses, off-shell legs and nontrivial scales. The remaining
-multiloop and numerator cards still require full integration validation.
+scalar masters, including masses, off-shell legs and nontrivial scales. The coupled
+sunset numerator additionally passes independent density and complete Laurent-vector
+checks. Remaining multiloop and numerator acceptance is tracked in the regression matrix.
 
 `models/scalar.json` provides the real mass parameter `mt`, zero widths, and
 scalar vertices of degree two through five. `models/massless.json` and
@@ -25,6 +27,17 @@ frontend's explicit mass and momentum annotations. HEPKit owns routing; the
 external and loop momenta use its existing symbols and basis. Numerator examples
 have a separate exact propagator-multiset and numerator test in
 `crates/fastsecdec/tests/example_inputs.rs`.
+
+The additional `sunset_2loop_numerator` comes from the reference's inline
+two-loop regression rather than its original fifteen DOT files. Its native
+loop edges 2 and 3 carry `K(0)` and `K(1)`; the third denominator is
+`(K(0)+K(1)+P(0))^2`, and the vertex numerator is
+`K(0).K(1)+2*K(0).P(0)`. The card has `P(0)^2=-1` and requests the complete
+Laurent vector through epsilon one. Exact routing, an external pySecDec
+pointwise Gaussian density, and integrated coefficients at two spacelike
+scales are checked in `crates/fastsecdec/tests/sunset_numerator.rs`.
+Its analytic identity and measure-sign control are documented in
+[the coupled-sunset review](../docs/reviews/coupled-sunset-numerator.md).
 
 For the box numerator fixtures the historical loop variable is minus the native
 momentum on edge 7; the sign is included explicitly in the native numerator.
@@ -46,6 +59,7 @@ the original one-off-shell, two-on-shell triangle.
 | Triangle | 1 | 3 | Native input, analytic Laurent vector, CLI integration and native C0 comparisons |
 | Box | 1 | 4 | Native input, complete Laurent vector against an analytic identity, frozen external target and native D0 comparisons |
 | Double box | 2 | 7 | Native input and exact U/F/measure equality to the independent polynomial fixture |
+| Sunset with coupled numerator | 2 | 3 | Native routing, independent Gaussian density, full Laurent vector at two scales and a convergent scalar sign control |
 | Triple box | 3 | 10 | Native topology fixture |
 | Kite | 2 | 5 | Native topology fixture |
 | Self energy | 3 | 7 | Native topology fixture |

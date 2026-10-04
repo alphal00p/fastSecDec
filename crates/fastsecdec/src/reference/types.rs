@@ -48,6 +48,14 @@ pub struct ReferenceProvenance {
 }
 
 impl ReferenceProvenance {
+    pub fn validate(&self) -> super::Result<()> {
+        if self.source.trim().is_empty() || self.convention.trim().is_empty() {
+            return Err(super::ReferenceError::Invalid(
+                "empty reference provenance or convention".into(),
+            ));
+        }
+        Ok(())
+    }
     pub fn new(source: impl Into<String>, convention: impl Into<String>) -> Self {
         Self {
             source: source.into(),
@@ -117,6 +125,54 @@ pub struct ComparisonContext {
     pub normalization: Compatibility,
     pub kinematics: Compatibility,
     pub independence: Independence,
+}
+
+impl ComparisonContext {
+    /// Validate caller-recorded assertions even before an estimate exists.
+    pub fn validate(&self) -> super::Result<()> {
+        if self.kernel_content_id.is_empty() {
+            return Err(super::ReferenceError::Invalid(
+                "empty estimate kernel identity".into(),
+            ));
+        }
+        for compatibility in [&self.normalization, &self.kinematics] {
+            let text = match compatibility {
+                Compatibility::Unknown => continue,
+                Compatibility::Confirmed { basis } => basis,
+                Compatibility::Mismatch { detail } => detail,
+            };
+            if text.trim().is_empty() {
+                return Err(super::ReferenceError::Invalid(
+                    "empty compatibility evidence/explanation".into(),
+                ));
+            }
+        }
+        let text = match &self.independence {
+            Independence::Unknown => return Ok(()),
+            Independence::Independent { basis } => basis,
+            Independence::Correlated { detail } => detail,
+        };
+        if text.trim().is_empty() {
+            return Err(super::ReferenceError::Invalid(
+                "empty independence/correlation evidence".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn validate_reference(&self, reference: &ReferenceResult) -> super::Result<()> {
+        self.validate()?;
+        reference.validate()?;
+        if let Some(identity) = &reference.kernel_content_id
+            && identity != &self.kernel_content_id
+        {
+            return Err(super::ReferenceError::KernelIdentityMismatch {
+                reference: identity.clone(),
+                estimate: self.kernel_content_id.clone(),
+            });
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

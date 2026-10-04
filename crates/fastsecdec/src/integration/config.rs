@@ -184,10 +184,22 @@ impl QmcSettings {
         shifts: u32,
         stream: u64,
     ) -> Result<QmcPlan> {
+        let rule = self.allocation_rule(dimension, points, shifts)?;
+        Ok(QmcPlan::new(rule, shifts, self.seed, stream)?)
+    }
+
+    /// Validate native rule bounds and allocation counts without generating
+    /// random shifts or allocating a sampling plan. Suitable for result readers.
+    pub fn validate_allocation(&self, dimension: usize, points: u64, shifts: u32) -> Result<()> {
+        self.allocation_rule(dimension, points, shifts).map(|_| ())
+    }
+
+    fn allocation_rule(&self, dimension: usize, points: u64, shifts: u32) -> Result<Rank1Rule> {
         self.validate()?;
-        if shifts < 2 {
+        if shifts < 2 || points.checked_mul(shifts as u64).is_none() {
             return Err(IntegrationError::Invalid(
-                "production allocations require at least two shifts".into(),
+                "allocations require at least two shifts and a representable total point count"
+                    .into(),
             ));
         }
         let rule = match &self.rule {
@@ -204,7 +216,7 @@ impl QmcSettings {
                 Rank1Rule::new(points, prefix.to_vec())?
             }
         };
-        Ok(QmcPlan::new(rule, shifts, self.seed, stream)?)
+        Ok(rule)
     }
 }
 

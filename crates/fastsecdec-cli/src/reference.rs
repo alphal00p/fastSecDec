@@ -1,11 +1,10 @@
 //! CLI file selection and presentation around the native reference adapter.
 use std::{fs, path::Path};
 
-use fastsecdec::{
-    integration::VectorEstimate,
-    reference::{
-        self, ComparisonContext, Compatibility, Independence, ReferenceComparison, ReferenceResult,
-    },
+#[cfg(test)]
+use fastsecdec::integration::VectorEstimate;
+use fastsecdec::reference::{
+    self, ComparisonContext, Compatibility, Independence, ReferenceComparison, ReferenceResult,
 };
 use serde::Serialize;
 
@@ -89,6 +88,48 @@ pub fn prepare(
 }
 
 impl PreparedReference {
+    pub fn stored(&self, content_id: &str) -> CliResult<fastsecdec::results::StoredReference> {
+        self.validate_identity(content_id)?;
+        Ok(fastsecdec::results::StoredReference {
+            reference: self.result.clone(),
+            context: self.context(content_id),
+        })
+    }
+
+    pub fn source(&self) -> &ReferenceSource {
+        &self.source
+    }
+
+    pub fn report_saved(
+        &self,
+        result: &fastsecdec::results::SavedIntegrationResult,
+    ) -> CliResult<ReferenceReport> {
+        use fastsecdec::results::{ResultComparison, ResultComparisonUnavailable};
+        let stored = result
+            .stored_reference
+            .as_ref()
+            .ok_or("saved result has no original reference for its comparison report")?;
+        Ok(match result.comparison()? {
+            ResultComparison::Compared(comparison) => ReferenceReport::Compared {
+                source: self.source.clone(),
+                comparison: *comparison,
+            },
+            ResultComparison::Unavailable(ResultComparisonUnavailable::NoEstimate) => {
+                ReferenceReport::WaitingForCoverage {
+                    source: self.source.clone(),
+                    reference: stored.reference.clone(),
+                    context: stored.context.clone(),
+                }
+            }
+            ResultComparison::Unavailable(reason) => ReferenceReport::Unavailable {
+                source: self.source.clone(),
+                reference: stored.reference.clone(),
+                context: stored.context.clone(),
+                reason,
+            },
+        })
+    }
+
     pub fn validate_identity(&self, content_id: &str) -> CliResult<()> {
         if let Some(reference) = &self.result.kernel_content_id
             && reference != content_id
@@ -123,6 +164,7 @@ impl PreparedReference {
         }
     }
 
+    #[cfg(test)]
     pub fn report(
         &self,
         content_id: &str,
@@ -156,6 +198,12 @@ pub enum ReferenceReport {
         reference: ReferenceResult,
         context: ComparisonContext,
     },
+    Unavailable {
+        source: ReferenceSource,
+        reference: ReferenceResult,
+        context: ComparisonContext,
+        reason: fastsecdec::results::ResultComparisonUnavailable,
+    },
 }
 
 impl std::fmt::Display for ReferenceReport {
@@ -165,6 +213,13 @@ impl std::fmt::Display for ReferenceReport {
             Self::WaitingForCoverage { reference, .. } => writeln!(
                 formatter,
                 "Reference: {} ({}) · waiting for integration coverage; no estimate available",
+                reference.provenance.source, reference.provenance.convention
+            ),
+            Self::Unavailable {
+                reference, reason, ..
+            } => writeln!(
+                formatter,
+                "Reference: {} ({}) · comparison unavailable: {reason}",
                 reference.provenance.source, reference.provenance.convention
             ),
         }

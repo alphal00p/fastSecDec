@@ -23,12 +23,21 @@ snapshots to stderr. Generated artifacts and checkpoints default to `output/`.
 SymJIT kernels use O2 even in a development build; performance comparisons also
 require a release build of the Rust orchestration code.
 
-Native HEPKit master and reduction comparisons now cover eleven scalar and
-eight numerator points, including rank five and a zero Gram determinant. A
+Native HEPKit master and reduction comparisons now cover twelve scalar and
+eight numerator points, including rank five and a zero Gram determinant. An
+additional coupled two-loop numerator agrees with independent parameterization
+and analytic Laurent coefficients at two spacelike scales. A
 complete 64-shift double-box diagnostic is consistent with its independently
 proved zero leading pole. Complete multiloop certification and matched
 performance acceptance remain in progress; historical targets with unknown
 uncertainties remain explicitly unverified.
+
+Add `--save-result output/result.json` to `run` or `integrate` to save accepted numerical results.
+`show-result output/result.json` reads them without the input graph or compiled
+artifact. `export-reference output/result.json --source estimate --output
+output/reference.json` explicitly selects the computed estimate; `--source
+stored` selects the original comparison target. Saving a result does not grant
+it independent validation.
 
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)

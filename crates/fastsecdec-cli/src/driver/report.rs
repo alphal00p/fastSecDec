@@ -1,5 +1,7 @@
 use fastsecdec::{
-    integration::{QmcDesign, VectorEstimate},
+    integration::{
+        ContributionReport, IntegrationObservation, QmcDesign, Tolerance, VectorEstimate,
+    },
     status::{EvaluationDiagnostics, GenerationTimings, IntegrationSnapshot, StoppingReason},
 };
 use serde::Serialize;
@@ -18,6 +20,8 @@ pub struct IntegrationReport {
     /// Effective final-round design; adaptive sector allocations are authoritative.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub qmc_design: Option<QmcDesign>,
+    /// Native accepted-sector statistics, with authoritative total covariance.
+    pub contributions: ContributionReport,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
@@ -36,17 +40,76 @@ pub(super) fn with_diagnostics(
     snapshot
 }
 
-pub(super) fn stopped(
-    mut snapshot: IntegrationSnapshot,
-    cancelled: bool,
-    converged: bool,
-) -> IntegrationSnapshot {
-    snapshot.stop_reason = Some(if cancelled {
-        StoppingReason::Cancelled
+pub(super) struct ExecutionOutcome {
+    pub cancelled: bool,
+    pub failure: Option<String>,
+    pub resume_status: ResumeStatus,
+    pub qmc_design: Option<QmcDesign>,
+}
+
+pub(super) fn finish(
+    artifact: &crate::artifact::Artifact,
+    observation: IntegrationObservation,
+    diagnostics: &EvaluationDiagnostics,
+    tolerance: Tolerance,
+    elapsed_seconds: f64,
+    mut outcome: ExecutionOutcome,
+) -> crate::CliResult<IntegrationReport> {
+    let mut snapshot = with_diagnostics(observation.snapshot, diagnostics);
+    if let fastsecdec::status::UncertaintyStatus::StatisticalFailure { reason } =
+        &snapshot.uncertainty
+    {
+        outcome.failure.get_or_insert_with(|| reason.clone());
+    }
+    let converged = outcome.failure.is_none()
+        && !outcome.cancelled
+        && snapshot
+            .estimate
+            .as_ref()
+            .map(|estimate| estimate.meets(tolerance))
+            .transpose()?
+            .unwrap_or(false);
+    let (stop, stopping_reason) = if let Some(message) = outcome.failure {
+        (
+            StoppingReason::NumericalFailure(message.clone()),
+            format!("numerical failure: {message}"),
+        )
+    } else if outcome.cancelled {
+        (
+            StoppingReason::Cancelled,
+            if outcome.resume_status == ResumeStatus::PilotRestartRequired {
+                "cancelled during MC pilot; restart the pilot to continue"
+            } else {
+                "cancelled"
+            }
+            .into(),
+        )
     } else if converged {
-        StoppingReason::TargetReached
+        (StoppingReason::TargetReached, "accuracy reached".into())
     } else {
-        StoppingReason::WorkLimit
-    });
-    snapshot
+        (StoppingReason::WorkLimit, "work limit".into())
+    };
+    snapshot.stop_reason = Some(stop);
+    Ok(IntegrationReport {
+        content_id: artifact.content_id.clone(),
+        elapsed_seconds,
+        loading_seconds: artifact.loading_seconds,
+        generation_timings: artifact.generation_timings.clone(),
+        converged,
+        stopping_reason,
+        estimate: snapshot.estimate.clone(),
+        snapshot,
+        resume_status: outcome.resume_status,
+        qmc_design: outcome.qmc_design,
+        contributions: observation.contributions,
+    })
+}
+
+impl IntegrationReport {
+    pub fn failed(&self) -> bool {
+        matches!(
+            self.snapshot.stop_reason,
+            Some(StoppingReason::NumericalFailure(_))
+        )
+    }
 }

@@ -176,3 +176,49 @@ section excluded. Changing comparison settings, comments, or TOML formatting
 does not invalidate their checkpoints; numerical fields and every other parsed
 root field do. Model, graph, and polynomial files retain their raw-byte checks.
 Older artifacts retain their original raw-byte run-card verification.
+
+Save numerical results separately from compiled artifacts and resumable
+checkpoints:
+
+```sh
+fastsecdec run examples/runs/bubble.toml --save-result output/bubble.result.json
+fastsecdec show-result output/bubble.result.json
+fastsecdec show-result output/bubble.result.json --sort error --order 0 --component real
+fastsecdec export-reference output/bubble.result.json --source estimate --output output/bubble.reference.json
+```
+
+`integrate` also accepts `--save-result`. The native versioned result retains
+the complete coefficient layout/covariance, accepted sector contributions,
+exact offsets, execution status, diagnostics and effective QMC design. Its
+manifest binds the inner kernel identity; the CLI artifact identity remains
+separate provenance and continues to identify checkpoints. Saving changes no
+sampling, stopping or reference evidence. Result output paths must differ from
+input files, artifacts and checkpoints.
+
+`show-result` reads numerical data only. It works after the original graph,
+artifact, checkpoint and comparison-target files have been removed. Plain output
+labels the result's scope, exact-offset policy and marginal uncertainties;
+the authoritative total retains shared-sector covariance. Sort by `id` (default),
+`magnitude`, or `error`; the latter two require a Laurent `--order` and accept
+`--component real|imag`. Unavailable estimates sort last, with sector IDs breaking
+ties. `--json` emits a view containing the original typed result plus the derived
+comparison and sector ordering; this view is distinct from the persistence
+envelope written by `--save-result`.
+
+Reference export requires `--source estimate` or `--source stored`. The former
+requires complete full-integral production and retains the estimate's validation
+status; CLI computations remain `Unverified`. Reported standard errors,
+including zero, remain standard errors. `stored` returns the original retained
+reference, including unknown errors and original evidence, without falling back
+to the computed estimate. Its historical comparison context is preserved in the
+result; comparing an exported target to a new computation requires new evidence.
+
+Cancelled, partial, pilot-only and failed records remain viewable. They cannot
+be exported as complete estimate references. Numerical failure saves accepted
+coverage, displays one final report and exits unsuccessfully; failed package
+prefixes are excluded. A statistical range failure can leave some estimates
+unavailable. A representable authoritative total survives unavailable correlated
+marginals. Imported selected-sector records retain their declared restricted
+scope and exact-offset policy and cannot be promoted to full-integral references.
+Malformed or unsupported result documents are rejected by the native reader;
+unversioned historical CLI output is not inferred to be a saved result.

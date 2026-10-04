@@ -47,6 +47,11 @@ pub enum UncertaintyStatus {
     Exact,
     WaitingForCoverage,
     PilotOnly,
+    /// Accepted coverage is retained, but native statistics could not be
+    /// represented. This is neither missing work nor a zero estimate.
+    StatisticalFailure {
+        reason: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,140 @@
+{
+  "format": "fastsecdec-test-parametric-oracle",
+  "version": 1,
+  "provenance": {
+    "implementation": "pySecDec.LoopIntegralFromPropagators",
+    "pysecdec_version": "1.6.6",
+    "sympy_version": "1.14.0",
+    "python_version": "3.12.14 (main, Aug 14 2026, 15:34:45) [Clang 22.1.3 ]",
+    "request": {
+      "propagators": [
+        "k1**2",
+        "k2**2",
+        "(k1+k2+p1)**2"
+      ],
+      "loop_momenta": [
+        "k1",
+        "k2"
+      ],
+      "external_momenta": [
+        "p1"
+      ],
+      "Lorentz_indices": [
+        "mu",
+        "nu"
+      ],
+      "numerator": "k1(mu)*k2(mu)+2*k1(nu)*p1(nu)",
+      "replacement_rules": [
+        [
+          "p1*p1",
+          "-1"
+        ]
+      ],
+      "Feynman_parameters": "x",
+      "regulators": [
+        "eps"
+      ],
+      "dimensionality": "4-2*eps"
+    },
+    "source_test": "FastSecDecPathFinder/tests/test_integrals.py:5096 at 582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+    "oracle_script_sha256": "6ad3e6b45ecf3de746248110992d25eb0b3390232f257497a49d490de1c3d1c8",
+    "measure": "product d^D k/(i*pi^(D/2)); no Euler-gamma or scale multiplier",
+    "decimal_digits": 60,
+    "meaning": "Pointwise independent Gaussian density, not an integrated estimate or Monte Carlo error"
+  },
+  "u": "x0*x1 + x0*x2 + x1*x2",
+  "f": "x0*x1*x2",
+  "numerator": "4*eps*x0*x1**2*x2 + eps*x0*x1*x2**2 + 4*eps*x1**2*x2**2 - 4*x0*x1**2*x2 - 4*x1**2*x2**2",
+  "u_exponent": "3*eps - 5",
+  "f_exponent": "1 - 2*eps",
+  "gamma_factor": "-gamma(2*eps - 2)",
+  "samples": [
+    {
+      "coordinates": [
+        "17/100",
+        "29/100",
+        "54/100"
+      ],
+      "epsilon": "0",
+      "gamma_stripped_density": "-1.46843457469301527298216142431959775426265554337534149276725"
+    },
+    {
+      "coordinates": [
+        "17/100",
+        "29/100",
+        "54/100"
+      ],
+      "epsilon": "11/100",
+      "gamma_stripped_density": "-1.91873129450525325851010783547847783349056980524829077106966",
+      "full_density": "5.73585342410851366764885139877210696154288328851746261589334"
+    },
+    {
+      "coordinates": [
+        "17/100",
+        "29/100",
+        "54/100"
+      ],
+      "epsilon": "-19/100",
+      "gamma_stripped_density": "-0.894540504511590814102119188799692958697887114077309569978153",
+      "full_density": "-1.03571362720275530998955049668932696028784784110305716148405"
+    },
+    {
+      "coordinates": [
+        "1/5",
+        "1/3",
+        "7/15"
+      ],
+      "epsilon": "0",
+      "gamma_stripped_density": "-1.37489449366573352015045453054488082097496040568514174448767"
+    },
+    {
+      "coordinates": [
+        "1/5",
+        "1/3",
+        "7/15"
+      ],
+      "epsilon": "11/100",
+      "gamma_stripped_density": "-1.77108754572611869902616585625748954996220730610461569474736",
+      "full_density": "5.29448734830195807839026066002687801156317950557369232678965"
+    },
+    {
+      "coordinates": [
+        "1/5",
+        "1/3",
+        "7/15"
+      ],
+      "epsilon": "-19/100",
+      "gamma_stripped_density": "-0.858759335803428890863450723606909078296588274135474163527312",
+      "full_density": "-0.994285604836660284866890068079528953798497868781949948106542"
+    },
+    {
+      "coordinates": [
+        "2/7",
+        "3/7",
+        "2/7"
+      ],
+      "epsilon": "0",
+      "gamma_stripped_density": "-1.13049316406250000000000000000000000000000000000000000000000"
+    },
+    {
+      "coordinates": [
+        "2/7",
+        "3/7",
+        "2/7"
+      ],
+      "epsilon": "11/100",
+      "gamma_stripped_density": "-1.43913455777780015293763792565632087404214068439704076432327",
+      "full_density": "4.30214741617124664820752526365529735708263191303101230188572"
+    },
+    {
+      "coordinates": [
+        "2/7",
+        "3/7",
+        "2/7"
+      ],
+      "epsilon": "-19/100",
+      "gamma_stripped_density": "-0.721598644997288054479624918855670921305779016255058091275172",
+      "full_density": "-0.835478713624924174204821032965226228461010600728325981575149"
+    }
+  ]
+}

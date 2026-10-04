@@ -1,4 +1,5 @@
 mod contributions;
+mod observation;
 
 use super::*;
 use crate::{
@@ -152,9 +153,8 @@ impl QmcSession {
         ))
     }
 
-    pub fn snapshot(&self) -> Result<IntegrationSnapshot> {
-        let sectors = self
-            .problem
+    fn progress_sectors(&self) -> Result<Vec<SectorSnapshot>> {
+        self.problem
             .sectors
             .iter()
             .zip(&self.runs)
@@ -164,12 +164,16 @@ impl QmcSession {
                     dimension: spec.dimension,
                     completed_points: run.accumulator.completed_points(),
                     planned_points: run.accumulator.plan().total_points(),
-                    complete_replicas: run.accumulator.shift_estimates()?.len(),
+                    complete_replicas: run.accumulator.complete_shift_ids().len(),
                     planned_replicas: run.accumulator.plan().shift_count(),
                     worker_seconds: run.seconds()?,
                 })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect()
+    }
+
+    pub fn snapshot(&self) -> Result<IntegrationSnapshot> {
+        let sectors = self.progress_sectors()?;
         let estimate = match self.estimate() {
             Ok(value) => Some(value),
             Err(IntegrationError::Unavailable(_))

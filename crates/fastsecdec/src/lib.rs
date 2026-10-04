@@ -13,6 +13,7 @@ pub mod integration;
 pub mod kernel;
 pub mod parametric;
 pub mod reference;
+pub mod results;
 pub mod status;
 
 pub use error::{Error, Result};

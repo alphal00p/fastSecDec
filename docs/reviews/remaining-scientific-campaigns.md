@@ -8,12 +8,16 @@ the passed native one-loop master/reduction suites.
 
 ## Shipped card inventory
 
-All 23 cards pass the production CLI's input-loading test, including native DOT,
+All 24 cards pass the production CLI's input-loading test, including native DOT,
 model/parameter cards, kinematics, Gaussian numerator conversion and external
 polynomial-file resolution. Native graph tests additionally check export/reload
 and exact propagator/numerator equivalence; the double-box graph and direct
 polynomial inputs have an exact U/F and measure-equivalence test. Those input
 checks alone do not establish an integrated value.
+
+The added native coupled-sunset card brings the inventory to 24 cards and 17
+DOT graphs. Its dedicated native routing, independent density and integrated
+coefficient checks pass; the combined milestone gate also checks all-card CLI loading.
 
 `G` means full generation including requested Laurent outputs; `V` means a
 complete numerical vector. Native-master/reducer rows use the same graph and
@@ -31,7 +35,7 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `triangle_numerator` | Both, native reduction/master suite | Native reducer + masters; preserves actual virtualities `{-1,0,-2}` | Convergence; do not substitute the scalar triangle's point |
 | `box_numerator` | Both, native reduction/master suite | Native reducer + masters, massless and additional massive point | Convergence |
 | `box_rank2_numerator` | Both, native reduction/master suite | Native reducer + masters, including massive and zero-Gram checks | Convergence; forced native MPFR vector also covered |
-| `box_high_rank_numerator` | Both, native reduction/master suite; repeated bounded generation probes | Native reducer + masters for all three coefficients | Current source-support cache validation and matched performance, then convergence |
+| `box_high_rank_numerator` | Both, native reduction/master suite; complete-vector support-cache equivalence verified | Native reducer + masters for all three coefficients | Matched performance and convergence |
 | `double_box` | Both; complete 64-shift five-coefficient run | Exact native rational proof of the leading zero only; higher target errors unavailable | Independent higher-coefficient reference and matched convergence |
 | `double_box_from_uf` | Exact equality to the graph density; generation/integration family above | Same leading-pole proof applies to the identical density | Optional fresh CLI transport closure; no duplicate scientific integral campaign |
 | `triple_box` | Full G/V pending; native input checked | No frozen independently certified full vector | Bounded staged full-vector campaign |
@@ -46,6 +50,7 @@ run card. `Pending` never means a zero integral or an excluded task.
 | `analytic_endpoint` | Both, independent analytic full-vector and CLI artifact/resume tests | Analytic coefficients through order `eps^1` | Retain as a cheap operational/control fixture |
 | `issue_1` | Input checked; full G/V pending | Manual decimal target through `eps^2`, uncertainty unavailable | Bounded orthant G/V, independent external reference, then convergence |
 | `four_loop_hard` | Input and exact 9D geometry/maps checked; full Laurent G/V pending | Rounded historical full-vector QMC target, uncertified errors | Bounded whole-integrand generation/compilation, all-sector numerical diagnostics, independent reference and convergence |
+| `sunset_2loop_numerator` | Both, complete vector through epsilon one at two spacelike scales | Nine independent external density points and analytic Gamma identity; convergent scalar sign control | Retain as a coupled-Gaussian control for the triple-box numerator |
 
 No example above currently establishes the overall matched performance gate.
 The earlier 64-shift double-box diagnostic used SymJIT 2.26.0 and its preserved
@@ -57,29 +62,31 @@ the external runs use an independent reference-only dependency stack.
 ## Additional coupled two-loop numerator regression
 
 The original reference test at `test_integrals.py:5096` is an inline family, not
-one of the 23 shipped cards. It has propagators `k1^2`, `k2^2`,
+one of the original 23 shipped cards. It has propagators `k1^2`, `k2^2`,
 `(k1+k2+p1)^2`, external `p1^2=-1`, mass zero and numerator
 `k1.k2 + 2*k1.p1`. Its comparison checks preliminary Gaussian polynomials at
 `x=[0.17,0.29,0.54]` and `eps=[0,0.11,-0.19]`. The existing native separable
 two-tadpole moments do not close this coupled-family gap.
 
-The next fixture should be a native HEPKit sunset graph using the shared model
-and native momentum tensors. First certify the exact propagator multiset and
-numerator under its native routing. Reuse the current Gaussian construction;
-no alternate numerator parser, graph or multiloop reducer is justified. Compare
-the full parameterized density with the existing external reference's native
-parameterization, including Schwinger/Gamma normalization and epsilon dependence.
-Then generate and integrate its complete Laurent vector. The native one-loop
-reducer must explicitly remain outside this two-loop reference path.
+The implemented native HEPKit sunset uses the shared model and native momentum
+tensors. Exact routing, nine independent full/Gamma-stripped density checks,
+the convergent scalar sign control and the complete Laurent vector at two scales
+pass. It reuses the current Gaussian construction and native Symbolica series;
+there is no alternate parser, graph, integrator or multiloop reducer. The native
+one-loop reducer remains outside this two-loop reference path. See the
+[campaign](coupled-sunset-numerator.md) and
+[independent review](coupled-sunset-independent.md).
 
 ## Ordered bounded campaigns
 
 1. **Coupled numerator.** The exact `box_massive` card point is now closed by
    the focused native D0 test, passing in 1.95 seconds; the earlier eleven
-   scalar points were not repeated. Add the native coupled sunset fixture above, its exact
-   routing test and preliminary reference check. Use 180-second watchdogs for
-   individual native stages initially. A successful preliminary identity is
-   not a substitute for the subsequent integrated vector.
+   scalar points were not repeated. The native coupled sunset fixture now
+   passes all four scientific tests in 1.16 seconds. Its initial scalar-control
+   uncertainty missed the predefined precision cap; raising only that control
+   from 4096 to 65536 points per shift passed without changing the tolerance.
+   Both numerator scales retain 4096 points and 16 shifts. This gate permits the
+   coupled triple-box campaign, but does not certify it in advance.
 2. **Off-shell triple box, then its rank-two numerator.** Start with the scalar
    off-shell density at masses zero, all four virtualities `-1`, `s=t=-2`.
    Record Gaussian/admission, geometry, mapping, symmetry, subtraction, Laurent,

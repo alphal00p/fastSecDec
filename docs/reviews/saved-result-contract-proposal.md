@@ -1,7 +1,9 @@
 # Native saved integration results: proposal
 
-This is a design proposal only. No result reader, writer, converter or CLI
-command is implemented by this document.
+This records the approved design and implementation contract. The native
+`results` module, failure-safe observation accessors and CLI adapter are now
+implemented; review and test evidence is recorded below. The proposal sections
+retain the reasoning that established the scientific boundaries.
 
 ## Full-integral and selected-sector scope
 
@@ -343,3 +345,37 @@ StandardError(CoefficientKey)})`. Numeric ordering is descending, absent estimat
 are last, and sector IDs break ties. Unknown coefficient keys are typed errors.
 The returned ordering does not mutate the saved payload; CLI JSON views may
 retain the original result and separately label derived comparison and order.
+
+## Implementation and review evidence
+
+The native implementation is separated into document, types, manifest,
+validation, reference and display modules. It reuses the existing integration
+estimate representation validator and reference/context validators. Metadata
+validation calls `QmcSettings::validate_allocation`, which checks native rule
+and count bounds without constructing random shifts. This avoids generating
+billions of samples merely to read a large declared but unstarted allocation.
+
+Failure observations classify only numerical range errors as unavailable
+statistics; malformed state and shape errors remain errors. Numerica's minimal
+`complete_shift_ids` accessor shares existing accepted-count aggregation and
+does not sum numerical observations. Commit
+`e4638da22a17cfa931fa14c6829d3350b7a8de2b` passed all 30 QMC tests and nine
+existing MC tests and remains local on `codex/havana-qmc`.
+
+The initial native gate passed eight saved-result tests, three failure-observer
+tests, nine existing reference tests and four existing contribution tests.
+A later saved-result gate passed ten tests including actual pilot/partial
+observations and selected-scope exclusion of folded exact coefficients. The
+final workspace gate also includes the last derived-comparison range test and
+a private structural-error classification regression. No symbolic runtime is
+needed by those numerical tests.
+
+Independent reviews are recorded in
+[the HEPKit review](saved-result-hepkit-independent.md),
+[the coordinator review](saved-result-coordinator-review.md), and
+[the CLI review](saved-result-cli-independent.md). The reviews resolved
+inconsistent coverage acceptance, random-plan construction while validating
+metadata, overbroad failure classification, copying covariance arrays for
+display, and a comparison-range error that prevented result viewing. Display
+now borrows rows with indexed ID ordering; unavailable derived comparisons
+retain their native range reason without altering either original source.

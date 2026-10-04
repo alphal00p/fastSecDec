@@ -1,0 +1,340 @@
+use super::*;
+use crate::{
+    integration::{ReplicaRelation, SectorContribution, VectorEstimate},
+    status::{IntegrationMethod, IntegrationStage, StoppingReason, UncertaintyStatus},
+};
+use std::collections::{BTreeMap, BTreeSet};
+
+fn require(ok: bool, message: &str) -> Result<()> {
+    if ok {
+        Ok(())
+    } else {
+        Err(ResultError::Invalid(message.into()))
+    }
+}
+
+impl SavedIntegrationResult {
+    pub fn validate(&self) -> Result<()> {
+        self.manifest.validate()?;
+        self.provenance.validate()?;
+        if let crate::reference::ReferenceValidation::Checked { evidence } = &self.validation {
+            require(
+                !evidence.trim().is_empty(),
+                "checked computation requires evidence",
+            )?;
+        }
+        let manifest = &self.manifest;
+        let report = &self.contributions;
+        require(
+            report.orders == manifest.orders && report.components == manifest.components,
+            "contribution and parent coefficient layouts differ",
+        )?;
+        let all: BTreeMap<_, _> = manifest
+            .sectors
+            .iter()
+            .map(|s| (s.id, s.dimension))
+            .collect();
+        let (selected, exact) = match &self.scope {
+            ResultScope::FullIntegral => (
+                all.keys().copied().collect::<BTreeSet<_>>(),
+                manifest.exact_coefficients.clone(),
+            ),
+            ResultScope::SelectedSectors {
+                sector_ids,
+                exact_policy,
+            } => {
+                let ids: BTreeSet<_> = sector_ids.iter().copied().collect();
+                require(
+                    ids.len() == sector_ids.len() && ids.iter().all(|id| all.contains_key(id)),
+                    "selected IDs must be a unique subset of the full manifest",
+                )?;
+                let exact = match exact_policy {
+                    ExactContributionPolicy::IncludeAll => manifest.exact_coefficients.clone(),
+                    ExactContributionPolicy::ExcludeAll => vec![0.0; manifest.orders.len()],
+                };
+                (ids, exact)
+            }
+        };
+        require(
+            report.exact_coefficients == exact,
+            "exact contribution differs from the declared scope policy",
+        )?;
+        let row_ids: BTreeSet<_> = report.sectors.iter().map(|s| s.progress.id).collect();
+        require(
+            row_ids == selected && row_ids.len() == report.sectors.len(),
+            "contribution rows must cover exactly the selected sectors",
+        )?;
+        require(
+            report.replica_relation
+                == if report.method == IntegrationMethod::DemocraticQmc {
+                    ReplicaRelation::SharedAcrossSectors
+                } else {
+                    ReplicaRelation::IndependentAcrossSectors
+                },
+            "replica dependence differs from integration method",
+        )?;
+        require(
+            !(report.method == IntegrationMethod::DemocraticQmc
+                && report.stage == IntegrationStage::Pilot),
+            "democratic QMC has no pilot",
+        )?;
+        for row in &report.sectors {
+            require(
+                all[&row.progress.id] == row.progress.dimension,
+                "sector dimension differs from parent manifest",
+            )?;
+            self.validate_row(row)?;
+        }
+        if report.replica_relation == ReplicaRelation::SharedAcrossSectors {
+            require(
+                report.sectors.windows(2).all(|rows| {
+                    rows[0].used_replicas == rows[1].used_replicas
+                        && rows[0].progress.planned_replicas == rows[1].progress.planned_replicas
+                }),
+                "democratic sectors require the same common selected shifts",
+            )?;
+            if report.stage == IntegrationStage::Production
+                && let Some(first) = report.sectors.first()
+            {
+                let minimum_common =
+                    report
+                        .sectors
+                        .iter()
+                        .fold(first.progress.planned_replicas, |minimum, row| {
+                            minimum.saturating_sub(
+                                row.progress.planned_replicas - row.progress.complete_replicas,
+                            )
+                        });
+                require(
+                    first.used_replicas >= minimum_common,
+                    "common replica count is incompatible with sector completion counts",
+                )?;
+            }
+        }
+        let complete = self.production_complete();
+        validate_status(
+            &report.uncertainty,
+            report.total.as_ref(),
+            report.stage,
+            report.sectors.is_empty(),
+        )?;
+        if report.uncertainty == UncertaintyStatus::WaitingForCoverage {
+            require(
+                report.sectors.iter().any(|row| row.used_replicas < 2),
+                "missing total with sufficient coverage requires statistical-failure status",
+            )?;
+        }
+        if let Some(total) = &report.total {
+            self.validate_estimate(total)?;
+            require(
+                total.production_complete == complete,
+                "total completion flag differs from accepted scoped coverage",
+            )?;
+            require(
+                report.sectors.iter().all(|row| row.used_replicas >= 2),
+                "total estimate needs two complete replicas from every stochastic sector",
+            )?;
+            if report.sectors.is_empty() {
+                require(
+                    total.mean == exact
+                        && total.standard_error.iter().all(|v| *v == 0.0)
+                        && total.covariance_of_mean.iter().all(|v| *v == 0.0),
+                    "exact-only estimate differs from exact vector/zero covariance",
+                )?;
+            }
+        }
+        if let Some(tolerance) = self.requested_tolerance {
+            tolerance.validate()?;
+        }
+        match &self.stopping_reason {
+            StoppingReason::TargetReached => {
+                let tolerance = self.requested_tolerance.ok_or_else(|| {
+                    ResultError::Invalid("target stop requires recorded tolerance".into())
+                })?;
+                require(
+                    report
+                        .total
+                        .as_ref()
+                        .is_some_and(|v| v.meets(tolerance).unwrap_or(false)),
+                    "target stop is unsupported by the native complete estimate",
+                )?;
+            }
+            StoppingReason::PlannedWorkComplete => require(
+                complete,
+                "planned-complete stop requires full production coverage within scope",
+            )?,
+            StoppingReason::NumericalFailure(reason) => require(
+                !reason.trim().is_empty(),
+                "numerical failure requires a reason",
+            )?,
+            _ => {}
+        }
+        if let Some(design) = &self.qmc_design {
+            self.validate_design(design)?;
+        }
+        if let Some(stored) = &self.stored_reference {
+            require(
+                stored.context.kernel_content_id == manifest.kernel_content_id,
+                "stored comparison context differs from parent kernel",
+            )?;
+            stored.context.validate_reference(&stored.reference)?;
+        }
+        for time in [
+            self.timings.elapsed_seconds,
+            self.timings.artifact_load_seconds,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            require(
+                time.is_finite() && time >= 0.0,
+                "result timings must be finite and nonnegative",
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn production_complete(&self) -> bool {
+        self.contributions.stage == IntegrationStage::Production
+            && self.contributions.sectors.iter().all(|row| {
+                row.progress.completed_points == row.progress.planned_points
+                    && row.used_replicas == row.progress.planned_replicas
+            })
+    }
+
+    fn validate_estimate(&self, value: &VectorEstimate) -> Result<()> {
+        value.validate()?;
+        require(
+            value.orders == self.manifest.orders && value.components == self.manifest.components,
+            "estimate layout differs from manifest",
+        )
+    }
+
+    fn validate_row(&self, row: &SectorContribution) -> Result<()> {
+        let p = &row.progress;
+        require(
+            p.planned_replicas > 0
+                && p.planned_points > 0
+                && p.planned_points.is_multiple_of(p.planned_replicas as u64),
+            "invalid equal-size replica allocation",
+        )?;
+        let points = p.planned_points / p.planned_replicas as u64;
+        require(
+            p.completed_points <= p.planned_points
+                && p.complete_replicas <= p.planned_replicas
+                && row.used_replicas <= p.complete_replicas
+                && p.complete_replicas as u64 * points <= p.completed_points,
+            "accepted or selected coverage exceeds allocation",
+        )?;
+        require(
+            row.used_points == row.used_replicas as u64 * points,
+            "selected point count differs from selected replicas",
+        )?;
+        require(
+            p.completed_points != p.planned_points || p.complete_replicas == p.planned_replicas,
+            "complete point coverage requires all replicas complete",
+        )?;
+        require(
+            p.completed_points
+                <= p.planned_points - (p.planned_replicas - p.complete_replicas) as u64,
+            "accepted points would necessarily complete more replicas",
+        )?;
+        require(
+            p.worker_seconds.is_finite() && p.worker_seconds >= 0.0,
+            "invalid worker time",
+        )?;
+        validate_status(
+            &row.uncertainty,
+            row.estimate.as_ref(),
+            self.contributions.stage,
+            false,
+        )?;
+        if self.contributions.stage == IntegrationStage::Pilot {
+            require(
+                row.used_replicas == 0,
+                "pilot observations cannot become selected production replicas",
+            )?;
+        }
+        if let Some(estimate) = &row.estimate {
+            self.validate_estimate(estimate)?;
+            require(
+                row.used_replicas >= 2
+                    && estimate.production_complete
+                        == (row.used_replicas == p.planned_replicas
+                            && p.completed_points == p.planned_points),
+                "marginal estimate has inconsistent replica coverage",
+            )?;
+        } else if row.uncertainty == UncertaintyStatus::WaitingForCoverage {
+            require(
+                row.used_replicas < 2,
+                "complete marginal statistics cannot be labelled waiting for coverage",
+            )?;
+        }
+        Ok(())
+    }
+
+    fn validate_design(&self, design: &crate::integration::QmcDesign) -> Result<()> {
+        require(
+            self.contributions.method != IntegrationMethod::HavanaMc,
+            "Havana results cannot claim a QMC design",
+        )?;
+        design.settings.validate()?;
+        let rows: BTreeMap<_, _> = self
+            .contributions
+            .sectors
+            .iter()
+            .map(|row| (row.progress.id, &row.progress))
+            .collect();
+        let ids: BTreeSet<_> = design.allocations.iter().map(|a| a.sector_id).collect();
+        require(
+            ids.len() == design.allocations.len() && ids == rows.keys().copied().collect(),
+            "QMC design must cover exactly the selected sectors",
+        )?;
+        for allocation in &design.allocations {
+            let p = rows[&allocation.sector_id];
+            design.settings.validate_allocation(
+                p.dimension,
+                allocation.points,
+                allocation.shifts,
+            )?;
+            require(
+                allocation.points * allocation.shifts as u64 == p.planned_points
+                    && allocation.shifts as usize == p.planned_replicas,
+                "QMC design differs from accepted coverage metadata",
+            )?;
+        }
+        Ok(())
+    }
+}
+
+fn validate_status(
+    status: &UncertaintyStatus,
+    estimate: Option<&VectorEstimate>,
+    stage: IntegrationStage,
+    exact: bool,
+) -> Result<()> {
+    match status {
+        UncertaintyStatus::Available => require(
+            stage == IntegrationStage::Production && !exact && estimate.is_some(),
+            "available uncertainty requires a stochastic production estimate",
+        ),
+        UncertaintyStatus::Exact => require(
+            stage == IntegrationStage::Production && exact && estimate.is_some(),
+            "exact status requires an exact-only production estimate",
+        ),
+        UncertaintyStatus::PilotOnly => require(
+            stage == IntegrationStage::Pilot && estimate.is_none(),
+            "pilot uncertainty cannot contain a production estimate",
+        ),
+        UncertaintyStatus::WaitingForCoverage => require(
+            stage == IntegrationStage::Production && !exact && estimate.is_none(),
+            "waiting status requires missing stochastic production estimate",
+        ),
+        UncertaintyStatus::StatisticalFailure { reason } => require(
+            stage == IntegrationStage::Production
+                && estimate.is_none()
+                && !reason.trim().is_empty(),
+            "statistical failure requires an absent estimate and explicit reason",
+        ),
+    }
+}

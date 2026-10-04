@@ -7,6 +7,7 @@ mod config;
 mod contributions;
 mod estimate;
 pub mod mc;
+mod observation;
 mod qmc;
 mod worker;
 
@@ -17,6 +18,7 @@ pub use config::{
 pub use contributions::{ContributionReport, ReplicaRelation, SectorContribution};
 pub use estimate::VectorEstimate;
 pub use numerica::numerical_integration::qmc::PublishedLattice;
+pub use observation::IntegrationObservation;
 pub use qmc::{ProductionAllocation, QmcDesign, QmcSession};
 pub use worker::{QmcReturn, QmcTask, QmcWorker};
 
@@ -37,10 +39,25 @@ pub enum IntegrationError {
     },
     #[error("integration uncertainty is not available: {0}")]
     Unavailable(String),
+    #[error("native numerical accumulation exceeded representable range")]
+    NumericRange,
     #[error(transparent)]
     Qmc(#[from] numerica::numerical_integration::qmc::QmcError),
     #[error("invalid integration checkpoint: {0}")]
     Checkpoint(#[from] serde_json::Error),
+}
+
+impl IntegrationError {
+    pub(crate) fn is_statistical_range(&self) -> bool {
+        matches!(
+            self,
+            Self::NumericRange
+                | Self::Qmc(
+                    numerica::numerical_integration::qmc::QmcError::NumericOverflow
+                        | numerica::numerical_integration::qmc::QmcError::NonFiniteValue
+                )
+        )
+    }
 }
 
 pub type Result<T> = std::result::Result<T, IntegrationError>;

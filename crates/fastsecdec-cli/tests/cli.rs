@@ -34,7 +34,7 @@ shifts = 4
 #[test]
 fn every_shipped_run_card_loads_through_the_native_cli() {
     let examples = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/runs");
-    let mut cards = fs::read_dir(examples)
+    let mut cards = fs::read_dir(&examples)
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .filter(|path| {
@@ -43,10 +43,13 @@ fn every_shipped_run_card_loads_through_the_native_cli() {
         })
         .collect::<Vec<_>>();
     cards.sort();
-    assert!(
-        cards.len() >= 23,
-        "the migrated example collection is incomplete"
-    );
+    assert_eq!(cards.len(), 24, "update the explicit run-card inventory");
+    let graphs = fs::read_dir(examples.parent().unwrap().join("graphs"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|extension| extension == "dot"))
+        .count();
+    assert_eq!(graphs, 17, "update the explicit native DOT inventory");
     for card in cards {
         let inspected = cli().arg("inspect").arg(&card).output().unwrap();
         assert!(
@@ -264,6 +267,7 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
     let input = dir.path().join("input.toml");
     let artifact = dir.path().join("integral.json");
     let checkpoint = dir.path().join("checkpoint.json");
+    let saved_result = dir.path().join("result.json");
     card(&input);
     let mut child = cli()
         .arg("--status-json")
@@ -273,6 +277,8 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
         .arg(&artifact)
         .arg("--checkpoint")
         .arg(&checkpoint)
+        .arg("--save-result")
+        .arg(&saved_result)
         .arg("--points")
         .arg("1048576")
         .arg("--shifts")
@@ -318,6 +324,20 @@ fn plain_mode_sigint_saves_a_resumable_checkpoint() {
     let state: serde_json::Value = serde_json::from_slice(&fs::read(checkpoint).unwrap()).unwrap();
     assert_eq!(state["format_version"], 3);
     assert_eq!(state["round_index"], 0);
+    let saved = fastsecdec::results::read_result(&fs::read(saved_result).unwrap()).unwrap();
+    assert_eq!(
+        saved.stopping_reason,
+        fastsecdec::status::StoppingReason::Cancelled
+    );
+    assert!(
+        saved
+            .reference(fastsecdec::results::ResultReferenceSelection::Estimate)
+            .is_err()
+    );
+    assert_eq!(
+        serde_json::to_value(&saved.contributions).unwrap(),
+        report["contributions"]
+    );
 }
 
 #[test]

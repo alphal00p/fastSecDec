@@ -28,9 +28,7 @@ impl HavanaSession {
                     } => IntegrationError::Unavailable(
                         "each Havana sector needs at least two complete independent batches".into(),
                     ),
-                    error => IntegrationError::Invalid(format!(
-                        "Monte Carlo batch statistics failed: {error}"
-                    )),
+                    error => IntegrationError::Qmc(error),
                 })
             })
             .collect::<Result<Vec<_>>>()?;
@@ -60,17 +58,8 @@ impl HavanaSession {
         })
     }
 
-    pub fn snapshot(&self) -> Result<IntegrationSnapshot> {
-        let estimate = match self.estimate() {
-            Ok(value) => Some(value),
-            Err(IntegrationError::Unavailable(_))
-            | Err(IntegrationError::Qmc(
-                numerica::numerical_integration::qmc::QmcError::InsufficientShifts { .. },
-            )) => None,
-            Err(error) => return Err(error),
-        };
-        let sectors = self
-            .problem
+    pub(super) fn progress_sectors(&self) -> Result<Vec<SectorSnapshot>> {
+        self.problem
             .sectors
             .iter()
             .zip(&self.runs)
@@ -86,7 +75,19 @@ impl HavanaSession {
                     worker_seconds: precise_sum(run.records.values().map(|v| v.worker_seconds))?,
                 })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect()
+    }
+
+    pub fn snapshot(&self) -> Result<IntegrationSnapshot> {
+        let estimate = match self.estimate() {
+            Ok(value) => Some(value),
+            Err(IntegrationError::Unavailable(_))
+            | Err(IntegrationError::Qmc(
+                numerica::numerical_integration::qmc::QmcError::InsufficientShifts { .. },
+            )) => None,
+            Err(error) => return Err(error),
+        };
+        let sectors = self.progress_sectors()?;
         let total = |values: Vec<u64>| {
             values.into_iter().try_fold(0u64, |sum, value| {
                 sum.checked_add(value).ok_or_else(|| {

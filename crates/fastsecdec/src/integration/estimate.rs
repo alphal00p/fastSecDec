@@ -19,6 +19,36 @@ pub struct VectorEstimate {
 }
 
 impl VectorEstimate {
+    /// Validate the native representation, not convergence or positive
+    /// semidefiniteness. No covariance or uncertainty is reconstructed.
+    pub fn validate(&self) -> Result<()> {
+        let n = self.orders.len();
+        if n == 0
+            || self.components.len() != n
+            || self.mean.len() != n
+            || self.standard_error.len() != n
+            || n.checked_mul(n) != Some(self.covariance_of_mean.len())
+            || self.covariance_of_mean.iter().any(|v| !v.is_finite())
+            || self.mean.iter().any(|v| !v.is_finite())
+            || self
+                .standard_error
+                .iter()
+                .any(|v| !v.is_finite() || *v < 0.0)
+            || self
+                .orders
+                .iter()
+                .zip(&self.components)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != n
+        {
+            return Err(IntegrationError::Invalid(
+                "inconsistent, duplicate or nonfinite estimate layout/values".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn meets(&self, tolerance: Tolerance) -> Result<bool> {
         tolerance.validate()?;
         let n = self.orders.len();
@@ -72,8 +102,6 @@ pub(crate) fn precise_sum(values: impl IntoIterator<Item = f64>) -> Result<f64> 
     if value.is_finite() {
         Ok(value)
     } else {
-        Err(IntegrationError::Invalid(
-            "nonfinite accumulated result".into(),
-        ))
+        Err(IntegrationError::NumericRange)
     }
 }

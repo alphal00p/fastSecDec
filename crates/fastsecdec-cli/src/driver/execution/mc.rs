@@ -1,8 +1,8 @@
 use super::super::{
-    IntegrationReport, ResumeStatus,
+    IntegrationReport,
     checkpoint::save_mc_checkpoint,
     refinement::mc_points,
-    report::{stopped, with_diagnostics},
+    report::{ExecutionOutcome, finish, with_diagnostics},
 };
 use super::{Context, evaluate_tracked, submit_package};
 use crate::CliResult;
@@ -49,11 +49,12 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         HavanaSession::production(problem.clone(), options.clone())?
     };
     let mut cancelled = false;
+    let mut failure = None;
     let mut round = restored
         .as_ref()
         .map_or(0, |checkpoint| checkpoint.round_index);
     let mut current_points = mc_points(settings.points, round)?;
-    loop {
+    'rounds: loop {
         let mut slots = (0..settings.workers)
             .map(|_| {
                 Ok(McSlot {
@@ -97,30 +98,25 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     })
                     .collect::<Vec<_>>()
             });
-            let mut failure = None;
             for (id, result, local, state) in returns {
                 diagnostics.merge(&local)?;
                 if let Err(error) = submit_package(result, id, state, &mut replay, |result| {
                     session.submit(result)
                 }) {
-                    failure.get_or_insert(error);
+                    failure.get_or_insert_with(|| error.to_string());
                 }
             }
-            dashboard.integration(
-                &with_diagnostics(session.snapshot()?, &diagnostics),
-                started.elapsed().as_secs_f64(),
-            )?;
-            if let Some(error) = failure {
-                save_mc_checkpoint(
-                    checkpoint,
-                    artifact,
-                    settings,
-                    round,
-                    &session,
-                    &diagnostics,
-                    &replay,
-                )?;
-                return Err(error);
+            match session.snapshot() {
+                Ok(snapshot) => dashboard.integration(
+                    &with_diagnostics(snapshot, &diagnostics),
+                    started.elapsed().as_secs_f64(),
+                )?,
+                Err(error) => {
+                    failure.get_or_insert_with(|| error.to_string());
+                }
+            }
+            if failure.is_some() {
+                break 'rounds;
             }
             if last_checkpoint.elapsed().as_secs() >= 5 {
                 save_mc_checkpoint(
@@ -146,7 +142,17 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             session.freeze_production(0.5, current_points.try_into()?, settings.shifts)?;
             continue;
         }
-        if session.estimate()?.meets(tolerance)? || round + 1 >= settings.max_rounds {
+        let meets = match session
+            .estimate()
+            .and_then(|estimate| estimate.meets(tolerance))
+        {
+            Ok(meets) => meets,
+            Err(error) => {
+                failure = Some(error.to_string());
+                break;
+            }
+        };
+        if meets || round + 1 >= settings.max_rounds {
             break;
         }
         round += 1;
@@ -168,31 +174,17 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         &diagnostics,
         &replay,
     )?;
-    let snapshot = with_diagnostics(session.snapshot()?, &diagnostics);
-    let estimate = snapshot.estimate.clone();
-    let converged = !cancelled
-        && estimate
-            .as_ref()
-            .is_some_and(|estimate| estimate.meets(tolerance).unwrap_or(false));
-    Ok(IntegrationReport {
-        content_id: artifact.content_id.clone(),
-        elapsed_seconds: started.elapsed().as_secs_f64(),
-        loading_seconds: artifact.loading_seconds,
-        generation_timings: artifact.generation_timings.clone(),
-        converged,
-        stopping_reason: if cancelled && resume_status == ResumeStatus::PilotRestartRequired {
-            "cancelled during MC pilot; restart the pilot to continue"
-        } else if cancelled {
-            "cancelled"
-        } else if converged {
-            "accuracy reached"
-        } else {
-            "work limit"
-        }
-        .into(),
-        estimate,
-        snapshot: stopped(snapshot, cancelled, converged),
-        resume_status,
-        qmc_design: None,
-    })
+    finish(
+        artifact,
+        session.diagnostic_observation()?,
+        &diagnostics,
+        tolerance,
+        started.elapsed().as_secs_f64(),
+        ExecutionOutcome {
+            cancelled,
+            failure,
+            resume_status,
+            qmc_design: None,
+        },
+    )
 }

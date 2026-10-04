@@ -110,6 +110,16 @@ impl ContributionReport {
 
 impl std::fmt::Display for ContributionReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.fmt_rows(f, self.sectors.iter())
+    }
+}
+
+impl ContributionReport {
+    pub(crate) fn fmt_rows<'a>(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        rows: impl IntoIterator<Item = &'a SectorContribution>,
+    ) -> std::fmt::Result {
         let n = self.orders.len();
         let covariance_size = n.checked_mul(n);
         let consistent = n > 0
@@ -143,7 +153,7 @@ impl std::fmt::Display for ContributionReport {
                 "Shared replicas: marginal sector covariance cannot be summed to obtain total covariance."
             )?;
         }
-        for row in &self.sectors {
+        for row in rows {
             writeln!(
                 f,
                 "  sector {}: {}/{} complete replicas used; {}/{} points used",

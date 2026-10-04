@@ -9,35 +9,11 @@ pub fn compare(
     reference: &ReferenceResult,
     context: &ComparisonContext,
 ) -> Result<ReferenceComparison> {
-    validate_reference(reference)?;
-    if context.kernel_content_id.is_empty() {
-        return Err(ReferenceError::Invalid(
-            "empty estimate kernel identity".into(),
-        ));
-    }
-    if let Some(identity) = &reference.kernel_content_id
-        && identity != &context.kernel_content_id
-    {
-        return Err(ReferenceError::KernelIdentityMismatch {
-            reference: identity.clone(),
-            estimate: context.kernel_content_id.clone(),
-        });
-    }
+    context.validate_reference(reference)?;
+    estimate
+        .validate()
+        .map_err(|error| ReferenceError::Invalid(error.to_string()))?;
     let n = estimate.orders.len();
-    if n == 0
-        || estimate.components.len() != n
-        || estimate.mean.len() != n
-        || estimate.standard_error.len() != n
-        || n.checked_mul(n) != Some(estimate.covariance_of_mean.len())
-        || estimate
-            .covariance_of_mean
-            .iter()
-            .any(|value| !value.is_finite())
-    {
-        return Err(ReferenceError::Invalid(
-            "inconsistent or nonfinite estimate dimensions/covariance".into(),
-        ));
-    }
     let mut estimates = BTreeMap::new();
     for index in 0..n {
         let key = CoefficientKey {
@@ -211,15 +187,14 @@ fn finite(value: f64, key: CoefficientKey, quantity: &'static str) -> Result<f64
 }
 
 pub(super) fn validate_reference(reference: &ReferenceResult) -> Result<()> {
-    if reference.provenance.source.trim().is_empty()
-        || reference.provenance.convention.trim().is_empty()
-        || reference
-            .kernel_content_id
-            .as_ref()
-            .is_some_and(|identity| identity.is_empty())
+    reference.provenance.validate()?;
+    if reference
+        .kernel_content_id
+        .as_ref()
+        .is_some_and(|identity| identity.is_empty())
     {
         return Err(ReferenceError::Invalid(
-            "empty reference provenance, convention or kernel identity".into(),
+            "empty reference kernel identity".into(),
         ));
     }
     if let ReferenceValidation::Checked { evidence } = &reference.validation

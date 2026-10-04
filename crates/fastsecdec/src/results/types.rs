@@ -1,0 +1,100 @@
+use crate::{
+    integration::{ContributionReport, QmcDesign, SectorSpec, Tolerance},
+    reference::{
+        CoefficientKey, ComparisonContext, ReferenceComparison, ReferenceProvenance,
+        ReferenceResult, ReferenceValidation,
+    },
+    status::{CoefficientComponent, EvaluationDiagnostics, StoppingReason},
+};
+use serde::{Deserialize, Serialize};
+
+/// Caller declaration of the complete parent kernel, not an accumulation ID.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KernelResultManifest {
+    pub kernel_content_id: String,
+    pub orders: Vec<i32>,
+    pub components: Vec<CoefficientComponent>,
+    pub sectors: Vec<SectorSpec>,
+    pub exact_coefficients: Vec<f64>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExactContributionPolicy {
+    IncludeAll,
+    ExcludeAll,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum ResultScope {
+    FullIntegral,
+    SelectedSectors {
+        sector_ids: Vec<u64>,
+        exact_policy: ExactContributionPolicy,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StoredReference {
+    pub reference: ReferenceResult,
+    /// Historical context only. A new computation requires a fresh context.
+    pub context: ComparisonContext,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResultTimings {
+    pub elapsed_seconds: Option<f64>,
+    pub artifact_load_seconds: Option<f64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SavedIntegrationResult {
+    pub manifest: KernelResultManifest,
+    pub scope: ResultScope,
+    pub contributions: ContributionReport,
+    pub stopping_reason: StoppingReason,
+    pub requested_tolerance: Option<Tolerance>,
+    pub evaluation_diagnostics: Option<EvaluationDiagnostics>,
+    pub qmc_design: Option<QmcDesign>,
+    pub provenance: ReferenceProvenance,
+    pub validation: ReferenceValidation,
+    pub stored_reference: Option<StoredReference>,
+    pub timings: ResultTimings,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResultReferenceSelection {
+    Estimate,
+    StoredReference,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResultSectorSort {
+    Id,
+    Magnitude(CoefficientKey),
+    StandardError(CoefficientKey),
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ResultComparison {
+    Compared(Box<ReferenceComparison>),
+    Unavailable(ResultComparisonUnavailable),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ResultComparisonUnavailable {
+    NoEstimate,
+    NoReference,
+    SelectedScope,
+    Pilot,
+    Cancelled,
+    NumericalFailure,
+    NumericRange {
+        key: CoefficientKey,
+        quantity: String,
+    },
+}

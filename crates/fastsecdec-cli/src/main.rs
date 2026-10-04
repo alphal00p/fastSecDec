@@ -6,6 +6,7 @@ mod driver;
 mod generate;
 mod input;
 mod reference;
+mod results;
 
 use clap::{Args, Parser, Subcommand};
 use config::IntegrationInput;
@@ -69,6 +70,20 @@ enum Action {
         #[command(flatten)]
         integration: IntegrationArgs,
     },
+    /// View a saved numerical result without loading graphs or compiled kernels.
+    ShowResult {
+        path: PathBuf,
+        #[command(flatten)]
+        view: results::ViewArgs,
+    },
+    /// Export an explicitly selected estimate or original stored reference.
+    ExportReference {
+        path: PathBuf,
+        #[arg(long, value_enum)]
+        source: results::ReferenceSource,
+        #[arg(short, long)]
+        output: PathBuf,
+    },
     /// Inspect native input or an existing portable artifact.
     Inspect {
         path: PathBuf,
@@ -127,6 +142,9 @@ struct IntegrationArgs {
     /// Compare with a versioned reference JSON file; relative paths use cwd.
     #[arg(long)]
     reference: Option<PathBuf>,
+    /// Save the accepted numerical result as a native versioned document.
+    #[arg(long)]
+    save_result: Option<PathBuf>,
 }
 
 impl IntegrationArgs {
@@ -257,6 +275,15 @@ fn run(cli: Cli) -> CliResult<()> {
             let checkpoint = integration
                 .checkpoint
                 .unwrap_or_else(|| output.with_extension("checkpoint.json"));
+            if let Some(path) = &integration.save_result {
+                results::check_destination(
+                    path,
+                    &artifact,
+                    &output,
+                    &checkpoint,
+                    reference.as_ref(),
+                )?;
+            }
             let result = driver::integrate(
                 &artifact,
                 &kernels,
@@ -266,11 +293,19 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
             )?;
             drop(dashboard);
+            let saved =
+                results::assemble(&artifact, &kernels, &settings, &result, reference.as_ref())?;
+            if let Some(path) = &integration.save_result {
+                results::save(path, &saved)?;
+            }
             let comparison = reference
                 .as_ref()
-                .map(|reference| reference.report(kernels.content_id(), result.estimate.as_ref()))
+                .map(|reference| reference.report_saved(&saved))
                 .transpose()?;
             integration_report(&result, comparison.as_ref(), render_json)?;
+            if result.failed() {
+                return Err(ReportedFailure.into());
+            }
         }
         Action::Integrate {
             artifact: path,
@@ -296,6 +331,15 @@ fn run(cli: Cli) -> CliResult<()> {
             let checkpoint = integration
                 .checkpoint
                 .unwrap_or_else(|| path.with_extension("checkpoint.json"));
+            if let Some(result_path) = &integration.save_result {
+                results::check_destination(
+                    result_path,
+                    &artifact,
+                    &path,
+                    &checkpoint,
+                    reference.as_ref(),
+                )?;
+            }
             let mut dashboard = make_dashboard()?;
             let result = driver::integrate(
                 &artifact,
@@ -306,11 +350,28 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
             )?;
             drop(dashboard);
+            let saved =
+                results::assemble(&artifact, &kernels, &settings, &result, reference.as_ref())?;
+            if let Some(path) = &integration.save_result {
+                results::save(path, &saved)?;
+            }
             let comparison = reference
                 .as_ref()
-                .map(|reference| reference.report(kernels.content_id(), result.estimate.as_ref()))
+                .map(|reference| reference.report_saved(&saved))
                 .transpose()?;
             integration_report(&result, comparison.as_ref(), render_json)?;
+            if result.failed() {
+                return Err(ReportedFailure.into());
+            }
+        }
+        Action::ShowResult { path, view } => results::show(&path, &view, render_json)?,
+        Action::ExportReference {
+            path,
+            source,
+            output,
+        } => {
+            results::export_reference(&path, &output, source)?;
+            report(&serde_json::json!({"reference":output}), render_json)?;
         }
         Action::Inspect { path, expressions } => {
             if path

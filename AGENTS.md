@@ -19,8 +19,10 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
 - Keep FastSecDec on local `main` and commit validated milestones. Numerica QMC
   belongs to its separate `codex/havana-qmc` branch. The user authorized pushing
   validated FastSecDec milestones to `https://github.com/alphal00p/fastSecDec`.
-  Push `main` there after milestone checks; no authorization to push Numerica or
-  any other reference repository has been given.
+  Push `main` there after milestone checks. The user also authorized publishing
+  the finished Numerica QMC feature branch as a PR against its main branch and
+  requesting review from `BenRuijl`; run its readiness checks first. Other
+  reference repositories remain unpublished.
 - Never track `DO_NOT_PUSH_FOR_REFERENCE_ONLY`, build artifacts, caches, or raw
   benchmark output. Keep dependency fixes small and evidence-based; preserve
   existing worktrees and unrelated host workloads.
