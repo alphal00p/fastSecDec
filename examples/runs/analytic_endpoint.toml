@@ -1,0 +1,25 @@
+# Analytic regression: eps*Gamma(eps) integral_0^1 x^(eps-1)/(1+x)^2 dx.
+# Coefficients through eps^1 are recorded in examples/README.md.
+[direct]
+domain = "unit_cube"
+parameters = ["x"]
+
+[[direct.terms]]
+prefactor = "eps*gamma(eps)"
+monomial_powers = ["-1+eps"]
+
+[[direct.terms.factors]]
+polynomial = "1+x"
+exponent = "-2"
+
+[integral]
+regulator = "eps"
+
+[generation]
+order = 1
+
+[integration]
+points = 4096
+shifts = 64
+workers = 1
+periodization = "korobov3"

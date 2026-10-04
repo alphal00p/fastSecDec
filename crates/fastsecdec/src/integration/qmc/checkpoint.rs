@@ -1,0 +1,114 @@
+use super::*;
+
+#[derive(Serialize, Deserialize)]
+struct Checkpoint {
+    version: u8,
+    configuration_id: [u8; 32],
+    problem: IntegrationProblem,
+    settings: QmcSettings,
+    method: IntegrationMethod,
+    stage: IntegrationStage,
+    epoch: u64,
+    allocations: Vec<ProductionAllocation>,
+    runs: Vec<SectorRun>,
+}
+
+impl QmcSession {
+    fn configuration_id(&self) -> Result<[u8; 32]> {
+        Ok(*blake3::hash(&serde_json::to_vec(&(
+            &self.problem,
+            &self.settings,
+            self.method,
+            self.stage,
+            self.epoch,
+            &self.allocations,
+        ))?)
+        .as_bytes())
+    }
+    pub fn checkpoint(&self) -> Result<Vec<u8>> {
+        Ok(serde_json::to_vec(&Checkpoint {
+            version: 1,
+            configuration_id: self.configuration_id()?,
+            problem: self.problem.clone(),
+            settings: self.settings.clone(),
+            method: self.method,
+            stage: self.stage,
+            epoch: self.epoch,
+            allocations: self.allocations.clone(),
+            runs: self.runs.clone(),
+        })?)
+    }
+
+    /// Pending work is intentionally not restored: every unfinished canonical
+    /// package becomes available for reissue. Completed packages remain merged.
+    pub fn restore(bytes: &[u8], expected_problem: &IntegrationProblem) -> Result<Self> {
+        let state: Checkpoint = serde_json::from_slice(bytes)?;
+        expected_problem.validate()?;
+        if state.version != 1
+            || &state.problem != expected_problem
+            || state.method == IntegrationMethod::HavanaMc
+            || (state.method == IntegrationMethod::DemocraticQmc
+                && state.stage != IntegrationStage::Production)
+        {
+            return Err(IntegrationError::Invalid(
+                "checkpoint version, method or complete integral identity differs".into(),
+            ));
+        }
+        state.settings.validate()?;
+        let mut session = Self {
+            problem: state.problem,
+            settings: state.settings,
+            method: state.method,
+            stage: state.stage,
+            epoch: state.epoch,
+            allocations: state.allocations,
+            runs: Vec::new(),
+            cursor: 0,
+        };
+        if session.configuration_id()? != state.configuration_id {
+            return Err(IntegrationError::Invalid(
+                "checkpoint immutable integration configuration differs".into(),
+            ));
+        }
+        let expected = session.make_runs()?;
+        if expected.len() != state.runs.len() {
+            return Err(IntegrationError::Invalid(
+                "checkpoint does not cover every sector".into(),
+            ));
+        }
+        for (reference, run) in expected.iter().zip(&state.runs) {
+            if reference.accumulator.plan() != run.accumulator.plan()
+                || reference.accumulator.output_count() != run.accumulator.output_count()
+                || run.costs.values().any(|v| !v.is_finite() || *v < 0.0)
+            {
+                return Err(IntegrationError::Invalid(
+                    "checkpoint plans, output shape or timings differ".into(),
+                ));
+            }
+            run.seconds()?;
+            let mut starts = BTreeSet::new();
+            for work in run.accumulator.completed_work_packages() {
+                let plan = run.accumulator.plan();
+                let count = session
+                    .settings
+                    .package_points
+                    .min(plan.total_points().saturating_sub(work.start()));
+                if work.start() % session.settings.package_points != 0
+                    || plan.work(work.start(), count)? != work
+                {
+                    return Err(IntegrationError::Invalid(
+                        "checkpoint contains a noncanonical completed package".into(),
+                    ));
+                }
+                starts.insert(work.start());
+            }
+            if !starts.iter().eq(run.costs.keys()) {
+                return Err(IntegrationError::Invalid(
+                    "checkpoint timings do not correspond one-to-one to completed packages".into(),
+                ));
+            }
+        }
+        session.runs = state.runs;
+        Ok(session)
+    }
+}

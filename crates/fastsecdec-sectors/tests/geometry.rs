@@ -158,12 +158,7 @@ fn non_simplicial_normal_cone_is_triangulated() {
     );
     assert_eq!(result.geometric_vertices, 6);
     assert_eq!(result.sectors.len(), 12);
-    assert!(
-        result
-            .sectors
-            .iter()
-            .all(|s| s.determinant > Integer::from(0))
-    );
+    assert!(result.sectors.iter().all(|s| s.determinant > 0));
 }
 
 #[test]
@@ -186,7 +181,7 @@ fn zero_dimensional_work_obeys_cancellation_and_limits() {
     assert!(matches!(
         decompose(
             ParametricDomain::ProjectiveSimplex,
-            &[support.clone()],
+            std::slice::from_ref(&support),
             &DecompositionOptions::default(),
             |_| ControlFlow::Break(())
         ),

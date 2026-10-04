@@ -1,0 +1,56 @@
+diff --git a/src/parser.rs b/src/parser.rs
+index 7a1e77c5..8836d0bc 100644
+--- a/src/parser.rs
++++ b/src/parser.rs
+@@ -717,10 +717,18 @@ impl Token {
+                 }
+ 
+                 let symbol_whole = format!("{}::{}", namespace, symbol);
++                // Attributed references specify attributes and tags, not aliases.
++                // Preserve an existing symbol's aliases while validating the
++                // explicitly supplied metadata (notably built-in Euler gamma).
++                let aliases = state
++                    .fetch_symbol(&symbol_whole)
++                    .map(|symbol| symbol.get_aliases().to_vec())
++                    .unwrap_or_default();
+ 
+                 SymbolBuilder::new(crate::atom::NamespacedSymbol::parse(&symbol_whole))
+                     .with_attributes(attributes)
+                     .with_tags(tags)
++                    .with_aliases(aliases)
+                     .build_with_state(state)
+                     .map_err(|e| e.to_string())
+             } else {
+@@ -2098,7 +2106,7 @@ mod test {
+     use std::sync::Arc;
+ 
+     use crate::{
+-        atom::{AtomCore, SymbolAttribute},
++        atom::{Atom, AtomCore, SymbolAttribute},
+         domains::{SelfRing, integer::Z},
+         parse,
+         parser::Token,
+@@ -2172,6 +2180,23 @@ mod test {
+         assert_eq!(input.get_name(), "symbolica::f1");
+     }
+ 
++    #[test]
++    fn canonical_attributed_references_preserve_aliases() {
++        let gamma = Atom::var(crate::transcendental::euler_gamma());
++        assert_eq!(parse!(gamma.to_canonical_string()), gamma);
++        let aliased = symbol!("canonical_alias::x"; Positive; aliases = ["canonical_alias::y"]);
++        let expression = Atom::var(aliased);
++        assert_eq!(parse!(expression.to_canonical_string()), expression);
++        assert!(
++            Atom::parse(
++                "canonical_alias::{symmetric}::x",
++                "symbolica",
++                Default::default()
++            )
++            .is_err()
++        );
++    }
++
+     #[test]
+     fn infinity() {
+         let input = parse!("∞ + 5 - ¿ + 3*⧞ - ∞");

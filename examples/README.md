@@ -1,11 +1,12 @@
 # Scientific examples
 
 These inputs use native HEPKit compact DOT. Models and parameter cards use the
-existing FeynKit JSON format. Run cards and end-to-end validation are being added
+existing FeynKit JSON format. End-to-end validation is being extended
 as the generation and CLI slices land; a graph's presence alone is not a claim
 of numerical parity. The 19 native graph run cards now in `runs/` cover these
 topologies, numerator variants, off-shell kinematics and massive one-loop cases.
-End-to-end validation of these cards is pending the CLI implementation.
+Native bubble and triangle CLI runs pass initial analytic checks. The remaining
+multiloop and numerator cards still require full integration validation.
 
 `models/scalar.json` provides the real mass parameter `mt`, zero widths, and
 scalar vertices of degree two through five. `models/massless.json` and
@@ -38,9 +39,9 @@ the original one-off-shell, two-on-shell triangle.
 | Graph family | Loops | Propagators | Current coverage |
 |---|---:|---:|---|
 | Bubble | 1 | 2 | Native input, normalization and U/F tests |
-| Triangle | 1 | 3 | Native input fixture |
+| Triangle | 1 | 3 | Native input, analytic Laurent vector, initial CLI integration |
 | Box | 1 | 4 | Native topology fixture |
-| Double box | 2 | 7 | Native topology fixture |
+| Double box | 2 | 7 | Native input and exact U/F/measure equality to the independent polynomial fixture |
 | Triple box | 3 | 10 | Native topology fixture |
 | Kite | 2 | 5 | Native topology fixture |
 | Self energy | 3 | 7 | Native topology fixture |
@@ -55,12 +56,29 @@ orthant**, with density `U * F^(eps-3)` and unit prefactor. U is negative and ha
 integer power one. Do not reinterpret this as a projective simplex or an
 original unit cube.
 
+`runs/analytic_endpoint.toml` is a small end-to-end check of endpoint subtraction,
+the Gamma prefactor, and the complete Laurent vector. Its density is
+`eps*Gamma(eps)*x^(eps-1)/(1+x)^2` on the unit interval. Writing
+`a = -log(2)-1/2` and Euler's constant as `gamma_E`, the coefficients of
+`eps^-1`, `eps^0`, and `eps^1` are respectively
+`1`, `a-gamma_E`, and
+`pi^2/6+log(2)-gamma_E*a+gamma_E^2/2`.
+The independent generation test derives these coefficients from an analytic
+integral and checks the complete generated/JIT/QMC pipeline.
+
 `targets/` extracts the scientific vectors from the three historical JSON
 outputs, retaining source revision and origin. Triangle and box contain reported
 pySecDec errors. Despite its source filename, the double-box target identifies
 itself as manually supplied `numeric` data with zero placeholders for errors;
 its independent uncertainty is therefore recorded as unavailable. Those zeros
 must never be treated as an exact scientific reference.
+
+`targets/issue_1.json` also retains the manual target from the historical issue
+card, with unavailable uncertainty. `targets/four_loop_hard.json` transcribes the
+full-sector Laurent sum and reported errors from the historical hard-polynomial
+report. Its decimal values are rounded, and its uncertainty has not been
+independently certified. The report used boundary support grouping; its historical
+timings are not a matched full-support performance benchmark for this project.
 
 Full regression and performance acceptance remains tracked in
 [the regression matrix](../docs/REGRESSION_MATRIX.md) and

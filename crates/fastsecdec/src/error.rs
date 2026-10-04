@@ -8,6 +8,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error(transparent)]
+    Parametric(#[from] crate::parametric::ParametricError),
+    #[error(transparent)]
     Model(#[from] feynkit_model::ModelError),
     #[error(transparent)]
     Diagram(#[from] DiagramError),
@@ -33,6 +35,12 @@ pub enum Error {
     FreeTensorIndices,
     #[error("a loop-dependent numerator requires numerator parametrization")]
     LoopNumerator,
+    #[error("the contracted numerator must be polynomial in native loop scalar products")]
+    NonPolynomialNumerator,
+    #[error(
+        "Gamma({0}) is singular at the requested exact dimension; retain a symbolic dimension and take its Laurent limit after numerator cancellations"
+    )]
+    UnregulatedGammaPole(symbolica::atom::Atom),
     #[error("the quadratic loop form is singular (U = 0)")]
     SingularLoopForm,
     #[error(
@@ -45,4 +53,6 @@ pub enum Error {
         "Feynman parameter {0} already occurs in the numerator, measure multiplier or dimension"
     )]
     ParameterCollision(symbolica::atom::Atom),
+    #[error("invalid scalar parameter bindings: {0}")]
+    ScalarBindings(String),
 }

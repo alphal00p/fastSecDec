@@ -8,6 +8,26 @@ scope, milestone gates, and original requirements are in
 [FIRST_PHASE_PLAN.md](FIRST_PHASE_PLAN.md). The standalone CLI is being developed
 alongside the library; the future Python bridge belongs to HEPKit.
 
+With the local dependencies described in the development guide, enter
+`nix-shell` and run a native graph or a small analytic direct integral:
+
+```sh
+cargo run -- run examples/runs/triangle.toml --points 4096 --shifts 16 --workers 2
+cargo run -- run examples/runs/analytic_endpoint.toml --points 4096 --shifts 16
+cargo run -- --json inspect examples/runs/double_box.toml --expressions
+```
+
+Interactive terminals show a live dashboard. `--plain` selects text progress;
+`--json` emits the final structured report, and `--status-json` streams status
+snapshots to stderr. Generated artifacts and checkpoints default to `output/`.
+SymJIT kernels use O2 even in a development build; performance comparisons also
+require a release build of the Rust orchestration code.
+
+Native bubble, triangle, and analytic endpoint CLI runs have passed initial
+checks. Full multiloop integration, statistical certification, and matched
+performance acceptance remain in progress; fixture coverage alone is not an
+integration result.
+
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)
 - [Correctness and performance comparison protocol](docs/BENCHMARK_PROTOCOL.md)

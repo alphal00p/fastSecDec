@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "repository": "FastSecDecPathFinder",
+    "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+    "source_file": "examples/outputs/example_hard_from_polynomial.md",
+    "engine": "FastSecDecPathFinder randomized lattice QMC",
+    "convention": "sector",
+    "reported_decimal_values": true,
+    "full_sector_sum": true,
+    "reference_sector_count": 3728,
+    "reference_support_grouping": "boundary"
+  },
+  "orders": [
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3,
+    -2,
+    -1,
+    0
+  ],
+  "coefficients": [
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": -3.60617208198,
+      "im": 0
+    },
+    {
+      "re": -16.6719719507,
+      "im": 0
+    },
+    {
+      "re": -149.867746145,
+      "im": 0
+    }
+  ],
+  "standard_errors": [
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 9.72838068827e-7,
+      "im": 0
+    },
+    {
+      "re": 0.00000683942135807,
+      "im": 0
+    },
+    {
+      "re": 0.0000592308205166,
+      "im": 0
+    }
+  ],
+  "validation_status": "historical full-sector estimate transcribed from rounded report; its uncertainty and numerical stability have not been independently certified"
+}

@@ -42,7 +42,7 @@ fn cube_moment(sectors: &[SectorMap], powers: &[i64]) -> Rational {
                 .fold(Integer::from(0), |sum, (row, power)| {
                     sum + &row[j] * Integer::from(power + 1)
                 });
-            assert!(exponent > Integer::from(0));
+            assert!(exponent > 0);
             product * exponent
         });
         sum + Q.to_element(sector.determinant.clone(), denominator, true)
@@ -162,7 +162,7 @@ fn rank_deficiency_uses_combined_support_and_cube_recession() {
     assert!(matches!(
         decompose(
             ParametricDomain::PositiveOrthant,
-            &[x.clone()],
+            std::slice::from_ref(&x),
             &DecompositionOptions::default(),
             |_| ControlFlow::Continue(())
         ),
@@ -190,7 +190,10 @@ fn four_dimensional_non_simplicial_fan_has_no_gaps_or_overlaps() {
         }
     }
     let polytope = PolynomialSupport::new(rows).unwrap();
-    let orthant = run(ParametricDomain::PositiveOrthant, &[polytope.clone()]);
+    let orthant = run(
+        ParametricDomain::PositiveOrthant,
+        std::slice::from_ref(&polytope),
+    );
     assert_eq!(orthant.geometric_vertices, 8);
     check_fan_interiors(&orthant, false);
     let cube = run(ParametricDomain::UnitCube, &[polytope]);
@@ -264,7 +267,7 @@ fn translation_does_not_change_fan_but_shifts_factor_valuations() {
 // Positive half of the standard 16-point Gauss-Legendre rule. This independent
 // quadrature checks the geometric map/Jacobian against analytic integrals.
 const GAUSS: [(f64, f64); 8] = [
-    (0.09501250983763744, 0.18945061045506850),
+    (0.09501250983763744, 0.189_450_610_455_068_5),
     (0.2816035507792589, 0.1826034150449236),
     (0.4580167776572274, 0.16915651939500254),
     (0.6178762444026438, 0.14959598881657673),

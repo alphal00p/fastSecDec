@@ -6,8 +6,12 @@
 #![forbid(unsafe_code)]
 
 pub mod error;
+pub mod generation;
 pub mod input;
+pub mod integration;
+pub mod kernel;
 pub mod parametric;
+pub mod status;
 
 pub use error::{Error, Result};
 pub use feynkit_graph::{EdgeId, FeynmanDiagram, IntegralFamily};

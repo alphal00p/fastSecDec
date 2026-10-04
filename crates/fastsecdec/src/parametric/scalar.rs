@@ -6,6 +6,11 @@ use crate::{
     input::{GraphIntegral, default_algebra_settings},
 };
 
+use super::{
+    FactorRole, ParametricDomain, ParametricError, ParametricIntegrand, ParametricTerm,
+    PolynomialFactor,
+};
+
 /// A scalar projective Feynman-parameter integral on `sum(parameters) = 1`.
 ///
 /// Its density is `prefactor * prod(x_i^(powers_i-1)) * U^u_exponent *
@@ -51,6 +56,48 @@ impl ScalarParametricIntegral {
     }
     pub fn loop_count(&self) -> usize {
         self.loop_count
+    }
+
+    /// Convert the native graph scalar density to the common direct-integrand
+    /// representation consumed by sector generation.
+    pub fn to_integrand(
+        &self,
+        regulator: symbolica::atom::Symbol,
+    ) -> std::result::Result<ParametricIntegrand, ParametricError> {
+        let parameters = self
+            .parameters
+            .iter()
+            .map(|parameter| match parameter.as_view() {
+                AtomView::Var(variable) => Ok(variable.get_symbol()),
+                _ => Err(ParametricError::Invalid(
+                    "generation parameters must be plain symbols".into(),
+                )),
+            })
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        ParametricIntegrand::new(
+            parameters,
+            regulator,
+            ParametricDomain::ProjectiveSimplex,
+            vec![ParametricTerm::new(
+                self.prefactor.clone(),
+                self.powers
+                    .iter()
+                    .map(|power| Atom::num(power - 1))
+                    .collect(),
+                vec![
+                    PolynomialFactor::new(
+                        self.u.clone(),
+                        self.u_exponent.clone(),
+                        FactorRole::Singularity,
+                    ),
+                    PolynomialFactor::new(
+                        self.f.clone(),
+                        self.f_exponent.clone(),
+                        FactorRole::Singularity,
+                    ),
+                ],
+            )],
+        )
     }
 
     /// Construct U/F through HEPKit. `dimension` can be `4-2*eps`; tensor
@@ -108,7 +155,7 @@ impl ScalarParametricIntegral {
             _ => return Err(Error::ConcreteDimensionMismatch),
         };
         let prefactor = Atom::num(if total_power % 2 == 0 { 1 } else { -1 })
-            * gamma_argument.gamma()
+            * validated_gamma(gamma_argument.clone())?
             / denominator
             * scalar_weight;
         Ok(Self {
@@ -136,4 +183,15 @@ impl ScalarParametricIntegral {
             });
         &self.prefactor * monomial * self.u.pow(&self.u_exponent) * self.f.pow(&self.f_exponent)
     }
+}
+
+/// Guard an unregulated pole, including a potentially removable source-moment
+/// pole. Its meromorphic limit must precede evaluation at an exact dimension.
+pub(super) fn validated_gamma(argument: Atom) -> Result<Atom> {
+    if let Ok(integer) = numerica::domains::integer::Integer::try_from(argument.as_view())
+        && integer <= 0
+    {
+        return Err(Error::UnregulatedGammaPole(argument));
+    }
+    Ok(argument.gamma())
 }

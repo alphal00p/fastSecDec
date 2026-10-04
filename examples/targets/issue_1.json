@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "repository": "FastSecDecPathFinder",
+    "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+    "source_file": "examples/runs/issue_1/optimal_qmc.toml",
+    "engine": "manually supplied numeric target",
+    "convention": "sector",
+    "reported_decimal_values": true
+  },
+  "orders": [
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2
+  ],
+  "coefficients": [
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 0,
+      "im": 0
+    },
+    {
+      "re": 10.36927755,
+      "im": 0
+    },
+    {
+      "re": 99.74055923,
+      "im": 0
+    },
+    {
+      "re": 761.8752944,
+      "im": 0
+    }
+  ],
+  "standard_errors": null,
+  "validation_status": "historical numeric target; independent uncertainty unavailable; leading zero entries are asserted by the reference card"
+}

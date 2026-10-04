@@ -18,22 +18,32 @@ registry resolution. Local dependency source identities are:
 |---|---|
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit` | `8f834d9c62ae06fb327e4ef0b14abffda755b610` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | Reviewed QMC commit `e9b7481d66b8f9d0c5e58ccabc4d6644e7fd479a` on `codex/havana-qmc` |
+| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `617f7a56f8f168cd7498177c7db4a40b098eb135` on `codex/havana-qmc`; includes the reviewed numerical fixes and an additive completed-package accessor for checkpoint validation |
 | Published SymJIT Rust crate | `2.26.0`, registry checksum in Cargo.lock |
 
 The first two checkouts are detached worktrees of the supplied repositories. The
-original working trees remain unchanged. The root Cargo patches select one
+Symbolica worktree has three small local fixes: evaluating fixed-argument external
+constants in its error-tracking numeric domain, and preserving parentheses around
+complex coefficients in canonical products, and retaining registered aliases
+when parsing canonical symbol references. All focused upstream regressions pass;
+a fresh-process Gamma artifact test also passes. The patches and reproductions
+are recorded under `docs/dependency-patches`.
+The original working trees remain unchanged. The root Cargo patches select one
 Symbolica/Graphica/Numerica identity across every consumer. Do not use the local
 SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
 
 Standard checks as implementation lands:
 
 ```sh
-cargo fmt --all --check
+cargo fmt -p fastsecdec -p fastsecdec-sectors -p fastsecdec-cli --check
 cargo test --workspace --locked -- --test-threads=1
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo tree --locked --duplicates
 ```
+
+The explicit formatting package list avoids walking the local path dependencies
+and reporting their unrelated formatting differences. Tests and Clippy use the
+three-member FastSecDec workspace.
 
 The supplied restricted Symbolica runtime permits one active computational
 thread. Serial test execution respects that allowance; no license settings have

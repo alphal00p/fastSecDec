@@ -58,6 +58,13 @@ Before implementing any computer-algebra or graph capability:
 
 Record the evidence and the narrow missing operation. Implement new functionality only after these checks establish the gap.
 
+Preserve factored Symbolica expressions throughout the pipeline. Avoid expansion
+unless a specific operation requires it, and document those boundaries. Exact
+support extraction may require polynomial coefficients; it does not justify
+expanding the surrounding density, subtraction terms, Laurent templates, or
+kernel expressions. Reuse native differentiation and series with opaque
+subexpressions and late substitution where that avoids expression growth.
+
 Use the following existing owners:
 
 | Capability | Existing implementation to use |
@@ -107,6 +114,12 @@ The CLI uses one TOML steering format referencing:
 Resolve paths relative to the run card. CLI overrides apply to steering settings. Preserve model-fingerprint checks. Use HEPKit's `P(i)`/`K(i)` symbols and routing conventions; do not require Pathfinder's additional propagator or loop-momentum annotations.
 
 Reproduce examples using native HEPKit DOT, minimal model fixtures, and TOML run cards. Non-default propagator powers belong in integral settings keyed by stable internal edge IDs, without extending the DOT dialect.
+
+The old DOT files are scientific references, not files to preserve unchanged.
+Deliver a physically equivalent set using current native HEPKit conventions.
+Validate every fixture by native parsing and export/reload; additionally verify
+propagators, numerator routing, graph weights, and kinematics. Do not require the
+old frontend's `mass`, `mom`, explicit propagator lists, or custom momentum lists.
 
 Support:
 
@@ -182,6 +195,13 @@ Implement endpoint Taylor subtraction, analytic endpoint terms, and the integrat
 Substitute coordinate changes directly into complete Laurent-coefficient expressions. Compile a multi-output evaluator per sector or verified equivalent group. Preserve cancellations within each complete coefficient; do not integrate projector pieces independently.
 
 Default compilation explicitly selects **SymJIT O2**. Retain an interpreted evaluator and arbitrary-precision evaluation for diagnostics and rescue. Validate JIT results against them at interior and near-boundary points before trusting the compiled path.
+
+When generation or evaluation performance is uncertain, dissect the reference's
+**direct integrand** implementation first: its subtraction and IBP formulas,
+symbolic expansion order, reuse and caching, and compiled evaluator layout.
+Use those findings to guide an efficient Rust design without retaining Python,
+pySecDec, or unnecessary architecture conventions. The single dual evaluation of
+U and F is explicitly out of scope: the user found that runtime strategy too slow.
 
 Fuse periodization into the direct kernel when beneficial, and verify it against the unfused transformation. Whole zero-dimensional sectors are evaluated analytically.
 
@@ -419,9 +439,22 @@ Also make sure that you link against existing crates of the HEPKit ecosystem to 
 And include in the plan that you should use many subagents to organise the various implementation slices, their audit, the research, the debug, the performance hunt, etc... you will be acting mostly as a coordinator only!
 ```
 
+```text
+Continue as planned, but note that the `All 15 historical DOT` must not remain identical, you should instead start from a phyically equivalent set of dot file fully compliant with the new HEPkit standards.
+```
+
+```text
+(And when in doubt of how to achieve good performance, dissect how `FastSecDecPathFinder` achieved its work; we don't want the same structure necessarily, and we want it fully in rust and with no pySecDec dependencies, but its innerworking should give a good close-to-optimal implementation plan, although you can ignore building the sector integrands from a single dual evaluation of the U and F polynomials, this idea proved to be too slow at runtime).
+```
+
+```text
+(Continue as planned, but indeed avoiding expansions unless absolutely necessary is key for a powerful use of Symbolica (which unlike FORM does not need to ever expand))
+```
+
 ## Implementation record
 
 - 2026-10-04: implementation authorized; goal activated; plan saved. FastSecDec remains on `main`. Isolated pinned dependency worktrees prepared. Three agents assigned native input/dependency integration, exact sector geometry, and Numerica QMC. Acceptance gates remain pending.
 - 2026-10-04: foundation milestone prepared: three-crate workspace and local Nix shell; native HEPKit/Linnet input and scalar U/F normalization; executable CAS/JIT reuse probes; exact normal-fan sector geometry. Native library tests passed (14); geometry author and independent tests passed (11 + 8). The hard nine-dimensional support probe produced 3,496 sectors in approximately 125 seconds in its initial mixed-optimization build. This is feasibility evidence, not performance acceptance. Full numerator conversion, symmetry reduction, subtraction, runtime and CLI remain in progress. See `docs/reviews/sector-geometry-initial.md` and `docs/REUSE_AUDIT.md`.
 - 2026-10-04: Numerica QMC implementation committed independently as `e26d3dd3ee0683c5acd9706eb95fb6b66f24147b`, followed by peer-review fixes in `e9b7481d66b8f9d0c5e58ccabc4d6644e7fd479a` on `codex/havana-qmc`. The author reports 174 library, 14 API regression, 23 QMC and 22 documentation tests passing with serde. Independent review identified and drove corrections to large-offset covariance and maximum-modulus periodic shifts; the reviewer executed both reproductions against the fix and verified their expected results. No pushes or changes to existing MC interfaces.
 - 2026-10-04: native fixtures now cover all 15 historical DOT examples, plus a bubble, with 19 graph TOML cards and three direct-polynomial cards. The two example-input tests pass, including exact numerator and propagator-multiset checks for all five numerator graphs. This validates native topology and routing, not numerical integration of every card. Historical targets retain provenance; the double-box file's manually supplied target has no usable reference uncertainty. The triangle-numerator card resolves the historical unused-leg inconsistency while preserving its actual explicit-propagator integral. See `examples/README.md`.
+- 2026-10-04: direct-generation and standalone-runtime milestone: native Gaussian polynomial numerators, factored endpoint subtraction and full Laurent vectors, portable SymJIT O2 kernels with native MPFR rescue, caller-driven QMC/MC sessions, checkpoint validation, and CLI generation/integration/inspection/boundary diagnostics with typed status and a live terminal dashboard. The complete workspace gate passed 109 tests, with two expensive probes explicitly ignored. Native two-worker bubble, triangle and analytic endpoint runs, fresh-process complex/Gamma artifact reloads, and terminal cancellation/checkpoint restoration were exercised. Three small Symbolica fixes are recorded as upstream-ready patches; Numerica is pinned at `617f7a56f8f168cd7498177c7db4a40b098eb135`. There are now 23 run cards. Boundary assertions cannot override unresolved singular faces. Factored Laurent templates reduced the diagnostic double-box generation time from 100.309 to 26.211 seconds; these development-build observations do not establish performance parity. Complete-density symmetry, further cancellation/IBP and geometry optimization, all-example numerical certification, and matched performance acceptance remain pending.

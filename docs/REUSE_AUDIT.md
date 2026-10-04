@@ -14,6 +14,7 @@ in the plan: public API, implementation/tests, and an executable Rust probe.
 | Polynomial arithmetic, derivatives, factoring | Symbolica `src/atom/core.rs`, `src/poly/polynomial.rs`, and community wrappers | `ecosystem_probes::exact_polynomial_operations_stay_in_symbolica` | Orchestrate operations for sector subtraction; no CAS implementation |
 | Gamma Laurent series | Symbolica `AtomCore::series`, transcendental functions and series implementations | Exact `gamma(eps) = 1/eps - euler_gamma + O(eps)` probe | Determine required expansion depth and convolve coefficients |
 | Evaluators and portable JIT representation | Symbolica `src/evaluate/backend.rs`, `JITCompilationSettings`, `JITCompiledEvaluator` | `ecosystem_probes::symjit_o2_runs_and_roundtrips_portable_ir` includes batch evaluation and serialization | Explicit O2 settings, validation, kernel grouping and artifact compatibility |
+| Numerical conditioning and multiprecision | Native `ExpressionEvaluator::map_coeff_with_prec`, `ErrorPropagatingFloat`, and Numerica `Float`/`Complex` | Real endpoint regressions and complex Gamma/logarithm rescue on an independent worker at `x=1e-80` | Prebuild numeric evaluator IR, detect conditioning loss, compare escalating precisions, and report rescues; no alternate arithmetic or special functions |
 | Exact integers, rational matrices | Numerica integer/rational domains and matrix determinant/rank operations | Exact sector map, moment and cone tests | Sector-specific normal-fan and triangulation orchestration only |
 
 The initial probes establish the existing owners. The implementation must add
@@ -22,10 +23,15 @@ evidence to this record before introducing further algebraic functionality.
 ## Narrow missing operations
 
 - General polynomial loop-numerator **integration into parameter space** is not
-  provided by the inspected family numerator-basis APIs. The implementation slice
-  under development uses native scalar-product bases and auxiliary Symanzik
-  sources, then Symbolica derivatives. It must pass cancellation and independent
-  Gaussian-moment tests before this gap is considered implemented.
+  provided by the inspected family numerator-basis APIs. The implemented adapter
+  uses native scalar-product bases and auxiliary Symanzik sources, then Symbolica
+  derivatives. Eight Gaussian-moment tests pass, including raised propagator
+  cancellation, routing shifts, Gram-degenerate kinematics, rank-four tadpoles,
+  and a factorized two-loop mixed moment. An independent review reran them and
+  found no issue; see [the numerator review](reviews/gaussian-numerator-initial.md).
+  Removable auxiliary Gamma poles at an exact integer dimension still require
+  a regulated dimension and are rejected explicitly. Full numerator example
+  integration remains a separate acceptance gate.
 - The inspected ecosystem has general exact linear algebra and graph
   canonicalization, but no complete sector-specific Newton-fan decomposition
   pipeline. `fastsecdec-sectors` supplies that pipeline while using Numerica exact
@@ -34,6 +40,32 @@ evidence to this record before introducing further algebraic functionality.
   Numerica QMC lane supplies indexed randomized rank-one points and statistics
   over complete shift means. It does not replace Havana MC or its numeric types.
 
-Graph canonicalization, high-precision rescue and symbolic integration are
-**not yet marked implemented** by the initial probes. Their existing APIs must
-be used and tested when the corresponding slices land.
+Complete-integrand graph canonicalization and symbolic integration remain
+pending applications of existing APIs. Their existing implementations must be
+used and tested when the corresponding slices land. Precision rescue now uses
+prebuilt native numeric evaluator IR; workers do not construct or evaluate Atoms.
+
+## Factored direct generation
+
+The [reference implementation review](reviews/direct-generation-performance.md)
+records why the first full-expression Laurent expansion was slow. Native
+`replace_map` supplies opaque coordinate subexpressions, `series` expands the
+small regulator template, and native substitution restores the sector expressions
+afterward. This changes operation ordering without implementing a second series
+engine. Whole-expression expansion and unbounded rational combination are avoided;
+exact support and endpoint-power extraction remain justified coefficient queries.
+
+An additional executable native probe confirms that `to_polynomial_in_vars`
+collects factored sums/products/powers directly: its implementation in
+`symbolica/src/poly.rs:1547` uses existing sparse polynomial arithmetic without
+requiring an expanded Atom first. With signed exponents, native `mul_exp`
+(`src/poly/polynomial.rs:2136`) removes a monomial valuation before `flatten`.
+The probe passed for two factored polynomials and a Laurent-polynomial shift;
+the same cases are retained in `ecosystem_probes.rs`. General rational functions
+still require appropriate native simplification or explicit rejection.
+
+The supplied Symbolica build could not convert fixed-argument external constants
+to its error-tracking domain when that function only registered a multiprecision
+hook. The [minimal dependency patch](dependency-patches/symbolica-fixed-argument-constant-domain.md)
+reuses that registered hook and native conversion, with a passing focused
+regression. FastSecDec does not implement special-function constants itself.

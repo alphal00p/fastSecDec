@@ -269,3 +269,75 @@ fn parameter_names_cannot_capture_external_weights_or_the_regulator() {
         Err(Error::ParameterCollision(_))
     ));
 }
+
+#[test]
+fn parameter_binding_precedes_native_scalelessness_and_updates_kinematics() {
+    let graph = GraphIntegral::from_dot(model(), BUBBLE, &kinematics())
+        .unwrap()
+        .with_measure_multiplier(parse!("s"))
+        .with_scalar_values(&BTreeMap::from([(symbol!("s"), Atom::num(-1))]))
+        .unwrap();
+    let (u, f) = graph
+        .family()
+        .symanzik(&[parse!("x"), parse!("y")])
+        .unwrap();
+    assert_eq!(u, parse!("x+y"));
+    assert_eq!(f, parse!("x*y"));
+    assert_eq!(graph.measure_multiplier(), &Atom::num(-1));
+    let massless = GraphIntegral::from_dot(model(), BUBBLE, &kinematics())
+        .unwrap()
+        .with_scalar_values(&BTreeMap::from([(symbol!("s"), Atom::Zero)]))
+        .unwrap();
+    let integral = fastsecdec::parametric::ParametricIntegrand::from_graph(
+        &massless,
+        vec![symbol!("x"), symbol!("y")],
+        symbol!("eps"),
+        parse!("4-2*eps"),
+    )
+    .unwrap();
+    assert!(integral.terms().is_empty());
+}
+
+#[test]
+fn scalar_overrides_cannot_bypass_mass_and_width_admission() {
+    let model = modified_model(|json| {
+        for name in ["mass", "width"] {
+            json["parameters"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::json!({
+                    "name":name,"lhablock":null,"lhacode":null,"nature":"external",
+                    "parameter_type":"real","value":[0.0,0.0],"expression":null
+                }));
+        }
+        json["particles"][0]["mass"] = serde_json::json!("mass");
+        json["particles"][0]["width"] = serde_json::json!("width");
+        json["propagators"][0]["denominator"] =
+            serde_json::json!("(UFO::P(UFO::idx(1,1)))^2-UFO::mass^2");
+    });
+    let integral = GraphIntegral::from_dot(model, BUBBLE, &kinematics()).unwrap();
+    assert!(matches!(
+        integral
+            .clone()
+            .with_scalar_values(&BTreeMap::from([(symbol!("UFO::width"), Atom::num(1))])),
+        Err(Error::UnsupportedWidth { .. })
+    ));
+    let complex = Atom::num(symbolica::domains::float::Complex::new(
+        symbolica::domains::rational::Rational::from(1),
+        symbolica::domains::rational::Rational::from((1, 1000)),
+    ));
+    assert!(matches!(
+        integral
+            .clone()
+            .with_scalar_values(&BTreeMap::from([(symbol!("UFO::mass"), complex)])),
+        Err(Error::UnsupportedMass { .. })
+    ));
+    assert!(
+        integral
+            .with_scalar_values(&BTreeMap::from([
+                (symbol!("UFO::mass"), Atom::num(2)),
+                (symbol!("UFO::width"), Atom::Zero),
+            ]))
+            .is_ok()
+    );
+}

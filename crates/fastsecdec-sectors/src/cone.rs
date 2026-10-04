@@ -4,7 +4,6 @@ use crate::{
     arithmetic::{IntVector, dot, integer_ray, matrix, primitive, rank},
     types::{DecompositionPhase, Monitor},
 };
-use numerica::domains::integer::Integer;
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone)]
@@ -85,10 +84,7 @@ pub(crate) fn extreme_rays(
             .min_by_key(|&i| {
                 let (p, n) = rays.iter().fold((0usize, 0usize), |(p, n), r| {
                     let v = dot(&constraints[i], &r.vector);
-                    (
-                        p + usize::from(v > Integer::from(0)),
-                        n + usize::from(v < Integer::from(0)),
-                    )
+                    (p + usize::from(v > 0), n + usize::from(v < 0))
                 });
                 (p.saturating_mul(n), n, i)
             })
@@ -98,15 +94,11 @@ pub(crate) fn extreme_rays(
             .iter()
             .map(|r| dot(&constraints[next], &r.vector))
             .collect();
-        let positive: Vec<_> = (0..rays.len())
-            .filter(|&i| values[i] > Integer::from(0))
-            .collect();
-        let negative: Vec<_> = (0..rays.len())
-            .filter(|&i| values[i] < Integer::from(0))
-            .collect();
+        let positive: Vec<_> = (0..rays.len()).filter(|&i| values[i] > 0).collect();
+        let negative: Vec<_> = (0..rays.len()).filter(|&i| values[i] < 0).collect();
         let mut out = BTreeMap::<IntVector, BTreeSet<usize>>::new();
         for (i, ray) in rays.iter().enumerate() {
-            if values[i] < Integer::from(0) {
+            if values[i] < 0 {
                 continue;
             }
             let mut zeros = ray.zeros.clone();

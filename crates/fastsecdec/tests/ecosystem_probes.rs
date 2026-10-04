@@ -19,6 +19,25 @@ fn exact_polynomial_operations_stay_in_symbolica() {
 }
 
 #[test]
+fn native_polynomial_collection_preserves_factored_input_and_signed_valuations() {
+    let variables = [parse!("x"), parse!("y")];
+    for expression in [parse!("(x+y)^3-(x-y)^3"), parse!("(x+y)*(x+2*y)^2")] {
+        assert_eq!(
+            expression.to_polynomial_in_vars::<u32>(&variables),
+            expression.expand().to_polynomial_in_vars::<u32>(&variables),
+        );
+    }
+    let mapped = parse!("x^(-3)*(1+y)^2+x^(-2)*y");
+    let residual = mapped
+        .to_polynomial_in_vars::<i32>(&variables)
+        .mul_exp(&[3, 0]);
+    assert_eq!(
+        residual,
+        parse!("(1+y)^2+x*y").to_polynomial_in_vars::<i32>(&variables),
+    );
+}
+
+#[test]
 fn symjit_o2_runs_and_roundtrips_portable_ir() {
     let evaluator = parse!("x^2+2*y")
         .evaluator(&[parse!("x"), parse!("y")])
