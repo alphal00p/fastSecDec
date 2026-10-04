@@ -1,0 +1,46 @@
+[workspace]
+members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-cli"]
+exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY"]
+default-members = ["crates/fastsecdec-cli"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+
+[workspace.dependencies]
+fastsecdec = { path = "crates/fastsecdec" }
+fastsecdec-sectors = { path = "crates/fastsecdec-sectors" }
+symbolica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "native_code_generation", "serde", "bincode"] }
+numerica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "serde", "bincode"] }
+# Pin the published Rust library, not the reference checkout's C/Python cdylib.
+symjit = "=2.26.0"
+feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-graph", default-features = false }
+feynkit-model = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-model", default-features = false }
+feynkit-kinematics = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-kinematics", default-features = false }
+feynkit-tensor = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-tensor", default-features = false }
+linnet = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/linnet", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
+idenso = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/idenso", default-features = false }
+spenso = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/spenso", default-features = false, features = ["shadowing"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+thiserror = "2.0"
+toml = "0.9"
+clap = { version = "4.6", features = ["derive"] }
+rayon = "1.11"
+tempfile = "3"
+
+[patch.crates-io]
+symbolica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
+graphica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
+numerica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }
+
+[profile.dev.package.symbolica]
+opt-level = 2
+
+[profile.dev.package.numerica]
+opt-level = 2
+
+[profile.release]
+lto = "thin"

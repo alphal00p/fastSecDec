@@ -1,0 +1,17 @@
+[package]
+name = "fastsecdec-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Command-line interface for FastSecDec"
+
+[[bin]]
+name = "fastsecdec"
+path = "src/main.rs"
+
+[dependencies]
+fastsecdec.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
