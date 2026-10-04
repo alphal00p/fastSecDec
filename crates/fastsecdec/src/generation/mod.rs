@@ -198,6 +198,8 @@ pub fn generate(
             total,
         })?;
         let started = Instant::now();
+        #[cfg(test)]
+        laurent::profiling::context(index, representative_index, multiplicity);
         let coefficients = laurent::expand(
             &expression,
             &parameters,
@@ -234,6 +236,8 @@ pub fn generate(
             ));
         }
     }
+    #[cfg(test)]
+    laurent::profiling::reject_uncaptured_result()?;
     for chart in &mut charts {
         chart.kernel_sector = kernel_indices.get(&chart.representative).copied();
     }

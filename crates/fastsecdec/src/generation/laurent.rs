@@ -5,6 +5,9 @@ use symbolica::{
     symbol,
 };
 
+#[cfg(test)]
+pub(super) mod profiling;
+
 #[derive(Default)]
 pub(super) struct TemplateCache {
     coefficients: BTreeMap<(Atom, i32), BTreeMap<i32, Atom>>,
@@ -17,6 +20,12 @@ pub(super) fn expand(
     max_order: i32,
     cache: &mut TemplateCache,
 ) -> Result<BTreeMap<i32, Atom>, GenerationError> {
+    #[cfg(test)]
+    if profiling::skip_current() {
+        return Ok(BTreeMap::new());
+    }
+    #[cfg(test)]
+    let template_started = std::time::Instant::now();
     // Keep dense residual polynomials opaque while expanding the small epsilon
     // template. This is the direct reference path's late-instantiation strategy:
     // native Symbolica still owns series arithmetic and absolute truncation,
@@ -47,6 +56,16 @@ pub(super) fn expand(
             **out = Atom::var(placeholder);
         }
     });
+    #[cfg(test)]
+    profiling::capture(
+        expression,
+        &template,
+        &images,
+        parameters,
+        regulator,
+        max_order,
+        template_started.elapsed().as_secs_f64(),
+    )?;
     let key = (template.clone(), max_order);
     if !cache.coefficients.contains_key(&key) {
         cache.coefficients.insert(

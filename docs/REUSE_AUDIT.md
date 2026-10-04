@@ -379,3 +379,37 @@ series API and expression representation. Its pending acceptance must not be
 confused with a production Laurent change. The next broader audits cover that
 evidence, actual current-artifact convergence preparation and paired CLI cadence
 timings before any numerical-policy or performance claim.
+
+## Native Laurent capture and depth attribution
+
+The [native-depth experiment](reviews/native-laurent-depth-probe.md) uses
+Symbolica's own Atom export/import, series, trailing exponent, absolute bound,
+coefficient iteration and replacement APIs. The three API/source/executable
+checks found no public reusable cross-call series cache or standalone general
+transcendental valuation API. Relative-depth requests therefore query the native
+series result and validate its actual absolute bound; no Laurent engine, pole
+inference or coefficient convolution is reimplemented.
+
+The [independent review](reviews/laurent-capture-independent.md) drove explicit
+fractional-power rejection and a missing-target capture barrier. Test-only
+capture always returns cancellation, including out-of-range targets, and its
+thread-local guard restores ordinary generation. Three ordinary controls pass.
+The bounded actual representative and both replays complete, with exact native
+equality of all six coefficients both before and after coordinate restoration.
+Formatting and all-target Clippy pass against the final diagnostic sources.
+
+Cold import emitted a Gamma callback warning. Native source inspection and
+fresh-process normalization/derivative/series controls prove it is a lazy native
+initialization false positive for this capture: cold and explicitly initialized
+canonical expressions are identical. Future diagnostic imports initialize native
+functions explicitly; the production parser already initializes them, and its
+existing fresh-process shifted-Gamma test covers subsequent evaluation. No
+dependency patch or alternate Gamma implementation is justified.
+
+The measured series reduction from 148.974 to 37.332 seconds preserves the same
+large output. A single-representative result does not establish whole-generation
+performance. The reference's active direct builder computes regular epsilon
+coefficients before coordinate differentiation and substitutes them into a small
+endpoint expression. A future production composition must use native Symbolica
+series/derivative operations, preserve complete vectors and pass independent
+scientific controls; the current diagnostic changes no production strategy.
