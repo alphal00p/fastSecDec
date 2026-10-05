@@ -37,6 +37,24 @@ the required generation, highest-requested-order convergence and sector/sample
 metrics, then commit, push, mark the goal complete and stop. An infeasible
 pySecDec reference is not an additional completion gate.
 
+**On-shell scope clarification (2026-10-05, supersedes earlier acceptance
+requirements for this case):** The user accepted completed FastSecDec generation
+of the original on-shell triple box as sufficient for phase A:
+
+> The fact that you can now complete generation of the `on-shell triple-box` within fastSecDec is good enough for now, let's not benchmark performance of it too much and instead focus on the faster-to-generate simpler integrals.
+
+Its full generation, portable artifact publication and cold loading are already
+demonstrated. Preserve the partial numerical checkpoints and reference attempts,
+but stop further integration, reference construction and performance campaigns
+for this case. Full-integral numerical agreement and convergence remain explicitly
+unverified, deferred rather than claimed successful. They no longer block phase-A
+completion. Focus the remaining bounded comparisons on the existing faster
+representatives, starting with triangle, box and double box, and retain the
+existing numerator and hard-polynomial coverage without expanding the campaign.
+The user also supplied an authorized Symbolica license for subsequent runs;
+verify the existing eight-worker Pathfinder route and use matched eight-core
+measurements when it succeeds. Keep the license outside tracked files and logs.
+
 Confirmed decisions:
 
 | Topic | Decision |

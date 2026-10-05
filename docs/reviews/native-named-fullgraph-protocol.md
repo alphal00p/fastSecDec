@@ -1,5 +1,12 @@
 # Original on-shell graph: native prepared named-route protocol
 
+The current user scope accepts successful original on-shell generation as
+sufficient for now. Full on-shell integration, accuracy and performance work
+is deferred while phase-A work focuses on simpler, faster cases. The refill
+continuation below was stopped cooperatively at that instruction; its checkpoint
+and explicitly incomplete numerical result are preserved. These retained
+protocols do not authorize another on-shell numerical run.
+
 The bounded trial uses the ordinary CLI with both native named coefficients
 and the existing exact `SingleUnitTerm` family preparation. The CLI adapter is
 accepted at `e42a017`: 38 focused tests, formatting and CLI all-target Clippy
@@ -172,14 +179,16 @@ the bounded current-sector context owner, then is intentionally stopped for a
 reviewed caller-scheduling handoff; see the [results](native-named-fullgraph-results.md).
 It retains 397,312 accepted points and does not yield a complete integral.
 
-The next numeric-only continuation uses that newest immutable checkpoint as its
-seed, the same original artifact and allocation, and the independently reviewed
-continuously refilled CLI queue. It keeps eight workers on CPUs 0–7 and the
-30-GiB address-space bound; its single whole-process budget is 7,200 seconds
+The subsequent numeric-only continuation used that newest immutable checkpoint
+as its seed, the same original artifact and allocation, and the independently
+reviewed continuously refilled CLI queue. It kept eight workers on CPUs 0–7 and
+the 30-GiB address-space bound; its whole-process budget was 7,200 seconds
 including cold load, with five seconds of grace. Native periodic checkpoints
 contain accepted complete packages; unfinished in-flight work is reissued by
-the existing restore API. The scope is finite capability completion, not
-one-per-mille convergence or isolated performance certification. No generation,
+the existing restore API. The trial sought finite capability completion, not
+one-per-mille convergence or isolated performance certification. User-directed
+cancellation after 4,001,792 accepted points supersedes that planned allocation;
+the saved result is explicitly incomplete. No generation,
 reduced coverage, precision-rule change or automatic retry is authorized by
 this protocol. Actual timing overlap is recorded, and concurrent processes
 must respect the native Symbolica license/thread admission.

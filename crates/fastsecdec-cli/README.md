@@ -114,6 +114,21 @@ not establish completion of every full graph or matched performance. Saved
 conditioning rows retain their existing numeric meaning; the fresh result's
 descriptive conditioning basis is not inferred from a loaded artifact.
 
+The on-shell triple-box card selects `native_named` together with
+`SingleUnitTerm { max_states: 32 }`. This preserves its original graph,
+kinematics and normalization while using the validated eight-parameter family:
+
+```sh
+fastsecdec generate examples/runs/triple_box.toml --output output/triple_box.fsd.json
+```
+
+This case has completed generation of all 1,026 sector kernels through epsilon
+order zero and separate-process artifact loading. Keep the artifact for later
+integration. Full numerical agreement, convergence and benchmarking of this
+case are deferred; successful generation does not establish those results.
+The [retained generation evidence](../../docs/reviews/native-named-fullgraph-results.md)
+records the completed stages and partial numerical attempts.
+
 `generate` and `run` accept `--geometry-workers N` (default `1`). Values above
 one use a CLI-owned pool for native chart and cone geometry jobs; symbolic
 mapping, subtraction and Laurent expansion keep their existing execution path.

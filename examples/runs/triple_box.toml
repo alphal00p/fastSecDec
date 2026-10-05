@@ -26,3 +26,10 @@ measure_multiplier = "1"
 [generation]
 order = 0
 assume_no_threshold = false
+
+# Native exact family preparation and coefficient-first expansion for this case.
+[generation.coefficient_expansion]
+method = "native_named"
+
+[generation.family_preparation.SingleUnitTerm]
+max_states = 32

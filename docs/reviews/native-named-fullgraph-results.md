@@ -1,8 +1,12 @@
 # Native original on-shell fullgraph attempts
 
 The complete original on-shell fullgraph artifact and fresh-process inspection
-are now independently accepted. The bounded numerical stage remains incomplete,
-with no full-integral estimate. The public captured representative is separately accepted; its
+are independently accepted. The user now accepts generation as sufficient for
+this case and has deferred its full numerical integration, accuracy and
+performance campaign in favor of simpler, faster cases. The latest numerical
+continuation is cleanly cancelled and preserves a qualified partial estimate,
+covariance and checkpoint; it does not establish complete integral acceptance.
+The public captured representative is separately accepted; its
 scope is recorded separately in
 [native-named-public-actual-results.md](native-named-public-actual-results.md).
 
@@ -188,5 +192,46 @@ test expectation: native failure diagnostics count the attempted failed
 callback as well as the two successful callbacks. After correcting that
 expectation, all 20 driver controls pass; the production queue is unchanged.
 The old abort and 19-pass/one-failure records remain preserved. The next
-continuation is prepared with a finite 7,200-second whole-process bound plus
-five seconds of grace; publication of a new integral result remains pending.
+continuation uses a finite 7,200-second whole-process bound plus five seconds of
+grace; its subsequent user-directed stop is recorded below.
+
+## Refill continuation stopped at the user's scope change
+
+`output/diagnostics/native-named-fullgraph-resume-2` reuses the original artifact
+and the 397,312-point checkpoint. The accepted refill scheduler is committed at
+`8ecc406`; all 172 compiled source bindings match that revision, and the eight
+native/library artifacts remain byte-identical. The release binary SHA-256 is
+`b772570e0f5d7230182042839a9b7f8b21a8f3f26e66d551e63613451e99b644`.
+Its actual checkpoint admission succeeds. The fixed allocation, native replay
+policy and eight-worker/30-GiB bounds are unchanged.
+
+The user subsequently requests that on-shell generation be treated as sufficient
+for now and that work move to simpler, faster cases. A verified process group
+receives SIGINT at **3,278.040199 seconds**. It stops cooperatively about
+3.771 seconds later, saves its checkpoint and qualified result, and exits 0.
+Whole-process time is **3,281.811080 seconds**, including **131.932344 seconds**
+of reported cold loading. Peak RSS is **11,049,060 KiB**. There is no deadline
+timeout, forced termination or core dump; the timer's subsequent group-cleanup
+signal does not change that attribution. All three recorded PIDs and both
+groups are absent, and all 19 immutable bindings pass after reaping.
+
+Accepted coverage is **4,001,792 of 8,404,992 points**, with zero sectors at the
+full eight-shift allocation. Diagnostics retain **4,005,705 attempted
+callbacks**, including 3,913 attempts from cancelled unfinished packages;
+those prefixes do not advance accepted QMC or replay state. There are
+**2,445,699 rescues**, maximum 640-bit precision and **zero numerical failures**.
+The retained seven-order estimate and 7-by-7 covariance cover the complete
+integral using the common completed-replica prefix, but have
+`production_complete=false`, `converged=false` and `stopping_reason=cancelled`.
+They must not be represented as a completed allocation or accuracy certificate.
+
+The final checkpoint SHA-256 is
+`8762b789b76e030005ac13f7dbc113b1ad1e52f963ab4db75616f20c8afe74fe`;
+the cancelled saved-result SHA-256 is
+`c56f89fc208ea5350ddae1d9afc4802465d126eec5327ef7e12296326e323fc0`.
+One passive interval measured 676.75 process CPU-seconds over 85.227782 seconds,
+averaging 7.940486 busy cores. This is direct process accounting including
+in-flight work, not an inference from accepted worker times or a matched
+performance result. Authorized reference runs overlap on CPU 8 and are recorded
+separately. No on-shell numerical restart, accuracy campaign or benchmark is
+scheduled under the revised scope.

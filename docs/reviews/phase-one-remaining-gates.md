@@ -9,6 +9,17 @@ formatting and all-target Clippy passing. See the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
 
+**Latest user scope decision:** Successful generation of the original on-shell
+triple box is sufficient for phase A. Its full artifact and cold-load checks
+pass; further full-integral numerical agreement, convergence and performance
+work on that case are deferred. Preserve partial attempts without treating them
+as complete numerical results. The previous on-shell gates below remain a
+historical record, superseded by this decision and the corresponding amendment
+in `FIRST_PHASE_PLAN.md`. Remaining work concentrates on the faster existing
+representatives. The user has supplied an authorized license; a new eight-worker
+Pathfinder capability check will determine whether the previous license obstacle
+is resolved, without rewriting the retained failed measurements.
+
 The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 101 Covered,
 81 Retired, zero Partial and zero Pending**. The double-box row
 `test_integrals.py:6113` is closed by its actual endpoint-formula identities,
@@ -30,7 +41,7 @@ additional input coverage, not proof of numerical completion.
 | Content identity and CLI presentation | [Sector content identities](sector-content-identity.md), structured errors/status, and [actual Linux PTY controls](terminal-policy-results.md) cover cancellation, resize, cleanup and color policy. Identities bind native IR/layout/policy, not general CAS equivalence. Other platform/terminal evidence remains separate. |
 | Numerica QMC Rust 1.89 compatibility | [Exact MSRV checks](numerica-qmc-upstream-readiness.md) pass 237 default, 240 serde and 217 alternative-backend tests on Linux with unchanged sources. The caller-owned QMC branch is published as [upstream PR 8](https://github.com/symbolica-dev/numerica/pull/8). Recorded review/CLA disposition is an upstream follow-up, not an unimplemented QMC or MSRV capability. Other platforms remain unqualified. |
 
-## Next end-to-end capability gates
+## Previous on-shell gates and retained evidence
 
 1. **Public representative prerequisite is now accepted.** The real `UnitCube`
    input passes exact native regular/density identity, ordinary `NativeNamed`
@@ -171,7 +182,7 @@ infeasible pySecDec results are not an additional completion requirement.
 
 | Minimum remaining decision | Evidence to reuse and bounded next action |
 | --- | --- |
-| Original on-shell integral capability and agreement | The committed persistence fix saves all 1,026 sectors/orders and passes separate-process inspection. The subsequent 180-second numerical allocation times out with zero evaluation failures and a checkpoint containing 36,864 accepted evaluations; its later status shows 38,912, which must not replace the saved state. Reuse the artifact and actual checkpoint for bounded numerical continuation based on measured costs. Infeasible pySecDec/FORM routes are closed. Pathfinder's existing direct native fallback route remains the comparator, using the retained 137 completed formula-cache entries; its user-pause cancellation remains distinct from a timeout. Preserve original graph, on-shell point, raised-power measure and Gamma factor in all comparisons. |
+| Original on-shell integral | Generation, publication of all 1,026 sectors/orders and separate-process inspection pass. The user accepts this capability for phase A and defers further numerical/reference/performance work. Retain actual checkpoints and interrupted observations as partial evidence; do not claim full-integral agreement or convergence. Deliver the validated generation steering without repeating the expensive run. |
 | Scientific uncertainty checks for the representative set | Reuse the [72 holdout rows](convergence-stage-a-independent.md): six families, three independent seeds, two work levels and two rules, all complete and no recorded comparison beyond the frozen investigation threshold. Do not repeat that matrix or automatically launch its earlier proposed larger matrix. Reuse the double-box [64-shift observation](direct-generation-performance.md) and [all-five-order checked comparison](remaining-reference-attempts.md), whose largest absolute pull is 1.26516. Off-shell scalar/rank-two, Issue 1 and hard-reference transports already close their documented normalization and value-comparison claims. Add bounded independent-seed/work checks only where these records leave a concrete representative uncertainty or accuracy question unresolved; retain every result and the original investigation criterion. |
 | Highest-order accuracy and representative performance parity | Keep the original small one-loop, double-box, numerator-heavy and hard-four-loop representative set. Use the required matched seven ordinary/three expensive paired observations to close missing parity claims, with accuracy and full-vector checks in the same records wherever possible. Existing [seven-pair one-loop measurements](first-paired-performance-independent.md) remain valid for their recorded boundaries; different precision/persistence policies prevent relabelling them as final matched acceptance. Reuse their attribution rather than repeat exploratory profiling. Stop each case once the agreed criterion passes. |
 | Eight-core target and latency reporting | Reuse the [fourteen native eight-core rows](eight-core-native-results.md) for their actual finite-part target crossings, and the accepted [individual-sample diagnostic](native-sample-latency-results.md) for its distinct timer boundary. Neither needs a new diagnostic merely for documentation. The reference eight-worker instance-limit failure still prevents a paired eight-core claim; repeating the same rejected configuration or extrapolating fewer workers would not close it. Record the remaining measured target/worker gaps explicitly and resolve only those needed by the plan. |

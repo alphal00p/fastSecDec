@@ -5,6 +5,14 @@ acceptance. The convergence target is the **largest signed requested epsilon
 power**: epsilon zero in the small cases below and epsilon two for Issue 1.
 Reported relative standard error is not a certified bound on true error.
 
+The latest user instruction accepts successful on-shell triple-box generation
+as sufficient for phase A and redirects work to simpler, faster-to-generate
+integrals. Generation, artifact publication and cold loading for that graph
+are complete. Its numerical/reference attempts remain partial, with no claim
+of full-integral agreement or convergence; further work on those is deferred.
+The user supplied an authorized Symbolica license for subsequent runs, so the
+previous eight-worker Pathfinder limitation is being rechecked.
+
 ## Plan coverage
 
 Implemented and audited: Rust-only HEPKit/FeynKit/Linnet input, graph and
@@ -212,9 +220,11 @@ These focused gates initially followed the 330-test baseline and are now also
 included in the preceding 336-test and current 370-test workspace gates.
 No generation speedup is claimed.
 
-Still open: complete original on-shell triple-box generation and full-vector
-validation; the remaining representative accuracy and matched-performance checks;
-and final delivery review. The [bounded completion ledger](phase-one-remaining-gates.md)
+Still open: the remaining representative accuracy and matched-performance checks,
+and final delivery review. The original on-shell triple-box generation,
+artifact publication and cold loading pass; the user's latest scope decision
+defers its remaining numerical and reference work beyond phase-A acceptance.
+The [bounded completion ledger](phase-one-remaining-gates.md)
 identifies existing uncertainty evidence to reuse and avoids additional open-ended
 calibration studies. Unavailable platforms remain explicitly unverified.
 Cache adoption and the identified CLI color/terminal gaps are
