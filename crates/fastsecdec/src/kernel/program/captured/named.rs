@@ -82,6 +82,16 @@ fn check_program(
 #[test]
 #[ignore = "bounded named-coefficient writer; run as a separate process before cold reader"]
 fn write_named_coefficient_programs() {
+    write_programs(false);
+}
+
+#[test]
+#[ignore = "bounded interleaved-face writer; separate process before cold reader"]
+fn write_interleaved_coefficient_programs() {
+    write_programs(true);
+}
+
+fn write_programs(interleaved: bool) {
     let output = std::env::var("FASTSECDEC_NAMED_PROGRAM_OUTPUT").unwrap();
     let path = Path::new(&output);
     fs::create_dir(path).expect("new writer output");
@@ -111,13 +121,39 @@ fn write_named_coefficient_programs() {
             subtraction: strategy,
             ..GenerationOptions::default()
         };
-        let (named, statistics) = crate::generation::captured_named_coefficients(
-            terms.clone(),
-            &parameters,
-            eps,
-            &options,
-        )
+        let (named, statistics) = if interleaved {
+            crate::generation::captured_named_coefficients_with_faces(
+                terms.clone(),
+                &parameters,
+                eps,
+                &options,
+                true,
+            )
+        } else {
+            crate::generation::captured_named_coefficients(
+                terms.clone(),
+                &parameters,
+                eps,
+                &options,
+            )
+        }
         .unwrap();
+        assert_eq!(
+            statistics["resolution"],
+            if interleaved {
+                "interleaved_faces"
+            } else {
+                "original"
+            }
+        );
+        if interleaved {
+            assert!(
+                statistics["statistics"]["interleaved_requests"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+        }
         let (density, _, rows) =
             crate::generation::captured_subtraction(terms.clone(), &parameters, eps, &options)
                 .unwrap();
@@ -204,7 +240,7 @@ fn write_named_coefficient_programs() {
                 "baseline_precision_bits":[512,1024],"baseline_precision_agreement":true,
                 "exact_reference":values.iter().map(|v| serde_json::json!({"real":v.re.to_string(),"imag":v.im.to_string()})).collect::<Vec<_>>()})
         }).collect::<Vec<_>>();
-        let mut record = serde_json::json!({"strategy":label,"orders":orders,"cancellation":rows,"points":references,
+        let mut record = serde_json::json!({"strategy":label,"resolution":statistics["resolution"],"orders":orders,"cancellation":rows,"points":references,
             "program_file":file,"program_blake3":blake3::hash(&encoded).to_hex().to_string(),"native_ir_bytes":encoded.len(),"statistics":statistics});
         record["native_build_encode_baseline_reference_seconds"] =
             program_started.elapsed().as_secs_f64().into();
@@ -261,6 +297,10 @@ fn read_named_coefficient_programs() {
     let mut records = Vec::new();
     for record in writer["records"].as_array().unwrap() {
         assert_eq!(record["orders"], serde_json::json!([-3, -2, -1, 0]));
+        assert!(matches!(
+            record["resolution"].as_str(),
+            Some("original" | "interleaved_faces")
+        ));
         let bytes = fs::read(source.join(record["program_file"].as_str().unwrap())).unwrap();
         assert_eq!(
             blake3::hash(&bytes).to_hex().as_str(),
@@ -286,7 +326,7 @@ fn read_named_coefficient_programs() {
             true,
         )
         .unwrap();
-        records.push(serde_json::json!({"strategy":record["strategy"],"checks":check_program(&exact,&mut kernel,record)}));
+        records.push(serde_json::json!({"strategy":record["strategy"],"resolution":record["resolution"],"checks":check_program(&exact,&mut kernel,record)}));
     }
     fs::write(output.join("reader.json"),serde_json::to_vec_pretty(&serde_json::json!({"complete":true,"records":records,
         "scope":"fresh process; only native exact IR and source-bound expected values, no formal registry or callbacks"})).unwrap()).unwrap();

@@ -17,31 +17,38 @@ fn compare(
     options: GenerationOptions,
 ) -> (BTreeMap<i32, Atom>, Vec<Attempt>) {
     let (actual, attempts) = expand(&terms, parameters, regulator, &options).unwrap();
-    let (named, named_attempts, statistics) =
-        named::expand_named(&terms, parameters, regulator, &options).unwrap();
-    for order in actual
-        .keys()
-        .chain(named.keys())
-        .copied()
-        .collect::<std::collections::BTreeSet<_>>()
-    {
-        let difference = actual.get(&order).cloned().unwrap_or(Atom::Zero)
-            - named
-                .get(&order)
-                .cloned()
-                .map(|a| a.into_inner())
-                .unwrap_or(Atom::Zero);
-        assert!(
-            difference.as_view().get_byte_size() < 128_000,
-            "bounded complete-vector named control"
-        );
-        assert!(
-            difference.together().expand().is_zero(),
-            "named coefficient order {order}: {difference}"
-        );
+    for resolution in [
+        named::Resolution::Original,
+        named::Resolution::InterleavedFaces,
+    ] {
+        let (named, named_attempts, statistics) = named::expand_named_with_resolution(
+            &terms, parameters, regulator, &options, resolution,
+        )
+        .unwrap();
+        for order in actual
+            .keys()
+            .chain(named.keys())
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>()
+        {
+            let difference = actual.get(&order).cloned().unwrap_or(Atom::Zero)
+                - named
+                    .get(&order)
+                    .cloned()
+                    .map(|a| a.into_inner())
+                    .unwrap_or(Atom::Zero);
+            assert!(
+                difference.as_view().get_byte_size() < 128_000,
+                "bounded complete-vector named control"
+            );
+            assert!(
+                difference.together().expand().is_zero(),
+                "named coefficient order {order}: {difference}"
+            );
+        }
+        assert!(!named_attempts.is_empty());
+        eprintln!("named native composition: {statistics:?}; attempts: {named_attempts:?}");
     }
-    assert!(!named_attempts.is_empty());
-    eprintln!("named native composition: {statistics:?}; attempts: {named_attempts:?}");
     let (density, _, _) =
         crate::generation::subtraction::subtract(terms, parameters, regulator, &options).unwrap();
     let expected = laurent::expand(
@@ -103,6 +110,12 @@ fn native_series_first_complete_vectors_match_both_subtraction_strategies() {
                 parse!("1/(1+series_first_control::x+series_first_control::y)"),
                 vec![Atom::num(-2) + &e, Atom::num(-1) + 2 * &e],
                 0,
+            ),
+            (
+                parse!("gamma(2*series_first_control::eps)"),
+                parse!("1/(1+series_first_control::x+series_first_control::y)"),
+                vec![Atom::num(-2) + &e, Atom::num(-1) + 2 * &e],
+                -1,
             ),
             (
                 parse!("series_first_control::eps*gamma(series_first_control::eps)"),

@@ -752,3 +752,28 @@ do not establish the larger input. The next diagnostic instruments existing
 native operation boundaries only, preserving the unchanged Series, derivative,
 face and alias owners; no replacement algebra or production strategy follows
 from the timeout.
+
+The [passive attribution audit](reviews/native-named-phase-attribution-independent.md)
+now closes that diagnostic: unchanged native composition reaches remainder one
+at 19.57 seconds, while later derivative-request lowering creates a 367 MB
+partial whose face substitution takes 62.34 seconds. The traced run still
+times out at 180.11 seconds without complete roots or an evaluator. All 103
+frozen hashes pass. These instrumented operation durations identify a target;
+they do not establish an optimized runtime or justify changing Series algebra.
+
+The [interleaved-face review](reviews/native-interleaved-face-independent.md)
+accepts the small test-only resolver and program controls. Symbolica still owns
+derivatives, literal substitutions, Laurent bounds, aliases, exact IR, O2 and
+MPFR. The candidate changes only their schedule for own-coordinate/exact-zero/
+exact-one requests on regular coefficient bodies admitting those faces. It
+does not define singular limits; composed and other arguments retain the
+original route. Face-dependent bodies enter only the full-request cache, never
+the unsubstituted derivative cache. Ten exact controls pass, followed by 96
+complete-vector weighted calls and 768 component checks across native fresh,
+cloned, decoded and cold evaluators. All source and writer-input hashes pass.
+Original resolution remains the default and no production route changes. The
+single captured representative now completes bounded generation in 54.88
+seconds with all seven orders from −6 through zero and 2,523 native alias bodies.
+All 101 input hashes pass independent postflight. This closes only that
+generation diagnostic: its native evaluator and independent original-expression
+full-order oracle agreement remain open, as does whole-graph completion.

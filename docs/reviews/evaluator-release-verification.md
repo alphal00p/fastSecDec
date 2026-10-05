@@ -58,3 +58,13 @@ documented local corrections, including the subsequently confirmed
 [literal series-variable fix](../dependency-patches/symbolica-literal-series-variable.md).
 Earlier measurements retain their original dependency state and are not
 retroactively labelled as using this fourth correction.
+
+## Recheck before the restricted face-resolution evaluator experiment
+
+On 2026-10-05 at approximately 05:23 UTC, the published latest-documentation
+pages still report [Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest) and
+[SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). This supplementary check
+agrees with the earlier registry observations; no release change is required.
+The current native build includes the fifth independently documented correction
+for decoded evaluator-instruction validation. Frozen older measurements retain
+their original dependency identities.

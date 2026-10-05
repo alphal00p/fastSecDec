@@ -15,11 +15,13 @@ checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
 extension is published as PR 8. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **330 tests**, with twenty-two explicit
-probes ignored (`output/dispatch-named-rank2-workspace-tests.log`, 59 summaries,
-zero failures). This includes cache/context dispatch, parallel-geometry,
-sector-identity, small named-coefficient and rank-two reference controls.
-Formatting and all-target Clippy pass; the latter finishes in 3.14 seconds.
+The latest complete workspace gate passes **336 tests**, with twenty-three
+explicit probes ignored (`output/interleaved-workspace-tests.log`, 60 summaries,
+zero failures). This includes cache/context dispatch, parallel geometry and its
+CLI, sector identity, small named/interleaved controls and rank-two reference
+transport. Formatting and all-target Clippy pass; the latter finishes in
+4.00 seconds after correcting an unused test-only forwarding call. The initial
+lint failure is retained. Production generation remains unchanged.
 The separate ignored small named-program writer/reader were explicitly executed
 and independently reviewed before this gate. The earlier
 alias milestone passed 294 tests; its timing observations keep their own source
@@ -58,8 +60,8 @@ ignored), formatting and CLI all-target Clippy. `generate` and `run` accept
 `--geometry-workers`, defaulting to one independently of integration workers.
 Real PTYs exercise parallel geometry resize/cancellation and colored/monochrome
 completion, with terminal restoration and no artifact after cancellation.
-These focused gates follow the 330-test workspace baseline above; no new full
-workspace count or generation speedup is claimed.
+These focused gates initially followed the 330-test baseline and are now also
+included in the 336-test workspace gate above. No generation speedup is claimed.
 
 Still open: complete original on-shell triple-box generation and full-vector
 validation; the independent hard-orthant reference;
@@ -89,6 +91,22 @@ component checks), with independent unchanged-subtraction references stable at
 512/1024 bits. Its first actual difficult-representative composition attempt
 times out at 180.116 seconds without coefficients; this remains an open gate.
 This test-only strategy is not the production default.
+
+A subsequent diagnostic identifies the expensive stage: native composition
+reaches its required remainder in about 19.6 seconds, then mixed derivatives
+grow to hundreds of megabytes before boundary substitution. The unchanged
+180-second limit again expires without a coefficient vector. A test-only
+resolver now applies each admitted constant face after its own required native
+derivatives, with the original route retained for general arguments. Ten small
+controls pass in 0.192 seconds, including exact mixed derivatives, fallback and
+cache isolation, complete Taylor/IBP vectors and unsupported cases. Its native
+program controls also pass all 96 weighted-vector calls and 768 component
+checks across fresh, cloned, decoded and cold-reader kernels, with precision
+rescue up to 320 bits. The captured actual representative then generates in
+54.875504 seconds under the same 180-second limit, retaining all formal orders
+minus six through zero and native remainder one. Its evaluator and independent
+original-expression comparisons remain pending; no production strategy or
+whole-graph performance claim changes.
 
 ## Small-case generation and eight-core accuracy
 
@@ -216,10 +234,59 @@ terms directly, without replaying the giant physical Taylor subtraction.
 Its independently reviewed, frozen generation-only process times out after
 180.116318 seconds, with peak RSS 1,831,116 KiB and no generated coefficient
 files, final native remainder, evaluator or numerical result. All 89 immutable
-hash checks pass and the child is reaped. The last recorded stage is native
-named Taylor composition; there is no finer executed timing that identifies its
-internal bottleneck. Program/oracle stages do not start after this failure.
+hash checks pass and the child is reaped. The last recorded stage in this
+uninstrumented attempt is native named Taylor composition. Program/oracle stages
+do not start after this failure.
 The small controls remain valid, but they do not establish feasibility on the
 actual representative. See the [actual-target protocol and outcome](native-named-actual-proposal.md).
 Guarded reference compilation overlaps on other CPUs, so this is a bounded
 capability diagnostic, not a matched generation benchmark.
+
+The separately frozen instrumented attempt also times out, after 180.111590
+seconds, with peak RSS 1,736,912 KiB and all 103 input checks passing. Native
+composition reaches absolute remainder one at width seven by 19.567 seconds;
+lowering starts at 19.735 seconds. Completed native face substitutions occupy
+142.895 seconds, including one 62.343-second substitution on a 367 MB mixed
+partial that becomes only 33 KB after substitution. These are inclusive traced
+intervals, not a disjoint CPU budget or a benchmark. No complete vector,
+evaluator or original-expression oracle result exists. The
+[phase attribution](native-named-phase-attribution.md) and
+[independent audit](native-named-phase-attribution-independent.md) motivate the
+[restricted native resolver experiment](native-interleaved-face-proposal.md).
+
+That restricted candidate subsequently completes the same captured
+representative in **54.875504 seconds**, with peak RSS **980,816 KiB**. All 101
+frozen source/input checks pass; the successful child is reaped. It exports
+formal orders `[-6,-5,-4,-3,-2,-1,0]`, 2,523 aliases, about 6.98 MB of roots and
+89.62 MB of unique bodies, with native absolute remainder one at relative width
+seven. These formal lower orders still require independent comparison against
+zero where absent from the original oracle. Multiplicity four is not applied.
+The original resolver remains the default. This closes one bounded generation
+experiment, not numerical correctness, complete on-shell generation or a matched
+speedup. See the [candidate results](native-interleaved-face-results.md) and
+[independent review](native-interleaved-face-independent.md).
+
+### Hard four-loop independent reference
+
+The external reference generated all 2,676 ordinary sectors in 243.998 seconds
+and compiled its complete library in 843.013 seconds. Its numerical phase then
+timed out after 750.953 seconds, after beginning the finite coefficient but
+before returning the complete raw tuple. These external pySecDec timings are
+not Pathfinder direct-kernel performance measurements. The failed attempt
+remains unaccepted; partial coefficient observations are not pooled or promoted.
+
+An independently reviewed fresh numerical-only attempt reuses the exact
+compiled package, with the same caller, seed, full-sector sum, lattice and
+transform. It returns the complete physical tuple within its predeclared
+1,200-second limit, without regeneration or recompilation. All four external
+orders, including minus three, are retained; final transport/audit is pending.
+See the [continuation protocol](hard-four-loop-numeric-continuation.md).
+
+The old native result begins at order minus two and remains unchanged, including
+its full covariance. A separate native generation requested through minus three
+now proves exact zero there, with no numerical kernels, all 2,760 charts and
+699 representatives accounted for, and matching portable geometry. Its process
+takes 67.388 seconds, including 64.698 seconds for this lower-order generation;
+this is not a new finite-part performance measurement. The original comparison
+still explicitly reports the missing estimate; the symbolic zero proof is
+separate evidence. See the [omitted-order audit](hard-four-loop-lower-order-scope.md).

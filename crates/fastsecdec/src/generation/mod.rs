@@ -404,6 +404,17 @@ pub(crate) fn captured_named_coefficients(
     regulator: symbolica::atom::Symbol,
     options: &GenerationOptions,
 ) -> Result<CapturedNamedCoefficients, GenerationError> {
+    captured_named_coefficients_with_faces(terms, parameters, regulator, options, false)
+}
+
+#[cfg(test)]
+pub(crate) fn captured_named_coefficients_with_faces(
+    terms: Vec<(Atom, Atom, Vec<Atom>)>,
+    parameters: &[symbolica::atom::Symbol],
+    regulator: symbolica::atom::Symbol,
+    options: &GenerationOptions,
+    interleaved: bool,
+) -> Result<CapturedNamedCoefficients, GenerationError> {
     let terms = terms
         .into_iter()
         .map(|(prefactor, regular, powers)| mapping::MappedTerm {
@@ -412,9 +423,17 @@ pub(crate) fn captured_named_coefficients(
             powers,
         })
         .collect::<Vec<_>>();
-    // series_first reexports its existing test-only named::expand_named.
-    let (coefficients, attempts, statistics) =
-        subtraction::series_first::expand_named(&terms, parameters, regulator, options)?;
+    let (coefficients, attempts, statistics) = if interleaved {
+        subtraction::series_first::expand_named_with_resolution(
+            &terms,
+            parameters,
+            regulator,
+            options,
+            subtraction::series_first::Resolution::InterleavedFaces,
+        )?
+    } else {
+        subtraction::series_first::expand_named(&terms, parameters, regulator, options)?
+    };
     let attempts = attempts
         .into_iter()
         .map(|attempt| {
@@ -426,6 +445,6 @@ pub(crate) fn captured_named_coefficients(
         .collect::<Vec<_>>();
     Ok((
         coefficients,
-        serde_json::json!({"coefficient_representation":"native_named", "attempts":attempts,"statistics":statistics}),
+        serde_json::json!({"coefficient_representation":"native_named", "resolution":if interleaved {"interleaved_faces"} else {"original"}, "attempts":attempts,"statistics":statistics}),
     ))
 }

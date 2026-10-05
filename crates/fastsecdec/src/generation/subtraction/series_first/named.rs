@@ -1,5 +1,6 @@
 //! Test-only names for native regular-series coefficients. Symbolica owns
 //! derivatives, face substitutions, series arithmetic and alias definitions.
+mod interleaved;
 mod tests;
 
 use super::*;
@@ -26,11 +27,20 @@ struct State {
     bodies: BTreeMap<Symbol, Body>,
     partials: BTreeMap<(Symbol, Vec<usize>), Atom>,
     faces: BTreeMap<Request, Atom>,
+    interleaved_requests: usize,
+    original_requests: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Resolution {
+    Original,
+    InterleavedFaces,
 }
 
 pub(super) struct Coefficients {
     parameters: Vec<Symbol>,
     regulator: Symbol,
+    resolution: Resolution,
     state: RefCell<State>,
 }
 
@@ -43,12 +53,23 @@ pub(crate) struct Statistics {
     pub root_bytes: usize,
     pub definition_bytes: usize,
     pub resolution_seconds: f64,
+    pub interleaved_requests: usize,
+    pub original_requests: usize,
 }
 
 type NamedExpansion = (BTreeMap<i32, AliasedAtom>, Vec<Attempt>, Statistics);
 
 impl Coefficients {
     fn new(terms: &[MappedTerm], parameters: &[Symbol], regulator: Symbol) -> Self {
+        Self::with_resolution(terms, parameters, regulator, Resolution::Original)
+    }
+
+    fn with_resolution(
+        terms: &[MappedTerm],
+        parameters: &[Symbol],
+        regulator: Symbol,
+        resolution: Resolution,
+    ) -> Self {
         let mut occupied = parameters.iter().copied().collect::<BTreeSet<_>>();
         occupied.insert(regulator);
         for term in terms {
@@ -62,6 +83,7 @@ impl Coefficients {
         Self {
             parameters: parameters.to_vec(),
             regulator,
+            resolution,
             state: RefCell::new(State {
                 occupied,
                 ..State::default()
@@ -179,6 +201,16 @@ impl Coefficients {
         }
         let (source, depths, arguments) = &request;
         let body = state.bodies[source].clone();
+        if self.resolution == Resolution::InterleavedFaces
+            && let Some(value) = interleaved::resolve(&body, depths, arguments)
+        {
+            // This value depends on faces and must never enter the
+            // unsubstituted (source, depths) partial cache below.
+            state.interleaved_requests += 1;
+            state.faces.insert(request, value.clone());
+            return value;
+        }
+        state.original_requests += 1;
         let partial = state
             .partials
             .entry((*source, depths.clone()))
@@ -290,6 +322,8 @@ impl Coefficients {
             root_bytes: roots.values().map(|a| a.as_view().get_byte_size()).sum(),
             definition_bytes: aliases.values().map(|a| a.as_view().get_byte_size()).sum(),
             resolution_seconds: started.elapsed().as_secs_f64(),
+            interleaved_requests: state.interleaved_requests,
+            original_requests: state.original_requests,
         };
         let coefficients = roots
             .into_iter()
@@ -311,7 +345,17 @@ pub(crate) fn expand_named(
     regulator: Symbol,
     options: &GenerationOptions,
 ) -> Result<NamedExpansion, GenerationError> {
-    let names = Coefficients::new(terms, parameters, regulator);
+    expand_named_with_resolution(terms, parameters, regulator, options, Resolution::Original)
+}
+
+pub(crate) fn expand_named_with_resolution(
+    terms: &[MappedTerm],
+    parameters: &[Symbol],
+    regulator: Symbol,
+    options: &GenerationOptions,
+    resolution: Resolution,
+) -> Result<NamedExpansion, GenerationError> {
+    let names = Coefficients::with_resolution(terms, parameters, regulator, resolution);
     let (coefficients, attempts) =
         expand_with_names(terms, parameters, regulator, options, Some(&names))?;
     let (coefficients, statistics) = names.finish(coefficients);
