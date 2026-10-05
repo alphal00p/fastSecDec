@@ -52,6 +52,21 @@ The original working trees remain unchanged. The root Cargo patches select one
 Symbolica/Graphica/Numerica identity across every consumer. Do not use the local
 SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
 
+The gg→HH development example additionally uses the shared external-state API
+published in GammaLoop `feynkit` commit
+`6c707c6b77a437256eb1180da13d4d327b371d13`. Its `feynkit-kinematics` files are
+backported into the earlier local FastSecDec worktree; the unrelated renderer
+edits there remain excluded from publication. The isolated latest-branch
+publication and HEPKit PR are recorded in the
+[shared-wavefunction review](reviews/shared-external-wavefunctions.md).
+
+Browser evaluator construction also needs the additive native
+[`try_map_coeff_with_prec` patch](dependency-patches/symbolica-fallible-coefficient-map.md).
+Its ten focused controls pass. It preserves existing mapping behavior and adds
+typed error propagation for unsupported constants/callbacks, without a second
+evaluator or arithmetic implementation. The portable FastSecDec feature using
+it is a separate implementation and validation milestone.
+
 The latest-release check and exact source ancestry are recorded in the
 [evaluator version review](reviews/evaluator-release-verification.md). The
 development-only OneLOop worktree has an additional two-line compatibility patch

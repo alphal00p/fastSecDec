@@ -1011,10 +1011,24 @@ failed export/import attempts remain
 under `output/diagnostics/gghh-native-*`; the checked-in fixture is the corrected
 third export, not either earlier failed numeric transport.
 
-GammaLoop's existing numerical external states are being extracted into shared
+GammaLoop's existing numerical external states have been extracted into shared
 FeynKit kinematics, covering scalars, massive/massless vectors and spinors with
 their existing adjoints and phases. Six focused native controls pass against the
-current FastSecDec dependency identity. Publishing this extraction additionally
-requires the latest upstream branch's GammaLoop/Python build, installed binding
-checks and generated stubs; those are in progress. The Python API stays in the
-HEPKit ecosystem, with no Python dependency in FastSecDec's production crates.
+current FastSecDec dependency identity. The latest upstream branch additionally
+passes six native controls, five existing GammaLoop regressions, the installed
+binding check and generated stub export. The tested extraction is published as
+GammaLoop `6c707c6b7`; [HEPKit PR #17](https://github.com/symbolica-dev/symbolica-community/pull/17)
+is draft while its complete community wheel checks run. The
+[shared-wavefunction review](reviews/shared-external-wavefunctions.md) records
+source ownership and validation. The Python API stays in the HEPKit ecosystem,
+with no Python dependency in FastSecDec's production crates.
+
+The [portable evaluator proposal](reviews/portable-kernel-feature-split.md)
+identified one narrow native admission gap: Symbolica's interpreted coefficient
+mapping could panic for unsupported fixed constants or callbacks, while its JIT
+constructor already handled those cases fallibly. The additive
+[`try_map_coeff_with_prec` patch](dependency-patches/symbolica-fallible-coefficient-map.md)
+reuses the same constant and callback owners and preserves existing mapping
+behavior. Ten focused native controls and independent source review pass.
+Actual FastSecDec portable feature, artifact and WASM checks remain separate;
+this API patch does not establish their completion.

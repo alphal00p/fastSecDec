@@ -659,6 +659,17 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: shared numerical external states are published on GammaLoop's
+  `feynkit` branch as `6c707c6b7`, after six native physics controls, five existing
+  GammaLoop regressions, the installed Python host check, stub generation and
+  selected formatting pass. HEPKit PR #17 carries the dependency, generated
+  stubs and user examples; it remains draft until the complete community wheel
+  checks finish. All commits and publishing use ValentinHirschi. A separately
+  reviewed additive Symbolica fallible-mapping API passes ten focused controls
+  and keeps interpreter construction inside the existing native evaluator.
+  The FastSecDec browser feature and gg→HH parametrization fix are still under
+  validation and are not accepted by this dependency milestone.
+
 - 2026-10-05: auxiliary helicity vectors now enter native `IntegralFamily` and
   `Kinematics` through the graph adapter and CLI, retaining canonical tensor
   labels and exact binary numerical values. Independent ecosystem review,
