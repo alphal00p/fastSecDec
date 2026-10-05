@@ -178,3 +178,60 @@ fn nonprojective_admission_keeps_large_powers_factored_with_exact_fallback() {
         }
     }
 }
+
+fn projective_numerator(
+    polynomial: Atom,
+    degree: i64,
+) -> Result<ParametricIntegrand, fastsecdec::parametric::ParametricError> {
+    ParametricIntegrand::new(
+        vec![symbol!("x"), symbol!("y")],
+        symbol!("eps"),
+        ParametricDomain::ProjectiveSimplex,
+        vec![ParametricTerm::new(
+            Atom::one(),
+            vec![Atom::Zero; 2],
+            vec![
+                factor(parse!("x+y"), Atom::num(-2 - degree)),
+                PolynomialFactor::new(polynomial, Atom::one(), FactorRole::Polynomial),
+            ],
+        )],
+    )
+}
+
+#[test]
+fn projective_regular_admission_keeps_large_numerators_factored() {
+    let polynomial = parse!("(x+y)^10000");
+    let integral = projective_numerator(polynomial.clone(), 10000).unwrap();
+    assert_eq!(integral.terms()[0].factors()[1].polynomial(), &polynomial);
+    assert!(projective_numerator(polynomial, 9999).is_err());
+}
+
+#[test]
+fn projective_regular_admission_rejects_hidden_dependence_and_keeps_exact_fallback() {
+    for polynomial in [parse!("x/y"), parse!("sin(x)"), parse!("x+y^2")] {
+        assert!(projective_numerator(polynomial, 0).is_err());
+    }
+    // The scaling conversion retains both formal degrees with exact coefficient
+    // zero tests. Existing sparse support resolves the cancelling degree two.
+    let cancelling = parse!("x^2-y^2-(x-y)*(x+y)+x");
+    let integral = projective_numerator(cancelling.clone(), 1).unwrap();
+    assert_eq!(integral.terms()[0].factors()[1].polynomial(), &cancelling);
+    assert!((cancelling - parse!("x")).expand().is_zero());
+
+    // Native general polynomial recognition can be conservative about scalar
+    // functions; support admission still accepts parameter-independent ones.
+    assert!(projective_numerator(parse!("x*(sin(s)+s)"), 1).is_ok());
+}
+
+#[test]
+fn projective_regular_scaling_does_not_claim_nonzero() {
+    let literal = projective_numerator(Atom::Zero, 0).unwrap();
+    assert!(literal.terms().is_empty());
+    let disguised = parse!("x^2-y^2-(x-y)*(x+y)");
+    assert!(!disguised.is_zero());
+    assert!(disguised.expand().is_zero());
+    // An identically zero regular numerator obeys the scaling identity too.
+    // Admission neither declares it nonzero nor manufactures a zero result.
+    let integral = projective_numerator(disguised.clone(), 2).unwrap();
+    assert_eq!(integral.terms()[0].factors()[1].polynomial(), &disguised);
+}

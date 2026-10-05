@@ -1,0 +1,61 @@
+[package]
+name = "fastsecdec-portable-kernel-validation"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.96"
+publish = false
+
+# Keep native reference-only dev dependencies out of the portable feature graph.
+[workspace]
+resolver = "3"
+
+[features]
+default = ["portable"]
+portable = ["fastsecdec/portable", "symbolica/wasm", "numerica/integer-malachite", "numerica/float-astro"]
+native = ["fastsecdec/native", "symbolica/integer-gmp", "symbolica/float-mpfr", "numerica/integer-gmp", "numerica/float-mpfr"]
+
+[dependencies]
+fastsecdec = { path = "../../crates/fastsecdec", default-features = false }
+symbolica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
+numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+
+[dev-dependencies]
+blake3 = "1.8"
+tempfile = "3"
+
+[patch.crates-io]
+# Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
+symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
+symbolica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
+numerica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }
+graphica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
+
+# Reuse the public scientific controls verbatim. Relative include_bytes! fixture
+# paths and artifact_process's exact child-test name still resolve in their owner.
+[[test]]
+name = "kernel_artifacts"
+path = "../../crates/fastsecdec/tests/kernel_artifacts.rs"
+[[test]]
+name = "artifact_process"
+path = "../../crates/fastsecdec/tests/artifact_process.rs"
+[[test]]
+name = "native_alias_kernels"
+path = "../../crates/fastsecdec/tests/native_alias_kernels.rs"
+[[test]]
+name = "gamma_regulator"
+path = "../../crates/fastsecdec/tests/gamma_regulator.rs"
+[[test]]
+name = "complex_kernel"
+path = "../../crates/fastsecdec/tests/complex_kernel.rs"
+[[test]]
+name = "weighted_replay"
+path = "../../crates/fastsecdec/tests/weighted_replay.rs"
+[[test]]
+name = "runtime_qmc"
+path = "../../crates/fastsecdec/tests/runtime_qmc.rs"
+
+[profile.dev.package.symbolica]
+opt-level = 2
+[profile.dev.package.numerica]
+opt-level = 2

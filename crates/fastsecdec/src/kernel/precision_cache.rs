@@ -1,5 +1,6 @@
 //! Bounded worker-local native evaluator storage. Cache history affects only
 //! allocation and constant conversion, never the chosen precision or result.
+use super::KernelError;
 use symbolica::{
     domains::{
         float::{Complex, Real},
@@ -37,17 +38,21 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
         bits: u32,
         coefficient: impl Fn(&Complex<Rational>) -> T,
         number: impl Fn(f64) -> T,
-    ) -> &[T] {
+    ) -> Result<&[T], KernelError> {
         if let Some(index) = self.entries.iter().position(|entry| entry.bits == bits) {
             let entry = self.entries.remove(index);
             self.entries.push(entry);
         } else {
+            let evaluator = exact
+                .clone()
+                .try_map_coeff_with_prec(&coefficient, bits)
+                .map_err(KernelError::PrecisionEvaluation)?;
             if self.entries.len() == CAPACITY {
                 self.entries.remove(0);
             }
             self.entries.push(Entry {
                 bits,
-                evaluator: exact.clone().map_coeff_with_prec(&coefficient, bits),
+                evaluator,
                 input: vec![number(0.0); exact.get_input_len()],
                 output: vec![number(0.0); exact.get_output_len()],
             });
@@ -57,6 +62,6 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
             *target = number(*value);
         }
         entry.evaluator.evaluate(&entry.input, &mut entry.output);
-        &entry.output
+        Ok(&entry.output)
     }
 }

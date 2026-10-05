@@ -1,5 +1,6 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
 //! Symbolica owns native program decoding and structural validation.
+#[cfg(feature = "native")]
 mod legacy;
 mod native;
 mod sector_identity;
@@ -105,7 +106,12 @@ impl KernelSet {
         }
         let envelope: Envelope = serde_json::from_slice(bytes)?;
         match envelope.payload.version {
+            #[cfg(feature = "native")]
             1 | 2 => legacy::load(bytes),
+            #[cfg(feature = "portable")]
+            1 | 2 => Err(KernelError::Artifact(
+                "legacy native artifacts require the native backend".into(),
+            )),
             3 => native::load(bytes),
             _ => Err(KernelError::Artifact(
                 "unsupported kernel artifact version".into(),

@@ -64,8 +64,18 @@ Browser evaluator construction also needs the additive native
 [`try_map_coeff_with_prec` patch](dependency-patches/symbolica-fallible-coefficient-map.md).
 Its ten focused controls pass. It preserves existing mapping behavior and adds
 typed error propagation for unsupported constants/callbacks, without a second
-evaluator or arithmetic implementation. The portable FastSecDec feature using
-it is a separate implementation and validation milestone.
+evaluator or arithmetic implementation. The
+[portable FastSecDec feature](reviews/portable-kernel-feature-split.md) now passes
+the native/portable host controls and actual-library Emscripten/Node smoke.
+Select exactly one of `native` (default) or `portable`; the latter uses the same
+library APIs with Symbolica's interpreter and Malachite/Astro. Its standalone
+validation consumer excludes native-only one-loop reference dev-dependencies.
+
+Projective admission of large factored regular numerators also uses the additive
+[`to_polynomial_in_vars_with_field` patch](dependency-patches/symbolica-fixed-variable-coefficient-field.md).
+It exposes the existing native conversion's coefficient-field policy, preserving
+the old default while allowing conservative deterministic zero tests. Its three
+native controls and the affected FastSecDec parametrization controls pass.
 
 The latest-release check and exact source ancestry are recorded in the
 [evaluator version review](reviews/evaluator-release-verification.md). The

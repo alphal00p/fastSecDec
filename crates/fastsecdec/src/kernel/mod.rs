@@ -1,8 +1,9 @@
-//! Portable SymJIT O2 vector kernels. Worker ownership is explicit.
+//! Native O2 or portable interpreted vector kernels. Worker ownership is explicit.
 mod artifact;
 mod cancellation;
 mod compilation;
 mod complex;
+mod evaluator;
 mod metadata;
 pub use metadata::PortableMetadata;
 mod precision;
@@ -10,7 +11,7 @@ mod precision_cache;
 mod program;
 mod weighted;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "native"))]
 mod function_map_probe;
 pub use precision::{PrecisionPolicy, PrecisionReport};
 use symbolica::{
@@ -19,7 +20,7 @@ use symbolica::{
         float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
-    evaluate::{ExpressionEvaluator, JITCompiledEvaluator},
+    evaluate::ExpressionEvaluator,
 };
 pub use weighted::{ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationContext};
 
@@ -82,7 +83,7 @@ enum Backend {
 
 struct RealKernel {
     precision_cache: precision_cache::PrecisionCache<Float>,
-    evaluator: JITCompiledEvaluator<f64>,
+    evaluator: evaluator::RealEvaluator,
     exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
     conditioning: ExpressionEvaluator<ErrorPropagatingFloat<f64>>,
     check_input: Vec<ErrorPropagatingFloat<f64>>,

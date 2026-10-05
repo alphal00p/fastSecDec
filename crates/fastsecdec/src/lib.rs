@@ -5,6 +5,11 @@
 
 #![forbid(unsafe_code)]
 
+#[cfg(all(feature = "native", feature = "portable"))]
+compile_error!("select exactly one FastSecDec backend: native or portable");
+#[cfg(not(any(feature = "native", feature = "portable")))]
+compile_error!("select a FastSecDec backend: native (default) or portable");
+
 pub mod diagnostics;
 pub mod error;
 pub mod generation;

@@ -8,7 +8,7 @@ use symbolica::{
 };
 
 /// Boundary rescue thresholds are a policy, not a mathematical error bound.
-/// Rescued vectors must agree at two increasing MPFR precisions before return.
+/// Rescued vectors must agree at two increasing native floating-point precisions before return.
 /// Complex coefficients use their real/imaginary infinity norm as the relative
 /// scale; absolute tolerance still applies to both numerical components.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -68,17 +68,17 @@ pub(super) fn rescue(
 ) -> Result<PrecisionReport, KernelError> {
     converge(point, output, cancellation, policy, 1, |bits| {
         let scale = Float::with_val(bits, weight);
-        cache
+        Ok(cache
             .evaluate(
                 exact,
                 point,
                 bits,
                 |coefficient| coefficient.re.to_multi_prec_float(bits),
                 |value| Float::with_val(bits, value),
-            )
+            )?
             .iter()
             .map(|value| (value.clone() * &scale).to_f64())
-            .collect()
+            .collect())
     })
 }
 
@@ -93,7 +93,7 @@ pub(super) fn rescue_complex(
 ) -> Result<PrecisionReport, KernelError> {
     converge(point, output, cancellation, policy, 2, |bits| {
         let scale = Float::with_val(bits, weight);
-        cache
+        Ok(cache
             .evaluate(
                 exact,
                 point,
@@ -105,7 +105,7 @@ pub(super) fn rescue_complex(
                     )
                 },
                 |value| Complex::new(Float::with_val(bits, value), Float::with_val(bits, 0)),
-            )
+            )?
             .iter()
             .flat_map(|value| {
                 [
@@ -113,7 +113,7 @@ pub(super) fn rescue_complex(
                     (value.im.clone() * &scale).to_f64(),
                 ]
             })
-            .collect()
+            .collect())
     })
 }
 
@@ -125,7 +125,7 @@ fn converge(
     cancellation: &Cancellation,
     policy: &PrecisionPolicy,
     width: usize,
-    mut evaluate: impl FnMut(u32) -> Vec<f64>,
+    mut evaluate: impl FnMut(u32) -> Result<Vec<f64>, KernelError>,
 ) -> Result<PrecisionReport, KernelError> {
     // Taylor differences can lose degree * log2(1/x) bits. Account for this
     // before testing agreement, so two equally rounded zeros are not accepted.
@@ -139,10 +139,10 @@ fn converge(
         });
     }
     let mut bits = initial_tier(required, policy);
-    let mut previous = evaluate(bits);
+    let mut previous = evaluate(bits)?;
     loop {
         bits = bits.saturating_mul(2).min(policy.max_bits);
-        let current = evaluate(bits);
+        let current = evaluate(bits)?;
         if current
             .chunks_exact(width)
             .zip(previous.chunks_exact(width))

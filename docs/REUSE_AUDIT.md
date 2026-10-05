@@ -1018,7 +1018,9 @@ current FastSecDec dependency identity. The latest upstream branch additionally
 passes six native controls, five existing GammaLoop regressions, the installed
 binding check and generated stub export. The tested extraction is published as
 GammaLoop `6c707c6b7`; [HEPKit PR #17](https://github.com/symbolica-dev/symbolica-community/pull/17)
-is draft while its complete community wheel checks run. The
+is ready for review after the complete installed community wheel passes
+fourteen wavefunction cases, the namespace/stub check and eight literal
+documentation examples. Baseline CI/documentation limitations are recorded in the
 [shared-wavefunction review](reviews/shared-external-wavefunctions.md) records
 source ownership and validation. The Python API stays in the HEPKit ecosystem,
 with no Python dependency in FastSecDec's production crates.
@@ -1030,5 +1032,29 @@ constructor already handled those cases fallibly. The additive
 [`try_map_coeff_with_prec` patch](dependency-patches/symbolica-fallible-coefficient-map.md)
 reuses the same constant and callback owners and preserves existing mapping
 behavior. Ten focused native controls and independent source review pass.
-Actual FastSecDec portable feature, artifact and WASM checks remain separate;
-this API patch does not establish their completion.
+The subsequent actual FastSecDec feature passes 52 native and 39 portable host
+tests and an Emscripten/Node complete-vector smoke. The latter includes artifact
+reload, 512-bit weighted replay and 4,096 QMC points with full covariance, using
+the existing library APIs throughout. The selected portable dependency tree
+contains Malachite/Astro and excludes GMP/MPFR/SymJIT. Browser event delivery and
+the Python wheel remain separate checks.
+
+The parametrization bottleneck above is now isolated and corrected without
+expanding regular numerator support. Gaussian sources are eliminated only when
+their remaining derivative order is zero. Native fixed-variable polynomial
+conversion then checks the common scaling degree of each regular factor;
+unresolved cases retain the original sparse-support fallback and singular U/F
+admission remains unchanged. The additive
+[coefficient-field configuration seam](dependency-patches/symbolica-fixed-variable-coefficient-field.md)
+allows deterministic coefficient zero tests inside that existing Symbolica
+conversion. The configurable full-polynomial conversion, collection APIs and
+post-conversion ring mapping were checked and cannot supply that missing seam.
+No degree walker or polynomial arithmetic is implemented in FastSecDec.
+
+Thirty focused controls pass, including native numerator-reduction comparisons,
+large factored powers, cancellation, nonpolynomial rejection and the shared
+status transitions. The unchanged public gg→HH `from_family` path admits all
+179 terms in 1.881 seconds; its complete process takes 3.719 seconds and peaks
+at 70,816 KiB. This closes parametrization only: ordinary sector generation,
+integration and notebook suitability remain separate gates. Evidence is under
+`output/diagnostics/gghh-homogeneity-1` and `gghh-input-admitted-1`.

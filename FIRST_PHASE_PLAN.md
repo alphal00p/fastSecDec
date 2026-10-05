@@ -659,6 +659,26 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: the actual FastSecDec portable library now generates, evaluates,
+  round-trips artifacts and completes a QMC allocation in Emscripten/Node.
+  Native kernel controls pass 52 tests (eight existing diagnostics ignored),
+  portable host controls pass 39 tests, and the actual Wasm smoke matches all
+  six means and 36 covariance entries with two successful 512-bit replays.
+  Native O2 and artifact identities remain unchanged. Independent reuse review
+  passes; browser/Python-wheel responsiveness is not inferred from Node.
+  Factored Gaussian source elimination and native single-variable homogeneity
+  admission also reduce the actual gg→HH parametrization to 1.881 seconds and
+  about 69 MiB process peak RSS, with thirty focused controls passing. Shared
+  generation snapshot observers now serve both CLI and future HEPKit adapters.
+  Ordinary gg→HH sector generation/integration, the notebook bridge and remaining
+  bounded performance gates stay open.
+
+- 2026-10-05: the complete installed HEPKit community wheel passes fourteen
+  wavefunction cases, its namespace/stub check and eight literal documentation
+  examples, with the locked dependency set unchanged. PR #17 is ready for review.
+  The shared native wavefunction delivery is complete; the FastSecDec bridge,
+  browser execution and native gg→HH numerical prerequisite remain open.
+
 - 2026-10-05: shared numerical external states are published on GammaLoop's
   `feynkit` branch as `6c707c6b7`, after six native physics controls, five existing
   GammaLoop regressions, the installed Python host check, stub generation and

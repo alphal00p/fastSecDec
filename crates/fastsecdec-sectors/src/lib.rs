@@ -4,6 +4,11 @@
 //! algebra (the same types reexported by Symbolica). The main FastSecDec library
 //! owns the Symbolica expression-to-support bridge, integrand symmetry and all
 //! physics conventions. Geometry therefore needs no expression engine or JIT.
+#[cfg(all(feature = "native", feature = "portable"))]
+compile_error!("select exactly one sector numeric backend: native or portable");
+#[cfg(not(any(feature = "native", feature = "portable")))]
+compile_error!("select a sector numeric backend: native (default) or portable");
+
 mod arithmetic;
 mod cache;
 mod cone;

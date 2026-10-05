@@ -5,11 +5,23 @@ edition.workspace = true
 rust-version.workspace = true
 description = "Native Rust Feynman-parameter generation and numerical sector integration"
 
+[features]
+default = ["native"]
+native = [
+    "symbolica/integer-gmp", "symbolica/float-mpfr", "symbolica/native_code_generation",
+    "numerica/integer-gmp", "numerica/float-mpfr", "dep:symjit", "fastsecdec-sectors/native",
+]
+portable = [
+    "symbolica/wasm", "numerica/integer-malachite", "numerica/float-astro",
+    "fastsecdec-sectors/portable", "feynkit-graph/wasm", "feynkit-kinematics/wasm",
+    "linnet/wasm", "idenso/wasm", "spenso/wasm",
+]
+
 [dependencies]
 fastsecdec-sectors.workspace = true
 symbolica.workspace = true
 numerica.workspace = true
-symjit.workspace = true
+symjit = { workspace = true, optional = true }
 feynkit-graph.workspace = true
 feynkit-model.workspace = true
 feynkit-kinematics.workspace = true

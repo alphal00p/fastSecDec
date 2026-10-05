@@ -9,7 +9,7 @@ pub struct ReplayPolicy {
     /// Replay after this multiplicative growth over a previously accepted
     /// weighted maximum. Values greater than one avoid replaying constants.
     pub growth_factor: f64,
-    /// Minimum starting precision of a forced two-precision MPFR comparison.
+    /// Minimum starting precision of a forced two-precision native comparison.
     pub minimum_bits: u32,
 }
 

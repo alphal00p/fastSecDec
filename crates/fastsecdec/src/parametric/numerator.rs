@@ -6,12 +6,14 @@
 //! Differentiate m times and set the auxiliary parameters to zero. Integrating
 //! the Schwinger radial scale first shifts Gamma(A-LD/2) to Gamma(A-LD/2-m).
 
+mod moments;
+
 use std::collections::BTreeSet;
 
 use feynkit_graph::IntegralFamily;
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
-    id::{Pattern, Replacement},
+    id::Pattern,
     symbol,
     transcendental::TranscendentalFunctions,
 };
@@ -270,19 +272,6 @@ pub(super) fn parameterize_validated_family(
         .chain(sources.iter().map(|s| Atom::var(*s)))
         .collect::<Vec<_>>();
     let (source_u, source_f) = extended_family.symanzik(&extended_parameters)?;
-    let derivatives = sources
-        .iter()
-        .map(|s| (source_u.derivative(*s), source_f.derivative(*s)))
-        .collect::<Vec<_>>();
-    let zero_sources = sources
-        .iter()
-        .map(|s| {
-            Replacement::new(
-                Pattern::Literal(Atom::var(*s)),
-                Pattern::Literal(Atom::Zero),
-            )
-        })
-        .collect::<Vec<_>>();
     let density_powers = powers.iter().map(|p| Atom::num(p - 1)).collect::<Vec<_>>();
     let mut terms = Vec::with_capacity(polynomial.nterms());
     for monomial in &polynomial {
@@ -296,22 +285,8 @@ pub(super) fn parameterize_validated_family(
         let gamma = validated_gamma((&beta - Atom::num(order)).expand())?;
         let a = &base_u - Atom::num(order);
         let b = -&beta + Atom::num(order);
-        let mut differentiated = Atom::one();
-        let mut completed = 0u64;
-        // ∂[U^(a-r) F^(b-r) P] = U^(a-r-1) F^(b-r-1)
-        // * [UF ∂P + ((a-r)F ∂U + (b-r)U ∂F)P].
-        for (index, count) in monomial.exponents.iter().enumerate() {
-            for _ in 0..*count {
-                let (du, df) = &derivatives[index];
-                differentiated = &source_u * &source_f * differentiated.derivative(sources[index])
-                    + ((&a - Atom::num(completed)) * &source_f * du
-                        + (&b - Atom::num(completed)) * &source_u * df)
-                        * differentiated;
-                completed += 1;
-            }
-        }
-        // Preserve factorization through differentiation and source elimination.
-        let numerator_polynomial = differentiated.replace_multiple(&zero_sources);
+        let numerator_polynomial =
+            moments::source_moment(&source_u, &source_f, &sources, monomial.exponents, &a, &b);
         if numerator_polynomial.is_zero() {
             continue;
         }

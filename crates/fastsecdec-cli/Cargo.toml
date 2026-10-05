@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 feynkit-model.workspace = true
-fastsecdec.workspace = true
+fastsecdec = { workspace = true, features = ["native"] }
 symbolica.workspace = true
 feynkit-graph.workspace = true
 clap.workspace = true

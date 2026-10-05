@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-cli"]
-exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY"]
+exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "tests/portable-kernel"]
 default-members = ["crates/fastsecdec-cli"]
 resolver = "3"
 
@@ -10,10 +10,10 @@ edition = "2024"
 rust-version = "1.96"
 
 [workspace.dependencies]
-fastsecdec = { path = "crates/fastsecdec" }
-fastsecdec-sectors = { path = "crates/fastsecdec-sectors" }
-symbolica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "native_code_generation", "serde", "bincode"] }
-numerica = { version = "3.0.1", default-features = false, features = ["integer-gmp", "float-mpfr", "serde", "bincode"] }
+fastsecdec = { path = "crates/fastsecdec", default-features = false }
+fastsecdec-sectors = { path = "crates/fastsecdec-sectors", default-features = false }
+symbolica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
+numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 # Pin the published Rust library, not the reference checkout's C/Python cdylib.
 symjit = "=2.26.4"
 feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit/crates/feynkit-graph", default-features = false }
@@ -34,6 +34,8 @@ blake3 = "1.8"
 bincode = { version = "2.0.1", features = ["serde"] }
 
 [patch.crates-io]
+# Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
+symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
 symbolica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
 graphica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
 numerica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }

@@ -140,11 +140,7 @@ pub fn generate_with_workers(
     let generated = generated?;
     let compilation_started = Instant::now();
     let kernels = generated.compile_with_progress(|progress| {
-        status.stage = GenerationStage::Compilation;
-        status.completed = progress.completed;
-        status.total = Some(progress.total);
-        status.kernels = progress.completed;
-        status.timings.compilation_seconds = progress.elapsed_seconds;
+        status.observe_compilation(progress);
         status.elapsed_seconds = started.elapsed().as_secs_f64();
         status.detail = "Compiling portable SymJIT O2 kernels".into();
         if let Err(error) = dashboard.generation(&status) {

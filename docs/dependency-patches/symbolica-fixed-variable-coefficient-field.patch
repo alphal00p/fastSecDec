@@ -1,0 +1,139 @@
+diff --git a/src/atom/core.rs b/src/atom/core.rs
+index 5d492cf4..d10ee8dd 100644
+--- a/src/atom/core.rs
++++ b/src/atom/core.rs
+@@ -1313,12 +1313,38 @@ pub trait AtomCore: private::Sealed + Sized {
+     fn to_polynomial_in_vars<E: Exponent>(
+         &self,
+         var_map: impl IntoVariableMap,
++    ) -> MultivariatePolynomial<AtomField, E> {
++        self.to_polynomial_in_vars_with_field(var_map, &AtomField::new())
++    }
++
++    /// Convert to a polynomial in specific variables using the supplied
++    /// expression coefficient field. Other parts remain expression coefficients.
++    /// This does not expand those coefficients.
++    ///
++    /// Unlike [`AtomCore::to_polynomial_in_vars`], this permits configuring
++    /// coefficient normalization and zero testing. For conservative symbolic
++    /// admission, disable statistical zero testing; coefficients that only
++    /// vanish after further simplification are then retained.
++    ///
++    /// ```
++    /// use symbolica::{prelude::*, domains::atom::AtomField};
++    /// let field = AtomField { statistical_zero_test: false, ..AtomField::new() };
++    /// let expression = parse!("t*(x+y)^100");
++    /// let polynomial = expression.to_polynomial_in_vars_with_field::<u32>(symbol!("t"), &field);
++    /// assert_eq!(polynomial.nterms(), 1);
++    /// assert!(!polynomial.ring().statistical_zero_test);
++    /// ```
++    fn to_polynomial_in_vars_with_field<E: Exponent>(
++        &self,
++        var_map: impl IntoVariableMap,
++        field: &AtomField,
+     ) -> MultivariatePolynomial<AtomField, E> {
+         let var_map = var_map
+             .into_var_map()
+             .expect("Could not convert variables to a variable map")
+             .expect("A variable map is required");
+-        self.as_atom_view().to_polynomial_in_vars(&var_map)
++        self.as_atom_view()
++            .to_polynomial_in_vars_with_field(&var_map, field)
+     }
+ 
+     /// Convert the atom to a rational polynomial, optionally in the variable ordering
+diff --git a/src/poly.rs b/src/poly.rs
+index 5885458a..8d73f0b2 100644
+--- a/src/poly.rs
++++ b/src/poly.rs
+@@ -1533,7 +1533,15 @@ impl AtomView<'_> {
+         &self,
+         var_map: &Arc<Vec<PolyVariable>>,
+     ) -> MultivariatePolynomial<AtomField, E> {
+-        let poly = MultivariatePolynomial::<_, E>::new(&AtomField::new(), None, var_map.clone());
++        self.to_polynomial_in_vars_with_field(var_map, &AtomField::new())
++    }
++
++    pub(crate) fn to_polynomial_in_vars_with_field<E: Exponent>(
++        &self,
++        var_map: &Arc<Vec<PolyVariable>>,
++        field: &AtomField,
++    ) -> MultivariatePolynomial<AtomField, E> {
++        let poly = MultivariatePolynomial::<_, E>::new(field, None, var_map.clone());
+         let mut polynomial = self.to_polynomial_in_vars_impl(var_map, &poly);
+         polynomial.reduce_rational_power_variable_basis();
+         polynomial
+@@ -1549,9 +1557,9 @@ impl AtomView<'_> {
+         var_map: &Arc<Vec<PolyVariable>>,
+         poly: &MultivariatePolynomial<AtomField, E>,
+     ) -> MultivariatePolynomial<AtomField, E> {
+-        let field = AtomField::new();
++        let field = poly.ring();
+         // see if the current term can be cast into a polynomial using a fast routine
+-        if let Ok(num) = self.to_polynomial_expanded(&field, Some(var_map), false) {
++        if let Ok(num) = self.to_polynomial_expanded(field, Some(var_map), false) {
+             return num;
+         }
+ 
+@@ -1639,7 +1647,7 @@ impl AtomView<'_> {
+                         coefficients,
+                         exponents,
+                         var_map.clone(),
+-                        &field,
++                        field,
+                     )
+                 }
+             }
+diff --git a/tests/coefficient_field_conversion.rs b/tests/coefficient_field_conversion.rs
+new file mode 100644
+index 00000000..f0332a1f
+--- /dev/null
++++ b/tests/coefficient_field_conversion.rs
+@@ -0,0 +1,47 @@
++use symbolica::{atom::AtomCore, domains::atom::AtomField, parse, symbol};
++
++fn exact_field() -> AtomField {
++    AtomField {
++        statistical_zero_test: false,
++        ..AtomField::new()
++    }
++}
++
++#[test]
++fn fixed_variable_conversion_preserves_compact_coefficients() {
++    let expression = parse!("(t*(x+y))^10000");
++    let polynomial =
++        expression.to_polynomial_in_vars_with_field::<u32>(symbol!("t"), &exact_field());
++    assert_eq!(polynomial.nvars(), 1);
++    assert_eq!(polynomial.nterms(), 1);
++    let term = (&polynomial).into_iter().next().unwrap();
++    assert_eq!(term.exponents, &[10000]);
++    assert_eq!(term.coefficient, &parse!("(x+y)^10000"));
++    assert!(!polynomial.ring().statistical_zero_test);
++}
++
++#[test]
++fn exact_field_retains_unresolved_cancellation_and_nonhomogeneous_terms() {
++    let expression = parse!("t*(x+y)+t^2*(x^2-y^2-(x-y)*(x+y))");
++    let polynomial =
++        expression.to_polynomial_in_vars_with_field::<u32>(symbol!("t"), &exact_field());
++    assert_eq!(polynomial.nterms(), 2);
++    let simplified = polynomial.map_coeff(|coefficient| coefficient.expand(), exact_field());
++    assert_eq!(simplified.nterms(), 1);
++    assert_eq!((&simplified).into_iter().next().unwrap().exponents, &[1]);
++
++    let nonhomogeneous =
++        parse!("t*x+t^2*y").to_polynomial_in_vars_with_field::<u32>(symbol!("t"), &exact_field());
++    assert_eq!(nonhomogeneous.nterms(), 2);
++}
++
++#[test]
++fn default_conversion_keeps_its_existing_coefficient_policy() {
++    let expression = parse!("(t+x)^3+f(y)*t+1");
++    let existing = expression.to_polynomial_in_vars::<u32>(symbol!("t"));
++    let explicit =
++        expression.to_polynomial_in_vars_with_field::<u32>(symbol!("t"), &AtomField::new());
++    assert!(existing.ring().statistical_zero_test);
++    assert_eq!(existing, explicit);
++    assert_eq!(existing.flatten(false), explicit.flatten(false));
++}

@@ -1,5 +1,6 @@
 use super::*;
 
+#[cfg(feature = "native")]
 #[test]
 fn borrowed_v3_encoding_matches_the_previous_owned_wire_and_hash() {
     // Transport-only data exercises every byte value, escaping, signed orders,

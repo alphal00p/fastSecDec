@@ -163,11 +163,20 @@ impl ParametricIntegrand {
                 if factor.polynomial.is_zero() || factor.exponent.is_zero() {
                     continue;
                 }
+                if domain == ParametricDomain::ProjectiveSimplex
+                    && factor.role == FactorRole::Polynomial
+                    && let Some(factor_degree) =
+                        super::homogeneity::degree(&factor.polynomial, &parameters)
+                {
+                    degree += Atom::num(factor_degree) * &factor.exponent;
+                    continue;
+                }
                 // Native factored recognition avoids materializing a numerator's
                 // support merely to admit it on a nonprojective domain. Compound
                 // indeterminates are allowed only as parameter-independent
                 // coefficients; otherwise sparse conversion supplies the exact
-                // fallback. Projective homogeneity still requires support below.
+                // fallback. Singular projective factors still require support
+                // below; regular factors first use native scaling admission.
                 if domain != ParametricDomain::ProjectiveSimplex
                     && factor
                         .polynomial

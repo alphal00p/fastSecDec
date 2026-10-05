@@ -3,6 +3,11 @@ name = "fastsecdec-sectors"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["native"]
+native = ["numerica/integer-gmp", "numerica/float-mpfr"]
+portable = ["numerica/integer-malachite", "numerica/float-astro"]
+
 [dependencies]
 numerica = { workspace = true }
 thiserror = { workspace = true }

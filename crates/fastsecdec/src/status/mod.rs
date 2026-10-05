@@ -1,6 +1,7 @@
 //! Serializable status snapshots with terminal-independent display functions.
 mod coefficient;
 mod diagnostics;
+mod generation;
 mod geometry;
 mod timings;
 pub use coefficient::CoefficientExpansionSnapshot;

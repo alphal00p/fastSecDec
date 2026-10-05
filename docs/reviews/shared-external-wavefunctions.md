@@ -6,7 +6,7 @@ owner in `feynkit-kinematics`. The tested extraction is published on GammaLoop's
 [`6c707c6b77a437256eb1180da13d4d327b371d13`](https://github.com/alphal00p/gammaloop/commit/6c707c6b77a437256eb1180da13d4d327b371d13).
 The community dependency/stub update is
 [HEPKit PR #17](https://github.com/symbolica-dev/symbolica-community/pull/17),
-initially draft while its complete community wheel checks run. Both repositories
+now ready for review after its complete installed-wheel checks passed. Both repositories
 were published as `ValentinHirschi <valentin.hirschi@gmail.com>`.
 
 ## Ownership and conventions
@@ -59,9 +59,23 @@ Local reports are in `output/diagnostics/shared-external-states-upstream-1`.
 The Symbolica runtime reports an outdated license format; passing serial tests
 do not establish that the supplied key was accepted.
 
-The actual community wheel, its fourteen wavefunction cases and literal
-documentation execution are separate pending checks. The new documentation
-passes the existing structure/parameter checks. Two broad documentation failures
+The complete community wheel at `956f70fa4ad0` builds with `--locked` and imports
+exclusively from the isolated `output/hepkit-showcase-venv` installation. All
+fourteen wavefunction cases, the namespace/stub check and eight literal new
+documentation examples pass: **23 checks, zero failures**. The build took
+1,152 seconds, left Cargo.lock unchanged and all processes were reaped.
+Evidence is in `output/diagnostics/community-external-states-1/result.json`.
+This validates the native community host, not browser responsiveness or the
+separate FastSecDec bridge.
+
+The new documentation also passes the existing structure/parameter checks.
+Two broad documentation failures
 are reproduced on unchanged community `cd36326`: missing examples for
 `IBPFamily.compiled_runtime_arities` and an undocumented `cut` constructor
 parameter. They are unrelated to this API update.
+
+The PR's Linux and macOS CI jobs build, then fail at collection under Python
+3.10 because unchanged `tests/test_rustred_dot_families.py` imports `tomllib`
+unconditionally. The same import is present at base `cd36326`. Neither CI job
+reaches its full test suite; the successful installed-wheel checks above use
+Python 3.12. See [the CI run](https://github.com/symbolica-dev/symbolica-community/actions/runs/37343874634).

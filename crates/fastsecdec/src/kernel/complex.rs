@@ -1,19 +1,21 @@
 //! Native complex kernels preserve factored coefficient expressions. Numerical
 //! output uses adjacent real/imaginary components for each Laurent coefficient.
-use super::{KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, precision};
+use super::{
+    KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, evaluator, precision,
+};
 use symbolica::{
     atom::{Atom, AtomCore},
     domains::{
         float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
-    evaluate::{ExpressionEvaluator, JITCompilationSettings, JITCompiledEvaluator},
+    evaluate::ExpressionEvaluator,
 };
 
 pub(super) struct ComplexKernel {
     precision_cache: super::precision_cache::PrecisionCache<Complex<Float>>,
     exact: ExpressionEvaluator<Complex<Rational>>,
-    evaluator: JITCompiledEvaluator<Complex<f64>>,
+    evaluator: evaluator::ComplexEvaluator,
     conditioning: ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>,
     input: Vec<Complex<f64>>,
     output: Vec<Complex<f64>>,
@@ -62,19 +64,19 @@ impl ComplexKernel {
         precision.validate()?;
         let inputs = exact.get_input_len();
         let outputs = exact.get_output_len();
-        let evaluator = exact
-            .jit_compile::<Complex<f64>>(
-                JITCompilationSettings::default()
-                    .optimization_level(2)
-                    .direct_translation(true),
+        let evaluator = evaluator::complex(&exact)?;
+        let conditioning = exact
+            .clone()
+            .try_map_coeff_with_prec(
+                &|coefficient| {
+                    Complex::new(
+                        tracked(coefficient.re.to_f64()),
+                        tracked(coefficient.im.to_f64()),
+                    )
+                },
+                53,
             )
             .map_err(KernelError::Compilation)?;
-        let conditioning = exact.clone().map_coeff(&|coefficient| {
-            Complex::new(
-                tracked(coefficient.re.to_f64()),
-                tracked(coefficient.im.to_f64()),
-            )
-        });
         Ok(Self {
             precision_cache: Default::default(),
             exact,

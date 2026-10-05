@@ -1,14 +1,13 @@
 //! Caller-driven compilation of one exact native program per sector.
 use super::{
     Backend, CompilationProgress, KernelError, KernelSet, PrecisionPolicy, RealKernel,
-    SectorExpressions, SectorKernel, cancellation::Cancellation, complex, program,
+    SectorExpressions, SectorKernel, cancellation::Cancellation, complex, evaluator, program,
 };
 use crate::generation::{GeneratedIntegral, GenerationMetadata};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{AliasedAtom, Atom, AtomCore},
     domains::float::ErrorPropagatingFloat,
-    evaluate::JITCompilationSettings,
 };
 
 impl GeneratedIntegral {
@@ -127,18 +126,14 @@ impl SectorKernel {
                 real_coefficients,
             )?)
         } else {
-            let evaluator = exact
-                .jit_compile::<f64>(
-                    JITCompilationSettings::default()
-                        .optimization_level(2)
-                        .direct_translation(true),
-                )
-                .map_err(KernelError::Compilation)?;
-            // Fallible native admission resolves external constants before the
-            // conditioning program's infallible coefficient mapping.
+            let evaluator = evaluator::real(&exact)?;
             let conditioning = exact
                 .clone()
-                .map_coeff(&|value| ErrorPropagatingFloat::new(value.re.to_f64(), 15.0));
+                .try_map_coeff_with_prec(
+                    &|value| ErrorPropagatingFloat::new(value.re.to_f64(), 15.0),
+                    53,
+                )
+                .map_err(KernelError::Compilation)?;
             Backend::Real(RealKernel {
                 precision_cache: Default::default(),
                 exact_evaluator: exact,

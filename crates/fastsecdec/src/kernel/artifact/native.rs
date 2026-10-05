@@ -17,8 +17,21 @@ mod tests;
 
 // Native evaluator serde is not a stable cross-revision interchange format.
 // The local structural-validation patch preserves this upstream wire layout.
+#[cfg(feature = "native")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
+#[cfg(feature = "native")]
 pub(super) const COMPILER: &str = "symjit-2.26.4:O2:direct:horner-iterations=0";
+
+#[cfg(feature = "native")]
+const HASH_DOMAIN: &[u8] = b"fastsecdec-portable-kernel-v3:symbolica-3:symjit-2.26:f64";
+#[cfg(feature = "portable")]
+pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1:integer-malachite:float-astro";
+#[cfg(feature = "portable")]
+pub(super) const COMPILER: &str =
+    "symbolica-3.0.1:interpreter:integer-malachite:float-astro:horner-iterations=0";
+#[cfg(feature = "portable")]
+const HASH_DOMAIN: &[u8] =
+    b"fastsecdec-portable-kernel-v3:symbolica-3:interpreter:malachite:astro:f64";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -81,7 +94,7 @@ struct ArtifactRef<'a, P> {
 
 fn content_id(payload: &impl Serialize) -> Result<String, KernelError> {
     let mut hash = blake3::Hasher::new();
-    hash.update(b"fastsecdec-portable-kernel-v3:symbolica-3:symjit-2.26:f64");
+    hash.update(HASH_DOMAIN);
     serde_json::to_writer(&mut hash, payload)?;
     Ok(hash.finalize().to_hex().to_string())
 }
