@@ -34,7 +34,9 @@ reviewed the repair: both boundaries now record `Cancelled` for
 Other Python signal-handler errors preserve their provenance instead of becoming
 numerical failures. The deterministic observer-interrupt test checks eight
 accepted points, incomplete coverage, saved cancellation and successful resume.
-Source review is closed; execution through the installed bridge remains pending.
+Source review is closed. The complete installed bridge gate subsequently passes
+all 39 focused tests, including this interrupt/checkpoint regression, with no
+skips or failures. Evidence is `output/diagnostics/bridge-native-2/result.json`.
 
 ## Native ownership and ecosystem reuse
 
@@ -135,3 +137,13 @@ including the interruption repair, migrated one-loop/reduction controls,
 dependency/build identity and the native/portable backend distinction. Native
 gg→HH execution and any notebook/browser feasibility judgment remain separate
 gates. No new on-shell triple-box work follows from this audit.
+
+The native execution checks above are now complete: the installed wheel passes
+39 tests in 1.087 seconds, two native status tests pass, stub generation succeeds,
+and the generated stub parses with Python 3.9 grammar. The selected-view test
+uses HEPKit's existing generated phi4 cut-side subgraph, avoiding an unnecessary
+optional Python dependency. The coordinator's separate native marimo review
+also verifies caller cancellation/resume and preserved accepted work. None of
+these results closes actual Pyodide execution or portable browser interaction;
+the latter remains the next delivery gate. Local Cargo path overlays also need
+reproducible publication setup before the community bridge PR is ready.

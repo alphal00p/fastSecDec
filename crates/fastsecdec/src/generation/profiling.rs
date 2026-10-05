@@ -9,6 +9,8 @@ use crate::{
 use std::{collections::BTreeMap, ops::ControlFlow, path::Path, sync::Arc, time::Instant};
 use symbolica::{atom::AtomCore, parse, symbol};
 
+mod gghh;
+
 #[test]
 fn native_common_factor_collection_can_strip_chart_monomials() {
     let variables = [parse!("x"), parse!("y")];

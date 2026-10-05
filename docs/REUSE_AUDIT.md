@@ -1091,3 +1091,27 @@ coordinator independently verified the eight bound source files and six report
 hashes in `output/diagnostics/algebraic-domain-1/result.json`. Workspace formatting
 and all-target Clippy also pass. Full gg→HH
 generation/integration and actual notebook event delivery remain separate gates.
+
+The follow-up mapper probe attributes the gg→HH stall to full support extraction
+of regular numerator factors. The
+[regular-monomial review](reviews/native-regular-monomial-mapping.md) records the
+replacement: collect one coordinate with Symbolica while keeping the other
+coordinates in Atom coefficients, then accept a common monomial only through
+the existing native factor collection and polynomial-recognition guard. This
+does not claim a maximal valuation or nonzero certificate. Singular factors
+and signed orthant maps keep their previous path. Independent source review,
+six mapper controls, fifteen subtraction controls and sixteen complete-vector
+generation controls pass. The existing native signed exponent limit remains
+documented, including its behavior before conversion returns.
+
+The installed community bridge now passes all 39 focused tests with no skips:
+native input selection, all four showcase inputs, typed events, cancellation,
+checkpoint identity and accepted work, complex covariance, native kernel bytes,
+numerical failure and retry, and shared external states. Native status and stub
+checks pass separately. Evidence is `output/diagnostics/bridge-native-2`, with
+the precise compiled sources preserved before subsequent lint-only changes.
+The [native notebook UI review](reviews/fastsecdec-showcase-ui.md) additionally
+records an actual Chromium Run/Cancel/Resume/Complete workflow. The coordinator
+verified its eleven bound inputs/artifacts and the unchanged accepted checkpoint
+prefix. Those checks cover a native server; actual Pyodide execution and browser
+responsiveness remain pending.

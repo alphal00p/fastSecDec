@@ -53,9 +53,29 @@ Evidence is retained under
 `output/diagnostics/algebraic-domain-1`. The original
 ordinary-CLI failure is retained, and no artifact or numerical result is claimed.
 
-Ordinary CLI attempt 6 is pending with the unchanged ggHH card and a
-180-second deadline plus five-second cleanup grace, under a 30 GiB address-space
-limit. Build 7 uses the unified dependency owner. Attempt 5 did not launch the
+Ordinary CLI attempt 6 completed exact domain admission in 0.06781 seconds and
+native geometry in 0.06215 seconds, producing 30 sectors from the unchanged
+seven-parameter, 179-term input. It reached mapping at 4.3855 seconds, then hit
+the 180-second deadline before completing its first mapped sector. SIGKILL
+followed the five-second grace; the process was reaped at 187.2589 seconds with
+peak RSS 20,456,564 KiB. All input, binary and source postchecks passed. No
+artifact or numerical result was produced. The precise mapping operation is
+not established by these outer-stage observations. Evidence is retained in
+`output/diagnostics/gghh-native-cli-generation-6`.
+
+Build 7 uses the unified dependency owner. Attempt 5 did not launch the
 CLI: a diagnostic library selector expected Cargo target kind `lib`, while
 SymJIT declares `rlib`. That launcher-only failure is preserved separately; the
 corrected exact-name/unique-rlib selector reuses the same successful build.
+
+A single follow-up attribution used only the existing test-build mapper profile,
+with flushed stage entry/exit records and the same input/options. At its
+60-second deadline, completed source-support extraction accounted for 48.919
+seconds, compared with about 0.51 seconds across the other completed mapper
+operations. The final record is chart 0, term 50, regular polynomial factor 152
+(6,073 native Atom bytes), entering source-support extraction. The process was
+reaped in 60.040 seconds; all bound hashes passed. This locates the next
+capacity limitation in expanding regular-numerator support, separately from the
+now-completed algebraic domain certificate. Evidence is
+`output/diagnostics/gghh-mapping-attribution-1`; no production mapping change is
+included in this sign-admission milestone.

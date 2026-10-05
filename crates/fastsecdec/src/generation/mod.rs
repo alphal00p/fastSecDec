@@ -212,6 +212,15 @@ fn generate_inner(
             },
         )?;
         let started = Instant::now();
+        #[cfg(test)]
+        {
+            symmetry::profile::chart(index);
+            symmetry::profile::trace(
+                "Assembly",
+                "begin",
+                serde_json::json!({"mapped_terms": mapped.len(), "parameters": parameters.len()}),
+            );
+        }
         let density = mapped
             .iter()
             .map(|term| {
@@ -224,7 +233,19 @@ fn generate_inner(
                         .product::<Atom>()
             })
             .sum::<Atom>();
+        #[cfg(test)]
+        symmetry::profile::trace(
+            "Assembly",
+            "end",
+            serde_json::json!({"density_bytes": density.as_view().get_byte_size()}),
+        );
         let matched = registry.register(index, &parameters, &density)?;
+        #[cfg(test)]
+        symmetry::profile::trace(
+            "Registration",
+            "end",
+            serde_json::json!({"representative": matched.representative, "matched": matched.representative != index}),
+        );
         debug_assert_eq!(matched.permutation.len(), parameters.len());
         charts.push(ChartRecord {
             source_index: index,

@@ -1,8 +1,9 @@
 # Development
 
 Implementation follows [FIRST_PHASE_PLAN.md](../FIRST_PHASE_PLAN.md). The numerical
-product is Rust. Python and pySecDec are permitted only in the separate historical
-reference environment used to establish baseline evidence.
+product is Rust. The Python API and marimo notebook belong to the separate HEPKit
+community bridge. Historical Python/pySecDec code stays in its external reference
+environment for baseline comparisons; it is not a FastSecDec dependency.
 
 ## Toolchain and dependencies
 

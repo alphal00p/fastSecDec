@@ -8,6 +8,8 @@ use symbolica::{
     id::{Pattern, Replacement},
 };
 
+mod regular;
+
 #[cfg(test)]
 pub(super) mod profile;
 
@@ -55,6 +57,8 @@ pub(super) fn map_terms(
         .all(|power| power >= &0);
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     for term in input.terms() {
+        #[cfg(test)]
+        profile::begin_term();
         let mut powers = coordinates.measure_powers.clone();
         for (row, power) in map.exponent_matrix.iter().zip(term.monomial_powers()) {
             for (current, exponent) in powers.iter_mut().zip(row) {
@@ -98,6 +102,17 @@ pub(super) fn map_terms(
             );
             let (minima, residual) = if zero_valuation {
                 (vec![Integer::from(0); parameters.len()], mapped)
+            } else if let Some(candidate) = (nonnegative_map
+                && factor.role() == crate::parametric::FactorRole::Polynomial)
+                .then(|| {
+                    measured!(
+                        RegularMonomial,
+                        regular::common_monomial(&mapped, &variables)
+                    )
+                })
+                .flatten()
+            {
+                candidate
             } else {
                 let support = measured!(SupportExtraction, source_supports.get(factor))?;
                 #[cfg(test)]

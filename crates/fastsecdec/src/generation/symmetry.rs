@@ -30,31 +30,9 @@ enum Vertex {
 type DensityGraph = Graph<Vertex, usize>;
 
 #[cfg(test)]
-#[derive(serde::Serialize)]
-pub(super) struct GraphProfile {
-    pub density_bytes: usize,
-    pub vertices: usize,
-    pub edges: usize,
-    pub encoding_seconds: f64,
-    pub canonization_seconds: f64,
-}
-
+pub(super) mod profile;
 #[cfg(test)]
-std::thread_local! {
-    static GRAPH_PROFILES: std::cell::RefCell<Option<Vec<GraphProfile>>> = const {
-        std::cell::RefCell::new(None)
-    };
-}
-
-#[cfg(test)]
-pub(super) fn begin_profile() {
-    GRAPH_PROFILES.with(|rows| *rows.borrow_mut() = Some(Vec::new()));
-}
-
-#[cfg(test)]
-pub(super) fn take_profile() -> Vec<GraphProfile> {
-    GRAPH_PROFILES.with(|rows| rows.borrow_mut().take().unwrap_or_default())
-}
+pub(super) use profile::{begin_profile, take_profile};
 
 struct Representative {
     source_index: usize,
@@ -88,6 +66,12 @@ impl SymmetryRegistry {
         let canonical = incidence_graph(density, parameters)?;
         let canonical_parameters = canonical.vertex_map[..parameters.len()].to_vec();
         let candidates = self.classes.entry(canonical.graph).or_default();
+        #[cfg(test)]
+        profile::trace(
+            "Candidates",
+            "ready",
+            serde_json::json!({"count": candidates.len()}),
+        );
         for representative in candidates.iter() {
             let destination = representative
                 .canonical_parameters
@@ -104,13 +88,26 @@ impl SymmetryRegistry {
                         "canonical density map did not preserve parameter vertices".into(),
                     )
                 })?;
-            if verified_permutation(
+            #[cfg(test)]
+            profile::trace(
+                "Verification",
+                "begin",
+                serde_json::json!({"representative": representative.source_index}),
+            );
+            let verified = verified_permutation(
                 density,
                 parameters,
                 &representative.density,
                 &representative.parameters,
                 &permutation,
-            ) {
+            );
+            #[cfg(test)]
+            profile::trace(
+                "Verification",
+                "end",
+                serde_json::json!({"representative": representative.source_index, "matched": verified}),
+            );
+            if verified {
                 return Ok(SymmetryMatch {
                     representative: representative.source_index,
                     permutation,
@@ -247,6 +244,12 @@ fn incidence_graph(
 ) -> Result<CanonicalForm<Vertex, usize>, GenerationError> {
     #[cfg(test)]
     let encoding_started = std::time::Instant::now();
+    #[cfg(test)]
+    profile::trace(
+        "Encoding",
+        "begin",
+        serde_json::json!({"density_bytes": density.as_view().get_byte_size(), "parameters": parameters.len()}),
+    );
     if parameters.iter().collect::<HashSet<_>>().len() != parameters.len() {
         return Err(GenerationError::Invariant(
             "duplicate density parameters".into(),
@@ -271,7 +274,7 @@ fn incidence_graph(
     let expression = builder.expression(density.as_view())?;
     builder.edge(root, expression, 0)?;
     #[cfg(test)]
-    let profile = GraphProfile {
+    let profile = profile::GraphProfile {
         density_bytes: density.as_view().get_byte_size(),
         vertices: builder.graph.nodes().len(),
         edges: builder.graph.edges().len(),
@@ -279,16 +282,20 @@ fn incidence_graph(
         canonization_seconds: 0.0,
     };
     #[cfg(test)]
+    profile::trace("Encoding", "end", serde_json::to_value(&profile).unwrap());
+    #[cfg(test)]
     let canonization_started = std::time::Instant::now();
+    #[cfg(test)]
+    profile::trace(
+        "Canonization",
+        "begin",
+        serde_json::json!({"vertices": profile.vertices, "edges": profile.edges}),
+    );
     let result = builder.graph.canonize();
     #[cfg(test)]
-    GRAPH_PROFILES.with(|rows| {
-        if let Some(rows) = rows.borrow_mut().as_mut() {
-            rows.push(GraphProfile {
-                canonization_seconds: canonization_started.elapsed().as_secs_f64(),
-                ..profile
-            });
-        }
+    profile::completed(profile::GraphProfile {
+        canonization_seconds: canonization_started.elapsed().as_secs_f64(),
+        ..profile
     });
     Ok(result)
 }

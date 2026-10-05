@@ -35,13 +35,23 @@ fastsecdec integrate output/gghh_double_box.fsd.json --workers 8
 
 The card requests native named coefficient expansion and keeps the ordinary
 domain check enabled. The sub-top-pair energy is a choice of physical point,
-not a substitute for the check on this actual graph. The current cold CLI attempt
-stopped at its 600-second bound while preparing the input, before publishing an
-artifact. A bounded diagnostic completed native tensor simplification in
-0.184 seconds and dot conversion in 0.050 seconds, then reached its 120-second
-bound in Gaussian numerator parameterization. This example's generation
-prerequisite is not yet complete. No completed
-integral or browser performance claim is made here.
+not a substitute for the check on this actual graph. Native input contraction and
+Gaussian parameterization now complete with all 179 terms and seven parameters.
+The ordinary CLI now certifies the actual F polynomial's algebraic coefficients
+through Symbolica's exact real embedding and completes native geometry with 30
+sectors. Native one-coordinate collection now preserves the factored regular
+numerators during mapping. The latest bounded attempt completes 17 mapping
+intervals before its 180-second deadline (186 MiB peak RSS); recorded mapping
+and symmetry times are 42.3 and 131.8 seconds respectively. No threshold
+assertion or change of physical point was used. No
+artifact or completed integral has been produced, so this example's generation
+prerequisite remains incomplete. No browser performance claim is made here.
+
+The earlier 600-second input timeout, rational-only domain rejection, first-sector
+support-expansion timeout (19.5 GiB peak RSS) and bounded diagnostic failures are
+retained.
+Native early source elimination and fixed-variable scaling admission now preserve
+the factored Gaussian numerator instead of expanding its full parameter support.
 
 `raw-diagram.json`, `raw-diagram.dot` and the `raw-*.txt` files retain the native
 generated numerator and its separate factors. `graph.dot` changes only the
