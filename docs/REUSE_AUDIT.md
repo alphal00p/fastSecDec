@@ -638,3 +638,14 @@ representation. Full-graph coverage and cold-load performance remain separate
 gates. The [remaining-gates audit](reviews/phase-one-remaining-gates.md) identifies
 the planned geometry cache/parallel execution, current parent-qualified sector
 IDs, affine endpoint admission limitation and final CLI color/terminal evidence.
+
+The [geometry-cache audit](reviews/geometry-cache-independent.md) accepts a
+bounded caller-owned wrapper around the existing sector decomposition. Exact
+native support/domain equality and resource limits govern reuse; existing
+Numerica integers, map generation and decomposition remain the sole owners of
+geometry. There is no alternative canonicalizer, CAS, scheduler or persistence
+format. Completed `Arc` results preserve caller lifetime and explicit reuse;
+cancellation and failed misses cannot corrupt prior entries. All 28 sector
+tests and sector Clippy pass, with six new tests independently rerun. This
+establishes the cache core only; generation-level domain reassessment, typed
+progress integration and parallel work interfaces retain their own next audit.

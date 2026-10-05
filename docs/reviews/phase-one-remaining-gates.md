@@ -35,17 +35,20 @@ physical integral requiring a duplicate numerical campaign.
 
 ## Concrete implementation and scope items outside the matrix
 
-1. **Geometry reuse and parallel scheduling remain unimplemented plan items.**
+1. **Geometry reuse adoption and parallel scheduling remain plan items.**
    The plan explicitly calls for geometry caching by domain/canonical support
    and parallel independent charts/cones. `fastsecdec-sectors/src/decompose.rs`
    iterates projective charts and candidate vertices serially;
    `generation/mod.rs` invokes it once and subsequently processes maps and
    representatives serially. `generation/support.rs` caches native source
    polynomial supports only within that generation; pulling triangulation has
-   a local face cache. Neither is a reusable complete geometry cache. This is
-   an efficiency/interface deliverable, not a missing value for an admitted
-   integral. Design it after capability closure using caller-owned execution,
-   deterministic merging, cancellation and exact existing geometry ownership.
+   a local face cache. The subsequent independently reviewed
+   [cache core](geometry-cache-independent.md) adds bounded caller-owned reuse
+   of complete decompositions, with all 28 sector tests passing. Generation
+   entry-point adoption is next; parallel chart/cone work remains unimplemented.
+   These are efficiency/interface deliverables, not missing values for an
+   admitted integral. Preserve caller-owned execution, deterministic merging,
+   cancellation and exact existing geometry ownership.
 
 2. **General no-threshold input is broader than the current endpoint admission.**
    `generation/domain.rs` safely rejects upper-cube zeros and unresolved
@@ -59,16 +62,18 @@ physical integral requiring a duplicate numerical campaign.
    or supply a reviewed endpoint-chart extension; do not equate the
    `assume_no_threshold` assertion with resolution of endpoint geometry.
 
-3. **Sector identity wording needs an explicit decision.** The plan says
+3. **An additive sector content identity remains queued.** The plan says
    content-based sector identities. Current generated kernels and
    `KernelResultManifest::from_kernels` use original zero-based slice IDs,
    qualified by the complete kernel content hash. Public integration callers
    may provide their own stable IDs. Selection/resume are safe and tested with
    those current identities; there is no standalone per-sector content ID for
-   reuse across different parent artifacts. The composite identity may be an
-   adequate intended contract, but it is not a content hash of each sector.
-   Resolve that wording/design before claiming every architectural bullet done;
-   do not silently renumber selections or alter existing checkpoint identity.
+   reuse across different parent artifacts. Root chose an additive derived
+   accessor/hash over native IR, ordered layout, numerical policy and retained
+   semantics, preserving all current indices and checkpoint meanings. The
+   [geometry/reuse proposal](geometry-reuse-scheduling-proposal.md) specifies
+   that queued contract without claiming CAS equivalence or changing existing
+   artifact bytes.
 
 4. **Interactive presentation needs final closure.** Plain/JSON status,
    numerical failures, real SIGINT, partial resume and scoped results have

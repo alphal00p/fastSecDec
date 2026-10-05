@@ -5,6 +5,7 @@
 //! owns the Symbolica expression-to-support bridge, integrand symmetry and all
 //! physics conventions. Geometry therefore needs no expression engine or JIT.
 mod arithmetic;
+mod cache;
 mod cone;
 mod decompose;
 mod map_validation;
@@ -12,6 +13,7 @@ mod support;
 mod triangulate;
 mod types;
 
+pub use cache::{GeometryCache, GeometryCacheOutcome};
 pub use decompose::decompose;
 pub use support::PolynomialSupport;
 pub use types::{
