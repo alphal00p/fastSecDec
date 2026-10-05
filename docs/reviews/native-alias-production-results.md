@@ -83,6 +83,9 @@ coordinates: **12 complete vector evaluations, 72 components**, passed. All
 requested precision checking and rescue. The accepted second precision was
 256 bits at points zero and one, and 512 bits at point two. This tests the
 production adaptive precision path, not merely eager/O2 agreement.
+The representative decodes its exact IR in the same process. Separate
+`artifact_process` tests cover reconstruction and weighted replay in a fresh
+process; the representative is not itself a fresh-process load test.
 
 Fresh production Laurent expansion took 45.141 seconds. Program construction,
 native exact-IR encoding/decoding and both backend constructions took 6.333

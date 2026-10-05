@@ -1,0 +1,139 @@
+# Implementation and measured performance, 2026-10-05
+
+This is a progress report against `FIRST_PHASE_PLAN.md`, not phase-one
+acceptance. The convergence target is the **largest signed requested epsilon
+power**: epsilon zero in the small cases below and epsilon two for Issue 1.
+Reported relative standard error is not a certified bound on true error.
+
+## Plan coverage
+
+Implemented and audited: Rust-only HEPKit/FeynKit/Linnet input, graph and
+polynomial-numerator conversion; exact sector geometry and symmetry; endpoint
+subtraction and complete Laurent-vector direct evaluators; portable SymJIT O2,
+conditioning and native MPFR rescue; caller-driven MC/QMC, covariance,
+checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
+extension is published as PR 8. The native production dependency graph excludes
+Python and pySecDec; external reference execution is a development activity.
+
+The latest complete workspace gate passes **294 tests**, with eighteen explicit
+probes ignored, clean formatting and all-target Clippy. The subsequently added
+bounded caller-owned geometry cache passes **28 sector tests**, including six
+new controls independently rerun, and sector Clippy. These are different gates,
+not an assertion that the complete workspace was rerun after the cache addition.
+
+All 24 run cards and 17 modern native DOT fixtures load. Independent controls
+cover twelve scalar one-loop and eight numerator points; the coupled sunset,
+six massive families, double box and Issue 1 have further independent evidence.
+The historical matrix has 100 Covered, 81 intentionally Retired and one Partial
+row out of 182. This matrix does not replace complete difficult-example gates.
+
+The compact production alias pipeline and version-three native evaluator-IR
+artifacts are committed at `6332676`; the cache core at `2db942b`. Native
+`AliasedAtom` roots and images stay compact, and O2/conditioning/MPFR share the
+same exact native program. The difficult representative passes eighteen
+original-expression oracle comparisons and seventy-two fresh/decoded weighted
+component checks. This is representative-level evidence. All performance
+tables below retain their older frozen build identities and **do not measure
+the newly committed alias pipeline or cache**.
+
+Still open: complete original on-shell triple-box generation and full-vector
+validation; independent off-shell scalar/rank-two and hard-orthant references;
+difficult-case convergence and error calibration; generation cache adoption,
+caller-owned parallel chart/cone dispatch and additive sector content IDs;
+final CLI color/terminal checks; matched performance and platform gates. General
+affine upper-cube endpoint charts remain explicitly unsupported. Future Python
+bindings and phase-two contour/GCAD algorithms are outside this phase.
+
+## Small-case generation and eight-core accuracy
+
+| Metric | Triangle FastSecDec | Triangle Pathfinder | Box FastSecDec | Box Pathfinder |
+| --- | ---: | ---: | ---: | ---: |
+| Fresh generation process, one observation | 0.034402 s | 0.942928 s | 0.019430 s | 0.869645 s |
+| Integration to first observed allocation below 1 per mille, eight cores | 0.032969 s | Instance-limit abort | 0.041599 s | Instance-limit abort |
+| Full integration process at that allocation | 0.043068 s | Unavailable | 0.054016 s | Unavailable |
+| Artifact load/O2, separate median | 0.004714 s | Unavailable | 0.006712 s | Unavailable |
+| Pooled worker mean per sample, eight cores | 3.884 us | Unavailable | 3.841 us | Unavailable |
+| Slowest sector's worker mean per sample, eight cores | 7.600 us | Unavailable | 5.886 us | Unavailable |
+
+The accuracy rows are seven prescribed-seed medians on eight distinct physical
+cores, using Kuo33002/Korobov3, 1024 points and sixteen shifts per sector.
+All fourteen runs meet the epsilon-zero criterion at the first complete tested
+allocation: 32,768 triangle or 49,152 box full-vector evaluations. Earlier
+crossings and minimal required work are unmeasured. Finite-part relative SE
+ranges are 4.46e-9–6.06e-9 and 5.95e-7–9.50e-7 respectively; all runs retain the
+complete `[-2,-1,0]` vector/covariance and have no evaluation failures.
+
+Native generation compiles O2 and saves canonical expressions; loading compiles
+those expressions again. The reference saves evaluators for lazy loading and
+had formula caches available. The native
+baseline uses Symbolica 3.0.1 with four local fixes and SymJIT 2.26.4; the frozen
+Pathfinder environment uses Symbolica 2.1.0/SymJIT 2.18.6. Consequently even the
+whole-process generation rows do not establish matched speedup. Pathfinder's
+eight-worker runs abort at Symbolica's concurrent-instance license check; no
+eight-core reference time is inferred from lower-worker results.
+
+The broad native worker timer includes point generation, transformation,
+complete-vector evaluation/rescue and accumulation in accepted packages. A
+slowest-sector mean is not the maximum time of an individual sample. See the
+[eight-core results](eight-core-native-results.md) and
+[smoke/generation evidence](eight-core-smoke-results.md).
+
+## Sample costs and individual maxima
+
+For an actually measured side-by-side comparison, the older seven-pair campaign
+has one worker, 8192 points and sixteen shifts per sector:
+
+| Case | FastSecDec pooled worker mean, us/sample | Pathfinder sector-bucket mean, us/sample | FastSecDec slowest sector mean, us/sample | Pathfinder slowest sector mean, us/sample |
+| --- | ---: | ---: | ---: | ---: |
+| Triangle | 3.761 | 5.409 | 7.407 | 7.985 |
+| Box | 3.041 | 6.916 | 4.729 | 8.529 |
+
+These clocks have different boundaries. Pathfinder additionally charges global
+integrator work of 2.015/1.493 us per sample, which is not assigned to sectors.
+Its evaluator-only means are 3.239/3.836 us per sample. Neither side's bucket is
+an interchangeable arithmetic-only measurement. See the
+[independent paired review](first-paired-performance-independent.md).
+
+A separate eight-core, single-seed native diagnostic times each weighted
+complete-vector kernel call, including conditioning/rescue/replay and possible
+OS interruptions, excluding point generation, transformation and accumulation:
+
+| Case / original sector | Native mean, us/sample | Native observed individual maximum, us/sample | Pathfinder mean / individual maximum at this boundary |
+| --- | ---: | ---: | --- |
+| Triangle / 0 | 0.141 | 182.151 | Not measured |
+| Triangle / 1 | 8.380 | 3065.290 | Not measured |
+| Box / 0 | 7.093 | 6167.589 | Not measured |
+| Box / 1 | 0.138 | 198.040 | Not measured |
+| Box / 2 | 5.843 | 5286.366 | Not measured |
+
+Each row contains 16,384 samples. Pooled means are **4.261 us** for triangle and
+**4.358 us** for box; observed maxima are **3.065 ms** and **6.168 ms**.
+All maximum samples used precision rescue, but their entire elapsed latency
+cannot be attributed to arithmetic. These are finite observations, not
+worst-case bounds. Instrumented/uninstrumented vectors, covariance and accepted
+replay state agree exactly. The median empty clock bracket is 30 ns, retained
+without subtraction. See [the sample-latency record](native-sample-latency-results.md).
+
+## Larger cases
+
+These are older single native generation observations and fixed-work sample
+costs with **two workers**, 1024 points and eight shifts. The off-shell sample
+costs belong to the original graph campaigns; only the generation column also
+lists projected-family measurements. These rows do not supply an
+eight-core time to one-per-mille accuracy or individual-sample maxima.
+
+| Case | Native generation process | Pathfinder generation | Native pooled / slowest-sector mean, us/sample | Pathfinder matching costs | Eight-core last-order time to 1 per mille, either program |
+| --- | ---: | --- | ---: | --- | --- |
+| Off-shell triple box, scalar | 51.705 s original; 18.373 s native projected family | Not measured | 13.269 / 195.885 | Not measured | Not measured |
+| Off-shell triple box, rank two | 55.406 s original; 16.411 s native projected family | Not measured | 3.753 / 78.284 | Not measured | Not measured |
+| Issue 1 | 3.463 s | Not measured | 0.295 / 0.365 | Not measured | Not measured |
+| Hard four-loop full orthant | 36.755 s | Not measured | 25.944 / 71.703 | Not measured | Not measured |
+| Original on-shell triple box | No accepted complete generation | Not measured | Not available | Not measured | Not measured |
+
+All larger numerical observations preserve full vectors, not a selected pole
+or favorable sector. The separate checked Issue 1 reference reaches epsilon-two
+relative SE about 0.001285, still above the requested 0.001. General estimator
+calibration remains open even for a checked reference. No two-worker timing is
+scaled to pretend to be an eight-core result. See the source-linked
+[earlier detailed snapshot](implementation-status-2026-10-04.md), and the
+[remaining-gates audit](phase-one-remaining-gates.md).
