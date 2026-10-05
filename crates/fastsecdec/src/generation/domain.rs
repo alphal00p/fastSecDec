@@ -1,20 +1,42 @@
 //! Conservative, exact no-threshold checks. Numerical sampling is never used
-//! as a positivity certificate. Rational witnesses can disprove the assertion.
+//! as a positivity certificate. Exact witnesses can disprove the assertion.
+mod sign;
+#[cfg(test)]
+mod tests;
+
+use std::cmp::Ordering;
+
 use super::{
     BranchPolicy, DomainAssessment, FactorAssessment, FactorCertificate, GenerationError,
     subtraction::rational,
 };
 use crate::parametric::{FactorRole, ParametricIntegrand, PolynomialFactor};
 use fastsecdec_sectors::ParametricDomain;
+use sign::CoefficientSigns;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::rational::Rational,
+    domains::{atom::AtomField, rational::Rational},
     id::{Pattern, Replacement},
 };
 
 pub(super) fn is_singular(factor: &PolynomialFactor) -> bool {
     factor.role() == FactorRole::Singularity
         && !rational(factor.exponent()).is_some_and(|power| power.is_integer() && power >= 0)
+}
+
+fn uniform_sign(
+    expression: &Atom,
+    variables: &[Atom],
+    signs: &mut CoefficientSigns,
+) -> Option<Ordering> {
+    let polynomial = expression.to_polynomial_in_vars_with_field::<u32>(
+        variables,
+        &AtomField {
+            statistical_zero_test: false,
+            ..AtomField::new()
+        },
+    );
+    signs.uniform((&polynomial).into_iter().map(|term| term.coefficient))
 }
 
 /// Certify actual resolved residuals, including exceptional faces introduced by
@@ -25,29 +47,22 @@ pub(super) fn check_residual(
     parameters: &[Symbol],
 ) -> Result<(), GenerationError> {
     let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
-    let uniform_sign = |polynomial: &Atom| {
-        if polynomial.is_zero() {
-            return false;
-        }
-        let polynomial = polynomial.to_polynomial_in_vars::<u32>(&variables);
-        let signs = (&polynomial)
-            .into_iter()
-            .map(|term| rational(term.coefficient))
-            .collect::<Option<Vec<_>>>();
-        signs.is_some_and(|values| {
-            values.iter().all(|value| value > &Rational::from(0))
-                || values.iter().all(|value| value < &Rational::from(0))
-        })
-    };
+    let mut signs = CoefficientSigns::default();
     let constant = residual
-        .to_polynomial_in_vars::<u32>(&variables)
+        .to_polynomial_in_vars_with_field::<u32>(
+            &variables,
+            &AtomField {
+                statistical_zero_test: false,
+                ..AtomField::new()
+            },
+        )
         .coefficient(&vec![0; variables.len()]);
     if !constant.as_ref().is_some_and(|value| !value.is_zero()) {
         return Err(GenerationError::Invariant(
             "resolved singular polynomial has no nonzero constant term".into(),
         ));
     }
-    if uniform_sign(residual) {
+    if uniform_sign(residual, &variables, &mut signs).is_some() {
         return Ok(());
     }
     let resolved = variables.iter().all(|variable| {
@@ -56,7 +71,7 @@ pub(super) fn check_residual(
                 .replace(Pattern::Literal(variable.clone()))
                 .with(Atom::num(endpoint))
                 .expand();
-            if !uniform_sign(&face) {
+            if uniform_sign(&face, &variables, &mut signs).is_none() {
                 return false;
             }
             // A nonzero constant plus coefficients of one sign bounds this face
@@ -67,7 +82,9 @@ pub(super) fn check_residual(
                     Pattern::Literal(Atom::Zero),
                 )
             }));
-            rational(&constant).is_some_and(|value| !value.is_zero())
+            signs
+                .get(&constant)
+                .is_some_and(|sign| sign != Ordering::Equal)
         })
     });
     if resolved {
@@ -103,23 +120,14 @@ pub(crate) fn check_factors(
 ) -> Result<DomainAssessment, GenerationError> {
     let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
     let mut factors = Vec::new();
+    let mut signs = CoefficientSigns::default();
     for &(term_index, factor_index, ref factor) in supplied {
         if !is_singular(factor) {
             continue;
         }
         let exponent = rational(factor.exponent());
-        let polynomial = factor.polynomial().to_polynomial_in_vars::<u32>(&variables);
-        let signs = (&polynomial)
-            .into_iter()
-            .map(|term| rational(term.coefficient))
-            .collect::<Option<Vec<_>>>();
-        let positive = signs
-            .as_ref()
-            .is_some_and(|s| s.iter().all(|c| c > &Rational::from(0)));
-        let negative = signs
-            .as_ref()
-            .is_some_and(|s| s.iter().all(|c| c < &Rational::from(0)));
-        if positive {
+        let sign = uniform_sign(factor.polynomial(), &variables, &mut signs);
+        if sign == Some(Ordering::Greater) {
             factors.push(FactorAssessment {
                 term_index,
                 factor_index,
@@ -129,7 +137,7 @@ pub(crate) fn check_factors(
             });
             continue;
         }
-        if negative {
+        if sign == Some(Ordering::Less) {
             if exponent.as_ref().is_some_and(Rational::is_integer) {
                 factors.push(FactorAssessment {
                     term_index,
@@ -162,7 +170,7 @@ pub(crate) fn check_factors(
                         )
                     }))
                     .expand();
-                if value.is_zero() {
+                if signs.get(&value) == Some(Ordering::Equal) {
                     return Err(GenerationError::UpperBoundary(factor.polynomial().clone()));
                 }
             }
@@ -198,10 +206,10 @@ pub(crate) fn check_factors(
                     )
                 }))
                 .expand();
-            if let Some(value) = rational(&value) {
-                seen_positive |= value > 0;
-                seen_negative |= value < 0;
-                if value.is_zero() || seen_positive && seen_negative {
+            if let Some(sign) = signs.get(&value) {
+                seen_positive |= sign == Ordering::Greater;
+                seen_negative |= sign == Ordering::Less;
+                if sign == Ordering::Equal || seen_positive && seen_negative {
                     return Err(GenerationError::Threshold(factor.polynomial().clone()));
                 }
             }
@@ -230,15 +238,7 @@ pub(crate) fn check_factors(
                     if face.is_zero() {
                         return false;
                     }
-                    let coefficients = face.to_polynomial_in_vars::<u32>(&variables);
-                    let signs = (&coefficients)
-                        .into_iter()
-                        .map(|term| rational(term.coefficient))
-                        .collect::<Option<Vec<_>>>();
-                    signs.is_some_and(|values| {
-                        values.iter().all(|v| v > &Rational::from(0))
-                            || values.iter().all(|v| v < &Rational::from(0))
-                    })
+                    uniform_sign(&face, &variables, &mut signs).is_some()
                 })
             });
         if !resolved {

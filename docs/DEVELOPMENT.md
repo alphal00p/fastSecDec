@@ -16,7 +16,7 @@ registry resolution. Local dependency source identities are:
 
 | Checkout | Revision / branch |
 |---|---|
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit` | `8f834d9c62ae06fb327e4ef0b14abffda755b610` |
+| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook` | `6c707c6b77a437256eb1180da13d4d327b371d13` on local `codex/fastsecdec-hepkit-deps`, plus the existing literal-symbol substitution fix |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
 | `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, periodization range checks, and explicit attributed published catalogues |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
@@ -29,7 +29,7 @@ The Numerica QMC branch is published as
 FastSecDec still uses the exact local revision above while that PR is reviewed.
 See the [upstream-readiness evidence](reviews/numerica-qmc-upstream-readiness.md).
 
-The first two checkouts are detached worktrees of the supplied repositories. The
+The first two checkouts are isolated worktrees of the supplied repositories. The
 FeynKit worktree has one small literal-substitution fix for kinematic symbols
 whose names end in an underscore; its native input regression passes. The
 Symbolica worktree has five local fixes: evaluating fixed-argument external
@@ -52,12 +52,13 @@ The original working trees remain unchanged. The root Cargo patches select one
 Symbolica/Graphica/Numerica identity across every consumer. Do not use the local
 SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
 
-The gg→HH development example additionally uses the shared external-state API
-published in GammaLoop `feynkit` commit
-`6c707c6b77a437256eb1180da13d4d327b371d13`. Its `feynkit-kinematics` files are
-backported into the earlier local FastSecDec worktree; the unrelated renderer
-edits there remain excluded from publication. The isolated latest-branch
-publication and HEPKit PR are recorded in the
+FastSecDec and the developing community bridge now select the same published
+FeynKit lineage above, including its shared external-state API. The earlier
+`worktrees/feynkit` checkout and its unrelated renderer edits remain untouched.
+Cargo metadata confirms one graph, model, kinematics, tensor, Linnet, Idenso,
+Spenso, Symbolica and Numerica owner in each consuming dependency graph; the
+identity reports are in `output/diagnostics/bridge-*-identities.json`. The
+isolated shared-wavefunction publication and HEPKit PR are recorded in the
 [shared-wavefunction review](reviews/shared-external-wavefunctions.md).
 
 Browser evaluator construction also needs the additive native
@@ -104,10 +105,14 @@ The explicit formatting package list avoids walking the local path dependencies
 and reporting their unrelated formatting differences. Tests and Clippy use the
 three-member FastSecDec workspace.
 
-The supplied restricted Symbolica runtime permits one active symbolic
-computational thread. Serialize symbolic generation and test processes; no license
-settings have been changed. Compiled numerical worker evaluators do not construct
-Atoms and have been exercised with caller-owned parallel workers.
+Earlier restricted-runtime attempts required one active symbolic thread and
+remain recorded. The latest user-supplied key is accepted by the native
+`set_license_key` API, with `is_licensed()` returning true before any community
+module import; its outdated-format warning does not mean rejection. The private
+environment value is excluded from source and evidence. The status check is in
+`output/diagnostics/native-license-status-1/result.json`. Keep performance runs
+isolated from competing scientific work. Compiled numerical worker evaluators
+do not construct Atoms and have been exercised with caller-owned parallel workers.
 The independent Numerica QMC tests do not require Symbolica and also exercise
 caller-owned threaded workers.
 

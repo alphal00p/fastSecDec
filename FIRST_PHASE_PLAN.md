@@ -189,7 +189,9 @@ Use the following existing owners:
 
 Use local dependency worktrees at the revisions matching the inspected community environment:
 
-- FeynKit: `8f834d9c62ae06fb327e4ef0b14abffda755b610`.
+- FeynKit initially: `8f834d9c62ae06fb327e4ef0b14abffda755b610`; the authorized
+  HEPKit bridge now aligns all consuming owners to published shared-wavefunction
+  revision `6c707c6b77a437256eb1180da13d4d327b371d13` in an isolated worktree.
 - Symbolica community: `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`.
 - Numerica QMC branch starting from `a8a8fcb8941752e265e3c4fa507c02a3f06bb70e`.
 

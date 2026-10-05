@@ -1058,3 +1058,36 @@ status transitions. The unchanged public gg→HH `from_family` path admits all
 at 70,816 KiB. This closes parametrization only: ordinary sector generation,
 integration and notebook suitability remain separate gates. Evidence is under
 `output/diagnostics/gghh-homogeneity-1` and `gghh-input-admitted-1`.
+
+### Shared HEPKit owners and exact algebraic domain signs
+
+The native library and developing community bridge now share the published
+FeynKit `6c707c6b7` lineage, with the existing literal-symbol substitution fix
+in an isolated worktree. Cargo metadata verifies unique native graph, model,
+kinematics, tensor, Linnet, Idenso, Spenso, Symbolica and Numerica owners. Two
+explicit `BTreeSet` collection annotations accommodate the community feature
+set without changing validation behavior. The
+[independent bridge source audit](reviews/hepkit-bridge-source-audit.md) checks
+direct native inputs, caller-stepped weighted QMC, typed snapshots, full
+covariance and native persistence. Its interruption finding is being validated
+through the installed Python bridge; successful native type checking alone
+does not close that runtime or browser gate.
+
+The next ordinary gg→HH CLI attempt exposed an admission limitation: exact
+algebraic F coefficients were unsupported by the rational-only sign adapter.
+Symbolica's existing `AlgebraicContext` and `RealEmbedding::try_sign` certify
+all 57 gathered coefficients positive. The small adapter caches those native
+results and leaves unsupported or non-real values inconclusive; it introduces
+no radical arithmetic or approximate positivity rule. Native coefficient
+gathering uses deterministic zero tests. The
+[exact-sign review](reviews/exact-algebraic-domain-signs.md) records API,
+source/test and executable reuse evidence.
+
+Forty-two controls pass on the aligned owners: four exact-domain tests, sixteen
+generation tests, eight generation-context tests, four regression-gap controls,
+five native one-loop scalar-master comparisons and five numerator-reduction
+comparisons. All six test processes exited successfully and were reaped. The
+coordinator independently verified the eight bound source files and six report
+hashes in `output/diagnostics/algebraic-domain-1/result.json`. Workspace formatting
+and all-target Clippy also pass. Full gg→HH
+generation/integration and actual notebook event delivery remain separate gates.

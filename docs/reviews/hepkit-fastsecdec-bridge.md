@@ -25,15 +25,16 @@ relationship to native graph parametrization. Do not insert `D` into scalar
 bindings; the graph adapter correctly rejects replacing the tensor dimension
 there.
 
-The current FastSecDec development checkout uses an earlier FeynKit revision
-with the shared wavefunctions backported, while HEPKit PR #17 pins the published
-`6c707c6b7` lineage. Before compiling the combined bridge, align the entire
-graph/model/kinematics/tensor/Linnet/Idenso/Spenso group with that published
-lineage. Check the existing literal-symbol substitution patch against that
-source and retain only the necessary fix. The community dependency root must
-also resolve a single patched Symbolica/Graphica owner and the Numerica QMC
-revision. A compatible API in two different Cargo package identities is not
-enough to pass native objects between them.
+FastSecDec and the developing community bridge now select the published
+`6c707c6b7` FeynKit lineage pinned by HEPKit PR #17. The full
+graph/model/kinematics/tensor/Linnet/Idenso/Spenso group shares that owner through
+the isolated `feynkit-fastsecdec-notebook` worktree. It retains only the existing
+five-line literal-symbol substitution fix. Community additionally redirects its
+PyO3 owner crates to that tree and resolves the same patched Symbolica/Graphica
+and Numerica QMC sources. Root, community and portable-consumer metadata each
+confirm unique selected owners; the native compile and installed runtime gates
+are separate checks. A compatible API in two different Cargo package identities
+is not enough to pass native objects between them.
 
 ## Generation and events
 
@@ -74,6 +75,30 @@ Preserve real/imaginary components, all Laurent orders, full covariance,
 complete-shift coverage and `WaitingForCoverage`. Missing uncertainty is not a
 zero uncertainty. Report caller wall time separately from summed worker time.
 Native O2 and portable interpreted kernels must report their actual backend.
+
+## Notebook presentation
+
+Keep the walkthrough centered on the calculation: a native diagram, its scalar
+numerator, explicit masses and scalar products, followed by generation and the
+Laurent result. Use submitted input forms so editing a number does not start an
+expensive run. Reuse HEPKit's diagram renderer and input owners. Present the
+backend and normalization beside the result, with code and detailed diagnostics
+available below the main calculation.
+
+During generation, update a compact phase timeline and counts from actual
+`GenerationSnapshot` events. During integration, show the full signed Laurent
+table, complete-replica coverage, elapsed wall time and the selected highest-order
+estimate history. Show unavailable uncertainty as unavailable until native
+coverage admits it. A completed allocation and a met accuracy target are separate
+states. Sector cost and full covariance belong in expandable diagnostics, keeping
+their native definitions and component ordering.
+
+Provide deliberate run, cancel and resume actions. Integration yields to the
+notebook event loop between bounded packages. Preserve accepted work and the
+native checkpoint when cancelling; input changes invalidate that result instead
+of silently relabelling it. Synchronous generation callbacks must be tested for
+visible browser updates and interrupt handling in the actual marimo/Pyodide
+runtime before the notebook claims either capability.
 
 ## Delivery checks
 

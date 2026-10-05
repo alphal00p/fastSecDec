@@ -106,7 +106,7 @@ impl PortableChart {
                 .iter()
                 .copied()
                 .collect::<std::collections::BTreeSet<_>>()
-                != (0..dimension).collect()
+                != (0..dimension).collect::<std::collections::BTreeSet<_>>()
         {
             return Err(invalid("invalid symmetry coordinate permutation"));
         }

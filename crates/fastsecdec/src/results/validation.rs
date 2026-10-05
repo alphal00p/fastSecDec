@@ -269,7 +269,8 @@ impl SavedIntegrationResult {
             .collect();
         let ids: BTreeSet<_> = design.allocations.iter().map(|a| a.sector_id).collect();
         require(
-            ids.len() == design.allocations.len() && ids == rows.keys().copied().collect(),
+            ids.len() == design.allocations.len()
+                && ids == rows.keys().copied().collect::<BTreeSet<_>>(),
             "QMC design must cover exactly the selected sectors",
         )?;
         for allocation in &design.allocations {

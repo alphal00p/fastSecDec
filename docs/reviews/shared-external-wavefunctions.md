@@ -57,7 +57,10 @@ Initial failed build and stub-documentation attempts remain in the evidence.
 
 Local reports are in `output/diagnostics/shared-external-states-upstream-1`.
 The Symbolica runtime reports an outdated license format; passing serial tests
-do not establish that the supplied key was accepted.
+alone did not establish that the supplied key was accepted. A later explicit
+native `set_license_key` call succeeds and `is_licensed()` returns true before
+community imports (`output/diagnostics/native-license-status-1/result.json`).
+The format warning is therefore not a failed authentication result.
 
 The complete community wheel at `956f70fa4ad0` builds with `--locked` and imports
 exclusively from the isolated `output/hepkit-showcase-venv` installation. All
