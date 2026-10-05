@@ -36,11 +36,11 @@ bincode.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-feynkit-generator = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-generator", default-features = false }
+feynkit-generator = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 feynkit-tensor.workspace = true
 # Same native scalar-master provider/revision as the HEPKit community bridge.
-oneloop = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster", default-features = false }
-one-loop-reduce = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/one-loop-reduce/crates/one-loop-reduce", default-features = false }
+oneloop = { git = "https://github.com/alphal00p/oneloopmaster", branch = "main", default-features = false }
+one-loop-reduce = { git = "https://github.com/lcnbr/one-loop-reduce", branch = "main", default-features = false }
 
 [[example]]
 name = "gghh_double_box"

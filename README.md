@@ -6,16 +6,27 @@ built around HEPKit, Linnet, Symbolica, and Numerica/Havana.
 The first phase is under active implementation. The complete design, scientific
 scope, milestone gates, and original requirements are in
 [FIRST_PHASE_PLAN.md](FIRST_PHASE_PLAN.md). The standalone CLI is being developed
-alongside the library; the future Python bridge belongs to HEPKit.
+alongside the library; the Python bridge and marimo showcase belong to HEPKit.
 
-With the local dependencies described in the development guide, enter
-`nix-shell` and run a native graph or a small analytic direct integral:
+Prepare the exact dependency sources and reviewed patches once. The output
+directory must not already exist; use `output/` as below or a location outside
+the checkout. The script never changes existing checkouts.
+Then enter `nix-shell` and pass the generated Cargo config on every build:
 
 ```sh
-cargo run -- run examples/runs/triangle.toml --points 4096 --shifts 16 --workers 2
-cargo run -- run examples/runs/analytic_endpoint.toml --points 4096 --shifts 16
-cargo run -- --json inspect examples/runs/double_box.toml --expressions
+mkdir -p output
+./scripts/bootstrap-dependencies.sh "$PWD" "$PWD/output/dependencies"
+nix-shell
+cargo --config output/dependencies/overlay-root.toml metadata --format-version 1 --locked
+cargo --config output/dependencies/overlay-root.toml run --locked -- run examples/runs/triangle.toml --points 4096 --shifts 16 --workers 2
+cargo --config output/dependencies/overlay-root.toml run --locked -- run examples/runs/analytic_endpoint.toml --points 4096 --shifts 16
+cargo --config output/dependencies/overlay-root.toml run --locked -- --json inspect examples/runs/double_box.toml --expressions
 ```
+
+The generated config selects one source owner per ecosystem crate and supplies
+the CLI's dependency provenance. It is required while the recorded upstream
+patches are under review. See the [development guide](docs/DEVELOPMENT.md) for
+portable-library and HEPKit consumers, source pins, and validation boundaries.
 
 Interactive terminals show a live dashboard. `--plain` selects text progress;
 `--json` emits the final structured report, and `--status-json` streams status

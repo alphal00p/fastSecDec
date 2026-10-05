@@ -3,19 +3,14 @@ use std::{env, path::PathBuf, process::Command};
 mod build_support;
 
 fn main() {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..");
-    for (name, relative) in [
-        (
-            "FEYNKIT",
-            "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook",
-        ),
-        (
-            "SYMBOLICA",
-            "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica",
-        ),
-        ("NUMERICA", "DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica"),
-    ] {
-        let path = root.join(relative);
+    // One generated Cargo config supplies both dependency patches and source roots.
+    // CLI artifact provenance must never collapse distinct owners to an unknown identity.
+    for name in ["FEYNKIT", "SYMBOLICA", "NUMERICA"] {
+        let variable = format!("FASTSECDEC_{name}_SOURCE_ROOT");
+        println!("cargo:rerun-if-env-changed={variable}");
+        let path = env::var_os(&variable).map(PathBuf::from).unwrap_or_else(|| {
+            panic!("{variable} is required for CLI dependency provenance; prepare the pinned dependency overlay and pass its generated config with cargo --config /path/to/overlay.toml")
+        });
         let git = |args: &[&str]| {
             Command::new("git")
                 .arg("-C")
@@ -27,7 +22,12 @@ fn main() {
         };
         let revision = git(&["rev-parse", "HEAD"])
             .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
-            .unwrap_or_else(|| "unavailable".into());
+            .unwrap_or_else(|| {
+                panic!(
+                    "cannot read {name} dependency revision at {}; use the source root from the generated dependency config",
+                    path.display()
+                )
+            });
         let source = build_support::source_state(&path)
             .unwrap_or_else(|error| panic!("cannot record {name} dependency provenance: {error}"));
         println!("cargo:rustc-env=FASTSECDEC_{name}_REVISION={revision}");
@@ -68,7 +68,7 @@ fn main() {
                 println!("cargo:rerun-if-changed={}", watched.display());
             }
         }
-        // Reference sources are local path dependencies; Cargo detects their
+        // Configured owners are Cargo path patches; Cargo detects their
         // recompilation, while these paths refresh embedded provenance too.
         // Symbolica's native Graphica workspace member lives under `lib`.
         // Watch build inputs too; a changed tracked module also exposes new

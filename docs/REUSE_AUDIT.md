@@ -1130,3 +1130,25 @@ records the 61.285-second generation, 8.781-second eight-worker allocation,
 complete covariance and 1.0273% finite-part relative error. This closes the
 native example prerequisite without claiming browser feasibility, one-per-mil
 accuracy or an independent amplitude reference.
+
+The actual Pyodide community bridge now passes the same 39 focused controls as
+the native wheel. The [notebook UI review](reviews/fastsecdec-showcase-ui.md)
+records the real marimo browser's native graph rendering and caller-stepped
+Run/Cancel/Resume/Complete workflow, including exact accepted checkpoint prefixes
+and full covariance. The triangle reaches its requested target; the other three
+inputs have bounded portable probes. No Python evaluator, graph representation
+or library-owned integration loop was added.
+
+The [dependency-delivery review](reviews/dependency-delivery.md) records the
+replacement of machine-local manifests with public sources and an explicit
+pinned bootstrap. Its fresh owners reproduce the existing reviewed contents and
+patches, retain one native owner per ecosystem crate, and select exactly one
+FastSecDec backend. Native all-target Clippy, three CLI provenance controls,
+portable-host checks and locked metadata pass; both lockfiles remain unchanged.
+The coordinator verified all ten source/lock bindings in the delivery report.
+An independent read-only audit also verified the patch hashes, emitted configs,
+locked owner graphs, backend separation and bootstrap/provenance boundaries;
+it found no delivery blocker within the tested Linux scope.
+CLI builds reject missing provenance instead of publishing an unknown identity.
+Community validation against the published FastSecDec Git revision remains a
+separate gate, as does upstream adoption of the documented dependency patches.

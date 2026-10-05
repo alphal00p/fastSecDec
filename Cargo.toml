@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-cli"]
-exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "tests/portable-kernel"]
+exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "output", "tests/portable-kernel"]
 default-members = ["crates/fastsecdec-cli"]
 resolver = "3"
 
@@ -16,13 +16,13 @@ symbolica = { version = "3.0.1", default-features = false, features = ["serde", 
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 # Pin the published Rust library, not the reference checkout's C/Python cdylib.
 symjit = "=2.26.4"
-feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-graph", default-features = false }
-feynkit-model = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-model", default-features = false }
-feynkit-kinematics = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-kinematics", default-features = false }
-feynkit-tensor = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-tensor", default-features = false }
-linnet = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/linnet", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
-idenso = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/idenso", default-features = false }
-spenso = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/spenso", default-features = false, features = ["shadowing"] }
+feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-model = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+linnet = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
+idenso = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+spenso = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false, features = ["shadowing"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip", "raw_value"] }
 thiserror = "2.0"
@@ -36,17 +36,6 @@ bincode = { version = "2.0.1", features = ["serde"] }
 [patch.crates-io]
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
-symbolica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
-graphica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
-numerica = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }
-
-# The native one-loop reduction reference must share HEPKit's graph/Atom owners.
-[patch."https://github.com/alphal00p/gammaloop"]
-feynkit-graph = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-graph" }
-feynkit-kinematics = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook/crates/feynkit-kinematics" }
-
-[patch."https://github.com/alphal00p/oneloopmaster"]
-oneloop = { path = "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster" }
 
 [profile.dev.package.symbolica]
 opt-level = 2

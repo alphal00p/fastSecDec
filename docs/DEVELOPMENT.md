@@ -13,25 +13,75 @@ toolchain required by existing GMP/MPFR dependency builds; it does not add Pytho
 FORM, Normaliz, or a generated C++ integrand backend.
 
 Initial local validation uses Rust/Cargo 1.98.1 on Linux x86-64. Cargo.lock records
-registry resolution. Local dependency source identities are:
+registry resolution. Build from a fresh checkout by preparing the exact public
+sources and reviewed patches:
 
-| Checkout | Revision / branch |
+```sh
+mkdir -p output
+./scripts/bootstrap-dependencies.sh "$PWD" "$PWD/output/dependencies"
+nix-shell
+cargo --config output/dependencies/overlay-root.toml metadata --format-version 1 --locked
+```
+
+The bootstrap needs Bash, Git, `sha256sum` (GNU coreutils on macOS), and network
+access to the public repositories below. It verifies all nine patch hashes
+before applying them, fetches exact revisions, and refuses any existing output
+directory or symlink. A failed attempt is retained for diagnosis; use a new
+directory for a retry. It neither rewrites source manifests nor modifies the
+historical reference worktrees. Keep generated sources, configs and build outputs
+untracked. Place the new dependency directory either outside the FastSecDec
+checkout or beneath its excluded `output/` directory, as in the example. An
+arbitrary directory inside the checkout can make Cargo assign dependency crates
+to the wrong workspace.
+
+The generated configs contain absolute paths for this checkout. Move neither the
+checkout nor the generated source directory without preparing a new config.
+Pass the appropriate config explicitly on every Cargo or maturin invocation:
+
+| Consumer | Generated config |
 |---|---|
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook` | `6c707c6b77a437256eb1180da13d4d327b371d13` on local `codex/fastsecdec-hepkit-deps`, plus the existing literal-symbol substitution fix |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10` |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica` | QMC commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, periodization range checks, and explicit attributed published catalogues |
+| FastSecDec CLI and native workspace checks | `overlay-root.toml` |
+| Standalone `tests/portable-kernel` consumer | `overlay-portable.toml` |
+| HEPKit community bridge | `overlay.toml` |
+
+The community config also patches FastSecDec to this checkout for development.
+Published community integration must pin the published FastSecDec revision and
+remove that local FastSecDec patch group to verify delivery from Git. Its build
+scripts forward the remaining generated dependency config to Cargo.
+
+These consumer-specific overlays omit unused reference/Python patch groups and
+packages, keeping lockfile resolution stable. The checked-in manifests name
+public dependency sources; the generated config selects the exact patched owners
+below. It also sets `FASTSECDEC_{FEYNKIT,SYMBOLICA,NUMERICA}_SOURCE_ROOT`, which the
+CLI requires to record actual revisions and source states. Missing environment
+roots or unreadable Git revisions fail the build; artifacts never receive an
+`unavailable` dependency identity. Do not point these variables at a different
+checkout from the config's path patches. The workspace excludes `output` so
+generated owners retain their own workspace inheritance.
+
+The root and portable lockfiles have been deliberately resolved with their
+respective overlays. Normal builds use `--locked`; dependency updates require a
+separate intentional resolution and review of the lockfile and owner identities.
+The pinned source identities are:
+
+| Generated owner | Revision / branch |
+|---|---|
+| `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `6c707c6b77a437256eb1180da13d4d327b371d13`, plus the literal-symbol substitution fix |
+| `symbolica` from `symbolica-dev/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, plus the seven reviewed patches below |
+| `numerica` from `ValentinHirschi/numerica` | QMC commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, periodization range checks, and explicit attributed published catalogues |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster` | Development-only scalar references at community lock revision `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`; default features disabled |
-| `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/one-loop-reduce` | Development-only numerator references at community lock revision `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
+| `oneloop` from `alphal00p/oneloopmaster` | Development-only scalar references at `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`, plus the SymJIT compatibility patch; default features disabled |
+| `one-loop-reduce` from `lcnbr/one-loop-reduce` | Development-only numerator references at `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
 
 The Numerica QMC branch is published as
 [upstream PR #8](https://github.com/symbolica-dev/numerica/pull/8), targeting
 `symbolica-dev/numerica:main` from `ValentinHirschi:codex/havana-qmc`.
-FastSecDec still uses the exact local revision above while that PR is reviewed.
+FastSecDec still uses the exact revision above while that PR is reviewed.
 See the [upstream-readiness evidence](reviews/numerica-qmc-upstream-readiness.md).
 
-The first two checkouts are isolated worktrees of the supplied repositories. The
-FeynKit worktree has one small literal-substitution fix for kinematic symbols
+Historical validation used isolated worktrees of the supplied repositories. The
+fresh sources preserve their exact content. FeynKit has one small
+literal-substitution fix for kinematic symbols
 whose names end in an underscore; its native input regression passes. The
 Symbolica worktree has five local fixes: evaluating fixed-argument external
 constants in its error-tracking numeric domain, preserving parentheses around
@@ -49,7 +99,7 @@ pins the unpatched published crate and includes the patch and verified outcomes.
 All focused upstream regressions pass;
 a fresh-process Gamma artifact test also passes. The patches and reproductions
 are recorded under `docs/dependency-patches`.
-The original working trees remain unchanged. The root Cargo patches select one
+The original working trees remain unchanged. The generated Cargo patches select one
 Symbolica/Graphica/Numerica identity across every consumer. Do not use the local
 SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
 
@@ -62,7 +112,7 @@ identity reports are in `output/diagnostics/bridge-*-identities.json`. The
 isolated shared-wavefunction publication and HEPKit PR are recorded in the
 [shared-wavefunction review](reviews/shared-external-wavefunctions.md).
 
-The CLI's embedded FeynKit provenance follows this same checkout. An optimized
+The CLI's embedded FeynKit provenance follows the configured owner. An optimized
 build review caught and corrected its remaining reference to the older
 `worktrees/feynkit` path before running the ggHH example. The three existing
 provenance controls pass; `output/diagnostics/gghh-native-release-build-2` also
@@ -98,21 +148,24 @@ Before the existing-IBP evaluator probe, a 2026-10-05 03:32 UTC recheck of the
 published crate documentation still reports [Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest)
 and [SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). The registry API was
 unavailable (HTTP 403); this supplementary check uses the latest documentation
-pages, rather than claiming a successful new registry-index query. The existing
-pins and five local Symbolica fixes remain unchanged.
+pages, rather than claiming a successful new registry-index query. The pins
+remained unchanged at that check; the two additive Symbolica APIs above were
+subsequently added for portable evaluation and factored polynomial reuse.
 
 Standard checks as implementation lands:
 
 ```sh
-cargo fmt -p fastsecdec -p fastsecdec-sectors -p fastsecdec-cli --check
-cargo test --workspace --locked -- --test-threads=1
-cargo clippy --workspace --all-targets --locked -- -D warnings
-cargo tree --locked --duplicates
+cargo --config output/dependencies/overlay-root.toml fmt -p fastsecdec -p fastsecdec-sectors -p fastsecdec-cli --check
+cargo --config output/dependencies/overlay-root.toml test --workspace --locked -- --test-threads=1
+cargo clippy --config output/dependencies/overlay-root.toml --workspace --all-targets --locked -- -D warnings
+cargo --config output/dependencies/overlay-root.toml tree --locked --duplicates
+cargo --config output/dependencies/overlay-portable.toml check --manifest-path tests/portable-kernel/Cargo.toml --locked --all-targets
 ```
 
 The explicit formatting package list avoids walking the local path dependencies
 and reporting their unrelated formatting differences. Tests and Clippy use the
-three-member FastSecDec workspace.
+three-member FastSecDec workspace. For the external `clippy` subcommand, put
+`--config` after `clippy` so its nested Cargo invocation receives the overlay.
 
 Earlier restricted-runtime attempts required one active symbolic thread and
 remain recorded. The latest user-supplied key is accepted by the native
@@ -155,3 +208,13 @@ Historical timing reports are not performance acceptance evidence for this host.
 The [benchmark protocol](BENCHMARK_PROTOCOL.md) defines paired measurements, and
 the [regression matrix](REGRESSION_MATRIX.md) records coverage. Pending rows and
 unmeasured cases must remain visibly pending.
+
+## Delivery validation boundary
+
+The dependency bootstrap was checked against the existing accepted owners,
+including all 3,776 tracked source files and symlink identities. Live metadata and
+build checks use these freshly fetched owners. Earlier native/Pyodide wheels,
+notebook lifecycle runs and native ggHH results keep their original source and
+artifact identities; the path migration does not relabel them as freshly rebuilt
+runtime tests. See the [dependency-delivery review](reviews/dependency-delivery.md)
+for exact gates, launcher issues and the remaining community Git publication gate.

@@ -27,9 +27,6 @@ tempfile = "3"
 [patch.crates-io]
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
-symbolica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica" }
-numerica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/numerica" }
-graphica = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica/lib/graphica" }
 
 # Reuse the public scientific controls verbatim. Relative include_bytes! fixture
 # paths and artifact_process's exact child-test name still resolve in their owner.

@@ -661,6 +661,29 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: the gg→HH example now completes ordinary native CLI generation
+  (61.285 seconds, thirty sectors) and an eight-worker full-vector allocation
+  (8.781 seconds, finite-part relative standard error 1.0273%). Native Idenso
+  color-invariant closure preserves the generated diagram conventions. This
+  satisfies the native feasibility prerequisite; it does not establish browser
+  feasibility or one-per-mille accuracy. The four-case HEPKit bridge passes
+  39 native and 39 actual Pyodide tests. An actual marimo/Pyodide browser run
+  cancels, downloads a checkpoint and resumes the triangle to complete coverage
+  and its one-per-mille target, preserving accepted work. The other three cases
+  have bounded portable generation/evaluation probes, not convergence claims.
+  See `docs/reviews/gghh-native-feasibility.md` and
+  `docs/reviews/fastsecdec-showcase-ui.md`.
+
+- 2026-10-05: public dependency manifests and a pinned-source bootstrap replace
+  machine-local reference paths. Fresh downloads reproduce all reviewed source
+  contents and patches; native all-target Clippy, three CLI provenance tests,
+  portable-host checks and locked metadata pass with unique ecosystem owners.
+  Missing CLI dependency provenance fails explicitly. The existing lockfiles
+  remain unchanged. The community bridge's actual published-Git validation and
+  draft PR remain the next delivery gate; upstream OneLOop still requires the
+  documented local SymJIT compatibility patch. No representative performance
+  gap is closed by this source-delivery change.
+
 - 2026-10-05: the actual FastSecDec portable library now generates, evaluates,
   round-trips artifacts and completes a QMC allocation in Emscripten/Node.
   Native kernel controls pass 52 tests (eight existing diagnostics ignored),
