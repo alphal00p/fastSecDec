@@ -55,14 +55,18 @@ additional input coverage, not proof of numerical completion.
    with peak 15.32 GiB, then cold inspection succeeds in 136.719 seconds.
    The subsequent 180-second integration stage times out with partial accepted
    coverage and zero evaluation failures. The following CLI lifetime fix bounds
-   live sector contexts per worker and passes all 16 focused driver tests. Reuse
-   the saved artifact and its 36,864-evaluation checkpoint for the prospective
-   eight-worker, 1,800-second continuation; do not repeat generation.
+   live sector contexts per worker and passes all 16 focused driver tests. Its
+   eight-worker continuation restores the original checkpoint successfully and
+   retains 397,312 accepted evaluations without failures. It is intentionally
+   stopped after 1,305.505 seconds for a scheduling handoff, not by its deadline.
+   The measured batch barrier motivates the private CLI refill queue, which
+   passes all 20 focused driver tests. Reuse the newer checkpoint and unchanged
+   artifact for one eight-worker, 7,200-second continuation; do not repeat generation.
    Preserve the original graph, kinematics, order zero,
    O2, full coefficient coverage, exact offsets and covariance. Original
    generation had a 1,800+5-second bound; cold inspection and the first fixed
-   allocation each had 180+5 seconds. The continuation's 1,800+5-second bound
-   includes loading and retains the original allocation. Prior attempts and their distinct causes remain in
+   allocation each had 180+5 seconds. The next continuation's 7,200+5-second bound
+   includes loading and retains the original complete allocation. Prior attempts and their distinct causes remain in
    the [results](native-named-fullgraph-results.md).
 
 3. **Establish original-integral numerical agreement.** Successful generation,

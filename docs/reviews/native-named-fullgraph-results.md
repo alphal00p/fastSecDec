@@ -138,7 +138,7 @@ The checkpoint covers one 1,024-point package in each of sectors 0–35, with
 14.058518 seconds (median 0.232116). This small, heterogeneous prefix is not a
 whole-graph throughput estimate. The existing native resume path checks the
 artifact, complete scope, settings, QMC design and replay state. Resume admission
-has not yet been executed for this checkpoint. A numeric-only continuation can
+had not yet been executed at this attempt's terminal audit. A numeric-only continuation can
 reuse the artifact; no regeneration is needed. Its worker count and finite
 budget remain subject to source/cost assessment and a separate runtime handoff.
 
@@ -149,3 +149,44 @@ independent terminal review SHA-256 is
 at `output/diagnostics/native-named-prepared-fullgraph-4/independent-terminal-review.json`.
 It accepts full generation, publication and cold loading. Complete numerical
 allocation, scientific agreement and performance parity remain unaccepted.
+
+## Eight-worker checkpoint continuation and scheduler handoff
+
+`output/diagnostics/native-named-fullgraph-resume-1` uses the unchanged fourth
+artifact and a copy of its 36,864-point checkpoint. The bounded-context CLI
+candidate is source-identical to milestone `a1f103d`; its release binary was
+built earlier from the explicitly recorded working-tree overlay. No generation
+or native-library rebuild is involved. Ordinary resume succeeds and its first
+production snapshot restores exactly the saved accepted points, diagnostics and
+replay policy. The allocation remains 1,024 points by eight shifts in every one
+of the 1,026 sectors, with eight workers on CPUs 0–7 and a 30-GiB address-space
+bound.
+
+The coordinator intentionally stops this process to validate a continuously
+refilled caller queue after the completed-prefix timings establish batch
+barrier underutilization. SIGINT is sent at 1,289.206036 seconds; the process
+does not finish within the separate 15-second handoff grace, so its verified
+group receives SIGKILL. The timer reports **1,305.505410 seconds**, no timeout
+and no core dump, with peak RSS **9,466,456 KiB**. All three recorded PIDs and
+two groups are absent, and all 26 frozen bindings pass after reaping. This is
+coordinator cancellation, not the original 1,800-second deadline or numerical
+completion.
+
+Both the final observed snapshot and the retained checkpoint have **397,312
+accepted evaluations**, **259,434 rescues**, maximum 640 bits and zero failures.
+There are no complete sectors or full-integral estimate. The checkpoint SHA-256
+is `50572d1e3aa6f31e0cee1b899090a39cf4781df3f779323474d38215f1fd888a`.
+It remains available for continuation with the same original artifact and
+allocation. Root-authorized Pathfinder diagnostics on CPU 8 overlap this
+capability run; its timings are not isolated performance evidence.
+
+The separate [refill scheduler review](qmc-refill-scheduling.md) records the
+narrow caller-only change and focused controls. The first overlapping test
+process aborts during initialization while this run holds Symbolica's
+restricted-thread permit. A subsequent serialized run finds one incorrect
+test expectation: native failure diagnostics count the attempted failed
+callback as well as the two successful callbacks. After correcting that
+expectation, all 20 driver controls pass; the production queue is unchanged.
+The old abort and 19-pass/one-failure records remain preserved. The next
+continuation is prepared with a finite 7,200-second whole-process bound plus
+five seconds of grace; publication of a new integral result remains pending.

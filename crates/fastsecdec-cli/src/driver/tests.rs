@@ -488,7 +488,9 @@ fn cancelled_partial_qmc_preserves_complete_replica_diagnostics() {
     assert!(!report.converged);
     assert!(report.estimate.is_some());
     assert!(!report.estimate.unwrap().production_complete);
-    assert_eq!(report.snapshot.completed_points, 3072);
+    // Cancellation is checked before dispatch, so a pre-cancelled resume does
+    // not issue one additional package beyond the accepted checkpoint.
+    assert_eq!(report.snapshot.completed_points, 2048);
     assert_eq!(report.snapshot.stop_reason, Some(StoppingReason::Cancelled));
     assert_eq!(report.resume_status, ResumeStatus::CheckpointSaved);
 }

@@ -11,7 +11,8 @@ use crate::{
 use fastsecdec::{integration::VectorEstimate, status::EvaluationDiagnostics};
 use std::{collections::BTreeMap, fs};
 
-fn fixture() -> (tempfile::TempDir, Artifact, KernelSet, IntegrationInput) {
+pub(in crate::driver::execution::qmc) fn fixture()
+-> (tempfile::TempDir, Artifact, KernelSet, IntegrationInput) {
     let dir = tempfile::tempdir().unwrap();
     let card = dir.path().join("input.toml");
     fs::write(

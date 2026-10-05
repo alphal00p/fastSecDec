@@ -30,7 +30,8 @@ struct Context<'a> {
 }
 
 /// Snapshot/reduction is observational and can be expensive for many sectors.
-/// Package acceptance and cancellation remain checked by the caller every batch.
+/// Package acceptance and cancellation remain checked by the caller at each
+/// completion and bounded wait poll (or each batch for the MC path).
 fn observe(
     dashboard: &mut Dashboard,
     diagnostics: &EvaluationDiagnostics,

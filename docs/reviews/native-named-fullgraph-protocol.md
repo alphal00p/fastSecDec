@@ -166,8 +166,20 @@ After the accepted fourth artifact/inspection and numerical timeout, further
 numerical work must reuse that saved artifact. Existing CLI `--resume` can
 restore a copied checkpoint while retaining the original attempt unchanged;
 native restore validates complete problem scope, settings, design and accepted
-replay state. The checkpoint is older than the final observed progress. No
-600-second extension or eight-worker run has been frozen or launched: the
-heterogeneous accepted prefix and eager evaluator ownership require a bounded
-source/cost assessment first. This does not authorize regeneration, reduced
-coverage, changed precision rules or an automatic retry.
+replay state. The fourth attempt's checkpoint is older than its final observed
+progress. The subsequent eight-worker continuation successfully admits it with
+the bounded current-sector context owner, then is intentionally stopped for a
+reviewed caller-scheduling handoff; see the [results](native-named-fullgraph-results.md).
+It retains 397,312 accepted points and does not yield a complete integral.
+
+The next numeric-only continuation uses that newest immutable checkpoint as its
+seed, the same original artifact and allocation, and the independently reviewed
+continuously refilled CLI queue. It keeps eight workers on CPUs 0–7 and the
+30-GiB address-space bound; its single whole-process budget is 7,200 seconds
+including cold load, with five seconds of grace. Native periodic checkpoints
+contain accepted complete packages; unfinished in-flight work is reissued by
+the existing restore API. The scope is finite capability completion, not
+one-per-mille convergence or isolated performance certification. No generation,
+reduced coverage, precision-rule change or automatic retry is authorized by
+this protocol. Actual timing overlap is recorded, and concurrent processes
+must respect the native Symbolica license/thread admission.

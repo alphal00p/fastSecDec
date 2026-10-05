@@ -232,3 +232,12 @@ cases and 616 inputs. Preparation performed no scientific generation or
 integration. The source-only Pathfinder individual-row counterpart is in
 `output/probes/pathfinder_sample_latency_current/`; its invocation remains tied
 to a later ordinary paired result and actual default-dispatch observation.
+
+After the bounded-context CLI fix passed its focused gate, a fresh
+`output/benchmarks/minimal-paired-current-2/plan.json` was prepared with the same
+five cases and 616 bindings. Its SHA256 is
+`36cebea94d5159f8775f838a15bd012098e9ec2c043a459d65001235759fc1f9`.
+The CLI is `43606467dc2146a3b7b4d2a04703182eac8c6419c8a56107f996aa0b5c36c9fa`;
+the build evidence records its accepted precommit overlay, byte correspondence
+with commit `a1f103d`, and unchanged native mathematical libraries. The original
+plan remains immutable. Neither plan has produced a paired scientific row.

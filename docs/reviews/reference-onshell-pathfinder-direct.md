@@ -207,10 +207,153 @@ Terminal stderr contains only the existing CLI's fixed interruption message;
 its `main` catches `KeyboardInterrupt`, so no Python traceback was retained.
 The watchdog records establish the deadline cause despite that generic wording.
 
-The smallest proposed next diagnostic is source-only at
+The subsequent narrow diagnostic was prepared at
 `output/probes/onshell_pathfinder_stage/`: a fresh 180-second generation process
 with the same math/cache inputs, stdlib periodic Python stack dumps and the
 existing `--log-file` stage output. It changes no reference source or algorithm,
-contains no integration follow-on and awaits coordinator scheduling. This seeks
-the actual blocking owner before any decision about another complete generation;
-it is not another blind long retry or a promised reference result.
+and contains no integration follow-on.
+
+The authorized `onshell-pathfinder-stage-attempt-1` process exited 124 in
+181.809 seconds at its fixed deadline. Its process group and wrapper were reaped;
+all 993 frozen checks and both read-cache inventories passed. The stage log shows
+endpoint preparation completed in 6.737 seconds: 223 requested signatures,
+137 cache hits and no newly generated formulas. It then entered the explicit
+build for 968 sector evaluators. The 30-second stack samples move through native
+regular-coefficient differentiation, simultaneous substitution and expression
+support inspection inside `_two_stage_derivative_fused_components`. Thus this
+attempt establishes expensive explicit expression construction, not a cache-load
+stall or a single expression that is proven stuck. No sector completion count or
+exact active expression is established. The final stage log says “finished”
+because `prepare_explicit_sector_formulas` calls `finish_stage` in `finally`;
+that line does not certify successful generation. There is no bundle or vector.
+
+Root explicitly allowed this diagnostic on CPU 8 to overlap the native
+continuation on CPUs 0–7. The recorded overlap through the diagnostic wrapper's
+final trace was 143.567 seconds. These are diagnostic/capability timings, not
+isolated performance measurements. `terminal-slot-release.json` retains the
+session, process group, timestamps and absence check.
+
+## Existing alternative reference layouts
+
+Source inspection finds no existing explicit-only flag that avoids the observed
+coefficient construction. `two-stage-explicit` also calls
+`_two_stage_derivative_fused_components`; it only avoids the later substitution
+of U/F derivative bodies into its assembler. The existing native function-map
+aliases in `_build_qmc_optimized_evaluators` wrap Korobov functions after explicit
+coefficient expressions already exist, so enabling them does not remove this
+generation stage. Changing the direct-projector cache threshold can select a
+shipped Taylor projector for large IBP signatures, but still uses the same
+explicit coefficient-construction owner and has no demonstrated benefit here.
+
+The smallest existing route that does avoid that owner is replacing `--explicit`
+with `--projector-generation`, while preserving the original card's
+`symbolic-derivatives`, IBP policy, full sector/order coverage, O2 and precision
+settings. `FSD.py` then prepares endpoint projectors, regular-Taylor formulas and
+mapped chain rules instead of explicit per-sector expressions. Symbolic mode
+uses shared U/F derivative evaluators; the existing formula guards and runtime
+fallbacks remain the reference's responsibility. Its strict bundle serializer
+already transports those artifacts, and `SectorProcessor` assembles the full
+Laurent vector through its existing endpoint-projector route. Existing triangle
+and box source tests compare explicit and projector complete pointwise vectors.
+No new evaluator, algebra or reference source patch is proposed.
+
+This is a feasible separately labelled whole-integral correctness reference,
+with uncertain generation and sampling cost. It is not evidence that the
+projector layout is the efficient explicit performance baseline, nor a reason
+to replace FastSecDec's production direct O2 evaluator. Any concrete run remains
+under coordinator scheduling.
+
+## Bounded projector correctness attempt
+
+Root authorized the existing route in a fresh
+`output/diagnostics/onshell-pathfinder-projector-attempt-1/` directory. The only
+scientific steering change was `--projector-generation` in place of `--explicit`;
+the original card, symbolic derivatives, IBP, full 968-sector scope through order
+zero, complex O2, precision policy, seed and 1,024×8 allocation stayed fixed.
+The existing watchdog used 300 seconds for generation, 1,200 for conditional
+integration, 1,600 for the enclosing process and 30 GiB of process-tree RSS.
+Both phases were assigned CPU 8 with the existing stage log and stdlib traceback
+wrapper. Root allowed overlap with native capability work on CPUs 0–7; this
+attempt is not an isolated performance observation.
+
+Generation timed out before producing a bundle. The watchdog sent SIGINT at
+300.4 seconds, then SIGTERM and SIGKILL at its existing five-second grace
+intervals. The generation record reports exit 124 in 310.706 seconds; the outer
+process reports exit 124 in 312.223 seconds. Both recorded process groups were
+absent after reaping. All 853 immutable checks and both read-cache inventories
+passed. Integration was never launched, and there is no coefficient vector or
+result.
+
+Endpoint preparation completed in 6.833 seconds with the same 137 cache hits.
+The next stage requested 226 regular-Taylor signatures; repeated stack samples
+locate work in the existing `evaluator.dualize` call at
+`subtraction_formula.py:750`. Thus the alternative bypassed explicit expression
+fusion but encountered regular-formula preparation cost. The mutable cache
+contains 174 JSON records, including all unchanged 137 seeds and 37 additional
+records, plus 37 serialized evaluator sidecars and 38 lock files. Their presence
+is not a complete-bundle certificate.
+Maximum sampled generation-tree RSS was 6.147 GiB. Full logs, tracebacks,
+inventories and `terminal-slot-release.json` are retained; no retry followed.
+
+The completed new regular-formula prefix spans 267.372 seconds from its first
+lock creation to its last completed JSON. Individual lock-to-JSON intervals
+range from 0.002 to 174.167 seconds, with a 0.095-second median. These are observed
+cache-write intervals, not isolated evaluator benchmarks or a forecast for all
+226 requests. The last completed signature has five Taylor axes with maximum
+orders `[2, 2, 1, 0, 0]`, seven outputs, 56 input slots and 126 native dual
+components. The subsequent unmatched cache lock has digest `96f93624…`; its
+signature and dual shape were not exported and cannot be reconstructed from the
+hash alone. `regular-cache-progress.json` retains the complete data inventory.
+
+Existing supported flags can avoid additional proactive universal-formula work:
+`--regular-taylor-signature-limit 0` keeps already cached regular formulas but
+does not build cold signatures, and `--chain-rule-formula-signature-limit 0`
+skips proactive mapped chain-rule construction. The ordinary strict-bundle
+runtime then uses its existing symbolic-derivative Taylor assembly for missing
+auxiliary formulas (`integrand.py:3488` and `11711`); no coefficient, sector or
+precision policy is removed. The reference's existing tests cover the guards,
+and its documentation describes this fallback for hard triple-box signatures.
+Any subsequent reuse must carry the completed native evaluator sidecars with
+their JSON metadata, leaving lock files behind. This is a source-supported
+correctness alternative with uncertain sampling cost, not a performance claim.
+
+The supplied reference checkout contains only triangle, box and double-box
+target JSON files, including its ignored example/output locations. No stored
+complete original on-shell triple-box result was found. Its historical
+`docs/FastSecDec.tex` records a six-order −6 through −1 stress result interrupted
+at 30.19 GiB and explicitly labels it as unvalidated; it lacks the finite row.
+Its leading-pole generation examples likewise do not supply the required full
+vector. Those historical records cannot close the current full-integral
+comparison.
+
+## Completed guarded projector bundle
+
+The separately authorized `onshell-pathfinder-projector-cached-attempt-1`
+preserved the original physics and added the two existing zero signature limits.
+It reused 174 completed JSONs with their 37 native evaluator sidecars, without
+locks. Generation succeeded in 39.637 seconds. The native stage report records
+137 endpoint cache hits, 37 regular-formula cache hits, 189 regular signatures
+left to runtime, four chain-rule requests skipped by their guard, and no new
+formula construction. The saved bundle covers all 968 sectors and all seven
+orders −6 through zero. It contains 12,616 native evaluator files; the complete
+12,621-file bundle occupies 311,773,686 bytes.
+
+The enclosing harness then failed before integration because its normalization
+check expected `gamma_argument=(4,3)` inside the parametric representation.
+Native `pysecdec_bridge.py:1276` deliberately records `(0,0)` there for an
+external-prefactor DOT integral; lines 1327–1342 separately construct and store
+the Gamma series. The actual bundle records `gamma(3*eps + 4)`, U exponent
+`(2,4)`, F exponent `(-4,-3)`, the original ten unit powers and seven regular
+prefactor coefficients starting at 6. The failed check and its exit 1 are
+preserved; generation itself succeeded and was reaped with exit 0.
+
+The corrected data admission requires that exact native external convention,
+the fixed U/F exponents and complete finite real prefactor coverage. Existing
+`formatting.apply_global_convention` convolves the stored Gamma once into the
+complete raw vector; the adapter adds no normalization arithmetic. Independent
+source review accepted this correction. A fresh numeric-only continuation,
+`onshell-pathfinder-projector-numeric-attempt-1`, binds all 12,621 original bundle
+files and 13,632 total immutable inputs, then invokes ordinary strict integration
+with the unchanged 1,024×8 allocation, seed, precision and full-scope arguments.
+It is bounded at 1,200 seconds and 30 GiB on CPU 8. No generation is repeated,
+and final scientific comparison remains pending its complete numerical output.

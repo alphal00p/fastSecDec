@@ -960,3 +960,14 @@ pass, including precision rescue, vector/covariance equivalence and checkpoint
 recovery with eight workers; formatting and scoped all-target Clippy pass.
 Large-run memory and speed remain measured questions for the saved-artifact
 continuation rather than inferred benefits of the smaller ownership bound.
+
+The [CLI refill scheduler](reviews/qmc-refill-scheduling.md) then reuses native
+`next_work`, `submit` and in-flight checkpoint restoration, with the caller's
+existing Rayon pool and standard completion channel. Numerica keeps canonical
+full-vector reduction and covariance ownership; only the coordinator advances
+accepted replay. No public executor, estimator, lattice or checkpoint format is
+added. Twenty focused driver controls pass, including deterministic refill
+before a straggler, full covariance, cancelled/failed-prefix exclusion,
+pending-work restoration and worker panic draining. Formatting and scoped
+all-target Clippy pass. The change responds to a measured batch barrier;
+whole-integral completion and speed remain separate runtime observations.

@@ -122,10 +122,25 @@ tests pass**, including complete-vector/covariance agreement with the former
 caller under identical schedules, actual precision rescue, failed-prefix
 exclusion and eight-worker checkpoint recovery. Formatting and scoped all-target
 Clippy pass. The native libraries and artifact/checkpoint formats are unchanged;
-the saved large artifact will be resumed with eight workers under a fixed
-1,800-second whole-process bound. This source change alone establishes neither
-large-run memory consumption nor throughput. See the
+the saved large artifact resumes successfully with eight workers. That run
+reaches 397,312 evaluations without failures and peaks at 9,466,456 KiB (9.03 GiB).
+It is intentionally stopped after 1,305.505 seconds to validate and adopt the
+refill scheduler, retaining its checkpoint. This is not a deadline failure or
+complete numerical result. See the
 [context-lifetime audit](qmc-worker-context-lifetime.md).
+
+The observed synchronous batch barrier permits at most 32.09% worker-time
+utilization in an audited 160-package prefix. A private CLI refill queue now
+lets completed workers take available native packages immediately. Existing
+session/accumulator/checkpoint APIs retain all numerical ownership, with at most
+one live sector context per worker. All **20 focused driver tests pass**, plus
+formatting and scoped all-target Clippy. Controls cover full covariance,
+out-of-order arrivals, cancellation with pending checkpoint work, failed-prefix
+exclusion and panic draining. The next saved-artifact continuation retains the
+original complete allocation with one 7,200-second whole-process bound.
+The initial test abort from an occupied Symbolica permit and a later corrected
+test-only diagnostic-count expectation remain recorded. See the
+[refill audit](qmc-refill-scheduling.md).
 
 Pathfinder's cached on-shell continuation reaches its 1,800-second generation
 deadline and finishes shutdown after **1,802.576 seconds**, without a bundle or
@@ -134,6 +149,19 @@ owned processes are reaped and immutable inputs pass verification. The sampled
 peak RSS is 3.069 GiB. The stage causing this delay is not yet established;
 further reference work first diagnoses it. This unsuccessful attempt supplies
 no performance ratio. See the [reference record](reference-onshell-pathfinder-direct.md).
+
+The subsequent short traceback diagnostic locates expensive explicit formula
+construction. Pathfinder's existing guarded projector route then generates a
+complete **968-sector, seven-order bundle in 39.637 seconds**. A harness check
+initially mistakes its native external Gamma-prefactor convention for a scope
+mismatch; source review verifies the stored Gamma(4+3 eps) series and its single
+Laurent convolution. The corrected numerical-only continuation reuses the
+unchanged bundle, but exits after 4.547 seconds because the reference's strict
+loader lacks an auxiliary numerator evaluator for a requested shape. Its
+existing ordinary runtime can build such evaluators lazily and is being checked
+as the next supported route. This alternative correctness route is explicitly distinct
+from the direct-evaluator performance baseline; no complete reference result
+has yet been accepted.
 
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,

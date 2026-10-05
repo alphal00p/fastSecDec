@@ -4,17 +4,16 @@ use super::super::{
     refinement::{adaptive_budget, qmc_design},
     report::{ExecutionOutcome, finish},
 };
-use super::{Context, evaluate_tracked, final_report, observe, submit_package};
+use super::{Context, final_report, observe};
 use crate::CliResult;
 use fastsecdec::{
     integration::QmcSession,
-    status::{EvaluationDiagnostics, IntegrationMethod, IntegrationStage},
+    status::{IntegrationMethod, IntegrationStage},
 };
-use rayon::prelude::*;
 use std::time::Instant;
 
+mod queue;
 mod slot;
-use slot::QmcSlot;
 pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationReport> {
     let Context {
         artifact,
@@ -70,62 +69,25 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         if failure.is_some() {
             break;
         }
-        let mut slots = (0..settings.workers)
-            .map(|_| QmcSlot::default())
-            .collect::<Vec<_>>();
-        while !session.is_complete() {
-            let tasks = (0..settings.workers)
-                .map(|_| session.next_work())
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter()
-                .flatten()
-                .collect::<Vec<_>>();
-            if tasks.is_empty() {
-                return Err("QMC scheduler has no work before completion".into());
-            }
-            for (slot, task) in slots.iter_mut().zip(&tasks) {
-                slot.prepare(task.sector_id(), kernels, &session, &replay)?;
-            }
-            let returns = pool.install(|| {
-                slots
-                    .par_iter_mut()
-                    .zip(tasks.into_par_iter())
-                    .map(|(slot, task)| {
-                        let id = task.sector_id();
-                        let active = slot.active.as_mut().unwrap();
-                        let kernel = &mut active.context;
-                        let mut local = EvaluationDiagnostics::default();
-                        let result =
-                            active
-                                .worker
-                                .evaluate_weighted(task, |point, weight, output| {
-                                    evaluate_tracked(kernel, point, weight, output, &mut local)
-                                });
-                        let state = result.as_ref().ok().map(|_| kernel.state().clone());
-                        (id as usize, result, local, state)
-                    })
-                    .collect::<Vec<_>>()
-            });
-            for (id, result, local, state) in returns {
-                diagnostics.merge(&local)?;
-                if let Err(error) = submit_package(result, id, state, &mut replay, |result| {
-                    session.submit(result)
-                }) {
-                    failure.get_or_insert_with(|| error.to_string());
-                }
-            }
-            cancelled = dashboard.cancelled();
+        let outcome = queue::Phase {
+            pool: &pool,
+            kernels,
+            session: &mut session,
+            workers: settings.workers,
+            diagnostics: &mut diagnostics,
+            replay: &mut replay,
+        }
+        .run(|session, diagnostics, replay, force| {
+            let cancelled = dashboard.cancelled();
+            let mut failure = None;
             observe(
                 dashboard,
-                &diagnostics,
+                diagnostics,
                 started,
-                cancelled || failure.is_some() || session.is_complete(),
+                force || cancelled,
                 || session.snapshot(),
                 &mut failure,
             )?;
-            if failure.is_some() || cancelled {
-                break 'rounds;
-            }
             if last_checkpoint.elapsed().as_secs() >= 5 {
                 save_checkpoint(
                     checkpoint,
@@ -133,14 +95,17 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     settings,
                     round,
                     session.checkpoint()?,
-                    &diagnostics,
-                    &replay,
+                    diagnostics,
+                    replay,
                 )?;
                 last_checkpoint = Instant::now();
             }
-        }
-        if cancelled {
-            break;
+            Ok(queue::Outcome { cancelled, failure })
+        })?;
+        cancelled = outcome.cancelled;
+        failure = outcome.failure;
+        if cancelled || failure.is_some() {
+            break 'rounds;
         }
         if session.stage() == IntegrationStage::Pilot {
             let (seconds, minimum_shifts) = adaptive_budget(settings, round)?;
