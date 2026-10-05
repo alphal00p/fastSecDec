@@ -1,0 +1,388 @@
+{
+  "format": "fastsecdec-reference",
+  "reference": {
+    "coefficients": [
+      {
+        "key": {
+          "component": "Real",
+          "order": 0
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.01622526223753092
+        },
+        "value": 10.34539579586942
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": 1
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.15313872419854435
+        },
+        "value": 99.81872959411426
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": 2
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.9781050881960318
+        },
+        "value": 760.9167768416243
+      }
+    ],
+    "kernel_content_id": null,
+    "provenance": {
+      "attributes": {
+        "actual_evaluation_unit": "scalar summed-coefficient point; excludes loading/construction/auxiliary work",
+        "actual_evaluations": 797856,
+        "actual_lattice_size": 8311,
+        "calibration_certified": false,
+        "canonical_F_whitespace_removed_sha256": "7ee830824a77c1c7b3b78b988fd1b16dfa9f4295a281c59c582b9651af360365",
+        "case": "issue_1",
+        "continuation_sources_sha256": {
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python": "8f9781a98200d9ecda7e00464e4c64b1327abae788ae8e6979d5c859311410c7",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDec/integral_interface.py": "35789f70469f804c1390d9fe255e1c2cb14ee806b0ced6d6fc5e486e9bf84f82",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/bin/export_sector": "d9832e8f7a4647c04214af63aafe071588e34f4397e8f90ad8de99825eff451f",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/bin/form": "aba0dc56f213485b49df1821f79c79122f313ec1001fcd6e5893a7631a24ae64",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/bin/formwrapper": "5cd39001666bdb1cd204c224b4b5a5de19e94081470ea2d56fa6c8efc6dd3ebd",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/include/qmc.hpp": "ba0706016c6223c571eb19dce7cf890dc7b0305bc336190b28daf2bd12efa501",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/include/secdecutil/integrators/qmc.hpp": "9c2cc0129e01d6ad44eb2b76fb48597b1c11d62867de6c2149bb51955dca77e4",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/include/secdecutil/pylink_integral.hpp": "01fc8b83f6c37527191868bb93ed3d86c55fe08af9dbc83ebff0106c38d14b16",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/include/secdecutil/uncertainties.hpp": "bca314e8f8c01b6772997b0a76267dd2b08a8548a4c4a5f0127725bbda1413e4",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/lib/write_integrand.frm": "441bbb506cb05e4dd6af49fbd6650e4c89180043d27bf30c3dc8f9ecada4b2d8",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/run_with_memory_watch.py": "791bde19b760afe9cc06360833bd2996e61d06bf4920613c33783fc7ba20ef20",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_series.py": "8fcb5e87ecb9de356198b8393f2ba2803f2452c979b03ce060eae30094b94a5e",
+          "/common/dev/fastsecdec/output/probes/continue_issue_one_reference.py": "a77fc93e6bf6af0458577653343adcde15431c74a61fbc8a5003c85b3685b02a",
+          "/common/dev/fastsecdec/output/probes/continue_issue_one_together.py": "e55fa48c068f2bc50207551591a0d787da5c64bf1a1396e36da9c2ac02aae6ec",
+          "/common/dev/fastsecdec/output/probes/guard_reference_python.py": "7abc87c9362dd001c7b0d308d7306038ff57071a452d9d4ad50f0558c414fe62"
+        },
+        "density": "F^(eps-2)",
+        "dimension": 7,
+        "earlier_unverified_reference": {
+          "blake3": "15c516da221e9bd3f867b6f82386d51bbbc5582ed246e2d7dbc81270fbcd7ef3",
+          "bytes": 19506,
+          "path": "examples/references/issue_1.json"
+        },
+        "exactness": false,
+        "external_covariance": null,
+        "external_imaginary_standard_errors": null,
+        "external_imaginary_values": null,
+        "external_sources_sha256": {
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/FSD.py": "6a2d7817a603f8805b7a2579dce2f06e56e1acd757712f503b96dc8440045410",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/examples/runs/issue_1/four_loop_test_int_1.toml": "2a3d43aed159fe1fd691faa62b939e0ef296fbf11af83b0901469f50f03fb95d",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/dot_parser.py": "ce25a150c8de628a3b35407c619e2748677b7850702c4ff5fc585d80b2aad5d8",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/kinematics.py": "4cd5f576d8bfe7effc0d17d197921dbbb54ea45e759b64971d82f6376f0cc2b5",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/pysecdec_bridge.py": "81dc285ffcc74702b5cbb7b563b05a595dad3bf5028ba17c46192dd0e426310d",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/run_with_memory_watch.py": "791bde19b760afe9cc06360833bd2996e61d06bf4920613c33783fc7ba20ef20",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/uf_topology.py": "54395670f067433fe47045e6fff1d51a1576b6f18465aa10dc21c407dfbccdaf",
+          "/common/dev/fastsecdec/examples/parametric/issue_1_f.sym": "08228cced732a0f5358dd9a73e96b0c58d7cd1bd380340c9681ee28d01f234ac",
+          "/common/dev/fastsecdec/examples/runs/issue_1.toml": "1d9d3cd8aeb62f7db484e6814bedb8a6b90efb8f5f28255bcad7aff6c58d8fd2",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_disteval.py": "933bfa6da7bff07fba15f0a1e321be1c3018d41b1018abe3719820cdee6cf026",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_series.py": "8fcb5e87ecb9de356198b8393f2ba2803f2452c979b03ce060eae30094b94a5e",
+          "/common/dev/fastsecdec/output/probes/run_remaining_reference.py": "7fd3ba1ce6acc8fedede7c8a875e6f2dd110037ac596bedd4c6e09b96c1cdf61"
+        },
+        "external_variance_policy": "native QMC on full sector sum; cross-sector covariance implicit; cross-coefficient covariance unavailable",
+        "generated_files_sha256": {
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/disteval/builtin.so": {
+            "bytes": 19424,
+            "sha256": "531facf080f811046cb294a5dd90fa3598fadf4e7dfded447514a2f8cc46edf1"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/disteval/fsd_psd_four_loop_test_int_1_pysecdec_integral.so": {
+            "bytes": 21619304,
+            "sha256": "4a84e9be7383b1a3bb81193c619aa2f1f6782dd3b99bb8db2f8a7c4e6bca5d62"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/codegen/form.set": {
+            "bytes": 116,
+            "sha256": "0c3aafcc9ca1c802293bdc144ad2ac8079e6e15f2f734106f2f2e0afe13693cd"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/disteval/builtin.so": {
+            "bytes": 19424,
+            "sha256": "531facf080f811046cb294a5dd90fa3598fadf4e7dfded447514a2f8cc46edf1"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/disteval/fsd_psd_four_loop_test_int_1_pysecdec_integral.so": {
+            "bytes": 21619304,
+            "sha256": "4a84e9be7383b1a3bb81193c619aa2f1f6782dd3b99bb8db2f8a7c4e6bca5d62"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/fsd_psd_four_loop_test_int_1_pysecdec_integral_pylink.so": {
+            "bytes": 10863776,
+            "sha256": "9af3bd269076888cb4fe8715b1140533bff05fdff4f7b28ea06c7d6e86cc85ab"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/libfsd_psd_four_loop_test_int_1_pysecdec_integral.a": {
+            "bytes": 44206856,
+            "sha256": "423a1c1cd7a2be5d259da88c7f41bf0a85fb4b924abd2bb1c1ceee8034acde9b"
+          },
+          "package/fsd_psd_four_loop_test_int_1_pysecdec/fsd_psd_four_loop_test_int_1_pysecdec_integral/src/prefactor.cpp": {
+            "bytes": 465,
+            "sha256": "df40b38cdffc151c3009a804fa5a05a198b0c346a7b3cbf980683341455caf63"
+          }
+        },
+        "generation_command": [
+          "taskset",
+          "-c",
+          "0",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_disteval.py",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/issue1-attempt-1",
+          "FSD.py",
+          "run",
+          "--run",
+          "examples/runs/issue_1/four_loop_test_int_1.toml",
+          "--dot-engine",
+          "pysecdec",
+          "--workers",
+          "1",
+          "--normaliz-executable",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/lib/python3.12/site-packages/pySecDecContrib/bin/normaliz",
+          "--max-eps-order",
+          "2",
+          "--samples-per-iter",
+          "8192",
+          "--qmc-shifts",
+          "32",
+          "--pysecdec-epsrel",
+          "0.01",
+          "--target-integration-time",
+          "180",
+          "--pysecdec-workdir",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/issue1-attempt-1/package",
+          "--result-path",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/issue1-attempt-1/result.json",
+          "--json",
+          "--no-progress"
+        ],
+        "geometric_sectors": 616,
+        "highest_order_relative_error_target": 0.001,
+        "highest_order_target": 2,
+        "highest_order_target_met": false,
+        "independent_audit": {
+          "accepted_for_native_reference_transport": true,
+          "calibration_certified": false,
+          "coefficients": [
+            {
+              "order": 0,
+              "standard_error": 0.01622526223753092,
+              "standard_error_hex": "0x1.09d5aeab78535p-6",
+              "standard_error_text": "1.62252622375309193e-02",
+              "value": 10.34539579586942,
+              "value_hex": "0x1.4b0d7b7bedebfp+3",
+              "value_text": "1.03453957958694200e+01"
+            },
+            {
+              "order": 1,
+              "standard_error": 0.15313872419854435,
+              "standard_error_hex": "0x1.39a0cba178a6cp-3",
+              "standard_error_text": "1.53138724198544351e-01",
+              "value": 99.81872959411426,
+              "value_hex": "0x1.8f46610cfbf3dp+6",
+              "value_text": "9.98187295941142594e+01"
+            },
+            {
+              "order": 2,
+              "standard_error": 0.9781050881960318,
+              "standard_error_hex": "0x1.f4ca30abb4d06p-1",
+              "standard_error_text": "9.78105088196031813e-01",
+              "value": 760.9167768416243,
+              "value_hex": "0x1.7c7558f18c40dp+9",
+              "value_text": "7.60916776841624255e+02"
+            }
+          ],
+          "evidence": {
+            "all_processes_reaped": true,
+            "all_three_native_n_r_count_logs_verified": true,
+            "before_after_prefactor_tuple_identical": true,
+            "compiled_ordinary_header": "secdecutil/pylink_integral.hpp",
+            "import_guard_controls_pass": true,
+            "native_metadata_verified": true,
+            "no_symbolica_imported": true,
+            "parent_hashes_independently_verified": true,
+            "physical_prefactor_one": true,
+            "runtime_sum_branch_observed": true,
+            "source_hashes_independently_verified": true
+          },
+          "format": "fastsecdec-independent-reference-audit",
+          "input": {
+            "canonical_F_whitespace_removed_sha256": "7ee830824a77c1c7b3b78b988fd1b16dfa9f4295a281c59c582b9651af360365",
+            "case": "issue_1",
+            "density": "F^(eps-2)",
+            "dimension": 7,
+            "domain": "positive_orthant",
+            "orders": [
+              0,
+              1,
+              2
+            ],
+            "prefactor": 1,
+            "sector_filter": null,
+            "sectors": 616,
+            "sum_coefficient": 1
+          },
+          "physical_tuple_index": 2,
+          "recommended_reference_validation": "Checked",
+          "record_sha256": {
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/completion.json": "abc50397aa3d85a7085416f48136148960a894493ef41bbd0de63920b79477c3",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/native-integration-input.json": "9b16d05c2ab50371bd69e4bc10ab3eb269e3071114c03f73ab1fd7b23e2894c8",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/numerical.stderr.log": "9272b7dce1e1fde9995ba7de41057b32b6a422c402b5848df6fbd33df0712f40",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/preparation.json": "f0a1bda8b62187a5594df88e37409d65b821c6d314be8c51185af7eb8abacc4e",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/raw-series.json": "48ed04bf8186a8ca0fb4ff55bcb4260adab34e92be685b784f93e53c8b46fc00",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/raw-series.repr.txt": "9994ae6e0d9ae5bf25468634963fc13f9fd24f0c930d2bd9e614dcd6cb87ba81",
+            "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/result.json": "88c85fd471d186a774f4594e8c80f196b3a934a698f9e680ac8553d0686cacf6",
+            "output/issue-one-together-parent-verification.log": "5ebfc794498f9fa44f89b70897d4dada6844b0903522868e1adadc1690bd55d6",
+            "output/issue-one-together-source-verification.log": "1e852609a17117d8251cce6d9e66a27ef5d695921ac21ec8899c7523daf5656b"
+          },
+          "reference_route": "ordinary constituent IntegralLibrary together=True; all sectors summed before scalar-coefficient QMC",
+          "reviewer": "coordinator independent of continuation author",
+          "timing_scope": "diagnostic continuation; not cold generation or time-to-accuracy benchmark",
+          "uncertainty": {
+            "cross_coefficient_covariance": null,
+            "cross_sector_covariance": "included implicitly by sampling sum",
+            "exactness": false,
+            "imaginary_standard_errors": null,
+            "imaginary_values": null,
+            "owner": "existing native QMC on each complete sector sum"
+          },
+          "version": 1,
+          "work": {
+            "actual_evaluations": 797856,
+            "evaluations_per_coefficient": 265952,
+            "excludes": "loading, construction, and other auxiliary work",
+            "iterations_per_coefficient": 1,
+            "points": 8311,
+            "scalar_summed_coefficient_calls": 3,
+            "seed": 20261218,
+            "shifts": 32,
+            "unit": "scalar summed-coefficient point evaluation"
+          }
+        },
+        "native_comparison_record": {
+          "blake3": "a4fedb5c45a1bb5b30e9a0bdd51cad97eeda7424ad9338a586d0c56415762743",
+          "bytes": 253821,
+          "path": "output/diagnostics/issue-1/integral.result.json"
+        },
+        "native_complete_vector_samples": 2686976,
+        "native_kernel_content_id": "dcc19df77d9fd1390c4945e618ff2b3ada02cba4c546f9d308ac9c9b75b767dd",
+        "native_seed": 20261004,
+        "native_sources": [
+          {
+            "blake3": "ff6089929f282741ccc7f48a96514d51dd59e8c83aedc4498baa6ae80ecf5d71",
+            "bytes": 403,
+            "path": "examples/runs/issue_1.toml"
+          },
+          {
+            "blake3": "a3e8d6434f220da5d8cc3d368ee2d95bd4abf745d5511652e8cdac0b5c76f0ac",
+            "bytes": 604,
+            "path": "examples/parametric/issue_1_f.sym"
+          }
+        ],
+        "observation": "ordinary_constituent_together",
+        "orders": [
+          0,
+          1,
+          2
+        ],
+        "physical_tuple_index": 2,
+        "prefactor": "1",
+        "raw_report_blake3": "748a11eb44fc3a254f97224ac0e23c7acb19aeeb1e595e705fce754dc1574f2e",
+        "record_hashes": [
+          {
+            "blake3": "748a11eb44fc3a254f97224ac0e23c7acb19aeeb1e595e705fce754dc1574f2e",
+            "bytes": 7859,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/result.json"
+          },
+          {
+            "blake3": "22798111da89ce2988b652ee6b32368e0fb7cc8b5eb28faf4d542f9fdfca4eeb",
+            "bytes": 1417,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/raw-series.json"
+          },
+          {
+            "blake3": "0dce99b09b3031633a8bb3204e6821781c0e31d94db015f61b02768f5adadd5d",
+            "bytes": 496,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/raw-series.repr.txt"
+          },
+          {
+            "blake3": "32624ed8dd538b1beeab1ae60a067a1b4073b52e78398897fe8d50ca2019e9de",
+            "bytes": 4387,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/independent-review.json"
+          },
+          {
+            "blake3": "695713aa4d586513b5ec9d485f680430a35292f1907d1d65830549263c17aff3",
+            "bytes": 106693,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/native-integration-input.json"
+          },
+          {
+            "blake3": "94e2ff186b0d6ee40d54a5772b22424d9368d0cc077c6accd91e3ccc7a957ff6",
+            "bytes": 2814977,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/preparation.json"
+          },
+          {
+            "blake3": "356c8eb579f9c6e9033c7a884e402ebf2f8ed852393e1da350f45b6894e2054e",
+            "bytes": 2077,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/completion.json"
+          },
+          {
+            "blake3": "3c818622dbfb0e0ae57d1e9b829fb103195c112aa524153e1e979098c1c28be4",
+            "bytes": 7012,
+            "path": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/numerical.stderr.log"
+          }
+        ],
+        "reference_domain": "positive_orthant",
+        "reference_versions": {
+          "pySecDec": "1.6.6",
+          "symbolica": "2.1.0",
+          "sympy": "1.14.0"
+        },
+        "requested_settings": {
+          "complex_parameters": [],
+          "cputhreads": 1,
+          "epsabs": 1e-12,
+          "epsrel": 0.01,
+          "fitfunction": "none",
+          "generatingvectors": "cbcpt_dn1_100",
+          "lattice_candidates": 0,
+          "maxeval": 265952,
+          "minm": 32,
+          "minn": 8311,
+          "number_of_presamples": 0,
+          "number_of_threads": 1,
+          "real_parameters": [],
+          "seed": 20261218,
+          "standard_lattices": true,
+          "together": true,
+          "transform": "korobov3",
+          "verbosity": 3,
+          "wall_clock_limit": 180
+        },
+        "scalar_summed_coefficient_calls": 3,
+        "sector_filter": null,
+        "seed": 20261218,
+        "shifts": 32,
+        "sum_coefficient": "1",
+        "together": true
+      },
+      "convention": "Complete seven-dimensional positive orthant of the exact supplied F^(eps-2), unit density prefactor and unit outer sum coefficient; all616 sector integrands summed before each scalar Laurent-coefficient QMC call",
+      "engine": "pySecDec1.6.6; ordinary generated C++ IntegralLibrary together=True; native QMC seed20261218, Korobov3, N8311/R32",
+      "location": "output/diagnostics/remaining-pysecdec/issue1-together-attempt-1/result.json",
+      "notes": [
+        "Independent coordinator audit verifies exact original F/domain/unit normalization, immutable copied package and source hashes, actual compiled ordinary sum branch, complete physical tuple and all three native allocation logs; docs/reviews/issue-one-together-outcome.md.",
+        "The native provider samples each complete sector sum, preserving cross-sector covariance implicitly. Cross-coefficient covariance is unavailable and is not reconstructed from the three marginal errors.",
+        "The provider returned real scalar coefficients; imaginary values/errors are unavailable, not numerical zeros. Only explicit real rows are transported.",
+        "Every reported uncertainty remains StandardError. Checked records independent input/normalization/uncertainty-path/transport evidence, not exactness, general calibration or tolerance convergence. Epsilon+2 relative SE is above0.001.",
+        "797856 counts scalar summed-coefficient point evaluations across three8311x32 calls, each evaluating all616 sectors; this is neither disteval's scalar coefficient-kernel count nor native full-vector work. No direct cost ratio follows.",
+        "The earlier issue_1.json disteval observation remains separately Unverified because of shared-shift covariance omission. No samples or observations are combined, and no previous evidence is overwritten."
+      ],
+      "recorded_utc": null,
+      "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+      "source": "Independent pySecDec ordinary constituent IntegralLibrary with together=True; audited copied-package continuation"
+    },
+    "validation": {
+      "evidence": "Independent input, exact unit normalization, compiled ordinary together=True sector-sum uncertainty path, complete allocation/raw tuple and transport audit, followed by native all-three-coefficient comparison. This is not error calibration, exactness or convergence certification.",
+      "status": "checked"
+    }
+  },
+  "version": 1
+}

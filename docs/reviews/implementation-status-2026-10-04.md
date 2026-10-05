@@ -93,8 +93,10 @@ does not justify downgrading those references. The subsequent
 [ordinary-constituent sector-sum attempt](issue-one-together-outcome.md) completes
 all three coefficients, with the highest value 760.9168 ± 0.9781. It uses the
 existing native uncertainty of the summed integrand and addresses the identified
-cross-sector omission; general error calibration remains open and a separate
-versioned native fixture is pending. It introduces no statistical estimator.
+cross-sector omission. Its separate versioned native fixture is independently
+transport-audited and Checked, with all three comparison pulls below 0.857;
+general error calibration remains open. The original Unverified fixture remains
+unchanged. It introduces no statistical estimator.
 
 ## Generation and fixed-work measurements, alongside Pathfinder
 

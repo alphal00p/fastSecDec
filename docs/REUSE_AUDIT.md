@@ -610,4 +610,8 @@ provider uncertainty computed after summing the integrands. Independent source,
 metadata, normalization, original tuple and hash checks pass. This addresses the
 identified omitted sector covariance without a new estimator; cross-coefficient
 covariance and general error calibration remain unverified. The original
-disteval fixture is preserved, and a separate native fixture is pending.
+disteval fixture is preserved. The separate `issue_1_together.json` fixture
+passes independent transport review using the existing native reference encoder
+and comparison API, retaining the complete native vector/covariance and all
+three provider errors. Its Checked label admits comparison under the audited
+sector-sum path without asserting calibration; every pull is below 0.857.

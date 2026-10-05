@@ -232,6 +232,87 @@ fn issue_one_reference_preserves_full_orthant_data_without_certifying_omitted_co
 }
 
 #[test]
+fn issue_one_together_reference_preserves_native_sector_sum_uncertainty() {
+    let reference = read_reference(
+        &fs::read(repository().join("examples/references/issue_1_together.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        reference.validation,
+        ReferenceValidation::Checked { .. }
+    ));
+    assert_eq!(
+        reference
+            .coefficients
+            .iter()
+            .map(|c| c.key.order)
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    let means = [10.34539579586942, 99.81872959411426, 760.9167768416243];
+    let errors = [0.01622526223753092, 0.15313872419854435, 0.9781050881960318];
+    for (i, coefficient) in reference.coefficients.iter().enumerate() {
+        assert_eq!(coefficient.key.component, CoefficientComponent::Real);
+        assert_eq!(coefficient.value, means[i]);
+        assert_eq!(
+            coefficient.uncertainty,
+            ReferenceUncertainty::StandardError(errors[i])
+        );
+    }
+    let attributes = &reference.provenance.attributes;
+    assert_eq!(attributes["reference_domain"], "positive_orthant");
+    assert_eq!(attributes["dimension"], 7);
+    assert_eq!(attributes["density"], "F^(eps-2)");
+    assert_eq!(attributes["prefactor"], "1");
+    assert_eq!(attributes["sum_coefficient"], "1");
+    assert_eq!(attributes["together"], true);
+    assert_eq!(attributes["geometric_sectors"], 616);
+    assert!(attributes["sector_filter"].is_null());
+    // The ordinary real interface did not measure an imaginary component or
+    // joint cross-order covariance. Neither may turn into invented zeros.
+    assert!(attributes["external_imaginary_values"].is_null());
+    assert!(attributes["external_imaginary_standard_errors"].is_null());
+    assert!(attributes["external_covariance"].is_null());
+    assert_eq!(attributes["actual_evaluations"], 797856);
+    assert_eq!(attributes["actual_lattice_size"], 8311);
+    assert_eq!(attributes["shifts"], 32);
+    assert_eq!(attributes["scalar_summed_coefficient_calls"], 3);
+    assert!(
+        attributes["actual_evaluation_unit"]
+            .as_str()
+            .unwrap()
+            .contains("scalar summed-coefficient")
+    );
+    assert_eq!(attributes["calibration_certified"], false);
+    assert_eq!(attributes["exactness"], false);
+    assert_eq!(attributes["highest_order_target"], 2);
+    assert_eq!(attributes["highest_order_target_met"], false);
+    assert!(errors[2] / means[2].abs() > 0.001);
+    for source in attributes["native_sources"].as_array().unwrap() {
+        assert_eq!(
+            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
+                .to_hex()
+                .as_str(),
+            source["blake3"].as_str().unwrap()
+        );
+    }
+    let prior = &attributes["earlier_unverified_reference"];
+    let bytes = fs::read(repository().join(prior["path"].as_str().unwrap())).unwrap();
+    assert_eq!(
+        blake3::hash(&bytes).to_hex().as_str(),
+        prior["blake3"].as_str().unwrap()
+    );
+    assert_eq!(
+        read_reference(&bytes).unwrap().validation,
+        ReferenceValidation::Unverified
+    );
+    assert_eq!(
+        read_reference(&encode_reference(&reference).unwrap()).unwrap(),
+        reference
+    );
+}
+
+#[test]
 #[ignore = "requires the audited frozen inputs and six ignored external reports; records candidates under output/reference-fixtures only"]
 fn record_six_external_reference_candidates() {
     let repository = repository();

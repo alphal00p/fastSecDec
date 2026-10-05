@@ -18,7 +18,17 @@ prefactor is exactly one through order two, and the before-/after-prefactor
 tuple members agree. No second prefactor, imaginary zero claim, coefficient
 selection, uncertainty reconstruction or averaging of observations is applied.
 The previous disteval fixture remains separately preserved and Unverified.
-A native versioned fixture and comparison for this observation are pending.
+The separate native versioned fixture is now
+[`issue_1_together.json`](../../examples/references/issue_1_together.json).
+Independent transport review verifies its original values/errors, full native
+estimate/covariance and use of the existing encoder/comparison API. Its Checked
+label records the audited source, normalization and native sector-sum uncertainty
+path; it explicitly does not certify calibration or exactness. The three native
+comparison pulls are 0.8233, 0.4559 and 0.8568. The earlier fixture is unchanged.
+The focused native transport target passes four tests with two explicit probes
+ignored. The [writer record](issue-one-together-native-transport.md) and
+[independent transport review](issue-one-together-transport-independent.md)
+retain the exact fixture, source and original-estimate identities.
 
 ## Actual execution and independent source/outcome checks
 
