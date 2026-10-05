@@ -116,6 +116,25 @@ Publication and cold-load capability are now established. Full-integral numerica
 agreement remains open; the next native allocation will reuse this artifact.
 These capability timings do not replace the representative performance tables.
 
+The following CLI memory fix retains one active native evaluator per worker,
+restoring accepted precision state on sector changes. All **16 focused driver
+tests pass**, including complete-vector/covariance agreement with the former
+caller under identical schedules, actual precision rescue, failed-prefix
+exclusion and eight-worker checkpoint recovery. Formatting and scoped all-target
+Clippy pass. The native libraries and artifact/checkpoint formats are unchanged;
+the saved large artifact will be resumed with eight workers under a fixed
+1,800-second whole-process bound. This source change alone establishes neither
+large-run memory consumption nor throughput. See the
+[context-lifetime audit](qmc-worker-context-lifetime.md).
+
+Pathfinder's cached on-shell continuation reaches its 1,800-second generation
+deadline and finishes shutdown after **1,802.576 seconds**, without a bundle or
+numerical result. All 137 retained formula-cache entries are unchanged; all
+owned processes are reaped and immutable inputs pass verification. The sampled
+peak RSS is 3.069 GiB. The stage causing this delay is not yet established;
+further reference work first diagnoses it. This unsuccessful attempt supplies
+no performance ratio. See the [reference record](reference-onshell-pathfinder-direct.md).
+
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
 six massive families, double box and Issue 1 have further independent evidence.

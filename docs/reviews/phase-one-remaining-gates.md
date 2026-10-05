@@ -54,12 +54,15 @@ additional input coverage, not proof of numerical completion.
    Clippy. Its committed rerun publishes the full artifact in 1,695.486 seconds
    with peak 15.32 GiB, then cold inspection succeeds in 136.719 seconds.
    The subsequent 180-second integration stage times out with partial accepted
-   coverage and zero evaluation failures. Reuse the saved artifact/checkpoint
-   for a suitably bounded numerical continuation; do not repeat generation.
+   coverage and zero evaluation failures. The following CLI lifetime fix bounds
+   live sector contexts per worker and passes all 16 focused driver tests. Reuse
+   the saved artifact and its 36,864-evaluation checkpoint for the prospective
+   eight-worker, 1,800-second continuation; do not repeat generation.
    Preserve the original graph, kinematics, order zero,
-   O2, full coefficient coverage, exact offsets and covariance. Generation has
-   the same 1,800+5-second bound; cold inspection and the complete fixed allocation
-   each have 180+5 seconds. Prior attempts and their distinct causes remain in
+   O2, full coefficient coverage, exact offsets and covariance. Original
+   generation had a 1,800+5-second bound; cold inspection and the first fixed
+   allocation each had 180+5 seconds. The continuation's 1,800+5-second bound
+   includes loading and retains the original allocation. Prior attempts and their distinct causes remain in
    the [results](native-named-fullgraph-results.md).
 
 3. **Establish original-integral numerical agreement.** Successful generation,
@@ -123,8 +126,10 @@ Required performance evidence remains:
 - At least seven paired repetitions for ordinary cases and three for expensive
   cases, alternating order, with median timings within the agreed **5% band
   per representative case**. Cover small one-loop, double-box, numerator-heavy
-  multiloop and hard four-loop cases using corresponding full-support reference
-  estimators. Incorrect values or underestimated uncertainty fail acceptance.
+  multiloop and hard four-loop cases using the reference's normal boundary-support,
+  optimized QMC settings and complete correlated physical vectors, as specified
+  in the [current protocol](minimal-paired-acceptance.md). Incorrect values or
+  underestimated uncertainty fail acceptance.
 - Separate per-sector average worker cost, maximum sector-average cost and
   individual-sample maximum latency. Retain slow boundary observations,
   complete vectors, dimensions, sample/batch sizes, precision/rescues and

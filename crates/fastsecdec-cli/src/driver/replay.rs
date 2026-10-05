@@ -40,15 +40,18 @@ impl AcceptedReplay {
     ) -> CliResult<std::collections::BTreeMap<u64, WeightedEvaluationContext>> {
         sectors
             .iter()
-            .map(|sector| {
-                let index = usize::try_from(sector.id)?;
-                let state = self.states.get(index).ok_or("unknown replay sector")?;
-                Ok((
-                    sector.id,
-                    kernels.restore_evaluation_context(index, self.policy.clone(), state)?,
-                ))
-            })
+            .map(|sector| Ok((sector.id, self.context(kernels, sector.id)?)))
             .collect()
+    }
+
+    pub(super) fn context(
+        &self,
+        kernels: &KernelSet,
+        sector: u64,
+    ) -> CliResult<WeightedEvaluationContext> {
+        let index = usize::try_from(sector)?;
+        let state = self.states.get(index).ok_or("unknown replay sector")?;
+        Ok(kernels.restore_evaluation_context(index, self.policy.clone(), state)?)
     }
 
     pub(super) fn state(&self, sector: usize) -> &ReplayState {

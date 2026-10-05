@@ -158,3 +158,59 @@ persistence gate and explicit scientific-slot handoff.
 Concrete preflight independently verified all 851 frozen checks and the complete
 137-record seed inventory. Its record is `independent-preflight.json`, SHA256
 `f280c4cf555d974a734d340dcb852c5e2268d7372046bdd28ea90100c5c1a773`.
+
+## Intentional pause and resumed cached attempt
+
+Cached attempt 1 was stopped at the user's requested pause. Its wrapper exited
+130 after 640.404 seconds; all owned processes and groups were reaped. This was
+an intentional cancellation, not a deadline failure. The 137 JSON cache records
+remained unchanged, and no bundle or numerical result existed. The original
+`intentional-pause.json` and partial logs remain intact.
+
+After the user resumed, cached attempt 2 was prepared in a fresh directory with
+identical source, science arguments, 137 seed JSONs and 1,800/1,200/3,100-second
+limits. Its independent preflight accepted all 851 frozen checks
+(`fc2ed6340eedbcc4dfbb12a24f684fee2b5ef95709e2f9c8297ec06e1c446983`).
+It started only after the complete native fullgraph-4 chain was reaped.
+
+Generation reached its unchanged 1,800-second deadline. The watchdog interrupted
+its process tree at 1,800.3 seconds; the tree exited after SIGINT. The generation
+record reports 1,802.576 seconds and exit 124, and the outer process reports
+1,803.632 seconds and exit 124. All five recorded PIDs and all three process
+groups were absent afterward. The numerical phase was not started. There is no
+bundle, coefficient vector or result, and no retry followed automatically.
+
+All frozen hashes and both read-cache inventories remain unchanged. The mutable
+cache exactly equals its initial 137 JSON records; no new lock files or other
+cache outputs were created. Maximum sampled generation-tree RSS was 3.069 GiB,
+well below the limit. `terminal-slot-release.json`, normal generation/outer
+process and reap records, postflight checks and full logs are retained under
+`output/diagnostics/onshell-pathfinder-direct-cached-attempt-2/`.
+
+Bounded passive observations did not identify an exact active stage. No cache
+file or lock descriptor was held at the snapshot, and no `.locks` directory had
+been created. The existing cache lock helper leaves its lock files behind, so
+there is no evidence that this attempt entered the cold endpoint/regular formula
+cache-build lock. In contrast, the native warm endpoint-cache loader parses each
+stored expression and builds evaluators before returning; unchanged JSON files
+do not imply that this work is cheap or complete. Topology/sector construction
+also precedes runtime formula preparation. Two anonymous executable-memory
+snapshots roughly 698 seconds apart both contained two regions totaling 73,728
+bytes; that supplies no observed growth evidence and cannot establish an active
+JIT call. The precise expression, signature or sector remains unknown.
+
+Independent terminal review rechecked all 851 frozen files, both 500-file read
+roots, the unchanged 137 seed/write-cache records and process absence. Its
+`independent-terminal-review.json` has SHA256
+`3bbd211ff2631f7a186bd531ce53c89abb65983441c5fa357c66dae5dcd53a59`.
+Terminal stderr contains only the existing CLI's fixed interruption message;
+its `main` catches `KeyboardInterrupt`, so no Python traceback was retained.
+The watchdog records establish the deadline cause despite that generic wording.
+
+The smallest proposed next diagnostic is source-only at
+`output/probes/onshell_pathfinder_stage/`: a fresh 180-second generation process
+with the same math/cache inputs, stdlib periodic Python stack dumps and the
+existing `--log-file` stage output. It changes no reference source or algorithm,
+contains no integration follow-on and awaits coordinator scheduling. This seeks
+the actual blocking owner before any decision about another complete generation;
+it is not another blind long retry or a promised reference result.

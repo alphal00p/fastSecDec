@@ -948,3 +948,15 @@ is determined by the subsequent original-input run, not inferred from these
 small controls.
 The combined milestone passes 380 workspace tests, zero failures and 23 explicit
 ignored probes across 63 summaries, plus formatting and all-target Clippy.
+
+The subsequent [CLI QMC context-lifetime change](reviews/qmc-worker-context-lifetime.md)
+reuses `QmcSession::worker_context`, `KernelSet::restore_evaluation_context`,
+`WeightedEvaluationContext::merge_state` and the existing accepted-replay store.
+The caller retains one active sector context per worker and restores accepted
+history when revisiting a sector. No library executor, evaluator, arithmetic,
+lattice, checkpoint format or public API is added. Ordered successful package
+submission still owns accepted replay advancement. All 16 focused driver tests
+pass, including precision rescue, vector/covariance equivalence and checkpoint
+recovery with eight workers; formatting and scoped all-target Clippy pass.
+Large-run memory and speed remain measured questions for the saved-artifact
+continuation rather than inferred benefits of the smaller ownership bound.

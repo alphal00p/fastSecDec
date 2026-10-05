@@ -7,17 +7,14 @@ use super::super::{
 use super::{Context, evaluate_tracked, final_report, observe, submit_package};
 use crate::CliResult;
 use fastsecdec::{
-    integration::{QmcSession, QmcWorker},
-    kernel::WeightedEvaluationContext,
+    integration::QmcSession,
     status::{EvaluationDiagnostics, IntegrationMethod, IntegrationStage},
 };
 use rayon::prelude::*;
-use std::{collections::BTreeMap, time::Instant};
+use std::time::Instant;
 
-struct QmcSlot {
-    contexts: BTreeMap<u64, WeightedEvaluationContext>,
-    workers: BTreeMap<u64, QmcWorker>,
-}
+mod slot;
+use slot::QmcSlot;
 pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationReport> {
     let Context {
         artifact,
@@ -74,18 +71,8 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             break;
         }
         let mut slots = (0..settings.workers)
-            .map(|_| {
-                Ok(QmcSlot {
-                    contexts: replay.contexts(kernels, &problem.sectors)?,
-                    workers: session
-                        .problem()
-                        .sectors
-                        .iter()
-                        .map(|sector| Ok((sector.id, session.worker_context(sector.id)?)))
-                        .collect::<CliResult<_>>()?,
-                })
-            })
-            .collect::<CliResult<Vec<_>>>()?;
+            .map(|_| QmcSlot::default())
+            .collect::<Vec<_>>();
         while !session.is_complete() {
             let tasks = (0..settings.workers)
                 .map(|_| session.next_work())
@@ -97,11 +84,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                 return Err("QMC scheduler has no work before completion".into());
             }
             for (slot, task) in slots.iter_mut().zip(&tasks) {
-                let id = task.sector_id() as usize;
-                slot.contexts
-                    .get_mut(&(id as u64))
-                    .unwrap()
-                    .merge_state(replay.state(id))?;
+                slot.prepare(task.sector_id(), kernels, &session, &replay)?;
             }
             let returns = pool.install(|| {
                 slots
@@ -109,14 +92,15 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     .zip(tasks.into_par_iter())
                     .map(|(slot, task)| {
                         let id = task.sector_id();
-                        let kernel = slot.contexts.get_mut(&id).unwrap();
+                        let active = slot.active.as_mut().unwrap();
+                        let kernel = &mut active.context;
                         let mut local = EvaluationDiagnostics::default();
-                        let result = slot.workers.get_mut(&id).unwrap().evaluate_weighted(
-                            task,
-                            |point, weight, output| {
-                                evaluate_tracked(kernel, point, weight, output, &mut local)
-                            },
-                        );
+                        let result =
+                            active
+                                .worker
+                                .evaluate_weighted(task, |point, weight, output| {
+                                    evaluate_tracked(kernel, point, weight, output, &mut local)
+                                });
                         let state = result.as_ref().ok().map(|_| kernel.state().clone());
                         (id as usize, result, local, state)
                     })
