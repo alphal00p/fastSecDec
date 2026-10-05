@@ -543,7 +543,25 @@ and conservative cancellation metadata, but delayed native zero pruning produces
 larger intermediates and the subsequent series hits its 180-second bound.
 No coefficient/JIT comparison or production switch follows. Native public
 symbol derivative callbacks can potentially preserve that pruning while
-Symbolica still owns the chain rule; their focused proof is next. A separate
+Symbolica still owns the chain rule. Their subsequent
+[independently audited small proof](reviews/native-formal-callback-independent.md)
+passes four nonempty complete vectors, exact restored and analytic controls,
+native O2/MPFR/worker checks, and a cold evaluator-IR reader without callbacks.
+An explicit above-degree derivative exercises the exact-zero callback, rather
+than allowing a constant simplification to make that control vacuous. Native
+polynomial differentiation and simultaneous substitution still own every
+zero/constant decision; no custom chain rule or series arithmetic was added.
+
+This proof does not yet establish a viable production representation. Symbolica
+retains registered callbacks globally, so strong polynomial/cache captures can
+outlive a generation call in a HEPKit process. Before production adoption,
+caller-owned cache lifetime and resolution of all escaping callback expressions
+must be demonstrated without resetting global Symbolica state. The actual-sector
+trial remains a disconnected bounded experiment: preparation falls to 6.617
+seconds, but the combined 180-second process times out in native series without
+a complete vector. That trial omitted the existing late epsilon-template
+substitution; retaining the native template and evaluator aliases is the next
+candidate for source review, not a measured improvement. A separate
 [coefficient API audit](reviews/native-series-coefficient-api.md) identifies
 existing custom `AtomField` normalization and native alias facilities, with
 explicit cancellation and peak-memory limitations. No replacement CAS or

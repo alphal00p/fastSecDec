@@ -7,8 +7,11 @@ record, not phase-one acceptance. The governing plan remains
 
 The user clarified the convergence target: **the largest signed requested
 epsilon power**, usually the finite coefficient, rather than the most singular
-pole. The tables retain their original measurements; no eight-core crossing
-measurement has yet been recorded under either interpretation.
+pole. The original tables retain their measurements. A subsequent eight-core
+smoke check on 2026-10-05 reaches that target for native triangle and box;
+Pathfinder's two eight-worker processes abort at Symbolica's concurrent-instance
+license check, leaving the paired campaign unqualified. A separately labelled
+native-only continuation now supplies seven-seed medians for both small cases.
 
 ## Capability coverage
 
@@ -52,9 +55,17 @@ test-only. The small proof using native formal derivatives and shared FunctionMa
 bodies passes complete-vector O2, MPFR and portable-reload checks under both
 inlining policies. Its first actual-representative attempt is a negative result:
 preparation takes 144.909 seconds and leaves a 17.1 MB expression, followed by a
-180-second native-series timeout without coefficients. Public native derivative
-callbacks are the next bounded proof, to preserve early polynomial zero pruning.
-That oracle now supplies all six coefficients at all three prescribed exact
+180-second native-series timeout without coefficients. A subsequent small proof
+using public native derivative callbacks passes four nonempty complete vectors,
+including an explicit zero-returning derivative and cold native-IR reload. A
+usable actual-sector path and safe cache lifetime in a long-lived HEPKit process
+remain unverified; production behavior is unchanged. The actual callback trial reduces
+preparation to 6.617 seconds but still reaches its combined 180-second limit in
+native series, without a coefficient vector. It did not apply the existing late
+epsilon-template substitution, so its result does not isolate a callback cost.
+The next proposal reuses that substitution and native evaluator aliases.
+The independent point-first
+oracle now supplies all six coefficients at all three prescribed exact
 points, including two near-boundary points; native 512-/1024-bit agreement and
 an exact absolute-/relative-series control pass. This is representative-level
 evidence, not an integral-level convergence result.
@@ -105,12 +116,43 @@ not eight-core measurements or time-to-accuracy claims.
 
 ## One-per-mille convergence on eight cores
 
-**Not measured yet for either program.** No recorded experiment establishes eight-core elapsed time
-to `standard_error / abs(coefficient_at_highest_requested_order) <= 0.001`. Existing hard-case
-trials use two workers and stop at their fixed allocations without convergence;
-the holdout uses one worker. Do not extrapolate them by dividing elapsed time by
-four or eight. The triangle/box runs exceed the requested precision at their
-fixed budgets, but do not establish the earliest target-crossing time.
+Following the independently audited smoke, a separately labelled **native-only
+seven-seed continuation** gives the following medians on eight distinct physical
+cores. The smoke seed is excluded. All fourteen rows reach the target by the **first complete
+1024-point × 16-shift allocation per sector**. Their earlier crossing is
+unmeasured. The criterion is the reported standard error divided by the absolute
+finite coefficient, not a certified true-error bound.
+
+| Case | FastSecDec integration / full process | Pathfinder integration / full process | Native finite-part relative SE |
+| --- | ---: | --- | ---: |
+| Triangle | 0.0330 s / 0.0431 s | Unavailable: Symbolica instance-limit abort | 4.46e-9–6.06e-9 |
+| Box | 0.0416 s / 0.0540 s | Unavailable: Symbolica instance-limit abort | 5.95e-7–9.50e-7 |
+
+The native driver interval excludes eager artifact loading; those loads are
+0.00471 s and 0.00671 s at their separate medians, respectively. Every complete
+vector and covariance survives, with 32,768/49,152 accepted evaluations per run,
+active precision rescue, maximum precision between 256 and 320 bits and zero
+evaluation failures. Historical-target residual checks
+pass without promoting their `Unverified` eligibility. Independent native
+master/analytic controls remain separate scientific evidence.
+
+The fresh generation processes also complete for both programs: triangle takes
+0.0344 s native / 0.9429 s Pathfinder, and box 0.0194 s / 0.8696 s. These are
+single preparation observations, not medians. Their persistence work differs:
+native generation saves expressions for later recompilation, while the
+reference saves evaluators for lazy loading. Existing reference formula caches
+remain available. Neither these observations nor the failed reference
+integration processes establish performance parity or a speedup.
+
+The [independent review](eight-core-accuracy-independent.md) retains the
+source/build/affinity evidence and both reference failures. The paired stage is
+not accepted; the native-only continuation does not provide a speedup comparison.
+The [seven-seed record](eight-core-native-results.md) specifies its timing and
+sample-cost boundaries. Its full rows and summary are retained under
+`output/benchmarks/eight-core-native-only-20261005`.
+Existing hard-case trials use two workers and stop at fixed
+allocations without convergence; the holdout uses one worker. Do not extrapolate
+them by dividing elapsed time by four or eight.
 
 The six-case holdout completes 223,838,208 evaluations without failures or
 five-standard-error reference flags. At 8192 points HKKN's estimated error is
@@ -149,6 +191,14 @@ instrumented in these runs.
 | Off-shell triple box rank two, original | 2 | 3.753 | Not measured | 78.284, sector 495 | Not measured |
 | Issue 1 | 2 | 0.295 | Not measured | 0.365, sector 0 | Not measured |
 | Hard four-loop orthant | 2 | 25.944 | Not measured | 71.703, sector 686 | Not measured |
+
+The new eight-core native-only 1024×16 continuation has median accepted worker
+means **3.884 µs/sample for triangle** and **3.841 µs/sample for box**. Medians
+of each run's slowest sector mean are **7.600 µs** (triangle sector 1) and
+**5.886 µs** (box sector 0). These use the same broad native worker boundary
+described above and a different allocation from the older paired table.
+Corresponding eight-core Pathfinder costs and individual-sample maxima remain
+unavailable; no cross-allocation speedup is inferred.
 
 Pathfinder's separately charged global integrator work adds a median 2.015
 µs/sample for triangle and 1.493 µs/sample for box; its sector bucket does not

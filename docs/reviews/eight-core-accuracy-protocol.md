@@ -1,8 +1,13 @@
 # Eight-physical-core observed accuracy baseline
 
-Status: root-approved, independently source-reviewed protocol; runner and smoke
-validation remain pending. No eight-core timing row has been executed. This is
-a baseline measurement, not a lattice/default optimization.
+Status: root-approved and independently source-reviewed. Fresh preparation and
+all four labelled smoke processes completed. Both native rows passed; both
+reference eight-worker processes aborted under the installed Symbolica instance
+limit. The paired stage is not accepted and no paired timing campaign has run.
+See [retained smoke outcomes](eight-core-smoke-results.md). The separately
+approved native-only seven-seed continuation excludes the smoke seed and must
+not be presented as a paired comparison. This is a baseline measurement, not
+a lattice/default optimization.
 The user's latest correction is authoritative: the target is the **largest
 signed requested epsilon order**, usually the finite coefficient, rather than
 the most negative pole. Triangle and box request `[-2,-1,0]`, so this campaign
@@ -70,8 +75,8 @@ row deadline to the remaining budget. The existing five-second watchdog grace
 is retained separately. Retain any timeout and the
 last completed allocation, without replacing failures by an easier run.
 
-The headline numeric-loop time is the **sum of observed native integration
-elapsed times through the first successful row**. Also report cumulative
+The reported integration elapsed is the **sum of each program's native
+integration elapsed fields through the first successful row**. Report cumulative
 process wall time and cumulative load/setup time: repeated artifact loading is
 real orchestration cost and must not disappear from an end-to-end number. This
 is a grid-observed CLI campaign time, not the optimal continuous stopping time.
@@ -149,6 +154,15 @@ Reference nested generation timers overlap, so their summed `total` is not an
 exclusive generation duration. Keep individual stage records as diagnostics
 and compare process generation boundaries separately.
 
+Both generation commands construct their requested evaluator route, but their
+artifacts differ. Native `generate` compiles O2 and then persists canonical
+expressions; `integrate` recompiles O2 during artifact loading before its driver
+timer starts. Reference generation persists the hot evaluator and precision
+fallback; `PreparedEvaluatorStore` reloads these lazily, potentially inside the
+reported QMC integration interval. Therefore each tool's native elapsed field
+is labelled with its actual boundary, not presented as identical pure-kernel
+timing. End-to-end process time is the common complete boundary.
+
 An ignored Rust coordinator or a shell coordinator plus a small Rust JSON
 reader can drive the ladder. It should invoke only the existing CLIs, use the
 reviewed timer for process-group watchdog/wait4 accounting, and keep every
@@ -160,14 +174,16 @@ the stated scalar inequality. It performs no error recombination, covariance
 reconstruction, convergence fit or hidden zero fill.
 
 At each row save target key/value/error/ratio, actual design, all lower rows,
-native loop elapsed, external process wall/CPU/RSS, exit/deadline outcome,
+reported integration elapsed, external process wall/CPU/RSS, exit/deadline outcome,
 artifact and build hashes, command/affinity, and first-crossing state. An optional
 monotonic status receipt log can retain live evidence, but final native elapsed
 and the complete allocation are the comparison boundary. Source timestamps or
 file polling intervals must not be presented as exact completion timestamps.
 
-Report warm-up, generation, artifact load/JIT, numeric loop and complete process
-as distinct measurements. A process remainder after subtracting loop time is
+Report warm-up, generation, measured artifact load/JIT, reported integration
+elapsed and complete process as distinct measurements. Complete process time
+is the common boundary for the side-by-side crossing comparison. A process
+remainder after subtracting reported integration elapsed is
 **load plus setup/serialization/teardown**, not pure load. Native load time is
 already explicit; if reference pure-load timing is needed, use a separately
 reviewed external-only wrapper around its existing loader rather than infer it
@@ -222,6 +238,8 @@ separate reviewed task within the authorized implementation.
   disables rescue thresholds, hence is unsuitable for a production-tail claim.
 
 Root has approved the fixed ladder, precision/coverage criteria and watchdog
-budget. Before execution, the runner still needs independent source review and
-the smoke pair needs outcome review. No scientific/performance result is
-implied by this document.
+budget. The runner and actual smoke evidence have independent review; the
+reference startup failure prevents paired acceptance. Native-only continuation
+has separate source review and explicit qualification. The result note retains
+the observed smoke values and boundaries; this protocol supplies no missing
+reference measurement or unexecuted seven-seed result.

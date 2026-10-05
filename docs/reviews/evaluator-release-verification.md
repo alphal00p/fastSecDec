@@ -44,3 +44,17 @@ old-header rejection, compact monomial extraction, and four scientific gap
 regressions. Formatting and all-target Clippy pass. The production dependency tree resolves a single
 Symbolica 3.0.1 owner and SymJIT 2.26.4, with no Python, pySecDec, native test
 reference provider, or CLI presentation dependencies in the library graph.
+
+## Recheck before the native callback experiment
+
+The same live registry indexes were queried again on 2026-10-05 at approximately
+00:20 UTC. Their latest non-yanked entries remain Symbolica **3.0.1**, published
+2026-09-29, and SymJIT **2.26.4**, published 2026-10-02. Symbolica's crate checksum
+is `0965398bbe5063c00b3a0d078d7d3dc57b61819b97e960b73e9a7e9602662795`;
+SymJIT's is unchanged from the value above. No release update is required.
+
+The current experiment uses the same Symbolica upstream revision with **four**
+documented local corrections, including the subsequently confirmed
+[literal series-variable fix](../dependency-patches/symbolica-literal-series-variable.md).
+Earlier measurements retain their original dependency state and are not
+retroactively labelled as using this fourth correction.

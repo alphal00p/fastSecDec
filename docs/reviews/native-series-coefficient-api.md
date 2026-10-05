@@ -11,14 +11,17 @@ the inspected reference files.
 | Native capability | Source evidence | Consequence for this problem |
 | --- | --- | --- |
 | `AtomField::custom_normalization` | `src/domains/atom.rs:42`, normalization helpers at 80/90 and `RingOps` from 127; division/inversion from 328 | A cloneable thread-safe callback can replace coefficients after native arithmetic operations. No custom series multiplication is needed. The operation has already constructed its Atom before the callback. |
-| Caller-supplied series coefficient field | `Series::new` in `src/poly/series.rs:261`; `Add<&Atom> for &Series<AtomField>` in `src/derivative.rs:726` | Constructing a zero series with the desired native field and adding the original Atom reaches native `series_impl` with `self.get_field()`. This is a public route to the hook without exposing private internals or patching `AtomCore::series`. It still uses native depth management. |
+| Caller-supplied series coefficient field | `Series::new` in `src/poly/series.rs:261`; `Mul<&Atom>` from `src/derivative.rs:655`, `Add<&Atom>` from 726 | A one-series multiplied by the original Atom reaches native `series_impl` with `self.get_field()` and native relative-depth retry. A zero-series plus the Atom instead enforces an absolute bound. These public routes need neither private internals nor a patch to `AtomCore::series`. |
 | Ordinary `.series` entry | `src/atom/core.rs:728`, `src/derivative.rs:377` | Hardcodes a fresh `AtomField` with statistical zero testing initially disabled and no normalization hook. It has no field parameter. |
 | Post-expansion coefficient mapping | `Series::map_coeff`, `src/poly/series.rs:717` | Maps stored coefficients, preserves metadata and invokes native truncation. It cannot prevent memory spent constructing the original coefficients. |
 | Native alias container | `AliasedAtom`, `src/atom/alias.rs:29` | Owns root plus alias definitions, nested application, duplicate fusion, pruning, conflict handling and evaluator construction. These operations must be reused rather than replaced by a second generic shared-expression container. |
 | Evaluator sharing | `AliasedAtom::evaluator_multiple` at alias.rs:173; evaluator-tree common-subexpression elimination | Can carry native aliases to evaluation without expanding all definitions into each output. This occurs after coefficient construction, so it is not by itself a series-generation solution. |
 
-The public zero-series addition route is a source-supported candidate, not an
-executed proof. Native tests `series_sub_atom` and `series_div_atom`
+The public one-series multiplication and zero-series addition routes are
+source-supported candidates, not executed proofs. A one-series of native width
+one, followed if necessary by the width derived from its actual bound, aligns
+with the successful relative-depth oracle protocol. Native tests
+`series_sub_atom` and `series_div_atom`
 (`derivative.rs:1132/1147` in the patched worktree) exercise arithmetic between a
 series and a new Atom with preserved bounds. The `map_coeff` test at
 `poly/series.rs:1606` demonstrates a coefficient cancellation changing the actual
@@ -26,6 +29,12 @@ leading order. The AtomField documentation tests native division cancellation.
 No direct custom-normalization-plus-series test was found in the checked native
 tests/examples. That small capability test would be required before an actual
 coefficient-normalization experiment.
+
+`Series::constant` stores its input coefficient directly, and some series-add
+branches copy coefficients rather than performing coefficient arithmetic.
+Consequently the normalization hook is not a guaranteed callback for every
+coefficient entering storage. A proposed identity-hook test should record actual
+callback coverage; it must not infer universal interception from the field API.
 
 The native alias tests cover creation, nested application, conflict detection,
 renaming and arithmetic with alias-map preservation. There is no inspected

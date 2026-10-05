@@ -192,6 +192,36 @@ deduplication is needed.
 
 ## Positive-orthant inputs: existing all-sector native route
 
+The next queued attempt is issue 1, after the separate eight-core smoke audit.
+Preparation is source-only as of 2026-10-05: no issue-1 reference process has
+started. The already reviewed launcher now additionally hashes the native card
+and polynomial alongside the external card/U/F parser and records the explicit
+domain and requested highest order. Its frozen source SHA-256 is
+`7fd3ba1ce6acc8fedede7c8a875e6f2dd110037ac596bedd4c6e09b96c1cdf61`.
+Operational preflight found the old GCC/M4 Nix paths had been collected. The
+launcher now uses verified existing GCC 15.3.0 and M4 1.4.21 paths, retains GNU
+Make 4.4.1, and records each actual executable path/hash/version. No scientific
+package setting or integration parameter changes.
+
+Use the distinct, currently nonexistent directory
+`output/diagnostics/remaining-pysecdec/issue1-attempt-1` and the existing command
+below only after the coordinator's runtime handoff. The 600-second whole-process,
+30-GiB process-tree memory and 180-second numerical bounds remain unchanged;
+the native disteval request begins at 8192 points and 32 shifts. One allowed CPU,
+one package worker and singleton native thread settings preserve serial symbolic
+initialization. This is independent scientific evidence, not matched timing.
+
+The input is exactly seven-dimensional positive-orthant `F^(eps-2)` with unit
+prefactor and no sector filter. The highest requested order is **+2**; retain
+every returned Laurent order and uncertainty before comparison. The existing
+native complete vector is `[0,1,2]`, not a padded negative-order vector. Do not
+invent missing external coefficients as zeros. The returned native disteval
+object is captured before the unchanged parser, then its complete physical
+result, all-sector metadata, actual work/unknowns, generated prefactor and
+absence of contour deformation require independent outcome review. Historical
+manual decimal targets remain unverified and uncertainty-free; they do not
+substitute for this reference.
+
 Use the common environment/watchdog from the double-box wrapper, but the following
 existing CLI invocations, each with a distinct output directory:
 
