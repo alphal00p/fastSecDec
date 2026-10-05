@@ -15,12 +15,13 @@ checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
 extension is published as PR 8. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **323 tests**, with twenty explicit
-probes ignored. This includes the geometry-cache/context controls, ten new
-parallel-geometry controls, four sector-identity tests and the small test-only
-named-coefficient controls. Formatting and all-target Clippy pass. Clippy first
-requested a name for a test-only tuple result; after that type-alias-only change,
-all eight affected controls pass again. The earlier
+The latest complete workspace gate passes **330 tests**, with twenty-two explicit
+probes ignored (`output/dispatch-named-rank2-workspace-tests.log`, 59 summaries,
+zero failures). This includes cache/context dispatch, parallel-geometry,
+sector-identity, small named-coefficient and rank-two reference controls.
+Formatting and all-target Clippy pass; the latter finishes in 3.14 seconds.
+The separate ignored small named-program writer/reader were explicitly executed
+and independently reviewed before this gate. The earlier
 alias milestone passed 294 tests; its timing observations keep their own source
 identities. Actual PTYs additionally verify monochrome output, wide/compact
 resizing, key cancellation and terminal restoration.
@@ -34,6 +35,12 @@ their full covariance and have maximum pulls below 2.816/2.023. Five focused
 reference tests pass, with two recorders ignored. The finite reference value
 `2.283413488400494 +/- 0.05718537938081278` has about 2.5% relative uncertainty;
 this closes a reference gate, not calibration, performance or the 1‰ target.
+The off-shell rank-two reference now also passes independent source, full-vector
+and native transport checks. Its finite value is
+`0.6263784670955248 +/- 0.01044026507101012` (about 1.67% relative SE), with
+maximum original/projected comparison pulls 1.703/1.727. Both native covariance
+matrices remain unchanged and the observations are compared separately. Six
+focused reference tests pass; the fixture does not certify calibration or 1‰.
 The historical matrix has 100 Covered, 81 intentionally Retired and one Partial
 row out of 182. This matrix does not replace complete difficult-example gates.
 
@@ -47,8 +54,8 @@ tables below retain their older frozen build identities and **do not measure
 the newly committed alias pipeline or cache**.
 
 Still open: complete original on-shell triple-box generation and full-vector
-validation; independent off-shell rank-two and hard-orthant references;
-difficult-case convergence and error calibration; cache/context adoption of
+validation; the independent hard-orthant reference;
+difficult-case convergence and error calibration; CLI adoption of
 caller-owned chart/cone dispatch; matched performance and
 platform gates. Cache adoption and the identified CLI color/terminal gaps are
 now covered by the gates above. General
@@ -62,12 +69,18 @@ checkpoint identities. It does not establish mathematical equivalence or a
 machine-code cache. The native parallel geometry API also passes its focused
 38-test sector gate and independent review. Callers own all workers; canonical
 merge preserves exact maps, failures, cancellation and resource limits. The main
-generation context still uses its existing serial geometry route.
+generation context now has an additive dispatched route through the same native
+cache and symbolic pipeline. Its focused 41 sector and eight context tests pass,
+including caller-owned threads, complete analytic vectors, cache reuse and
+rejection/cancellation boundaries. Existing methods retain their serial route.
 
 The next compact-coefficient composition is test-only. Eight small controls pass
 using native Series, differentiation, face substitution and shared aliases,
-with full coefficient comparisons. Evaluator/precision/cold-reload controls
-and the actual difficult representative remain separate pending gates.
+with full coefficient comparisons. Separate bounded evaluator/precision and
+cold-reload controls now pass 96 complete weighted-vector calls (768 real/imaginary
+component checks), with independent unchanged-subtraction references stable at
+512/1024 bits. The actual difficult representative remains a pending gate;
+this test-only strategy is not the production default.
 
 ## Small-case generation and eight-core accuracy
 

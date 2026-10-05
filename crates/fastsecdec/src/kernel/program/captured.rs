@@ -1,5 +1,6 @@
 //! Explicit bounded diagnostic against the independent original-expression oracle.
 mod ibp;
+mod named;
 
 use super::*;
 use crate::kernel::{PrecisionPolicy, SectorKernel};

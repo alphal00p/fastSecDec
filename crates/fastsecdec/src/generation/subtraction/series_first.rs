@@ -2,6 +2,7 @@
 //! owns every series operation and truncation bound; no inferred pole budget or
 //! coefficient convolution is used here.
 mod named;
+pub(crate) use named::expand_named;
 mod replay;
 mod tests;
 

@@ -15,7 +15,7 @@ mod triangulate;
 mod types;
 mod work;
 
-pub use cache::{GeometryCache, GeometryCacheOutcome};
+pub use cache::{GeometryCache, GeometryCacheOutcome, GeometryDispatch};
 pub use decompose::decompose;
 pub use support::PolynomialSupport;
 pub use types::{

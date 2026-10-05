@@ -1,4 +1,7 @@
-use super::{GeneratedIntegral, GenerationError, GenerationOptions, GenerationProgress};
+use super::{
+    GeneratedIntegral, GenerationError, GenerationOptions, GenerationProgress, GeometryDispatch,
+    geometry::GeometrySource,
+};
 use crate::{parametric::ParametricIntegrand, status::GeometryReuseStatus};
 use fastsecdec_sectors::GeometryCache;
 use std::ops::ControlFlow;
@@ -59,7 +62,62 @@ impl GenerationContext {
         options: &GenerationOptions,
         progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
     ) -> Result<GeneratedIntegral, GenerationError> {
-        super::generate_inner(input, options, Some(&mut self.geometry), progress)
+        super::generate_inner(
+            input,
+            options,
+            GeometrySource::Cached(&mut self.geometry),
+            progress,
+        )
+    }
+
+    /// Generate with caller-owned chart/cone workers and complete geometry reuse.
+    ///
+    /// Domain/support admission and the full subsequent symbolic pipeline stay
+    /// native and per-integral. On a cache miss the native cache dispatches both
+    /// lazy work stages, validates opaque completions and merges canonically.
+    /// Hits and empty integrands invoke no dispatcher. The caller owns its pool,
+    /// joins and per-job progress channels; local job counters are not aggregate
+    /// accepted counts and are not forwarded as ordinary generation events.
+    ///
+    /// The existing observer receives accepted native geometry completion,
+    /// reuse status and all ordinary generation phases. The cancellation token
+    /// is checked at these boundaries and inside native stage/merge admission;
+    /// worker callbacks should read the same token. Cancellation remains
+    /// cooperative, not preemption inside native arithmetic. Failed/cancelled
+    /// geometry never enters the cache, while cancellation at a later reuse or
+    /// symbolic phase can leave valid completed geometry, as in [`Self::generate`].
+    pub fn generate_with_dispatch(
+        &mut self,
+        input: &ParametricIntegrand,
+        options: &GenerationOptions,
+        dispatch: &mut GeometryDispatch<'_>,
+        cancelled: impl Fn() -> bool,
+        mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+    ) -> Result<GeneratedIntegral, GenerationError> {
+        if cancelled() {
+            return Err(GenerationError::Cancelled);
+        }
+        let result = super::generate_inner(
+            input,
+            options,
+            GeometrySource::Dispatched {
+                cache: &mut self.geometry,
+                dispatch,
+                cancelled: &cancelled,
+            },
+            |event| {
+                if cancelled() {
+                    ControlFlow::Break(())
+                } else {
+                    progress(event)
+                }
+            },
+        )?;
+        if cancelled() {
+            Err(GenerationError::Cancelled)
+        } else {
+            Ok(result)
+        }
     }
 }
 

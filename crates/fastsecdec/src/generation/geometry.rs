@@ -1,8 +1,8 @@
 use super::{GenerationError, GenerationEvent, GenerationProgress, context::emit};
 use crate::status::GeometryReuseStatus;
 use fastsecdec_sectors::{
-    Decomposition, DecompositionOptions, GeometryCache, ParametricDomain, PolynomialSupport,
-    SectorMap, decompose,
+    Decomposition, DecompositionOptions, GeometryCache, GeometryDispatch, ParametricDomain,
+    PolynomialSupport, SectorMap, decompose,
 };
 use std::{borrow::Cow, ops::ControlFlow, sync::Arc};
 
@@ -11,12 +11,24 @@ pub(super) enum Geometry {
     Shared(Arc<Decomposition>),
 }
 
+// Only the geometry stage differs. Every route returns native complete maps to
+// the same per-integral mapping, symmetry, subtraction and Laurent pipeline.
+pub(super) enum GeometrySource<'a, 'dispatch> {
+    Uncached,
+    Cached(&'a mut GeometryCache),
+    Dispatched {
+        cache: &'a mut GeometryCache,
+        dispatch: &'a mut GeometryDispatch<'dispatch>,
+        cancelled: &'a dyn Fn() -> bool,
+    },
+}
+
 impl Geometry {
     pub fn compute(
         domain: ParametricDomain,
         supports: &[PolynomialSupport],
         options: &DecompositionOptions,
-        cache: Option<&mut GeometryCache>,
+        source: GeometrySource<'_, '_>,
         progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
     ) -> Result<Self, GenerationError> {
         let observer = |status: &fastsecdec_sectors::DecompositionProgress| {
@@ -26,19 +38,29 @@ impl Geometry {
                 ControlFlow::Continue(())
             }
         };
-        if let Some(cache) = cache {
-            let result = cache.decompose(domain, supports, options, observer)?;
-            emit(
-                progress,
-                GenerationEvent::GeometryReuse(GeometryReuseStatus {
-                    reused: result.reused,
-                    sectors: result.decomposition.sectors.len(),
-                }),
-            )?;
-            Ok(Self::Shared(result.decomposition))
-        } else {
-            Ok(Self::Owned(decompose(domain, supports, options, observer)?))
-        }
+        let result = match source {
+            GeometrySource::Uncached => {
+                return Ok(Self::Owned(decompose(domain, supports, options, observer)?));
+            }
+            GeometrySource::Cached(cache) => {
+                cache.decompose(domain, supports, options, observer)?
+            }
+            GeometrySource::Dispatched {
+                cache,
+                dispatch,
+                cancelled,
+            } => cache.decompose_with_dispatch(
+                domain, supports, options, dispatch, cancelled, observer,
+            )?,
+        };
+        emit(
+            progress,
+            GenerationEvent::GeometryReuse(GeometryReuseStatus {
+                reused: result.reused,
+                sectors: result.decomposition.sectors.len(),
+            }),
+        )?;
+        Ok(Self::Shared(result.decomposition))
     }
 
     pub fn len(&self) -> usize {

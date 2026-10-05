@@ -7,7 +7,8 @@ sector-only gate are recorded in `geometry-cache-core.md`. The additive generati
 context is implemented and tested as recorded in
 `generation-context-geometry-reuse.md`. The native two-stage parallel geometry
 API and its focused tests are recorded in `parallel-geometry-implementation.md`;
-main-library parallel adoption remains a separate proposed slice. The additive
+main-library adoption and its separate focused controls are recorded in
+`parallel-generation-dispatch-implementation.md`. The additive
 per-sector identity source/gates are recorded in `sector-content-identity.md`.
 Complete on-shell generation and pending reference outcomes retain priority.
 The sector crate already owns the required exact mathematical operations.
@@ -17,7 +18,7 @@ The sector crate already owns the required exact mathematical operations.
 | Existing owner | Reusable contract | Limit |
 | --- | --- | --- |
 | `fastsecdec-sectors::PolynomialSupport` | `from_exact` validates dimensions/nonnegative native integers, then sorts and deduplicates monomial exponent rows. | It canonicalizes each support; it does not identify arbitrary coordinate permutations or translated supports. |
-| `decompose.rs`, `stages.rs`, `cone.rs`, `triangulate.rs` | Native exact Minkowski candidates, deterministic double description, candidate normal cones, pulling triangulation, determinants/Jacobians/valuations. | Serial and caller-scheduled paths share native stage helpers; main generation still uses its original serial route. |
+| `decompose.rs`, `stages.rs`, `cone.rs`, `triangulate.rs` | Native exact Minkowski candidates, deterministic double description, candidate normal cones, pulling triangulation, determinants/Jacobians/valuations. | Serial and caller-scheduled paths share native stage helpers; ordinary generation remains serial while an additive context entry accepts caller-owned dispatch. |
 | `arithmetic.rs` / Numerica | Existing exact integer/rational matrix rank, inversion and determinant. | No floating hull heuristic, custom bigint/matrix backend or additional CAS is required. |
 | `generation/support.rs` | Caller-generation-local native Atom to exact support reuse. | This saves support extraction, not complete geometry. Domain certificates and mapped residuals remain outside it. |
 | Numerica `numerical_integration::qmc` | Immutable plans/work descriptions, caller dispatch, typed completion and duplicate rejection illustrate the existing ownership model. | Those types contain lattice/randomization/statistical semantics; they are not generic geometry jobs or an executor to reuse directly. |
@@ -164,9 +165,10 @@ from a caller intentionally stopping dispatch.
 
 The implemented sector-only API establishes native integer/support/map
 `Send + Sync` usability with caller-owned scoped workers and exact canonical
-merge through the gates in `parallel-geometry-implementation.md`. No parallel
-timing campaign or main-library parallel-generation control has run. The
-accepted complete cache and generation-context tests remain recorded in their
+merge through the gates in `parallel-geometry-implementation.md`. The later
+main-library control is recorded in
+`parallel-generation-dispatch-implementation.md`. No parallel timing campaign
+has run. Complete cache and generation-context tests remain recorded in their
 separate implementation reviews.
 
 Meaningful tests then cover:
@@ -258,8 +260,9 @@ their parent kernel content identity. The additive accessor above meets the
 separate content-reuse requirement without changing those indices: the same
 geometric map can act on different numerators, prefactors or branches. Parallel
 scheduling is implemented at the sector-only work boundary with the focused
-gates in `parallel-geometry-implementation.md`; main-generation adoption is
-still pending. Commit `33a01ec` implements the additive content accessor with
+gates in `parallel-geometry-implementation.md`; the additive main-generation
+entry is tested separately in `parallel-generation-dispatch-implementation.md`.
+Commit `33a01ec` implements the additive content accessor with
 four tests and the independent audit in `sector-content-identity-independent.md`.
 Its selected parent kernel ordinal is localized to zero while original chart
 IDs/order remain bound. These additions and the completed cache/context slices

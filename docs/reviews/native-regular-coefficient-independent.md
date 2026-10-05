@@ -5,7 +5,8 @@ Source review, 2026-10-05. The test-only implementation in
 the extended existing five series-first controls have no source blocker for a
 bounded small execution gate. Production subtraction is unchanged. Compilation
 and the bounded eight-control execution now pass, as independently checked
-below. Numerical backend compatibility remains a separate pending layer.
+below. The subsequent small native-program/backend compatibility layer also
+passes the independent outcome review recorded at the end of this note.
 
 The implementation names only native epsilon-independent regular-series
 coefficients, with their actual coordinate dependencies as function arguments.
@@ -60,3 +61,43 @@ guard panic is a passing explicit rejection control, not a swallowed worker
 failure. The process-group SIGKILL after successful leader completion is
 the timer's cleanup action; the child itself exited zero. No actual-target,
 full-integral, O2/MPFR or cold-IR claim follows from this core gate.
+
+## Small native program and cold-process gate
+
+The separately frozen `output/diagnostics/native-named-program-2` execution
+passes independent source/output review. All 17 immutable hashes and all five
+writer-output hashes were rechecked; the compact audit is retained as
+`independent-review.json` alongside the reports. Attempt one remains preserved:
+its writer launch failed in the canonicalized Nix `env` applet before the test
+ran. Attempt two exports the test paths before invoking the timer, retaining
+the same scientific binary and bounds. This launcher failure is distinct from
+the expected passing scalar-guard panic in the symbolic controls.
+
+Taylor and IBP each retain all four orders `[-3,-2,-1,0]` and compare every
+restored coefficient exactly against the unchanged production subtraction and
+Laurent path. Both native series retries reach absolute remainder one. The
+hidden complex-body checks are nonvacuous, and the resulting native IR sizes
+are 2,105 and 2,353 bytes. Three prescribed exact rational points independently
+require the production baseline to agree at 512 and 1024 bits before recording
+reference values. The named native evaluator agrees with those complete complex
+vectors at both precisions.
+
+Fresh O2 kernels, native cloned workers, same-process decoded programs and a
+separate cold reader each check three points, two weights (`1` and `1e40`) and
+ordinary/forced evaluation. These are 96 full-vector calls and 768 scalar
+component checks in total. Their retained reports agree exactly across all
+four construction paths; 80 calls use rescue, with a maximum observed precision
+of 320 bits. Forced calls all report checked and rescued. Weighted comparisons
+use MPFR at the same rounded binary64 coordinates as the production call,
+separately from exact-rational oracle checks.
+
+The cold process imports only parameter atoms, native exact IR and the frozen
+expected values. It constructs neither a formal-coefficient registry nor a
+callback, and verifies both strategy identities, full order vectors and program
+digests. The symbolic process passes eight controls with two earlier replays
+ignored; writer and reader each pass their explicit ignored test. All processes
+exit zero without timeout. Observed process durations are 0.126907, 15.663044
+and 4.441060 seconds, respectively. They are bounded correctness diagnostics,
+not a performance comparison. No difficult representative, full integral,
+generation-speed improvement or production subtraction switch is established
+by this small compatibility gate.

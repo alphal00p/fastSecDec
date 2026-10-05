@@ -1,10 +1,11 @@
 # Cache-aware geometry dispatch during generation
 
-Source-only next-slice proposal, 2026-10-05. The native two-stage work API has
+Reviewed next-slice proposal, 2026-10-05. The native two-stage work API has
 passed its focused correctness and independent review gates. This proposal
 connects that existing API to `GenerationContext`; it adds no mathematics,
-executor, CLI scheduling or new worker framework. No implementation or
-end-to-end parallel generation test is claimed here.
+executor, CLI scheduling or new worker framework. The implemented entry and
+executed end-to-end correctness gates are now recorded separately in
+`parallel-generation-dispatch-implementation.md`; the design below is retained.
 
 ## Minimal additive surface
 

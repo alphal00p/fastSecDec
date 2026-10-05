@@ -378,3 +378,282 @@ fn empty_integral_skips_geometry_and_context_retains_no_expression_state() {
     assert!(result.sectors().is_empty());
     assert_eq!(result.exact_coefficients(), &[Atom::Zero]);
 }
+
+fn scoped_geometry(
+    jobs: &mut dyn ExactSizeIterator<Item = fastsecdec::generation::GeometryJob>,
+) -> Result<Vec<fastsecdec::generation::GeometryCompletion>, SectorError> {
+    let mut results = Vec::new();
+    loop {
+        let batch = (&mut *jobs).take(2).collect::<Vec<_>>();
+        if batch.is_empty() {
+            break;
+        }
+        std::thread::scope(|scope| {
+            let workers = batch
+                .into_iter()
+                .map(|job| scope.spawn(move || job.run(|_| ControlFlow::Continue(()))))
+                .collect::<Vec<_>>();
+            for worker in workers.into_iter().rev() {
+                results.push(worker.join().unwrap());
+            }
+        });
+    }
+    results.reverse();
+    Ok(results)
+}
+
+#[test]
+fn caller_dispatch_preserves_generated_vectors_metadata_and_native_analytic_control() {
+    use fastsecdec::generation::GeometryJob;
+    let input = input(parse!("1+x"), parse!("-1"), parse!("-1+eps"));
+    let options = GenerationOptions {
+        max_order: 1,
+        ..Default::default()
+    };
+    let plain = generate(&input, &options, |_| ControlFlow::Continue(())).unwrap();
+    let mut stages = Vec::new();
+    let mut dispatch = |jobs: &mut dyn ExactSizeIterator<Item = GeometryJob>| {
+        stages.push(jobs.len());
+        scoped_geometry(jobs)
+    };
+    let mut context = GenerationContext::new(1);
+    let mut geometry = Vec::new();
+    let cold = context
+        .generate_with_dispatch(
+            &input,
+            &options,
+            &mut dispatch,
+            || false,
+            |event| {
+                if let GenerationEvent::GeometryReuse(status) = event {
+                    geometry.push(*status);
+                }
+                if let GenerationEvent::Progress(GenerationProgress::Decomposition(status)) = event
+                {
+                    assert_eq!(
+                        status.phase,
+                        DecompositionPhase::Complete,
+                        "local worker status stays caller-owned"
+                    );
+                }
+                ControlFlow::Continue(())
+            },
+        )
+        .unwrap();
+    assert_eq!(stages.len(), 2);
+    assert!(stages.iter().all(|count| *count > 0));
+    assert_eq!(geometry.len(), 1);
+    assert!(!geometry[0].reused);
+    same_output(&plain, &cold);
+    let mut never=|_: &mut dyn ExactSizeIterator<Item=GeometryJob>| -> Result<Vec<fastsecdec::generation::GeometryCompletion>,SectorError> {panic!("warm request dispatched")};
+    let warm = context
+        .generate_with_dispatch(
+            &input,
+            &options,
+            &mut never,
+            || false,
+            |event| {
+                if let GenerationEvent::GeometryReuse(status) = event {
+                    assert!(status.reused);
+                }
+                ControlFlow::Continue(())
+            },
+        )
+        .unwrap();
+    same_output(&plain, &warm);
+    let mut kernels = warm.compile().unwrap();
+    assert_eq!(kernels.orders(), &[-1, 0, 1]);
+    assert_eq!(kernels.exact_coefficients(), &[0.0, 0.0, 0.0]);
+    for x in [0.25_f64, 0.5, 0.75] {
+        let mut value = [0.0; 3];
+        kernels.sectors_mut()[0].evaluate(&[x], &mut value).unwrap();
+        assert_eq!(value[0], 1.0);
+        assert!((value[1] + 1.0 / (1.0 + x)).abs() < 1e-13);
+        assert!((value[2] + x.ln() / (1.0 + x)).abs() < 1e-13);
+    }
+    let weighted = ParametricIntegrand::new(
+        input.parameters().to_vec(),
+        input.regulator(),
+        input.domain(),
+        vec![ParametricTerm::new(
+            Atom::num(3),
+            vec![parse!("-1+eps")],
+            input.terms()[0].factors().to_vec(),
+        )],
+    )
+    .unwrap();
+    let expected = generate(&weighted, &options, |_| ControlFlow::Continue(())).unwrap();
+    let changed = context
+        .generate_with_dispatch(
+            &weighted,
+            &options,
+            &mut never,
+            || false,
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+    same_output(&expected, &changed);
+    let mut kernels = changed.compile().unwrap();
+    let mut value = [0.0; 3];
+    kernels.sectors_mut()[0]
+        .evaluate(&[0.5], &mut value)
+        .unwrap();
+    assert_eq!(value[0], 3.0);
+    assert!((value[1] + 2.0).abs() < 1e-13);
+}
+
+#[test]
+fn dispatched_generation_reassesses_domain_and_never_admits_incomplete_work() {
+    use fastsecdec::generation::{GeometryCompletion, GeometryJob};
+    let options = GenerationOptions::default();
+    let good = input(parse!("1+x"), parse!("-1"), parse!("-1+eps"));
+    let mut context = GenerationContext::new(1);
+    context
+        .generate_with_dispatch(
+            &good,
+            &options,
+            &mut scoped_geometry,
+            || false,
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+    let mut never=|_: &mut dyn ExactSizeIterator<Item=GeometryJob>| -> Result<Vec<GeometryCompletion>,SectorError> {panic!("domain failure/empty input dispatched")};
+    assert!(matches!(
+        context.generate_with_dispatch(
+            &input(parse!("1-2*x"), parse!("-1"), Atom::Zero),
+            &options,
+            &mut never,
+            || false,
+            |_| ControlFlow::Continue(())
+        ),
+        Err(GenerationError::Threshold(_))
+    ));
+    assert_eq!(context.geometry_cache().len(), 1);
+    let zero = ParametricIntegrand::new(
+        good.parameters().to_vec(),
+        good.regulator(),
+        good.domain(),
+        Vec::new(),
+    )
+    .unwrap();
+    let empty = context
+        .generate_with_dispatch(
+            &zero,
+            &options,
+            &mut never,
+            || false,
+            |event| {
+                assert!(!matches!(event, GenerationEvent::GeometryReuse(_)));
+                ControlFlow::Continue(())
+            },
+        )
+        .unwrap();
+    assert!(empty.sectors().is_empty());
+    assert_eq!(empty.exact_coefficients(), &[Atom::Zero]);
+    let mut fresh = GenerationContext::new(1);
+    let mut missing = |_: &mut dyn ExactSizeIterator<Item = GeometryJob>| Ok(Vec::new());
+    assert!(matches!(
+        fresh.generate_with_dispatch(
+            &good,
+            &options,
+            &mut missing,
+            || false,
+            |_| ControlFlow::Continue(())
+        ),
+        Err(GenerationError::Geometry(SectorError::Work(
+            fastsecdec_sectors::GeometryWorkError::MissingJobs { .. }
+        )))
+    ));
+    assert!(fresh.geometry_cache().is_empty());
+}
+
+#[test]
+fn dispatched_generation_cancellation_retains_only_accepted_geometry() {
+    use fastsecdec::generation::{GeometryCompletion, GeometryJob};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let input = input(parse!("1+x"), parse!("-1"), parse!("-1+eps"));
+    let options = GenerationOptions::default();
+    let token = AtomicBool::new(true);
+    let mut context = GenerationContext::new(1);
+    let mut never=|_: &mut dyn ExactSizeIterator<Item=GeometryJob>| -> Result<Vec<GeometryCompletion>,SectorError> {panic!("cancelled/hit dispatched")};
+    assert!(matches!(
+        context.generate_with_dispatch(
+            &input,
+            &options,
+            &mut never,
+            || token.load(Ordering::Relaxed),
+            |_| ControlFlow::Continue(())
+        ),
+        Err(GenerationError::Cancelled)
+    ));
+    token.store(false, Ordering::Relaxed);
+    let mut interrupted = |jobs: &mut dyn ExactSizeIterator<Item = GeometryJob>| {
+        Ok(jobs
+            .map(|job| {
+                job.run(|_| {
+                    token.store(true, Ordering::Relaxed);
+                    ControlFlow::Break(())
+                })
+            })
+            .collect())
+    };
+    assert!(matches!(
+        context.generate_with_dispatch(
+            &input,
+            &options,
+            &mut interrupted,
+            || token.load(Ordering::Relaxed),
+            |_| ControlFlow::Continue(())
+        ),
+        Err(GenerationError::Geometry(SectorError::Cancelled))
+    ));
+    assert!(context.geometry_cache().is_empty());
+    token.store(false, Ordering::Relaxed);
+    assert!(matches!(context.generate_with_dispatch(&input,&options,&mut scoped_geometry,||false,|event|{
+        if matches!(event,GenerationEvent::Progress(GenerationProgress::Decomposition(status)) if status.phase==DecompositionPhase::Complete) {ControlFlow::Break(())} else {ControlFlow::Continue(())}
+    }),Err(GenerationError::Geometry(SectorError::Cancelled))));
+    assert!(context.geometry_cache().is_empty());
+    assert!(matches!(
+        context.generate_with_dispatch(
+            &input,
+            &options,
+            &mut scoped_geometry,
+            || false,
+            |event| {
+                if matches!(event, GenerationEvent::GeometryReuse(_)) {
+                    ControlFlow::Break(())
+                } else {
+                    ControlFlow::Continue(())
+                }
+            }
+        ),
+        Err(GenerationError::Cancelled)
+    ));
+    assert_eq!(context.geometry_cache().len(), 1);
+    assert!(matches!(
+        context.generate_with_dispatch(
+            &input,
+            &options,
+            &mut never,
+            || token.load(Ordering::Relaxed),
+            |event| {
+                if matches!(event, GenerationEvent::GeometryReuse(_)) {
+                    token.store(true, Ordering::Relaxed);
+                }
+                ControlFlow::Continue(())
+            }
+        ),
+        Err(GenerationError::Cancelled)
+    ));
+    assert_eq!(context.geometry_cache().len(), 1);
+    token.store(false, Ordering::Relaxed);
+    context
+        .generate_with_dispatch(
+            &input,
+            &options,
+            &mut never,
+            || false,
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+}

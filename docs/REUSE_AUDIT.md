@@ -700,3 +700,36 @@ precision, cold-reload and actual-large-input gates are still pending. The
 combined workspace includes these controls and passes 323 tests. All eight
 affected controls pass again after a type-alias-only lint correction; formatting
 and all-target Clippy pass, with the earlier lint failure retained.
+
+The [cache/context dispatch review](reviews/parallel-generation-dispatch-independent.md)
+accepts an additive orchestration seam over the same native two-stage work and
+exact cache. The caller supplies workers; opaque completions retain native
+provenance, admission and canonical merge. Native domain checks precede lookup
+and all per-integral symbolic operations remain fresh. The focused 41 sector
+and eight context tests pass; no library executor, new geometry, symbolic cache
+or progress-counter interpretation is introduced. CLI adoption has a separate
+review boundary.
+
+The named-coefficient program controls now also pass native evaluator creation,
+weighted precision rescue, worker cloning, exact-IR encoding and cold decoding.
+Across both small Taylor/IBP densities, 96 complete-vector calls and 768 component
+checks agree with independent native high-precision unchanged-subtraction
+references. Native Series, differentiation, aliases and evaluator IR retain
+ownership; no registry is needed by the cold reader. This closes only the small
+program gate, leaving the actual large input and production adoption open.
+
+The [rank-two reference audit](reviews/projected-rank-two-reference-independent.md)
+accepts all four physical coefficients through the existing native reference
+and comparison APIs. The original tensor numerator, raised powers and native
+Gamma factor are retained. Exact provider bits survive encoding, both original
+and projected native covariance matrices remain unchanged, and separate maximum
+comparison pulls are below 1.727. Six focused reference tests pass. No new
+projection, prefactor algebra, estimator or transport schema was added; the
+finite reference uncertainty remains 1.67%, with calibration and 1‰ convergence
+unverified.
+
+The combined cache/context dispatch, named-program controls and rank-two
+transport milestone passes **330 workspace tests**, with 22 explicit probes
+ignored and zero failures. Both newly ignored program probes were separately
+executed and independently reviewed. Formatting and all-target Clippy pass.
+Evidence is retained in `output/dispatch-named-rank2-workspace-{tests,fmt,clippy}.log`.

@@ -11,6 +11,10 @@ mod metadata;
 mod metadata_display;
 pub use crate::status::GeometryReuseStatus;
 pub use context::{GenerationContext, GenerationEvent};
+pub use fastsecdec_sectors::{
+    DecompositionPhase, DecompositionProgress, GeometryCompletion, GeometryDispatch, GeometryJob,
+    GeometryJobId, GeometryWorkError, SectorError,
+};
 pub use metadata_display::MetadataView;
 #[cfg(test)]
 pub(crate) mod profiling;
@@ -32,8 +36,8 @@ pub use types::{
 
 use crate::parametric::ParametricIntegrand;
 use context::emit;
-use fastsecdec_sectors::{GeometryCache, PolynomialSupport};
-use geometry::Geometry;
+use fastsecdec_sectors::PolynomialSupport;
+use geometry::{Geometry, GeometrySource};
 use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView},
@@ -92,16 +96,21 @@ pub fn generate(
     options: &GenerationOptions,
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
-    generate_inner(input, options, None, |event| match event {
-        GenerationEvent::Progress(status) => progress(status),
-        GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
-    })
+    generate_inner(
+        input,
+        options,
+        GeometrySource::Uncached,
+        |event| match event {
+            GenerationEvent::Progress(status) => progress(status),
+            GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
+        },
+    )
 }
 
 fn generate_inner(
     input: &ParametricIntegrand,
     options: &GenerationOptions,
-    geometry_cache: Option<&mut GeometryCache>,
+    geometry_source: GeometrySource<'_, '_>,
     mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
     let started = Instant::now();
@@ -139,7 +148,7 @@ fn generate_inner(
             input.domain(),
             &supports,
             &options.decomposition,
-            geometry_cache,
+            geometry_source,
             &mut progress,
         )?)
     };
@@ -380,4 +389,43 @@ fn generate_inner(
         },
     )?;
     Ok(result)
+}
+// Test-only native named-coefficient program controls.
+#[cfg(test)]
+type CapturedNamedCoefficients = (
+    std::collections::BTreeMap<i32, symbolica::atom::AliasedAtom>,
+    serde_json::Value,
+);
+
+#[cfg(test)]
+pub(crate) fn captured_named_coefficients(
+    terms: Vec<(Atom, Atom, Vec<Atom>)>,
+    parameters: &[symbolica::atom::Symbol],
+    regulator: symbolica::atom::Symbol,
+    options: &GenerationOptions,
+) -> Result<CapturedNamedCoefficients, GenerationError> {
+    let terms = terms
+        .into_iter()
+        .map(|(prefactor, regular, powers)| mapping::MappedTerm {
+            prefactor,
+            regular,
+            powers,
+        })
+        .collect::<Vec<_>>();
+    // series_first reexports its existing test-only named::expand_named.
+    let (coefficients, attempts, statistics) =
+        subtraction::series_first::expand_named(&terms, parameters, regulator, options)?;
+    let attempts = attempts
+        .into_iter()
+        .map(|attempt| {
+            serde_json::json!({
+                "route":attempt.route,"width":attempt.width,"absolute_bound":attempt.absolute_bound,
+                "pieces":attempt.pieces,"seconds":attempt.seconds,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok((
+        coefficients,
+        serde_json::json!({"coefficient_representation":"native_named", "attempts":attempts,"statistics":statistics}),
+    ))
 }

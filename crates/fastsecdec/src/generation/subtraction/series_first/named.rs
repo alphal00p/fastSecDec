@@ -21,6 +21,7 @@ type Request = (Symbol, Vec<usize>, Vec<Atom>);
 #[derive(Default)]
 struct State {
     occupied: BTreeSet<Symbol>,
+    next_name: BTreeMap<&'static str, usize>,
     ids: BTreeMap<Atom, Symbol>,
     bodies: BTreeMap<Symbol, Body>,
     partials: BTreeMap<(Symbol, Vec<usize>), Atom>,
@@ -68,14 +69,18 @@ impl Coefficients {
         }
     }
 
-    fn fresh(state: &mut State, kind: &str) -> Symbol {
-        for index in 0usize.. {
+    fn fresh(state: &mut State, kind: &'static str) -> Symbol {
+        loop {
+            let next = state.next_name.entry(kind).or_default();
+            let index = *next;
+            *next = next
+                .checked_add(1)
+                .expect("test-only name counter overflow");
             let candidate = symbol!(format!("fastsecdec::named_regular::{kind}{index}"));
             if state.occupied.insert(candidate) {
                 return candidate;
             }
         }
-        unreachable!()
     }
 
     fn wrap(&self, coefficient: &Atom) -> Atom {

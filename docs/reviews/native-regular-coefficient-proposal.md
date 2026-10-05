@@ -61,9 +61,9 @@ derivatives, substitutions, arithmetic and evaluator.
   establish this lowering/persistence seam. Do not use the convenience multiple-
   AliasedAtom builder, which would register the same shared definitions repeatedly.
 
-These establish API and source feasibility, plus executable evidence for the
-individual seams. The combined named-coefficient composition has not run; the
-small probe below is its missing executable reuse check.
+These established API and source feasibility, plus executable evidence for the
+individual seams. The combined named-coefficient composition was then checked
+by the small symbolic gate recorded below.
 
 ## Smallest bounded implementation slice
 
@@ -165,9 +165,74 @@ passed. The bound was unchanged at 180 seconds plus five seconds of grace and
 archives retain the development/test profile with native dependencies at opt2;
 these tiny durations are correctness diagnostics, not performance evidence.
 
-This closes the first symbolic-control gate only. Production O2/MPFR and weighted
-kernel checks, a fresh-process native-IR reader, and any actual captured-target
-or full-graph acceptance remain pending. The named bookkeeping currently scans
-its reserved namespace from zero for each fresh name; owner-local monotone
-counters are a reviewed future bookkeeping improvement before a large attempt,
-not a change made to the frozen successful control snapshot.
+This closed the first symbolic-control gate only. At that point production
+O2/MPFR and weighted kernel checks, a fresh-process native-IR reader, and any
+actual captured-target or full-graph acceptance remained pending. The frozen
+first snapshot scanned its reserved namespace from zero for each fresh name.
+The next test-only layer uses collision-checked, owner-local monotone counters;
+it leaves all native mathematical operations unchanged.
+
+## Native program and cold-process control protocol
+
+The next layer reuses the existing production exact-program builder and
+`SectorKernel`, with separate Taylor and IBP controls for the admitted density
+with prefactor `Gamma(2 epsilon)`, regular body
+`(2+3i)(1+x+y)^(-1-epsilon)`, and coordinate powers
+`[epsilon-2, 2 epsilon-1]`. It requires the complete order set `[-3,-2,-1,0]`
+and an eight-component real/imaginary numerical layout. Bounded small native
+coefficient restoration is checked exactly against ordinary subtraction before
+building either numerical program. Complex literals must occur in retained
+native alias bodies.
+
+Both the ordinary baseline and named program must agree at 512 and 1024 bits
+at all three prescribed rational points. Fresh kernels, native fallible worker
+clones, same-process decoded kernels, and a separate cold reader check adaptive
+and forced weighted evaluation at the identical rounded binary64 points, with
+weights one and `1e40`. The rounded-coordinate comparison has its own native
+1024-bit reference; it is distinct from the exact-rational checks. The cold
+reader consumes native exact IR and expected values without constructing the
+formal coefficient registry. This tests native IR transport, not graph-artifact
+metadata or a full integration.
+
+The first frozen program attempt is retained at
+`output/diagnostics/native-named-program-1/`. Its eight symbolic controls passed
+in 0.123431510 seconds, then the writer failed to launch: the timer canonicalized
+the Nix `env` symlink to the multicall `coreutils` executable, losing the applet
+selection. That process exited one after 0.002723759 seconds; no writer test or
+reader ran. All 15 immutable postchecks passed. The scientific binary and
+source were unchanged for the corrected launcher in
+`output/diagnostics/native-named-program-2/`: per-stage test variables are exported
+by the wrapper and `prlimit` remains the first executable. Each sequential stage
+retains its own 180-second/five-second-grace, 30-GiB address-space, CPU8 bound.
+The timer applet-resolution defect is a separate harness follow-up; the frozen
+timer and previous timing evidence were not modified.
+
+The corrected attempt passed all three stages: eight symbolic controls in
+0.126907282 seconds, the writer in 15.663043777 seconds (24,628 KiB peak RSS),
+and the separate fresh reader in 4.441059926 seconds (21,616 KiB peak RSS).
+Every process exited zero and was reaped before its successor. All 17 frozen
+source/build checks and all five writer-output postchecks passed. These are
+development/test correctness durations, not performance acceptance.
+
+Both strategies retained four nonempty orders `[-3,-2,-1,0]`, reached native
+absolute bound one after the recorded width-one/width-four requests, and passed
+all exact small-coefficient baseline identities. The ordinary baseline and
+named program each passed the 512/1024-bit checks at three exact points.
+The writer made 72 complete weighted vector comparisons across fresh, cloned
+worker and decoded kernels; the cold reader added 24, totaling 96 vectors and
+768 real/imaginary component comparisons. Each kernel/strategy checked and
+rescued ten of its twelve calls. The native reports retain 53/256/320-bit choices
+for Taylor and 53/256 for IBP; the two unchecked calls were still compared with
+the independently computed rounded-coordinate MPFR values.
+
+| Small control | Native source bodies | Derivative / face requests | Aliases | Root / definition bytes | Native IR bytes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Taylor | 4 | 8 / 19 | 10 | 1,697 / 420 | 2,105 |
+| IBP | 4 | 8 / 21 | 10 | 1,597 / 522 | 2,353 |
+
+The coefficient names and body caches are call-local. The cold reader operated
+without rebuilding them or registering callbacks. This closes the small native
+program, weighted replay, worker clone and fresh-process IR compatibility layer.
+It does not establish the cost or correctness of the captured large workload;
+that still needs a separately reviewed, bounded complete-vector experiment and
+independent original-expression oracles. Production generation is unchanged.

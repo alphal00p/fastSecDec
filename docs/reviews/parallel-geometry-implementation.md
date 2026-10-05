@@ -71,7 +71,8 @@ no Atom or Symbolica runtime. The independent implementation review is recorded
 in `parallel-geometry-api-independent.md`.
 
 This establishes the native scheduling boundary and deterministic correctness,
-not a speedup or an end-to-end parallel generation result. Cache-aware dispatch
-and `GenerationContext` adoption require the next additive integration slice.
+not a speedup. Subsequent cache-aware dispatch and the additive
+`GenerationContext` entry have their own end-to-end correctness gate in
+`parallel-generation-dispatch-implementation.md`.
 No public arbitrary cache insertion, new sector identity, serialized job codec,
 CLI scheduling change or pool was added here.

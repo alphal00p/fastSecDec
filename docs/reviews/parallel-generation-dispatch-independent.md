@@ -40,3 +40,35 @@ weights, same-support domain rejection, zero-dimensional and empty inputs,
 invalid completions and cancellation before/after accepted cache insertion.
 Retain existing serial/cache/context tests. These can establish reusable parallel
 scheduling; retained memory and speedup require separate measurements afterward.
+
+## Concrete source review
+
+Read the prepared implementation and confirmed its four core files match the
+connected `sectors/cache.rs`, `cache/dispatch.rs`, `generation/context.rs` and
+`generation/geometry.rs`. No source-level blocker was found. The original serial
+cache and new dispatch path share only private lookup/completed insertion helpers.
+Dispatch constructs the native plan, submits chart work to native `prepare`, then
+cone work to native `finish`; the caller never supplies a decomposition.
+Cancellation is checked before lookup, between stages, during native assembly
+and after the accepted final observer before insertion. A cancelled hit retains
+the existing entry. The main wrapper checks its token at generation events and
+again before returning a successful integral, including when an observer sets
+the token but returns `Continue` on its final event.
+
+The dispatched geometry route rejoins the same per-integral mapping and symbolic
+pipeline as serial/cached generation. Local job callbacks remain in the caller's
+dispatcher; the ordinary observer sees final native completion, reuse status and
+existing generation events. The added tests exercise cross-use of serial and
+dispatched cache entries, empty cone stages, zero capacity, typed invalid work,
+native limits, failure/cancellation without eviction, and complete generated
+`[-1,0,1]` vectors with analytic controls and a changed weight. Empty inputs and
+same-support threshold rejection skip dispatch as required. Focused execution
+and final workspace gates remain separate from this source acceptance.
+
+The focused author gates subsequently passed all41 sector tests with2 ignored
+(`output/geometry-dispatch-sector-tests.log`) and all8 generation-context tests
+in0.04 seconds (`output/geometry-dispatch-context-tests.log`). The latter includes
+the three new dispatch cases and all five existing context cases. Independently
+read the passed test names/results and the additive public native progress/error
+reexports; they do not change dispatch semantics. No source finding remains.
+The main workspace/Clippy acceptance is still the coordinator's separate gate.

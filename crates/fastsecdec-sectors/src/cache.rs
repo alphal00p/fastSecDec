@@ -4,6 +4,9 @@ use crate::{
 };
 use std::{collections::VecDeque, ops::ControlFlow, sync::Arc};
 
+mod dispatch;
+pub use dispatch::GeometryDispatch;
+
 /// A complete native geometry result and whether this request reused an entry.
 #[derive(Clone, Debug)]
 pub struct GeometryCacheOutcome {
@@ -84,16 +87,8 @@ impl GeometryCache {
             options.max_rays,
             options.max_sectors,
         ];
-        if let Some(entry) = self.entries.iter().find(|entry| {
-            entry.domain == domain && entry.supports == supports && entry.limits == limits
-        }) {
-            if progress(&entry.completion).is_break() {
-                return Err(SectorError::Cancelled);
-            }
-            return Ok(GeometryCacheOutcome {
-                decomposition: Arc::clone(&entry.decomposition),
-                reused: true,
-            });
+        if let Some(hit) = self.lookup(domain, supports, limits, &mut progress)? {
+            return Ok(hit);
         }
 
         let mut completion = None;
@@ -104,6 +99,40 @@ impl GeometryCache {
             }
             decision
         })?;
+        self.store(domain, supports, limits, result, completion)
+    }
+
+    fn lookup(
+        &self,
+        domain: ParametricDomain,
+        supports: &[PolynomialSupport],
+        limits: [usize; 3],
+        progress: &mut impl FnMut(&DecompositionProgress) -> ControlFlow<()>,
+    ) -> Result<Option<GeometryCacheOutcome>, SectorError> {
+        let Some(entry) = self.entries.iter().find(|entry| {
+            entry.domain == domain && entry.supports == supports && entry.limits == limits
+        }) else {
+            return Ok(None);
+        };
+        if progress(&entry.completion).is_break() {
+            return Err(SectorError::Cancelled);
+        }
+        Ok(Some(GeometryCacheOutcome {
+            decomposition: Arc::clone(&entry.decomposition),
+            reused: true,
+        }))
+    }
+
+    // Only native serial completion or work::finish can reach this boundary.
+    // There is deliberately no public insertion of caller-created maps.
+    fn store(
+        &mut self,
+        domain: ParametricDomain,
+        supports: &[PolynomialSupport],
+        limits: [usize; 3],
+        result: Decomposition,
+        completion: Option<DecompositionProgress>,
+    ) -> Result<GeometryCacheOutcome, SectorError> {
         let completion = completion.ok_or_else(|| {
             SectorError::Geometry("decomposition returned without accepted completion".into())
         })?;
