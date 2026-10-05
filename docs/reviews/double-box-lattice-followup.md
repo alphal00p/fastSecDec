@@ -71,4 +71,64 @@ reaped. The cumulative 664.554-second figure includes both complete HKKN
 executions; no earlier samples were reused. It excludes the old Kuo ladder and
 generation, and is not a timing median. Numerical work stops here. No production
 default, mathematical source, prepared artifact or historical benchmark output
-changes. The matching Pathfinder accuracy and remaining timing metrics stay open.
+changes. Subsequent current-build validation and a Pathfinder counterpart are
+recorded below; representative timing parity remains open.
+
+## Current release and Pathfinder counterpart
+
+The published-source release now generates the original scalar double box in
+4.441 seconds and passes the normal artifact reader. All 102 six-dimensional
+kernels, orders −4 through zero and the entire native kernel envelope equal the
+retained artifact. Its new outer identity correctly records the changed
+dependency provenance. Independent review checked the executable, all 4,039
+source bindings, unchanged physics and strict loading.
+
+A fresh card changes only `integration.package_points` to 16,384, with input
+paths made absolute. Ordinary generation takes 3.793 seconds and again produces
+the identical kernel envelope. The ensuing current-build integration and the
+separately admitted Pathfinder default-catalogue observation give:
+
+| Quantity | Current FastSecDec | FastSecDecPathFinder |
+|---|---:|---:|
+| Lattice / actual points per shift | HKKN / 16,384 | Default prime / 17,807 |
+| Shifts / workers | 16 / 8 | 16 / 8 |
+| Complete integration/result process | 479.451 s | 275.506 s |
+| Accepted evaluations | 26,738,688 | 27,351,552 |
+| Finite coefficient | −14.854766319 | −14.870171266 |
+| Reported finite relative error | 0.393‰ | 0.577‰ |
+| Mean time per sample, respective interval | 142.312 µs | 58.675 µs |
+| Largest sector mean, respective interval | 969.263 µs | 442.739 µs |
+| Individual-sample maximum | Unmeasured | Unmeasured |
+
+The native sample interval includes point generation, transformation, complete
+vector evaluation, rescue and accumulation. The Pathfinder interval above is its
+evaluator-plus-Python bucket; global lattice/transform and prefactor work lie
+outside it. Its evaluator-only mean and largest sector mean are 50.137 and
+426.772 microseconds. These are unlike intervals, not scalar-JIT speed ratios.
+Native uncertainty uses the joint physical vector covariance; Pathfinder reports
+marginal errors with L1 prefactor propagation. Both pass all five available real
+reference checks. The reference has no imaginary rows; these are not invented.
+
+The larger native packages preserve every actual point and shift. All sector
+estimates, total means/errors/covariance and precision counters are exactly equal
+to the retained 1,024-point-package result, including 12,231,536 rescues, maximum
+576 bits, 116 weighted checks, 64 additional replays and zero failures. This
+closes current-build numerical validation for the observation. It shows no
+timing improvement over the historical 437.039-second run; changed executables
+and host activity prevent attributing the difference solely to package size.
+The default remains unchanged. A rejected data-only partial-count assumption and
+its correction are retained; no scientific execution was repeated.
+
+Pathfinder reuses its existing bundle and normal precision policy, requests
+16,384 points and selects prime 17,807 with vector
+`[1,6801,7999,5312,2438,2316]`. It uses the existing table only; no FORM or pySecDec
+generation runs. Its single observation passes independent data review. Neither
+row is a timing median or an identical-rule comparison. Double-box performance
+parity remains unmet, and the bounded package experiment ends here.
+
+Evidence is in `output/diagnostics/current-native-release-build-1`,
+`current-double-box-generation-1`, `current-double-box-package16384-1` and
+`bounded-double-box-prime-counterpart-1`. The independent current-result audit
+accepts all 1,632 complete packages, 103 total/sector covariance matrices,
+unchanged native plans and the reference-only transport. Every scientific
+process completed within its existing bound and was reaped.

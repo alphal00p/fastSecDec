@@ -1170,3 +1170,14 @@ observations reach 0.393 per mille finite-part relative standard error at the
 second level; both complete processes total 664.554 seconds. These observations
 do not establish Pathfinder parity or uncertainty calibration. This bounded
 lattice follow-up stops at that target; the production default remains unchanged.
+
+Current public-owner generation subsequently passes normal strict loading with
+the exact retained kernel envelope. The sole larger-package experiment uses
+ordinary run-card settings, native generation, Numerica's existing identical
+point/shift plans, per-point weighted replay, native saved-result validation and
+reference comparison. It preserves all sector estimates and covariance exactly,
+but provides no timing improvement; no default or mathematical source changes.
+The bounded Pathfinder counterpart uses its own existing prime-table backend and
+retained bundle, without external package generation. Both reach the reported
+finite-part target; different rules, timing intervals and error semantics remain
+explicit, and performance parity is still open.

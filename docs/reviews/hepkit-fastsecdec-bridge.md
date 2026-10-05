@@ -5,6 +5,8 @@ The Python API and four-example notebook are published in
 commit `ab84c89959dd6abc4655b348617193a58860c6fe`, as `ValentinHirschi`.
 FastSecDec remains a Rust library. The branch starts from the merged shared
 external-state PR #17 and selects the explicit `experimental-fastsecdec` feature.
+The prose-only follow-up `a698db6` links the completed native gg→HH example and
+keeps its unmeasured browser cost explicit; it changes no calculation code.
 
 A fresh native wheel built from published FastSecDec `be9c3d2` passes all
 39 focused tests with zero skips. Installed binary identity and all 169 compiled
@@ -20,6 +22,14 @@ bridge feature disabled. The documented preparation helper fetches exact public
 owners and applies the existing minimal patches in a fresh directory. Its
 task-owned, isolated Cargo home supplies the configuration to Maturin and Pyodide
 without modifying global configuration or sharing mutable cache directories.
+
+Hosted default CI reproduces the documented SymJIT conflict. The dedicated
+[experimental CI run](https://github.com/symbolica-dev/symbolica-community/actions/runs/37370796445)
+passes source preparation and dependency checks, then terminates with SIGTERM
+(exit 143) while compiling dependencies, before tests start. GitHub supplies no
+termination cause or compiler diagnostic. This is an unaccepted hosted gate;
+the local 39-test result remains separate. No speculative source fix or repeated
+remote build follows from the unexplained termination.
 
 ## Shared inputs and crate identities
 

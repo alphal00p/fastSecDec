@@ -5,7 +5,7 @@ acceptance. The convergence target is the **largest signed requested epsilon
 power**: epsilon zero in the small cases below and epsilon two for Issue 1.
 Reported relative standard error is not a certified bound on true error.
 
-The latest user instruction accepts successful on-shell triple-box generation
+The user accepts successful on-shell triple-box generation
 as sufficient for phase A and redirects work to simpler, faster-to-generate
 integrals. Generation, artifact publication and cold loading for that graph
 are complete. Its numerical/reference attempts remain partial, with no claim
@@ -14,9 +14,31 @@ The user supplied an authorized Symbolica license for subsequent runs. The
 Pathfinder eight-worker triangle check now passes; its previous failed runs
 remain historical evidence.
 
-## Current matched triangle measurements
+The HEPKit bridge and four-example notebook are published in
+[draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+The fresh public-Git native wheel passes 39 focused tests with zero skips;
+earlier actual Pyodide and browser lifecycle checks retain their own build
+identities. Generic external states are delivered through merged PR #17.
+The native gg→HH CLI example completes generation in 61.285 seconds and an
+eight-worker allocation in 8.781 seconds, with 1.0273% finite-part relative
+standard error. Its browser cost remains unmeasured. The draft's documented
+dependency patches remain necessary, and dedicated hosted CI was terminated
+during dependency compilation before tests; see the
+[bridge review](hepkit-fastsecdec-bridge.md).
 
-The current-release triangle completes seven alternating generation and
+Current-main scalar double-box generation takes 4.441 seconds. A bounded
+larger-package integration reaches 0.393‰ finite-part relative standard error
+in 479.451 seconds on eight workers, with all five coefficients and full
+covariance exactly equal to the retained calculation. Pathfinder's existing
+prime catalogue reaches 0.577‰ reported finite error in 275.506 seconds.
+These are single observations with different rules and error semantics;
+double-box parity remains open. The [side-by-side record](double-box-lattice-followup.md)
+includes actual sample counts, worker/sector costs and the unmeasured individual
+maxima. Larger packages showed no timing improvement; defaults are unchanged.
+
+## Retained matched triangle measurements
+
+The frozen `8ecc406` triangle completes seven alternating generation and
 integration pairs. Generation uses one physical core; integration uses eight
 physical cores, N8192, R16, Kuo33002 and Korobov3. All fourteen integration
 processes meet the reported one-per-mille epsilon-zero target at the first
@@ -71,10 +93,11 @@ unavailable OneLOop provider failed before sampling. The original failure and
 the reviewed equality of the stored target are retained. See the same paired
 and [latency records](current-sample-latency-results.md) for exact boundaries.
 
-The user has additionally authorized the HEPKit marimo bridge/showcase. Its new
-generated top/gluon double-box helicity example must first run through the native
-CLI at sqrt(s)=300 GeV before notebook inclusion. Preparation is in progress;
-neither a complete amplitude contribution nor browser feasibility is claimed.
+The generated top/gluon double-box helicity example has now passed its ordinary
+native CLI prerequisite at sqrt(s)=300 GeV. It is one explicitly labelled diagram
+contribution, with the gauge, projection and normalization retained; browser
+feasibility remains unmeasured. See the
+[native feasibility record](gghh-native-feasibility.md).
 
 ## Plan coverage
 

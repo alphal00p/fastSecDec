@@ -24,8 +24,11 @@ integration and mean calls but a higher observed native maximum; tail parity
 remains unestablished. The [double-box lattice follow-up](double-box-lattice-followup.md)
 now observes a native finite-part relative standard error of 0.393 per mille:
 437.039 seconds at its final eight-worker level, or 664.554 seconds across both
-tested HKKN levels. Its matching Pathfinder accuracy and remaining timing metrics
-are still open, as are the other representatives. The retained earlier
+tested HKKN levels. Subsequent current-main validation reaches the same error in
+479.451 seconds using larger packages, with exactly equal results and covariance.
+The existing Pathfinder prime catalogue reaches 0.577 per mille in 275.506 seconds.
+These single, different-rule observations leave double-box performance parity
+unmet; other representative comparisons remain open. The retained earlier
 license failures are unchanged. The HEPKit marimo extension's generated gg→HH
 helicity double box now passes its [native CLI prerequisite](gghh-native-feasibility.md):
 complete generation and full-vector integration at about 1.03% finite-part error.

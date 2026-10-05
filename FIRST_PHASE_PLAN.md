@@ -661,6 +661,21 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: the fresh public-owner release passes strict scalar double-box
+  generation/loading, with 102 kernels exactly equal to the retained native
+  payload. Generation takes 4.441 seconds. One bounded larger-package run
+  reaches 0.393 per mille finite-part relative standard error in 479.451 seconds
+  on eight workers, preserving every sector estimate, total covariance and
+  precision counter exactly. The default package size is unchanged because no
+  timing benefit was observed. One existing-catalogue Pathfinder counterpart
+  reaches 0.577 per mille in 275.506 seconds; no FORM or package generation is
+  repeated. These single, different-rule observations leave performance parity
+  open. HEPKit PR #18 additionally links the native gg→HH result in prose-only
+  follow-up `a698db6`; its dedicated hosted CI terminates during dependency
+  compilation without a reported cause, before tests. Local native 39-test and
+  earlier actual browser evidence remain valid for their recorded builds.
+  See `docs/reviews/double-box-lattice-followup.md` and the bridge review.
+
 - 2026-10-05: the experimental native-input bridge and four-example marimo
   notebook are published as draft HEPKit PR #18 at `ab84c89`, authored by
   `ValentinHirschi`, on the merged external-state PR #17 base. A fresh installed
