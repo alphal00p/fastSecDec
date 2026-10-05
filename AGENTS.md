@@ -33,6 +33,13 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
   existing worktrees and unrelated host workloads.
 - Keep libraries caller-driven, and CLI/status presentation independent of
   numerical code. No library-owned QMC worker pool or integration loop.
+- Keep substantive HEPKit bindings in FastSecDec's isolated `bindings/python`
+  Rust crate, with demo helpers/assets/tests in this repository. Community only
+  links/registers the module and supplies necessary reexports/stubs. The native
+  core and default CLI must remain free of Python/PyO3 dependencies.
+- Notebook generation and integration require separate explicit actions. Retain
+  native generated objects for lazy sector exploration; automatic presentation
+  cells must not generate, compile, contract numerators or start sampling.
 - Scientific equivalence is required; legacy options, sector numbering and cache
   formats are not. Preserve complete Laurent-vector cancellations and covariance.
 - Prefer small modules with clear responsibilities. No alternate CAS, DOT parser,

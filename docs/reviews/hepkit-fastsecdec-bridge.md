@@ -1,5 +1,21 @@
 # HEPKit FastSecDec bridge boundary
 
+**Latest ownership and notebook correction:** the user requires community to
+contain only the FastSecDec dependency link, module registration and necessary
+reexports/stubs. The current branch's substantive Rust/PyO3 wrappers still live
+in community and therefore do not meet this updated boundary. Their migration
+to FastSecDec, and ownership of dedicated demo/test material, are under review.
+The core and default CLI must remain free of Python/PyO3 dependencies.
+
+The existing combined Run action also does not meet the new separate Generate
+and Integrate requirement. The revised Generate action must retain an
+inspectable native generated result and compiled kernels, then stop with zero
+samples. Separate explicit integration, live detailed views, and a native-backed
+all-sector overview with individual details are required before notebook
+acceptance. Preserve the earlier evidence below under its original source and
+interaction scope; it does not certify those new controls. Performance work is
+parked while this audit and implementation take priority.
+
 The Python API and four-example notebook are published in
 [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18),
 commit `ab84c89959dd6abc4655b348617193a58860c6fe`, as `ValentinHirschi`.

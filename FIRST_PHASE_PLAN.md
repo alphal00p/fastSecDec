@@ -68,13 +68,14 @@ Confirmed decisions:
 | Performance | Matched SymJIT O2; at most 5% timing regression per representative case |
 | Platforms | Linux and macOS, x86-64 and ARM64 where supported by dependencies |
 | Domain uncertainty | Reject inconclusive threshold checks by default; allow an explicit recorded no-threshold assertion |
-| Python bridge | Now authorized for the marimo showcase below; implementation belongs entirely in symbolica-community |
+| Python bridge | Public HEPKit module registered in community; substantive Rust/PyO3 bindings and FastSecDec-specific implementation belong in FastSecDec under the latest clarification below |
 
 ### Authorized HEPKit notebook extension and native example prerequisite
 
 The user approved a browser-first marimo showcase alongside the bounded native
-performance work. Keep its Python bridge on the local symbolica-community feature
-branch and reuse native HEPKit diagrams, models, kinematics, tensor algebra and
+performance work. Register its public Python module on the symbolica-community
+feature branch, with substantive bindings owned by FastSecDec as clarified
+below, and reuse native HEPKit diagrams, models, kinematics, tensor algebra and
 typed FastSecDec events. Demonstrate a massive triangle, massless box, rank-two
 box numerator and coupled two-loop sunset numerator. Expose masses and scalar
 products through explicit forms, require a deliberate generation/integration
@@ -117,6 +118,49 @@ measured generation and integration costs and achieved uncertainty only when
 available. An incomplete reference supplies a feasibility bound, not a numerical
 result, extrapolated timing or new requirement to complete that reference.
 
+### Latest priority: binding ownership and complete notebook interaction
+
+The user's subsequent correction supersedes the earlier requirement to house
+all PyO3 API implementation in symbolica-community. Keep the numerical core and
+default CLI entirely Rust and free of Python/PyO3 dependencies. Place substantive
+Rust/PyO3 binding implementation in FastSecDec, with an optional, isolated
+dependency boundary. Community should only link the published FastSecDec binding,
+register the HEPKit module, provide the necessary reexports/stubs and point to
+the maintained examples. Audit dedicated demo helpers, assets, tests and build
+guidance for the same ownership boundary; avoid maintaining a second FastSecDec
+implementation inside community.
+
+Prioritize this architectural audit and the notebook over further performance
+experiments. Preserve accepted benchmarks and prepared protocols, but park new
+performance runs until these requirements are implemented and reviewed.
+
+Every showcase case, including gg→HH, needs separate explicit **Generate** and
+**Integrate** actions. Opening the notebook, changing a form or exploring sectors
+must not start generation or integration. The Generate action prepares and
+compiles the input, then stops with an inspectable result. Integration begins
+only through its own action; cancellation/resumption must preserve accepted
+native coverage and keep input/result identities consistent.
+
+Both stages must stream information-rich, polished views of actual native
+events. Generation needs detailed phase progress and counts; integration needs
+complete Laurent estimates, uncertainties, coverage, convergence and meaningful
+timings. After generation, provide an all-sector statistics view and expandable
+or selectable detail for individual sectors. Expose these through high-level
+HEPKit Python objects wrapping the corresponding native FastSecDec objects;
+do not reconstruct numerical or algebraic state from display strings or add
+duplicate Python algorithms.
+
+Acceptance includes exercising the real notebook actions and visible streaming,
+checking that controls do not trigger work automatically, checking sector
+exploration before integration, and completing the gg→HH native workflow with
+the existing scientific safeguards. Preserve native/browser distinctions and
+label rendering replays and unpaced API-driver timings accurately. A screenshot
+or an API-only run does not alone establish a smooth live notebook interaction.
+Finish this review and implementation before returning to the bounded remaining
+performance gates. The stopping rule remains: complete the required features
+and parity, commit and push, mark the active goal complete, then stop for the
+user to plan the next phase.
+
 Latest user clarifications, verbatim:
 
 ```text
@@ -136,6 +180,18 @@ Continue as planned, but before integrating this example in the notebook, make s
 Can you delegate to subagent to see what kind of performance fastSecDecPathFinder and pySecDec themselves would have on this exact same double-box gg_hh example? (If it does not appear to be feasible within 10 min and 15 GB of RAM then do not try to complete this example within these two different implementations).
 ```
 
+```text
+Once you're feature complete within what's stated in the goal, and reached parity or better everywhere according to the metric I mentioned earlier vs fastSecDecPathFinder, then commit+push, set the goal as completed and stop yourself so that we can plan together for the next step.
+However make sure that the demon notebook (also g g > h h) is solidly implemented with great visuals and runs smoothly, with explicit buttons for generating and integrating so that marimo does not automatically run those cells. Both generation and integration must have very elegant and information-rich visuals streamed during the runs to follow the generation in details as well as the integration.
+It should also be able to visually elegantly explore the resulting generation (looking at stat for all sectors, but also expand details of particular ones etc...) all with rich high-level HEPKit python primitives wrapping the fastSecDec corresponding objects.
+
+Also Ben ruijl noted this:
+"""
+It is pushing fastsecdec code into community repo. It should only be registering the module and linking to the fastsecdec repo and adding adding the stubs
+"""
+So indeed, make sure that the community repo only ever contains the necessary python API glue, but all heavier implementation must remains in the fastsecdec repo directly, make sure to thoroughly review all the above instead of chasing more performance for now.
+```
+
 ## 2. Architecture, ecosystem reuse, and inputs
 
 Use a Cargo workspace with three crates:
@@ -149,6 +205,17 @@ Use a Cargo workspace with three crates:
 Organize each crate into small modules by responsibility. Keep graph ingestion, numerator conversion, domain analysis, subtraction, compilation, numerical rescue, scheduling, statistics, persistence, and presentation separate. Avoid large files that combine the pipeline.
 
 The sector crate owns neutral domain/map types and does not depend on the main library. The main library reexports appropriate public types. CLI dependencies must not enter either numerical library.
+
+The later HEPKit ownership correction adds an isolated `bindings/python`
+package, `fastsecdec-python`, outside this three-crate workspace. It has its own
+workspace/lockfile and exports an `rlib` registration entrypoint. Community owns
+the Python extension initializer and ABI selection; the leaf binding forwards
+native/portable backends and shares the existing FeynKit-Py, Symbolica and PyO3
+owners without depending back on community. This preserves the core/default
+CLI dependency graph and its `--workspace` test boundary. FastSecDec maintains
+the notebook under `examples/hepkit/`, with binding tests alongside the isolated
+crate and notebook tests alongside the showcase. See
+`docs/reviews/hepkit-binding-ownership.md` for the migration and validation gates.
 
 ### Reuse before implementation
 
@@ -220,7 +287,12 @@ evaluator experiments and record the exact source revisions and local patches.
 The supplied SymJIT checkout has different library packaging; that alone does
 not justify patching it.
 
-Disable Python features and unnecessary dependency defaults. Verify the production dependency graph excludes PyO3, Python bindings, pySecDec, and the full GammaLoop application. Existing numeric backends used by Symbolica remain dependencies; all new FastSecDec and QMC implementation code is Rust.
+Disable Python features and unnecessary dependency defaults in the core and CLI.
+Verify their production dependency graphs exclude PyO3, Python bindings,
+pySecDec, and the full GammaLoop application. The separately selected HEPKit
+binding is the explicit Python/PyO3 boundary; it must not enter default core or
+CLI builds. Existing numeric backends used by Symbolica remain dependencies;
+all new FastSecDec and QMC implementation code is Rust.
 
 Keep dependency patches minimal and isolated: a demonstrated defect, focused regression test, small fix, and upstream-ready explanation. Numerica's requested QMC extension is the intentional larger exception.
 
