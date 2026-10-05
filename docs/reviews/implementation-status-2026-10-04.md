@@ -86,9 +86,15 @@ vector. The external provider shares shifts between kernels but omits their
 covariance when combining reported errors. Consequently the fixture remains
 typed **Unverified** and comparison-ineligible; its means and reported errors
 are preserved. Three focused transport tests pass, with two recording/scientific
-tests ignored. Existing references from the same provider are being reviewed
-for this limitation. The source-only alternative reuses the provider's existing
-sector-sum integration API; it introduces no statistical estimator.
+tests ignored. The [randomization-route audit](reference-randomization-route-audit.md)
+finds that the six massive DOT references and double box instead use ordinary
+IntegralLibrary with a shared advancing native RNG, so this Issue 1 finding
+does not justify downgrading those references. The subsequent
+[ordinary-constituent sector-sum attempt](issue-one-together-outcome.md) completes
+all three coefficients, with the highest value 760.9168 ± 0.9781. It uses the
+existing native uncertainty of the summed integrand and addresses the identified
+cross-sector omission; general error calibration remains open and a separate
+versioned native fixture is pending. It introduces no statistical estimator.
 
 ## Generation and fixed-work measurements, alongside Pathfinder
 
@@ -217,15 +223,31 @@ means **3.884 µs/sample for triangle** and **3.841 µs/sample for box**. Median
 of each run's slowest sector mean are **7.600 µs** (triangle sector 1) and
 **5.886 µs** (box sector 0). These use the same broad native worker boundary
 described above and a different allocation from the older paired table.
-Corresponding eight-core Pathfinder costs and individual-sample maxima remain
-unavailable; no cross-allocation speedup is inferred.
+Corresponding eight-core Pathfinder costs remain unavailable; no cross-allocation
+speedup is inferred. The subsequent independently reviewed
+[individual-sample diagnostic](native-sample-latency-results.md) supplies the
+following separate measurement, with a narrower whole-vector weighted-kernel
+clock bracket and one fixed seed:
+
+| Case | Native pooled mean µs/sample | Slowest sector mean µs/sample | Observed individual maximum µs | Pathfinder individual maximum |
+|---|---:|---:|---:|---|
+| Triangle | 4.261 | 8.380 | 3,065.290 | Unmeasured |
+| Box | 4.358 | 7.093 | 6,167.589 | Unmeasured |
+
+Every sector's count/mean/maximum is in that diagnostic record. All maxima occur
+during native precision rescue, but include possible scheduling interruptions;
+they are finite observations, not worst-case bounds. The bracket excludes point
+generation, transformation and accumulation and retains clock overhead without
+subtraction. On/off full-vector, covariance and accepted replay state are exactly
+equal; rejection controls pass. It uses the frozen previous release library,
+not the ongoing alias implementation, and does not replace seven-seed means.
 
 Pathfinder's separately charged global integrator work adds a median 2.015
 µs/sample for triangle and 1.493 µs/sample for box; its sector bucket does not
 assign that work to individual sectors. Evaluator-only Pathfinder averages are
 3.239 and 3.836 µs/sample, respectively, and likewise are not comparable to the
-broader native worker timer. Neither program's individual-sample maxima are
-available. The complete 3461-row extraction is retained as
+broader native worker timer. Neither program's individual-sample maxima were
+available in that earlier campaign. The complete 3461-row extraction is retained as
 `output/diagnostics/status-comparison-20261004/sector-costs.csv`, with the source
 result path and timing boundary in each row.
 

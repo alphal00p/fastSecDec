@@ -589,5 +589,25 @@ marginal variances without their covariance. The fixture therefore remains
 ineligibility despite complete source/normalization/transport checks. No new
 uncertainty schema or estimator is needed. The existing provider's ordinary
 constituent `IntegralLibrary` with `together=True` sums sector integrands before
-native integration and is being prepared as the supported alternative. Other
-fixtures from disteval are under review for the same limitation.
+native integration and is being prepared as the supported alternative. The
+subsequent [randomization-route audit](reviews/reference-randomization-route-audit.md)
+confirms that the six massive DOT fixtures and double box already use ordinary
+IntegralLibrary and a shared advancing native RNG. Issue 1's per-kernel reset
+finding therefore does not justify downgrading those seven fixtures; their
+existing calibration limitations remain separate.
+
+The [individual-sample latency diagnostic](reviews/native-sample-latency-results.md)
+uses native `QmcSession`, caller-owned workers and `WeightedEvaluationContext`.
+The ignored Rust caller only records clock brackets and provenance; native
+point generation, transforms, accumulation, covariance, replay and checkpoint
+restoration are unchanged. Exact full-vector on/off equality and a rejected
+seven-sample prefix/retry control pass. Its frozen release dependency identities
+remain distinct from the ongoing alias implementation.
+
+The [ordinary-constituent Issue 1 attempt](reviews/issue-one-together-outcome.md)
+now completes all three coefficients via the existing sector-sum API, with
+provider uncertainty computed after summing the integrands. Independent source,
+metadata, normalization, original tuple and hash checks pass. This addresses the
+identified omitted sector covariance without a new estimator; cross-coefficient
+covariance and general error calibration remain unverified. The original
+disteval fixture is preserved, and a separate native fixture is pending.
