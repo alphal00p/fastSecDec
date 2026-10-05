@@ -95,6 +95,10 @@ pub struct Provenance {
     pub measure_multiplier: String,
     pub max_order: i32,
     pub integration: serde_json::Value,
+    /// Native preparation of the original graph family, when explicitly requested.
+    /// Omission preserves historical/original artifact identities.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub family_preparation: Option<fastsecdec::parametric::FamilyPreparationReport>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -216,6 +220,19 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> CliResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn omitted_preparation_preserves_legacy_provenance_serialization() {
+        let legacy = r#"{"name":"old","sources":[],"dependencies":[],"domain":"ProjectiveSimplex","assume_no_threshold":false,"dimension":"4-2*eps","regulator":"eps","measure":"native","measure_multiplier":"1","max_order":0,"integration":{}}"#;
+        let provenance: Provenance = serde_json::from_str(legacy).unwrap();
+        assert!(provenance.family_preparation.is_none());
+        assert_eq!(serde_json::to_string(&provenance).unwrap(), legacy);
+        let mode = SourceFingerprint::RunCardWithoutReference;
+        assert_ne!(
+            mode.hash(b"[generation]\norder=0\n").unwrap(),
+            mode.hash(b"[generation]\norder=0\n[generation.family_preparation.SingleUnitTerm]\nmax_states=32\n").unwrap(),
+        );
+    }
 
     #[test]
     fn scientific_card_fingerprint_excludes_only_root_reference_and_preserves_legacy_bytes() {

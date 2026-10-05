@@ -182,6 +182,7 @@ pub fn generate_with_workers(
         measure_multiplier: loaded.card.integral.measure_multiplier,
         max_order: options.max_order,
         integration: serde_json::to_value(loaded.card.integration)?,
+        family_preparation: loaded.family_preparation,
     };
     let mut artifact = Artifact::new(&kernels, provenance)?;
     artifact.reference = reference.map(|value| value.settings.clone());

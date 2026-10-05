@@ -10,7 +10,8 @@ use fastsecdec::{
     Atom, AtomCore, EdgeId, Kinematics, Model, ParameterCard, Symbol,
     input::GraphIntegral,
     parametric::{
-        FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
+        FactorRole, FamilyPreparationPolicy, FamilyPreparationReport, ParametricDomain,
+        ParametricIntegrand, ParametricTerm, PolynomialFactor,
     },
 };
 use feynkit_model::ParameterNature;
@@ -29,6 +30,7 @@ pub struct LoadedInput {
     pub loops: Option<usize>,
     pub propagators: usize,
     pub sources: Vec<crate::artifact::SourceFile>,
+    pub family_preparation: Option<FamilyPreparationReport>,
     pub independent_externals: Vec<String>,
     pub dependent_externals: Vec<String>,
     pub input_seconds: f64,
@@ -196,12 +198,19 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 .collect::<CliResult<Vec<_>>>()?;
             let input_seconds = started.elapsed().as_secs_f64();
             let parametrization_started = Instant::now();
-            let integrand = ParametricIntegrand::from_graph(
-                &graph,
-                parameters,
-                regulator,
-                bind(&expression(&card.integral.dimension)?, &values),
-            )?;
+            let policy = card.generation.family_preparation;
+            let dimension = bind(&expression(&card.integral.dimension)?, &values);
+            let (integrand, family_preparation) = if policy == FamilyPreparationPolicy::Original {
+                (
+                    ParametricIntegrand::from_graph(&graph, parameters, regulator, dimension)?,
+                    None,
+                )
+            } else {
+                let (integrand, report) = ParametricIntegrand::from_graph_prepared(
+                    &graph, parameters, regulator, dimension, policy,
+                )?;
+                (integrand, Some(report))
+            };
             Ok(LoadedInput {
                 card,
                 integrand,
@@ -213,6 +222,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 loops,
                 propagators,
                 sources,
+                family_preparation,
                 independent_externals,
                 dependent_externals,
                 input_seconds,
@@ -220,6 +230,12 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             })
         }
         (None, Some(direct)) => {
+            if card.generation.family_preparation != FamilyPreparationPolicy::Original {
+                return Err(
+                    "family preparation requires native graph input, not direct parametric data"
+                        .into(),
+                );
+            }
             let values = resolve(values)?;
             let domain =
                 match direct.domain.as_str() {
@@ -303,6 +319,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 loops: None,
                 propagators,
                 sources,
+                family_preparation: None,
                 independent_externals: Vec::new(),
                 dependent_externals: Vec::new(),
                 input_seconds,

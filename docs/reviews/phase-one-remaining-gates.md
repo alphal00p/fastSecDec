@@ -51,7 +51,12 @@ additional input coverage, not proof of numerical completion.
    exact offsets, covariance and portable reload. The previous physical trial
    [timed out](native-series-fullgraph-attribution.md) after 1,805.689 seconds
    with 80 of 1,026 representatives complete and no artifact; it remains
-   unchanged evidence. The new protocol is prepared but has not run.
+   unchanged evidence. The new release campaign is independently preflighted
+   under `output/diagnostics/native-named-fullgraph-2`; its scientific outcome
+   remains pending. The first release build succeeded, but its freezer rejected
+   a logging-only feature difference. That failed freeze is retained; the
+   second bundle records the exact ordinary-release feature set and the
+   byte-identical executable.
 
 3. **Establish original-integral numerical agreement.** Successful generation,
    artifact inspection and the fixed allocation establish capability and
@@ -127,6 +132,35 @@ change FastSecDec's compiler baseline. Finish the independent native-reuse,
 HEPKit public-API, dependency-separation, example-delivery and CLI/platform
 review after the remaining scientific/performance work. Normal builds/tests
 must continue to need no Python, pySecDec, FORM, Normaliz or reference checkout.
+
+## Bounded completion addendum, after `a56107f`
+
+The user's stopping rule narrows further work to unresolved acceptance claims.
+The family-level uncertainty entries above are limitations to assess against
+the retained evidence, not instructions to launch a new calibration campaign
+for every card. No finite test block can certify uncertainty for every possible
+integrand. Preserve that qualification after completion rather than turning it
+into an unlimited gate.
+
+| Minimum remaining decision | Evidence to reuse and bounded next action |
+| --- | --- |
+| Original on-shell integral capability and agreement | The ten-parameter NativeNamed trial was intentionally cancelled at 372/1,026 representatives after 1,006.900 seconds, with no artifact. Use the existing exact native prepared-family route for the next bounded trial of the same integral. Both original and projected external reference generation attempts reached their 30-GiB memory limits without a result. The projected representation preserves the completed native repeated-propagator identity, on-shell point, raised-power measure and Gamma factor. Review the provider's existing Taylor-subtraction option before another bounded attempt. A projection is an equivalent representation, not reduced integral coverage. Retained failed attempts supply no final integral vector. |
+| Scientific uncertainty checks for the representative set | Reuse the [72 holdout rows](convergence-stage-a-independent.md): six families, three independent seeds, two work levels and two rules, all complete and no recorded comparison beyond the frozen investigation threshold. Do not repeat that matrix or automatically launch its earlier proposed larger matrix. Reuse the double-box [64-shift observation](direct-generation-performance.md) and [all-five-order checked comparison](remaining-reference-attempts.md), whose largest absolute pull is 1.26516. Off-shell scalar/rank-two, Issue 1 and hard-reference transports already close their documented normalization and value-comparison claims. Add bounded independent-seed/work checks only where these records leave a concrete representative uncertainty or accuracy question unresolved; retain every result and the original investigation criterion. |
+| Highest-order accuracy and representative performance parity | Keep the original small one-loop, double-box, numerator-heavy and hard-four-loop representative set. Use the required matched seven ordinary/three expensive paired observations to close missing parity claims, with accuracy and full-vector checks in the same records wherever possible. Existing [seven-pair one-loop measurements](first-paired-performance-independent.md) remain valid for their recorded boundaries; different precision/persistence policies prevent relabelling them as final matched acceptance. Reuse their attribution rather than repeat exploratory profiling. Stop each case once the agreed criterion passes. |
+| Eight-core target and latency reporting | Reuse the [fourteen native eight-core rows](eight-core-native-results.md) for their actual finite-part target crossings, and the accepted [individual-sample diagnostic](native-sample-latency-results.md) for its distinct timer boundary. Neither needs a new diagnostic merely for documentation. The reference eight-worker instance-limit failure still prevents a paired eight-core claim; repeating the same rejected configuration or extrapolating fewer workers would not close it. Record the remaining measured target/worker gaps explicitly and resolve only those needed by the plan. |
+| Final delivery review | Reconcile the completed scientific and performance records with the regression matrix, examples, public APIs, dependency separation and current tests. Reuse the accepted Linux/MSRV/PTY evidence. Label unavailable-platform execution as unverified, as the plan allows; it is not a reason to add speculative platform work without a host. |
+
+The existing low-work difficult-case vectors and reference errors do not yet
+prove the one-per-mille highest-order target, and successful generation or a
+single accurate representative does not establish performance parity. These
+remain real acceptance gaps. Conversely, unknown external cross-order
+covariance, qualified finite-sample calibration, and the hard result's separate
+lower-order zero certificate must remain honest labels rather than triggers
+for fabricated covariance, padded estimates or a universal-certification
+project. Where the remaining matched representative block can supply both
+accuracy and uncertainty evidence, use one block rather than separate studies.
+After the required claims pass, mark the goal complete and stop; threshold
+support and further optimization await the user's next instruction.
 
 ## Retained scope limitation
 

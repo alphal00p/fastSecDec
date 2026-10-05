@@ -84,6 +84,9 @@ pub struct GenerationInput {
     pub max_sectors: usize,
     pub max_support_pairs: usize,
     pub coefficient_expansion: fastsecdec::generation::CoefficientExpansionOptions,
+    /// Native graph-family preparation; unlike the library policy's default,
+    /// historical CLI cards keep their original propagator representation.
+    pub family_preparation: fastsecdec::parametric::FamilyPreparationPolicy,
 }
 
 impl Default for GenerationInput {
@@ -94,6 +97,7 @@ impl Default for GenerationInput {
             max_sectors: 1_000_000,
             max_support_pairs: 10_000_000,
             coefficient_expansion: Default::default(),
+            family_preparation: fastsecdec::parametric::FamilyPreparationPolicy::Original,
         }
     }
 }

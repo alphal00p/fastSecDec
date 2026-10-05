@@ -461,6 +461,10 @@ fn run(cli: Cli) -> CliResult<()> {
                 let mut value = serde_json::json!({"name":loaded.label,"loops":loaded.loops,"parameters":loaded.propagators,
                     "domain":format!("{:?}",loaded.integrand.domain()),"terms":loaded.integrand.terms().len(),
                     "independent_externals":loaded.independent_externals,"dependent_externals":loaded.dependent_externals});
+                if let Some(preparation) = loaded.family_preparation {
+                    value["family_preparation"] = serde_json::to_value(preparation)?;
+                    value["active_parameters"] = loaded.integrand.parameters().len().into();
+                }
                 if expressions {
                     value["density"] =
                         serde_json::Value::String(loaded.integrand.density().to_canonical_string());

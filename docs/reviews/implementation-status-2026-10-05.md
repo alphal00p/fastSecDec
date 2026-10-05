@@ -54,6 +54,24 @@ scientific checks, establish representative performance parity with bounded
 effort, then complete the active goal and stop. Further marginal tuning and
 threshold-phase planning do not follow automatically.
 
+The subsequent CLI preparation slice passes **38 focused tests**, formatting
+and CLI all-target Clippy. It delegates to the existing native prepared-family
+API, retains the original default and records preparation/fallback provenance.
+Complete original/prepared `210 Gamma(eps)` controls exercise generation, cold
+artifacts and integration through order one. See the
+[CLI results](cli-family-preparation.md) and
+[independent review](cli-family-preparation-independent.md).
+
+The ten-parameter NativeNamed whole-graph trial was intentionally cancelled at
+372 of 1,026 representatives after 1,006.900 seconds (peak RSS 13.43 GiB), with
+no artifact or numerical result. This was a coordinator cancellation, not a
+timeout. The next trial uses the existing exact repeated-propagator preparation
+to represent the same integral with eight active parameters. The independent
+external reference's original and projected generation attempts both hit their
+30-GiB process-tree memory limits, after 530.288 and 431.801 seconds respectively.
+All processes are reaped and frozen checks pass; neither attempt supplies a
+reference vector. These are capability diagnostics, not new benchmark rows.
+
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
 six massive families, double box and Issue 1 have further independent evidence.
@@ -98,8 +116,11 @@ included in the preceding 336-test and current 370-test workspace gates.
 No generation speedup is claimed.
 
 Still open: complete original on-shell triple-box generation and full-vector
-validation; difficult-case convergence and error calibration; matched performance and
-platform gates. Cache adoption and the identified CLI color/terminal gaps are
+validation; the remaining representative accuracy and matched-performance checks;
+and final delivery review. The [bounded completion ledger](phase-one-remaining-gates.md)
+identifies existing uncertainty evidence to reuse and avoids additional open-ended
+calibration studies. Unavailable platforms remain explicitly unverified.
+Cache adoption and the identified CLI color/terminal gaps are
 now covered by the gates above. General
 affine upper-cube endpoint charts remain explicitly unsupported. Future Python
 bindings and phase-two contour/GCAD algorithms are outside this phase.

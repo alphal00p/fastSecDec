@@ -10,6 +10,28 @@ parameters and couplings use their analytic definitions at the selected point;
 cached values from another point are not reused. Explicit internal values in a
 native restriction card remain fixed unless overridden inline.
 
+Graph input retains its original propagator family by default. To request the
+existing native single-term family preparation before parameterization, use the
+case-sensitive native policy spelling:
+
+```toml
+[generation.family_preparation.SingleUnitTerm]
+max_states = 32
+```
+
+`max_states` bounds native partial-fraction states, not elapsed time. Only an
+admitted single unit-coefficient projection is used; other supported outcomes
+retain the original family and report the native fallback reason. Original
+graph, model and parameter-card hashes remain in provenance. The optional
+`family_preparation` report records original powers, active original indices
+and active powers, including fallback. `inspect` on an opted-in card also shows
+`active_parameters`; its existing `parameters` field still counts original
+propagators. Generated coordinate maps describe the prepared parameter space,
+not a reconstruction of discarded Schwinger coordinates. This option is
+independent of coefficient expansion and is rejected for direct parametric
+input. Omitting it, or setting `family_preparation = "Original"` in
+`[generation]`, preserves the original route and omits the report.
+
 ```sh
 fastsecdec inspect examples/runs/bubble.toml
 fastsecdec generate examples/runs/bubble.toml --output output/bubble.fsd.json

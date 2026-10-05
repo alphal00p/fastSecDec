@@ -919,3 +919,14 @@ its fix routes the original writer through the existing original wrapper and
 leaves candidate semantics unchanged. The separately executed small writer,
 cold reader and captured generation evidence above remain necessary beyond
 this ordinary workspace gate.
+
+The [CLI prepared-family adapter](reviews/cli-family-preparation-independent.md)
+reuses `FamilyPreparationPolicy`, `FamilyPreparationReport` and
+`ParametricIntegrand::from_graph_prepared` directly. The original CLI path still
+calls `from_graph`; opt-in preparation supplies all original parameter labels
+and retains the returned active labels and report. Original sources remain in
+provenance, with the native report covered by artifact identity. No separate
+graph, reduction, algebra or coordinate-pullback implementation is added.
+The focused gate passes 38 tests, formatting and CLI all-target Clippy, including
+full weighted Laurent vectors, separate-process cold artifacts, fallback and
+tamper rejection. Full original on-shell integral acceptance remains separate.
