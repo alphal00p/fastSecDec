@@ -4,8 +4,10 @@ The public `NativeNamed` route now starts from admitted mapped terms before
 physical endpoint subtraction constructs a density Atom. `Physical` remains the
 default. This slice preserves native Series arithmetic, native differentiation,
 native aliases and the existing evaluator/artifact/precision owners. The public
-small-case gates passed; the combined workspace gate and public reconstruction
-of the captured on-shell representative are subsequent acceptance steps.
+small-case gates and the subsequent 370-test combined workspace gate passed.
+The [public reconstruction of the captured on-shell representative](native-named-public-actual-independent.md)
+also passes complete independent coefficient and cold-artifact comparisons.
+The original full graph remains a separate acceptance step.
 
 ## Module and API boundary
 
@@ -91,5 +93,5 @@ the final style-only test delta is to run in the combined workspace gate.
 No time above is a performance comparison. This is public small-case evidence,
 not full on-shell graph completion, a default switch, or benchmark parity. The
 accepted captured-representative candidate/independent-oracle evidence remains
-separate; the new public route must still reconstruct that admitted input and
-pass complete-vector and ordinary cold-artifact controls.
+separate; the subsequent public reconstruction now passes complete-vector and
+ordinary cold-artifact controls in the linked independent audit.

@@ -4,6 +4,15 @@ Source-only draft, 2026-10-05. No binary was built or scientific process launche
 for this protocol. The ordinary public reconstruction of the captured
 representative, its complete independent oracle/cold-artifact comparisons, and
 the combined workspace/format/Clippy gate must pass before a release freeze.
+The combined gate is now accepted at `22dc1d9` (370 passed, 23 ignored;
+formatting and all-target Clippy pass). The actual public representative also
+passes all 21 signed coefficient comparisons and 24 cold weighted vectors;
+see its [independent audit](native-named-public-actual-independent.md).
+The aggregate accepted record is
+`output/diagnostics/native-named-public-actual-generation-2/public-path-independent-review.json`
+(SHA-256 `9457fe8c8097609f953a0ad1c3e29126246e9e283af7cfac656ac47ade5fde15`).
+The new release build/freeze is next. Concrete prerequisite records must bind
+these accepted outcomes and source/result digests, not merely exist on disk.
 
 ## Frozen scientific input and route change
 
@@ -56,6 +65,17 @@ revisions plus local patches, and immutable source archives. Bind archived
 source, not mutable live source, so unrelated later work cannot change the
 binary's attribution. Do not reuse the historical physical-route binary or its
 old dependency identity as a description of the new executable.
+
+A read-only release recheck at **2026-10-05 08:52:48 UTC** found the latest
+unyanked stable releases still match the pins: [Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest)
+and [SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). Both official sparse
+registry responses were verified with the system TLS trust store. The local
+Symbolica base remains `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, with the
+accepted five fixes and unchanged features; its tracked patch SHA-256 remains
+`0314bc58ee94e1da836b0109c6cb10055d30f57a882ccb9c0598b0c1ca69efce`.
+The source responses, crate checksums and local identities are retained in
+`output/diagnostics/releases-20261005-0851/result.json`. This check made no
+dependency change and is not a release-build identity.
 
 The native evaluator remains production SymJIT **O2**, with direct translation;
 this is distinct from the Rust release optimization profile. The new freeze

@@ -1,152 +1,141 @@
-# Phase-one remaining gates — independent source audit, 2026-10-05
+# Phase-one remaining gates — reconciled through `22dc1d9`
 
-This review compares the governing sections of `FIRST_PHASE_PLAN.md` with
-`docs/REGRESSION_MATRIX.md`, current public source and tests. It does not turn
-historical plan progress entries into current requirements or claim a new test
-execution. The accepted native-alias implementation and its full workspace gate
-are reviewed separately in
-[the production audit](native-template-alias-production-independent.md).
+Source review, 2026-10-05. This reconciles the earlier remaining-gates audit with
+validated milestones through `22dc1d95f3cf5a96f412f60f1d151bafe334b0d8`.
+[FIRST_PHASE_PLAN.md](../../FIRST_PHASE_PLAN.md) remains authoritative; this
+document adds no requirement and claims no new test execution. The latest
+combined gate is **370 passed, zero failed, 23 ignored**, with workspace
+formatting and all-target Clippy passing. See the
+[current status and evidence](implementation-status-2026-10-05.md) and
+[independent public integration audit](native-named-request-interface-independent.md).
 
-The matrix contains **182 rows: 100 Covered, 81 Retired and one Partial**.
-The remaining Partial row is `test_integrals.py:6113`, the difficult double-box
-case. Its full vector now has an independent reference; uncertainty calibration
-remains open. Retired rows mostly concern removed backend switches, Python
-execution, projector caches, particular sector IDs and old text/serialization
-formats. Their scientific replacements are identified in the matrix. I found
-no additional absent numerator, subtraction, integration, reference-result or
-checkpoint capability concealed by those retirements.
+The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 100 Covered,
+81 Retired and one Partial**. The Partial row, `test_integrals.py:6113`, now has
+an independent complete double-box reference; uncertainty calibration remains
+open. Retired backend, Python, sector-numbering and serialization interfaces do
+not retire their scientific replacements. The plan's original 15 DOT examples,
+11 kinematics fixtures, 17 run cards, stored targets and hard-polynomial report
+remain the scientific inventory; the current 24-card/17-DOT loading gate is
+additional input coverage, not proof of numerical completion.
 
-## Scientific acceptance still open
+## Closed implementation gates
 
-| Gate | Current evidence | Required next evidence |
+| Item | Accepted evidence and remaining boundary |
+| --- | --- |
+| Caller-owned geometry cache and parallel chart/cone work | [Complete decomposition cache](geometry-cache-independent.md), [context/dispatch adoption](parallel-generation-dispatch-independent.md) and [CLI adapter](cli-geometry-dispatch-independent.md) pass their scientific/interface gates. Native plans, deterministic admission and cancellation remain library-owned; executors remain caller-owned. Symbolic representative work is not made parallel by this adapter. Cache speed and memory remain performance questions. |
+| Public native named coefficients | [Public opt-in integration](native-named-public-integration.md) passes 41 distinct focused tests and the subsequent 370-test combined gate. Native Series, request/face resolution, native aliases, typed limits/progress, conservative conditioning, context dispatch, hidden complex bodies, weighted replay, clones and separate-process artifacts are exercised. `Physical` remains the default. Actual public representative and full original graph gates remain below. |
+| Captured representative coefficient agreement | The [three original-expression oracles and cold reader gate](native-dual-reader-admission.md) pass 21 order/point comparisons and 24 weighted vectors, covering 168 real components. All 5,417 frozen hashes pass; rescue uses 256/384 bits. This closes the earlier disconnected candidate's oracle gap, not public input reconstruction or integral-level agreement. Earlier 180/600-second exact-Series oracle failures remain retained. |
+| Content identity and CLI presentation | [Sector content identities](sector-content-identity.md), structured errors/status, and [actual Linux PTY controls](terminal-policy-results.md) cover cancellation, resize, cleanup and color policy. Identities bind native IR/layout/policy, not general CAS equivalence. Other platform/terminal evidence remains separate. |
+| Numerica QMC Rust 1.89 compatibility | [Exact MSRV checks](numerica-qmc-upstream-readiness.md) pass 237 default, 240 serde and 217 alternative-backend tests on Linux with unchanged sources. The caller-owned QMC branch is published as [upstream PR 8](https://github.com/symbolica-dev/numerica/pull/8). Recorded review/CLA disposition is an upstream follow-up, not an unimplemented QMC or MSRV capability. Other platforms remain unqualified. |
+
+## Next end-to-end capability gates
+
+1. **Public representative prerequisite is now accepted.** The real `UnitCube`
+   input passes exact native regular/density identity, ordinary `NativeNamed`
+   generation, compilation and artifact persistence. The actual reversed
+   coordinate map, multiplicity one and literal-zero exact offsets are checked.
+   All 21 signed coefficient/point comparisons and 24 cold weighted vectors
+   pass, including twelve forced 1,024-bit replays. See the
+   [independent public reconstruction audit](native-named-public-actual-independent.md).
+   This closes the prerequisite; it does not establish full-integral agreement.
+
+2. **Complete the original on-shell triple-box graph.** After that public gate,
+   freeze the new release/source/dependency identities and run the reviewed
+   [native named full-graph protocol](native-named-fullgraph-protocol.md).
+   The sole scientific steering change is the explicit named coefficient
+   option. It preserves the full original graph, kinematics, order zero and O2:
+   generation/compilation/save has a 1,800-second limit plus five seconds of
+   grace, followed only on success by cold inspection and a complete fixed
+   full-integral allocation, each with its own 180+5-second limit and 30-GiB
+   address-space cap. Require complete native coverage, all coefficients,
+   exact offsets, covariance and portable reload. The previous physical trial
+   [timed out](native-series-fullgraph-attribution.md) after 1,805.689 seconds
+   with 80 of 1,026 representatives complete and no artifact; it remains
+   unchanged evidence. The new protocol is prepared but has not run.
+
+3. **Establish original-integral numerical agreement.** Successful generation,
+   artifact inspection and the fixed allocation establish capability and
+   transport only. The original on-shell integral still needs complete-vector
+   independent numerical agreement and subsequent convergence/calibration.
+   The full-integral saved scope/design, rather than command flags or a
+   successful representative, determines coverage. Reuse any existing
+   independently audited reference with matching input and normalization.
+   The [current reference inventory](reference-onshell-full-vector-proposal.md)
+   finds no Checked original on-shell full vector; the two off-shell fixtures
+   do not substitute for it. Its minimal ordinary pySecDec reuse proposal is
+   separate from the source-only Pathfinder generation-baseline protocol.
+
+## Remaining scientific and uncertainty gates
+
+| Family | Accepted evidence | Still required |
 | --- | --- | --- |
-| On-shell triple box | All native inputs load. The original-card 1,800-second trial timed out at representative 80 without an artifact. The earlier source-bound production representative passes every order at three independent points. The later interleaved named candidate completes representative 80 and native IR construction, but its original-expression oracle and cold comparisons remain open. | Complete original-card generation and portable reload, all requested Laurent coefficients, then full-support numerical evaluation and independent integral-level evidence. Neither a successful representative nor evaluator construction closes this gate. |
-| Off-shell scalar and rank-two triple boxes | Original and exact native projected families generate and integrate complete vectors. Both now have independently audited complete references, exact provider-bit transport, and separate original/projected native comparisons. The [rank-two audit](projected-rank-two-reference-independent.md) retains numerator/Gamma normalization and maximum absolute pulls below 1.727. | Prespecified convergence/calibration for both. Scalar and rank-two finite-part reference uncertainties are about 2.5% and 1.67%, respectively, above the one-per-mille target. |
-| Hard four-loop full orthant | Native full generation and all 699 kernels complete with `[-2,-1,0]` covariance. The [independent reference audit](hard-four-loop-reference-phase-independent.md) now accepts all four provider orders `[-3,-2,-1,0]`; an independent native generation certificate proves zero through −3 with complete map coverage. | Convergence/calibration and the finite-part target: reference relative SE is about 0.569%. The old numerical estimate is unchanged; its full-union comparison retains MissingEstimate at −3 and is globally ineligible. The separate zero proof is not padding. |
-| Double box and Issue 1 | Both now have independent complete-vector references. Issue 1's ordinary `together=True` fixture addresses the earlier disteval cross-sector variance omission; the older fixture remains Unverified. | Difficult-case repeated-seed/error calibration and highest-requested-order accuracy. A Checked reference establishes its audited provider route, not universal calibration of either estimator. |
-| Six massive families and numerator controls | Six independent references and the 72-row holdout pass; one-loop masters/reduction and coupled-sunset analytic controls pass. | Prespecified higher-work/shift controls and final convergence/performance acceptance. No repeat of already passed small physics proofs is needed merely to fill a matrix cell. |
+| Off-shell scalar and rank-two triple boxes | Original and exact native projected families have complete vectors and independent Checked references. [Scalar](projected-triple-reference-independent.md) and [rank-two](projected-rank-two-reference-independent.md) audits preserve normalization, numerator/Gamma factors and separate original/projected comparisons. | Prespecified repeated-seed/work/shift convergence and error calibration. Reference finite-part relative standard errors are about 2.5% and 1.67%, above one per mille. |
+| Hard four-loop full orthant | All 699 native kernels complete with `[-2,-1,0]` covariance. The [reference audit](hard-four-loop-reference-phase-independent.md) accepts all four provider orders `[-3,-2,-1,0]`; a separate native generation certificate proves zero through −3 with full 2,760-chart coverage. | Calibrated complete-vector comparison and finite-part accuracy; reference relative SE is about 0.569%. The old native numerical result remains unchanged: its full-union report has `MissingEstimate` at −3 and is globally ineligible. The separate exact-zero certificate does not authorize padding its covariance. |
+| Double box and Issue 1 | Complete independent references are present. Issue 1's ordinary `together=True` fixture corrects the earlier disteval cross-sector variance omission; the old fixture remains Unverified. | Difficult-case repeated-seed/error calibration and highest-requested-order accuracy. A Checked provider route does not establish universal calibration of either estimator. |
+| Six massive families and numerator controls | Six independent references, 72 holdout rows, native one-loop masters/reduction and coupled-sunset analytic controls pass. | Prespecified higher-work/shift controls and final convergence/performance acceptance. Already accepted small physics proofs need not be repeated merely to fill a matrix cell. |
 
-The older [campaign schedule](remaining-scientific-campaigns.md) deliberately
-retains its original evidence chronology. Its double-box/Issue-1 table entries
-predate the newer checked references; use the subsequent reference reviews and
-fixtures for their current status. Subsequent scalar, rank-two and hard-reference
-closures likewise supersede missing-reference entries in that historical
-schedule. The hard reference preserves the full orthant and U factor, not the
-historical single-sector diagnostic. The exact graph/direct-UF double-box identity
-already closes input equivalence; a separate parser path does not create a new
-physical integral requiring a duplicate numerical campaign.
+The [earlier campaign schedule](remaining-scientific-campaigns.md) preserves
+chronology; its missing-reference entries are superseded by the newer audits
+and fixtures. The hard reference uses the full orthant and U factor. Exact
+graph/direct-UF double-box identity already closes input equivalence, so that
+second input route does not require a duplicate physical campaign. Retain all
+plan requirements for full-vector cancellations/covariance, boundary precision,
+worker partitioning, interruption/resume and independent-seed coverage while
+closing these remaining numerical gates.
 
-## Concrete implementation and scope items outside the matrix
+## Performance, platforms and final acceptance
 
-1. **Geometry caching and caller-owned parallel scheduling are implemented.**
-   The plan explicitly calls for geometry caching by domain/canonical support
-   and parallel independent charts/cones. The original serial decomposition
-   API remains unchanged. `generation/support.rs` caches native source
-   polynomial supports within a generation; pulling triangulation retains its
-   native local face cache. The independently reviewed
-   [cache core](geometry-cache-independent.md) adds bounded caller-owned reuse
-   of complete decompositions, with all 28 sector tests passing. Generation
-   entry-point adoption subsequently passes its independent audit and the
-   combined 305-test workspace gate through `GenerationContext`. Parallel
-   chart/cone work subsequently passes its 38-test sector gate, independent
-   ten-test rerun and source audit, using the same native mathematics and
-   private caller-scheduled jobs. The subsequent
-   [cache/context dispatch adoption](parallel-generation-dispatch-independent.md)
-   passes 41 sector tests and eight context tests, including complete analytic
-   coefficient/map equivalence. The
-   [CLI adapter](cli-geometry-dispatch-independent.md) passes 49 CLI tests and
-   real terminal cancellation/resize/cleanup checks. It uses the application's
-   existing Rayon pool primitives; the library owns native plans, opaque
-   completions and deterministic admission, never an executor. Cache hits skip
-   dispatch while reassessing each integral's domain and mapping. Free/default
-   library generation and the one-worker CLI route remain serial. These close
-   the implementation/interface item; measured geometry speed and retained
-   memory remain separate performance work. Symbolic representatives are not
-   made parallel by this chart/cone adapter.
+Complete required capability/scientific coverage, then run the focused
+comparisons needed for acceptance. Reuse valid evidence and stop tuning when
+representative parity is established, as the user clarified on 2026-10-05.
+Do not add optional performance campaigns after the goal's requirements pass;
+mark the goal complete and stop, leaving threshold planning to the user.
+Run the plan's matched same-host O2 comparisons with equal worker counts,
+precision, transforms, rules, shift counts, orders and statistical targets.
+The completed native-only eight-physical-core triangle/box seven-seed campaign
+and [individual-sample latency diagnostic](native-sample-latency-results.md)
+remain evidence. The paired eight-core Pathfinder route hit an explicit
+concurrent-instance license limit; one-worker measurements and the new
+capability diagnostics do not close that comparison.
 
-2. **General no-threshold input is broader than the current endpoint admission.**
-   `generation/domain.rs` safely rejects upper-cube zeros and unresolved
-   mixed-sign boundary geometry. The explicit
-   `upper_cube_endpoint_requires_affine_charts_even_with_assertion` test rejects
-   `(1-x)^(-1+eps)` on the unit interval, despite its lack of an interior
-   threshold. General affine endpoint charts are not implemented. No shipped
-   example was identified as requiring this additional chart type, and the
-   plan intentionally defers general domain splitting/contour/GCAD work.
-   Nevertheless, final phase-one scope must retain this limitation explicitly
-   or supply a reviewed endpoint-chart extension; do not equate the
-   `assume_no_threshold` assertion with resolution of endpoint geometry.
+Required performance evidence remains:
 
-3. **The additive sector content identity API is now implemented.** The plan says
-   content-based sector identities. Current generated kernels and
-   `KernelResultManifest::from_kernels` use original zero-based slice IDs,
-   qualified by the complete kernel content hash. Public integration callers
-   may provide their own stable IDs. Selection/resume are safe and tested with
-   those current identities. A new standalone per-sector content ID supports
-   reuse across different parent artifacts. It is an additive derived
-   accessor/hash over native IR, ordered layout, numerical policy and retained
-   semantics, preserving all current indices and checkpoint meanings. The
-   [implementation and independent review](sector-content-identity.md) pass
-   four focused tests, formatting and library Clippy. The digest does not claim
-   CAS equivalence or change existing artifact bytes; machine-code caching
-   would need additional architecture/backend identity.
+- Separate cold generation/compilation, warm loading, complete-vector kernel
+  and integration throughput, fixed work, time to verified accuracy, peak
+  memory, point-generation/reduction cost and precision-rescue rates.
+- Eight-physical-core time to one-per-mille estimated relative uncertainty for
+  the **largest signed requested epsilon power**, usually the finite part.
+  Record the first crossing, actual work, rule/transform/seed/affinity and
+  independent full-vector checks. Use a labelled absolute check for a known
+  zero; do not replace the target by a lower pole or extrapolate fewer workers.
+- At least seven paired repetitions for ordinary cases and three for expensive
+  cases, alternating order, with median timings within the agreed **5% band
+  per representative case**. Cover small one-loop, double-box, numerator-heavy
+  multiloop and hard four-loop cases using corresponding full-support reference
+  estimators. Incorrect values or underestimated uncertainty fail acceptance.
+- Separate per-sector average worker cost, maximum sector-average cost and
+  individual-sample maximum latency. Retain slow boundary observations,
+  complete vectors, dimensions, sample/batch sizes, precision/rescues and
+  instrumentation overhead; report batch-amortized and individual costs
+  separately. Published lattice/periodization comparisons need frozen
+  multi-seed workloads, with speed distinguished from samples to accuracy.
 
-4. **The identified interactive presentation gaps are now addressed.** Plain/JSON status,
-   numerical failures, real SIGINT, partial resume and scoped results have
-   process tests. Dashboard setup/error/drop has terminal-restoration code,
-   and subsequent [actual PTY controls](terminal-policy-results.md) now verify
-   resize, cleanup, monochrome output and key cancellation. A shared policy
-   handles `NO_COLOR`, plain runtime errors and boundary/dashboard colors.
-   Compact public-status rendering fixes the observed crowded small window.
-   Argument parsing/help remains owned by Clap. This Linux PTY evidence does
-   not establish every terminal emulator or platform; final platform
-   qualification remains separate.
+Linux evidence is executed; macOS and other target configurations/tests must
+be provided where hosts are available and otherwise labelled unverified.
+Numerica's successful Linux MSRV gate does not qualify those platforms or
+change FastSecDec's compiler baseline. Finish the independent native-reuse,
+HEPKit public-API, dependency-separation, example-delivery and CLI/platform
+review after the remaining scientific/performance work. Normal builds/tests
+must continue to need no Python, pySecDec, FORM, Normaliz or reference checkout.
 
-No production change is proposed by this audit. In particular, automatic family
-projection in the CLI is an optional optimization: native prepared-family APIs
-exist and preserve the original route/fallback. It is not required to make
-original-graph scientific equivalence true. Future Python bindings, contour
-deformation, GCAD, arbitrary complex masses and CBC construction remain outside
-the agreed first phase. Native general map/domain/branch records are already
-retained and inspected; their availability does not implement those algorithms.
+## Retained scope limitation
 
-## Performance and final verification
-
-The eight-physical-core triangle/box native-only seven-seed campaign and the
-individual-sample latency diagnostic are completed evidence. The paired
-eight-core reference remains unavailable after its instance-limit failures.
-The small matched one-worker comparisons retain backend, timer and persistence
-differences and do not satisfy the entire matched 5% acceptance criterion.
-Required representative generation/load/fixed-work/time-to-accuracy, difficult
-sample-tail costs, seven/three paired repetitions and platform gates remain.
-The target is always the largest signed requested epsilon order; no substitution
-of a lower pole or extrapolation from fewer workers is valid.
-
-After the original on-shell capability gate, prioritize prespecified difficult
-case convergence/calibration before broad tuning; the reference vectors listed
-above are now present. Retain the explicit endpoint-scope limitation, finish matched performance and
-executed/qualified platform evidence, and perform the final native-reuse,
-dependency and CLI audit. Existing controlled failures and source/build
-identities must remain part of that record.
-
-## Full-graph wrapper review
-
-The reviewed `output/probes/production_alias_fullgraph.sh` preserves the original
-`examples/runs/triple_box.toml` (`s=t=-1`, null external legs, `D=4-2*eps`, unit
-measure, requested order zero). It bounds generation by 1800 seconds, inspection
-by 180 seconds and complete integration by 180 seconds, each under a 30 GiB
-address-space cap. Integration explicitly selects FullIntegral, 1024 points,
-eight shifts, seed 20261004, Kuo38005 and two workers. Failed stages stop later
-work and all successful native vectors/designs remain in saved results.
-
-The author added absence checks for every stage directory and artifact,
-checkpoint and result path after review. The launch manifest must bind the
-wrapper, process timer, original card/DOT/model/parameter card and frozen release
-binary/build identity, with pre/post checks. Actual method, periodization,
-allocation and complete covariance are verified from native saved output;
-invocation flags alone are not completion evidence. The subsequent frozen trial
-timed out after 1,805.689 seconds including termination grace; all 26 immutable
-postchecks passed and no artifact, inspection or integration result was produced.
-See [the retained attribution record](native-series-fullgraph-attribution.md).
-No whole-graph success is asserted here. The later test-only representative
-candidate and its still-open oracle gates are tracked in
-[the interleaved-face audit](native-interleaved-face-independent.md).
+General affine endpoint charts remain unsupported: the public admission
+correctly rejects `(1-x)^(-1+eps)` on the unit interval, including with
+`assume_no_threshold`. That assertion cannot resolve endpoint geometry. No
+shipped example has been identified as requiring this additional chart type;
+retain the limitation explicitly rather than silently broadening first-phase
+scope. General splitting/contour/GCAD, arbitrary complex masses, Python
+bindings and CBC construction remain deferred. Automatic family projection is
+an optional optimization; native prepared-family APIs already preserve the
+original route and fallback. None of these is a newly imposed completion gate.

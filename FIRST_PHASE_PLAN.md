@@ -19,6 +19,14 @@ At implementation start:
 
 Use the available parallel slots continuously where useful. Give agents explicit ownership of files or modules and acceptance criteria. Assign important reviews to agents other than the implementation author. Integrate and validate each slice before dependent work proceeds; avoid concurrent edits to shared manifests and public interfaces.
 
+**Completion and stopping rule (user clarification, 2026-10-05):** Complete the
+first-phase scientific capabilities and establish representative performance
+parity, then mark the active goal complete and stop. Keep performance work
+bounded to resolving acceptance gaps. Reuse valid measurements, and stop tuning
+each case once it meets the agreed criterion. Do not add optional optimization
+campaigns or pursue further speedups after acceptance. Threshold support and
+its plan await the user's subsequent instruction.
+
 Confirmed decisions:
 
 | Topic | Decision |
@@ -364,11 +372,13 @@ generate or evaluate successfully remains part of closing that capability gap.
 Retain the current baselines and all unsuccessful experiments; do not replace
 missing full-vector coverage with a favourable throughput measurement.
 
-After coverage, assign separate agents to generation, convergence and evaluator
-optimization, with independent reviews. Profile factored generation and compiler
-costs; compare published lattice rules and periodizing transforms on frozen
-multi-seed workloads; and prioritize reducing both average and maximum observed
-sample evaluation time for each sector. Keep sector IDs, full coefficient
+After coverage, assign focused generation, convergence and evaluator work only
+where needed to resolve a remaining acceptance gap, with independent reviews.
+Profile factored generation and compiler costs; compare published lattice rules
+and periodizing transforms on frozen multi-seed workloads when convergence
+requires it; and prioritize reducing both average and maximum observed sample
+evaluation time where necessary for parity. Reuse accepted evidence and do not
+broaden the representative set to pursue marginal improvements. Keep sector IDs, full coefficient
 vectors, dimensions, sample/batch sizes, ordinary arithmetic and rescue counts,
 precision, and point-generation/transform costs with those observations. Report
 batch-amortized time separately from individually timed sample latency, quantify
@@ -557,7 +567,16 @@ Can you build an MRE for this symbolica bug that I could escalate to the author,
 Sorry when I meant the "deepest" I always mean the hardest to compute which is the one with the largest signed epsilon power (so often, the finite part), not the deepest pole of course, sorry.
 ```
 
+```text
+Continue as planned, but don't overdo it on the performance part, and once you're on par and feature-full regarding the objectives of the first phase of the active goal, declare it completed and stop yourself.
+We'll then draft a plan for approaching the physical cases with threshold.
+```
+
 ## Implementation record
+
+- 2026-10-05: the difficult captured representative now passes the ordinary public input/generation/compile/v3-artifact path and all three independent cold readers. Generation takes 66.752 seconds, compile/save 37.370 seconds, and the complete process 108.356 seconds. All seven orders through zero, the actual coordinate permutation, multiplicity one and literal-zero exact offsets are retained. Independent review accepts 21 signed coefficient/point comparisons and 24 weighted vectors (168 real components), including twelve forced 1,024-bit replays. The first ignored helper's structural expected-expression assertion failed before generation and was corrected without modifying the imported density or production source; that failure remains recorded. This closes public representative acceptance, not the original full graph or performance parity. The next work is the bounded full-graph trial and its exact-input independent reference.
+
+- 2026-10-05: the user clarified the stopping rule: finish first-phase capability and scientific acceptance, establish representative performance parity with bounded effort, then mark the active goal complete and stop. No optional optimization campaign or threshold-phase planning follows automatically. Existing valid measurements should be reused; remaining work is directed at specific acceptance gaps.
 
 - 2026-10-05: the validated native named-coefficient algorithm now has a public opt-in, with the physical route retained as default. Shared native Series/request modules, exact unregulated fallback, checked caller limits, cancellation, conservative conditioning profiles and exclusive typed progress/timing rejoin the existing multiplicity, kernel and artifact owners. The CLI uses the same native option types and preserves prior geometry/final output while coalescing only new coefficient-request JSON updates. **370 workspace tests pass**, with 23 explicit probes ignored; workspace formatting and all-target Clippy pass. Focused public controls include complete Taylor/IBP vectors, Gamma/complex coefficients, context/dispatch, weighted precision replay, worker clones and separate-process cold artifacts. Two test-only compile calls, two test-only lint findings, a wrong-stream CLI assertion and an actual presentation-cadence regression were corrected with their failed evidence retained. The captured representative through the public path, complete original on-shell graph, convergence/calibration and matched performance/platform gates remain open. No performance row is updated by this acceptance.
 

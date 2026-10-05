@@ -38,6 +38,22 @@ alias milestone passed 294 tests; its timing observations keep their own source
 identities. Actual PTYs additionally verify monochrome output, wide/compact
 resizing, key cancellation and terminal restoration.
 
+The difficult representative now also passes ordinary public generation,
+compilation, saving and three independent cold readers. The complete process
+takes 108.356 seconds: 66.752 seconds for generation and 37.370 seconds for
+compile/save. All seven orders `[-6,-5,-4,-3,-2,-1,0]` agree at all three
+prescribed points, and all 24 weighted vectors pass, including twelve forced
+1,024-bit replays. The actual chart permutation, new multiplicity one and
+literal-zero exact offsets are verified. This closes the public representative
+gate; it does not measure full-graph generation or convergence. See the
+[results](native-named-public-actual-results.md) and
+[independent audit](native-named-public-actual-independent.md).
+
+The user's stopping rule is explicit: close first-phase capabilities and
+scientific checks, establish representative performance parity with bounded
+effort, then complete the active goal and stop. Further marginal tuning and
+threshold-phase planning do not follow automatically.
+
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
 six massive families, double box and Issue 1 have further independent evidence.
@@ -106,7 +122,8 @@ with full coefficient comparisons. Separate bounded evaluator/precision and
 cold-reload controls now pass 96 complete weighted-vector calls (768 real/imaginary
 component checks), with independent unchanged-subtraction references stable at
 512/1024 bits. Its first actual difficult-representative composition attempt
-times out at 180.116 seconds without coefficients; this remains an open gate.
+times out at 180.116 seconds without coefficients; that attempt did not close
+the actual-input gate.
 This test-only strategy is not the production default.
 
 A subsequent diagnostic identifies the expensive stage: native composition
@@ -139,8 +156,8 @@ coefficient/point comparisons and 24 weighted full-vector calls, with rescue at
 256/384 bits and all immutable checks passing. Its analyticity/Taylor coverage
 has a distinct diagnostic format and cannot be reported as a native Series
 remainder. This closes the captured representative's experimental agreement gate;
-the corresponding public representative and full graph remain open. No benchmark row below
-changes.
+the public representative subsequently passes the gate above. The full graph
+remains open. No benchmark row below changes.
 
 The first production adoption slice now extracts shared native endpoint
 admission and checks cancellation-degree overflow. Its independently reviewed
@@ -152,8 +169,8 @@ the native symbol-hygiene probe rejects all 17 foreign metadata/hook conflicts
 without executing callbacks and verifies occupied-input names, stable repeated
 names and independent simultaneously live alias maps. The native API/probe
 prerequisite and production allocator/private/public small-case gates are now
-closed. Public reconstruction of the actual captured representative and
-whole-graph validation remain open. See the
+closed. Public reconstruction of the actual captured representative also
+passes the gate above; whole-graph validation remains open. See the
 [endpoint audit](native-endpoint-admission-independent.md) and
 [symbol-hygiene audit](native-symbol-hygiene-independent.md), and the
 [public integration record](native-named-public-integration.md).

@@ -890,11 +890,29 @@ This accepts public opt-in adoption and the bridge. The actual reconstructed
 public representative, whole-graph completion and performance remain separate
 gates; no new graph, Series, evaluator, serialization or statistics owner was
 introduced.
+The [ordinary public representative gate](reviews/native-named-public-actual-independent.md)
+subsequently closes the reconstructed-input boundary at the same committed
+production source. Existing public parametric constructors admit the captured
+two-factor density with exact native identity; public generation, compilation
+and v3 save complete in 108.36 seconds. The actual unit-measure chart reverses
+the nine coordinates, and all three fresh public cold readers apply that map
+with multiplicity one and literal-zero exact offsets. All seven signed orders
+pass at three independent original-expression points (21 comparisons), with
+24 weighted vectors/168 real components and twelve forced 1,024-bit replays.
+Normal rescues use 256/256/384 bits. All 39 build, 170 generation and 173
+per-reader frozen checks pass. The first helper-only structural exponent
+expectation failure remains retained; its one-line correction changed no
+production algebra or input. Diagnostic native IR decoding follows ordinary
+public artifact validation and uses the existing native codec. This closes
+one representative's public capability/equivalence gate without adding an
+algebra, graph, evaluator or statistics owner. Original full-graph/integral
+parity remains separate; these timings add no tuning or performance claim.
 The [prospective production boundary review](reviews/native-named-production-boundaries.md)
-therefore remains an interface proposal, with admission, conditioning,
-resource/cancellation and public progress decisions explicit before adoption.
+records the original interface decisions for admission, conditioning,
+resource/cancellation and public progress; the accepted opt-in and public
+representative evidence above qualify which parts have now been exercised.
 
-The combined test-only interleaved milestone passes 336 workspace tests with
+The earlier combined test-only interleaved milestone passes 336 workspace tests with
 zero failures and 23 explicit probes ignored across 60 summaries. Formatting
 and all-target Clippy pass. The initial dead test-wrapper lint is retained;
 its fix routes the original writer through the existing original wrapper and
