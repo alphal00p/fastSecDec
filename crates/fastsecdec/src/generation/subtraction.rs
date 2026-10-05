@@ -1,11 +1,14 @@
 use super::{GenerationError, GenerationOptions, SubtractionStrategy, mapping::MappedTerm};
 use std::collections::{BTreeMap, BTreeSet};
 use symbolica::{
-    atom::{Atom, AtomCore, AtomView, Symbol},
-    coefficient::Coefficient,
-    domains::rational::Rational,
+    atom::{Atom, AtomCore, Symbol},
     id::Pattern,
 };
+
+pub(super) mod endpoints;
+#[cfg(test)]
+use endpoints::endpoint_power;
+pub(super) use endpoints::{checked_cancellation_degree, rational};
 
 #[cfg(test)]
 pub(super) mod series_first;
@@ -15,41 +18,6 @@ struct Piece {
     prefactor: Atom,
     regular: Atom,
     cancellation: Vec<usize>,
-}
-
-pub(super) fn rational(expression: &Atom) -> Option<Rational> {
-    if expression.is_zero() {
-        return Some(Rational::from(0));
-    }
-    let AtomView::Num(number) = expression.as_view() else {
-        return None;
-    };
-    match number.get_coeff_view().to_owned() {
-        Coefficient::Complex(value) if value.im.is_zero() => Some(value.re),
-        _ => None,
-    }
-}
-
-fn endpoint_power(
-    expression: &Atom,
-    regulator: Symbol,
-) -> Result<(Rational, Rational), GenerationError> {
-    let epsilon = Atom::var(regulator);
-    let constant = expression
-        .replace(Pattern::Literal(epsilon.clone()))
-        .with(Atom::Zero)
-        .expand();
-    let slope = expression.derivative(regulator).expand();
-    if rational(&slope).is_none()
-        || !(expression - &constant - &slope * epsilon)
-            .expand()
-            .is_zero()
-    {
-        return Err(GenerationError::EndpointExponent(expression.clone()));
-    }
-    rational(&constant)
-        .map(|a| (a, rational(&slope).unwrap()))
-        .ok_or_else(|| GenerationError::EndpointExponent(expression.clone()))
 }
 
 /// Taylor endpoint subtraction implements the meromorphic continuation exactly.
@@ -75,19 +43,13 @@ pub(super) fn subtract(
         let mut next = Vec::new();
         for mut piece in pieces {
             let mut power = piece.powers[axis].as_ref().unwrap().clone();
-            let (constant, slope) = endpoint_power(&power, regulator)?;
-            if constant > -1 {
+            let endpoint = endpoints::admit(&power, regulator, options.max_subtractions_per_axis)?;
+            if endpoint.constant > -1 {
                 next.push(piece);
                 continue;
             }
-            let mut count = (-constant)
-                .floor()
-                .to_i64()
-                .and_then(|v| usize::try_from(v).ok())
-                .ok_or(GenerationError::ResourceLimit("Taylor subtraction degree"))?;
-            if count > options.max_subtractions_per_axis {
-                return Err(GenerationError::ResourceLimit("Taylor subtraction degree"));
-            }
+            let slope = endpoint.slope;
+            let mut count = endpoint.subtractions;
             if options.subtraction == SubtractionStrategy::IntegrateByParts && !slope.is_zero() {
                 for _ in 1..count {
                     let denominator = (&power + Atom::one()).expand();

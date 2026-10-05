@@ -174,3 +174,9 @@ native probe must verify this composite, stable repeated names, independent
 simultaneous body maps and incompatible registrations before choosing the
 production adapter. No global reset, callback body registry, custom symbol
 table or dependency patch is justified by the available API.
+
+The disconnected [native hygiene control](native-symbol-hygiene-independent.md)
+now passes all 17 conflict cases, both occupied-input skips and 64 repeated local
+jobs, with independent simultaneously live alias bodies and no foreign callback
+execution. This closes the narrow API/probe prerequisite; actual production
+allocator and public-generation regression tests remain required during wiring.

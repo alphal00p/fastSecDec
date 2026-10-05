@@ -131,6 +131,20 @@ remainder. This closes the captured representative's agreement gate; public
 production integration and the full graph remain open. No benchmark row below
 changes.
 
+The first production adoption slice now extracts shared native endpoint
+admission and checks cancellation-degree overflow. Its independently reviewed
+focused gate passes **50 tests**, with two explicit probes ignored; package
+formatting and all-target Clippy pass. Existing Taylor/IBP schedules, exact
+pruning, error precedence and defaults are preserved. This is a focused gate;
+the latest complete workspace run remains the 336-test run above. Separately,
+the native symbol-hygiene probe rejects all 17 foreign metadata/hook conflicts
+without executing callbacks and verifies occupied-input names, stable repeated
+names and independent simultaneously live alias maps. The native API/probe
+prerequisite is closed; production allocator tests, private named composition,
+public integration and whole-graph validation remain open. See the
+[endpoint audit](native-endpoint-admission-independent.md) and
+[symbol-hygiene audit](native-symbol-hygiene-independent.md).
+
 ## Small-case generation and eight-core accuracy
 
 | Metric | Triangle FastSecDec | Triangle Pathfinder | Box FastSecDec | Box Pathfinder |

@@ -830,6 +830,24 @@ vector is checked and rescued, at 256 bits for points zero/one and 384 for point
 two. This closes numerical agreement for the captured representative only,
 without multiplicity; public generation adoption and whole-graph completion
 remain open. Native evaluator/MPFR/alias/codec ownership is unchanged.
+The [native symbol-hygiene audit](reviews/native-symbol-hygiene-independent.md)
+also closes a caller-state admission gap before production promotion. Explicit
+empty native metadata plus `Symbol::is_exportable()` rejects all 17 tested
+foreign attribute/metadata/hook registrations without invoking their callbacks;
+empty attributes alone are insufficient for hooks. Two input-owned names are
+skipped, and 64 repeated local jobs plus two simultaneously live alias vectors
+retain stable interned handles and independent local bodies. All 27 frozen
+postchecks pass. This uses existing native registry and alias owners without a
+reset, extra global body cache or dependency patch. Production allocator and
+full scientific regression controls remain required when the adapter is wired.
+The [shared endpoint admission extraction](reviews/native-endpoint-admission-independent.md)
+then passes 50 focused scientific tests, zero failures and two explicit probes
+ignored, with package formatting/all-target Clippy passing. Both physical
+strategies reuse the unchanged native rational/affine/floor operations and
+preserve zero-slope pruning/error precedence. Generation now checks cancellation
+degree overflow through a typed error. This creates one reusable admission
+owner without selecting a new coefficient method, changing an artifact or
+adding symbolic mathematics.
 The [prospective production boundary review](reviews/native-named-production-boundaries.md)
 therefore remains an interface proposal, with admission, conditioning,
 resource/cancellation and public progress decisions explicit before adoption.

@@ -266,11 +266,7 @@ fn generate_inner(
         let started = Instant::now();
         let (expression, terms, cancellation_terms) =
             subtraction::subtract(mapped, &parameters, input.regulator(), options)?;
-        let cancellation_degree = cancellation_terms
-            .iter()
-            .map(|row| row.iter().sum::<usize>())
-            .max()
-            .unwrap_or(0);
+        let cancellation_degree = subtraction::checked_cancellation_degree(&cancellation_terms)?;
         emit(
             &mut progress,
             GenerationProgress::PhaseTiming {
