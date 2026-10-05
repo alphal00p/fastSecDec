@@ -1,6 +1,12 @@
 # Independent notebook and high-level API audit
 
-The current implementation preserves native scientific ownership, but it does not meet the newly requested separate execution stages or post-generation sector exploration. Two priority-one changes are required. This audit read source, existing reports and three retained screenshots, using standard-library file/hash checks only. It ran no notebook imports, builds or scientific code and made no implementation edits. The Korobov2 experiment remains parked.
+This is the historical audit of the pre-relocation interface. The replacement's
+native triangle and gg→HH execution/inspection lifecycles are now accepted in the
+[relocation audit](hepkit-relocation-audit.md); current portable acceptance remains
+separate. The findings and source identities below are retained as the original
+requirements and evidence, rather than a description of the replacement.
+
+The audited implementation preserved native scientific ownership, but did not meet the newly requested separate execution stages or post-generation sector exploration. Two priority-one changes were required. This audit read source, existing reports and three retained screenshots, using standard-library file/hash checks only. It ran no notebook imports, builds or scientific code and made no implementation edits. The Korobov2 experiment remains parked.
 
 The audited source is the community notebook worktree at `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica-community-notebook`.
 

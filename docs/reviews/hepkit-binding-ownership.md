@@ -6,6 +6,11 @@ performance or browser responsiveness. The numerical core and default CLI remain
 Python-free. The previous requirement to implement every PyO3 binding inside
 community is superseded by the user's explicit correction in `FIRST_PHASE_PLAN.md`.
 
+The decision below is implemented locally. The [relocation audit](hepkit-relocation-audit.md)
+accepts the native release wheel, 61 installed controls, generated stubs and
+actual native triangle/gg→HH notebook lifecycles. Publication of the new
+dependency pin and current portable execution remain separate delivery gates.
+
 ## Decision
 
 Use an isolated `bindings/python` package named `fastsecdec-python`, with its own

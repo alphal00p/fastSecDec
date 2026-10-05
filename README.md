@@ -6,13 +6,22 @@ built around HEPKit, Linnet, Symbolica, and Numerica/Havana.
 The first phase is under active implementation. The complete design, scientific
 scope, milestone gates, and original requirements are in
 [FIRST_PHASE_PLAN.md](FIRST_PHASE_PLAN.md). The standalone CLI is being developed
-alongside the library; the Python bridge and marimo showcase belong to HEPKit.
+alongside the library. The optional [Python bindings](bindings/python/README.md)
+live in an isolated FastSecDec crate; HEPKit registers their public module through
+[draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+The numerical workspace and default CLI remain independent of Python.
 
-The experimental native-input API and four-example notebook are available in
-[HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
-Its build guide documents the required dependency patches and opt-in feature.
-Native wheel tests and actual Pyodide Run/Cancel/Resume checks pass; the PR remains
-a draft while the unpatched upstream dependency conflict is unresolved.
+The [marimo showcase](examples/hepkit/README.md) uses native HEPKit inputs,
+separate Generate and Integrate actions, live status views and sector inspection.
+It includes four portable examples and a native-only projected `g g -> H H`
+double box. Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
+feature and required dependency patches. The relocated native release wheel
+passes 61 API, inspection, input and notebook-state tests. Actual notebook
+generation/inspection and Integrate/Cancel/Resume workflows pass for the native
+triangle and `g g -> H H` examples. Generated stubs pass inventory and installed
+export checks. Public dependency delivery and the updated Pyodide interface are
+still under validation; earlier portable
+browser checks cover the archived interface.
 
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside

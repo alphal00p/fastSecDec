@@ -53,6 +53,25 @@ prebuilt native numeric evaluator IR; workers do not construct or evaluate Atoms
 
 ## Recurring integration audits
 
+The [binding ownership review](reviews/hepkit-binding-ownership.md) follows the
+user's correction: substantive PyO3 bindings belong in FastSecDec's isolated
+`bindings/python` crate; community only links/registers them and supplies its
+public reexports/stubs. Dedicated notebook helpers, fixtures, tests and build
+support move with the implementation. Core and default-CLI metadata remain
+Python-free. The new read-only inspection views retain `Arc<GeneratedIntegral>`
+and native indices, forwarding existing chart/domain certificates, exact integer
+geometry and Symbolica expressions. They add no graph, algebra or numerical
+implementation and never restore expanded coefficients for an overview.
+Independent review accepts that design and the relocated native release wheel's
+61 installed controls, including six native inspection tests. Actual native
+triangle and gg→HH notebooks preserve zero sampling through generation/inspection,
+then complete explicit integration with native checkpoint-prefix preservation.
+Generated stubs preserve all previous members and expose the eight new inspection
+classes, with installed-export and Python 3.9 grammar checks passing. The public
+dependency pin and current portable runtime remain separate acceptance gates. See the
+[notebook controls audit](reviews/hepkit-notebook-controls-audit.md) for the
+explicit Generate/Integrate and lazy-inspection requirements.
+
 The [Korobov-2 review](reviews/korobov2-integration.md) accepts the additive
 Numerica transform and its thin FastSecDec dispatch. Public API, source/tests
 and an external Rust probe established the missing numerical operation;

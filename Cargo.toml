@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-cli"]
-exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "output", "tests/portable-kernel"]
+exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "output", "tests/portable-kernel", "bindings/python"]
 default-members = ["crates/fastsecdec-cli"]
 resolver = "3"
 

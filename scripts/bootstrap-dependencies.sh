@@ -76,13 +76,14 @@ write_overlay() {
   case "$scope" in
     root) packages=(feynkit-amplitude feynkit-generator feynkit-graph feynkit-kinematics feynkit-model feynkit-tensor idenso linnet spenso spenso-macros symbolica-utils) ;;
     portable) packages=(feynkit-graph feynkit-kinematics feynkit-model idenso linnet spenso spenso-macros symbolica-utils) ;;
+    python) packages=(feynkit-amplitude feynkit-cff feynkit-generator feynkit-graph feynkit-kinematics feynkit-model feynkit-py feynkit-tensor idenso linnet linnest spenso spenso-macros spynso3 symbolica-utils typst-renderer) ;;
     community) packages=(feynkit-amplitude feynkit-cff feynkit-generator feynkit-graph feynkit-kinematics feynkit-model feynkit-py feynkit-tensor feynkit-ufo idenso linnet linnest spenso spenso-macros spynso3 symbolica-utils typst-renderer) ;;
     *) printf 'Unknown consumer scope: %s\n' "$scope" >&2; return 2 ;;
   esac
   for package in "${packages[@]}"; do
     path_patch "$package" "$delivery_output/feynkit/crates/$package"
   done
-  if [[ "$scope" != portable ]]; then
+  if [[ "$scope" == root || "$scope" == community ]]; then
   printf '\n[patch."https://github.com/alphal00p/oneloopmaster"]\n'
   path_patch oneloop "$delivery_output/oneloop"
   [[ "$scope" != community ]] || path_patch oneloop-python "$delivery_output/oneloop/python"
@@ -94,6 +95,7 @@ write_overlay() {
     printf '\n[patch."https://github.com/alphal00p/fastSecDec"]\n'
     path_patch fastsecdec "$delivery_root/crates/fastsecdec"
     path_patch fastsecdec-sectors "$delivery_root/crates/fastsecdec-sectors"
+    path_patch fastsecdec-python "$delivery_root/bindings/python"
   fi
   printf '\n[env]\n'
   for pair in FEYNKIT:feynkit SYMBOLICA:symbolica NUMERICA:numerica; do
@@ -105,6 +107,7 @@ write_overlay() {
 write_overlay community > "$delivery_output/overlay.toml"
 write_overlay root > "$delivery_output/overlay-root.toml"
 write_overlay portable > "$delivery_output/overlay-portable.toml"
+write_overlay python > "$delivery_output/overlay-python.toml"
 for owner in feynkit symbolica numerica oneloop one-loop-reduce; do
   git -C "$delivery_output/$owner" diff --binary > "$delivery_output/$owner.patch"
   git -C "$delivery_output/$owner" status --porcelain > "$delivery_output/$owner.status"
@@ -112,5 +115,5 @@ done
 printf 'Prepared pinned source owners and local reviewed patches. Build/runtime gates remain separate.\n' > "$delivery_output/status.txt"
 printf 'Prepared overlay: %s\n' "$delivery_output/overlay.toml"
 printf 'Root CLI/tests: cargo --config "%s" metadata --format-version 1\n' "$delivery_output/overlay-root.toml"
-printf 'Community: use overlay.toml; portable-kernel consumer: use overlay-portable.toml.\n'
+printf 'Community: use overlay.toml; portable-kernel consumer: use overlay-portable.toml; isolated Python bindings: use overlay-python.toml.\n'
 printf "First resolve deliberately and inspect the lockfile/identity diff; subsequent build gates must use --locked.\n"

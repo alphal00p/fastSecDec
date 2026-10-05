@@ -748,6 +748,30 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: the requested ownership correction is implemented locally.
+  FastSecDec owns the isolated optional Rust/PyO3 crate, modular notebook,
+  native input helpers, fixtures, dedicated tests and delivery scripts;
+  community retains linking, registration, reexports, stubs and thin build/CI
+  forwarding. Independent review accepts the boundary and confirms the core
+  and default CLI remain Python-free. A normal release wheel passes all
+  **61 installed controls**, including six native sector/chart/alias inspection
+  tests and nine explicit-action/report tests. Actual native browser lifecycles
+  pass for triangle and gg→HH: separate Generate/Integrate actions, native compact
+  sector/chart inspection before sampling, streamed generation and full-vector
+  displays, and checkpoint-preserving Cancel/Resume. The sole gg→HH run generates
+  30 sectors in 122.489 seconds from the button press and completes all 245,760
+  points; its four means equal the retained CLI values and all 16 covariance
+  entries agree within rounding. Its 89.326-second active integration includes
+  refresh waits on one caller CPU, distinct from the earlier eight-worker CLI
+  timing. Finite relative error remains 1.027%, not 0.1%. Independent review
+  also accepts the final history presentation using seven focused controls and
+  a retained-data browser replay, with no repeated gg→HH calculation. Generated
+  stubs pass public inventory, installed-export and Python 3.9 grammar checks,
+  including all eight new inspection classes. The new public dependency pin
+  and current Pyodide execution are still open. Performance work
+  stays parked until these requested notebook and ownership gates are reviewed.
+  See `docs/reviews/hepkit-relocation-audit.md`.
+
 - 2026-10-05: delegated exact-input gg→HH reference feasibility is complete.
   Pathfinder and direct pySecDec both time out during generation, with charged
   times 597.533/597.402 seconds including a conservative ten-second preparation

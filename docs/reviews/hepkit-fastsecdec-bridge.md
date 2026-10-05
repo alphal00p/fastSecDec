@@ -1,20 +1,31 @@
 # HEPKit FastSecDec bridge boundary
 
-**Latest ownership and notebook correction:** the user requires community to
-contain only the FastSecDec dependency link, module registration and necessary
-reexports/stubs. The current branch's substantive Rust/PyO3 wrappers still live
-in community and therefore do not meet this updated boundary. Their migration
-to FastSecDec, and ownership of dedicated demo/test material, are under review.
-The core and default CLI must remain free of Python/PyO3 dependencies.
+**Latest ownership and notebook correction:** the local relocation now keeps
+the optional Rust/PyO3 library, notebook, helpers, fixtures and dedicated tests in
+FastSecDec. Community only links/registers the module and supplies public
+reexports/stubs and thin setup/CI forwarding. Independent review confirms that
+the native core and default CLI remain Python-free.
 
-The existing combined Run action also does not meet the new separate Generate
-and Integrate requirement. The revised Generate action must retain an
-inspectable native generated result and compiled kernels, then stop with zero
-samples. Separate explicit integration, live detailed views, and a native-backed
-all-sector overview with individual details are required before notebook
-acceptance. Preserve the earlier evidence below under its original source and
-interaction scope; it does not certify those new controls. Performance work is
-parked while this audit and implementation take priority.
+The relocated native release wheel passes 61 installed controls. Actual native
+triangle and gg→HH notebook lifecycles also pass: separate Generate and Integrate
+actions, zero sampling during generation/sector inspection, visible native
+progress, and checkpoint-preserving Cancel/Resume. The gg→HH run completes all
+245,760 points with its four means exactly equal to the retained CLI result and
+rounding-only covariance differences. Its finite-part relative standard error
+is 1.027%, so this does not establish the 0.1% target or an independent amplitude
+reference. See the [relocation audit](hepkit-relocation-audit.md) for source,
+wheel, interaction and review identities.
+
+Independent retained-data rendering also accepts the final history display:
+informative components appear first, recorded-zero histories stay expandable,
+and native worker time and stop details are forwarded directly. No gg→HH
+calculation was repeated for this presentation refinement.
+
+Generated stubs also pass inventory, installed-export and Python 3.9 grammar
+checks, including all eight new inspection classes. The new public dependency
+pin and current Pyodide execution remain separate delivery gates. Performance
+work stays parked. The following records describe
+the earlier published interface and must not be substituted for current gates.
 
 The Python API and four-example notebook are published in
 [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18),
