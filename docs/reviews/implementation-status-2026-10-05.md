@@ -19,7 +19,17 @@ This closes the Numerica Linux minimum-version gap; other platform and
 performance gates remain open. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **370 tests**, with twenty-three
+The persistence milestone passes **380 workspace tests**, zero failures and
+twenty-three explicit probes ignored across 63 summaries. Formatting and
+all-target Clippy pass. The focused native and CLI gates separately pass 16 and
+42 tests. Borrowed native payloads, streaming hashing/output and raw embedded
+JSON remove large persistence copies while retaining native v3 identity and
+legacy CLI v1 loading; newly saved CLI envelopes explicitly use v2. Cold
+loaders keep validated input rather than rebuilding a discarded envelope.
+The original full-graph rerun determines whether this closes the observed
+capacity gap. See the [independent review](native-persistence-independent.md).
+
+The preceding complete workspace gate passes **370 tests**, with twenty-three
 explicit probes ignored (`output/coefficient-first-workspace-tests-2.log`,
 62 summaries, zero failures). Workspace formatting and all-target Clippy pass;
 the latter finishes in 11.81 seconds. This includes the public `NativeNamed`
@@ -53,6 +63,11 @@ The user's stopping rule is explicit: close first-phase capabilities and
 scientific checks, establish representative performance parity with bounded
 effort, then complete the active goal and stop. Further marginal tuning and
 threshold-phase planning do not follow automatically.
+The subsequent clarification stops further pySecDec/FORM attempts that exceed
+reasonable resources on this machine. FastSecDec must still complete those
+cases; Pathfinder remains the performance comparator. Existing pySecDec results
+remain useful where the provider completes practically. Unavailable pySecDec
+results do not create a new completion gate.
 
 The subsequent CLI preparation slice passes **38 focused tests**, formatting
 and CLI all-target Clippy. It delegates to the existing native prepared-family
@@ -75,8 +90,16 @@ The provider's documented pure-Taylor option then avoids the recursive IBP
 memory stop but reaches its 600-second generation deadline while writing FORM
 sector 41 of 968. Its 605.098-second generation process and 608.398-second outer
 process are reaped, all 62 frozen checks pass and no complete reference is
-produced. The prepared native release builds successfully and its fullgraph
-trial is running under the existing bounds. See the
+produced. These infeasible pySecDec routes are now closed under the user's
+resource instruction. The prepared native whole graph subsequently completes
+all 1,026 coefficient expansions (1,531.885 seconds) and sector JITs (127.529
+seconds), then fails allocating memory before artifact publication under its
+30-GiB address-space cap. Its later watchdog deadline occurs during core dumping;
+the process is reaped at 1,807.811 seconds and all 60 frozen checks pass. No
+artifact or integral result exists. Source review identifies substantial
+persistence duplication; the exact failing allocation site is not established.
+A validated focused correction reuses Serde streaming and raw JSON while
+preserving native v3 and explicitly handling legacy CLI identities. See the
 [native attempt record](native-named-fullgraph-results.md) and
 [external reference record](reference-onshell-full-vector-proposal.md).
 

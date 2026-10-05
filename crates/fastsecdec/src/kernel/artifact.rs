@@ -80,8 +80,14 @@ impl KernelSet {
     /// version-one/two artifacts retain their original bytes and identities.
     /// Executable code and mutable evaluator work stacks are excluded.
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
+        Ok(self.artifact_bytes()?.to_vec())
+    }
+
+    /// Borrow the retained portable artifact without copying its native programs.
+    /// Loaded artifacts retain their exact original bytes, including formatting.
+    pub fn artifact_bytes(&self) -> Result<&[u8], KernelError> {
         self.portable_artifact
-            .clone()
+            .as_deref()
             .ok_or_else(|| KernelError::Artifact("kernel artifact was not initialized".into()))
     }
 

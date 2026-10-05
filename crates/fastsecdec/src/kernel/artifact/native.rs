@@ -10,8 +10,10 @@ use crate::{
     status::CoefficientComponent,
 };
 use serde::{Deserialize, Serialize};
-use std::ops::ControlFlow;
 use symbolica::atom::AtomCore;
+
+#[cfg(test)]
+mod tests;
 
 // Native evaluator serde is not a stable cross-revision interchange format.
 // The local structural-validation patch preserves this upstream wire layout.
@@ -48,17 +50,46 @@ struct Artifact {
     payload: Payload,
 }
 
-fn content_id(payload: &Payload) -> Result<String, KernelError> {
+// These views preserve the owned wire schema and its field order. Native program
+// bytes and cancellation terms remain in their existing kernel owners.
+#[derive(Serialize)]
+struct PayloadRef<'a> {
+    version: u32,
+    program_codec: &'a str,
+    compiler_policy: &'a str,
+    orders: &'a [i32],
+    components: &'a [CoefficientComponent],
+    exact: Vec<String>,
+    precision: &'a PrecisionPolicy,
+    sectors: Vec<PortableSectorRef<'a>>,
+    metadata: Option<PortableMetadata>,
+}
+
+#[derive(Serialize)]
+struct PortableSectorRef<'a> {
+    parameters: Vec<String>,
+    program: &'a [u8],
+    cancellation_degree: usize,
+    cancellation_terms: Option<&'a [Vec<usize>]>,
+}
+
+#[derive(Serialize)]
+struct ArtifactRef<'a, P> {
+    content_id: &'a str,
+    payload: &'a P,
+}
+
+fn content_id(payload: &impl Serialize) -> Result<String, KernelError> {
     let mut hash = blake3::Hasher::new();
     hash.update(b"fastsecdec-portable-kernel-v3:symbolica-3:symjit-2.26:f64");
-    hash.update(&serde_json::to_vec(payload)?);
+    serde_json::to_writer(&mut hash, payload)?;
     Ok(hash.finalize().to_hex().to_string())
 }
 
-fn encoded(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
-    let id = content_id(&payload)?;
-    let bytes = serde_json::to_vec(&Artifact {
-        content_id: id.clone(),
+fn encoded(payload: &impl Serialize) -> Result<(String, Vec<u8>), KernelError> {
+    let id = content_id(payload)?;
+    let bytes = serde_json::to_vec(&ArtifactRef {
+        content_id: &id,
         payload,
     })?;
     Ok((id, bytes))
@@ -77,26 +108,26 @@ fn component_layout(count: usize, complex: bool) -> Vec<CoefficientComponent> {
 }
 
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
-    encoded(Payload {
+    encoded(&PayloadRef {
         version: 3,
-        program_codec: CODEC.into(),
-        compiler_policy: COMPILER.into(),
-        orders: kernels.coefficient_orders.clone(),
-        components: kernels.components.clone(),
+        program_codec: CODEC,
+        compiler_policy: COMPILER,
+        orders: &kernels.coefficient_orders,
+        components: &kernels.components,
         exact: kernels
             .exact_expressions
             .iter()
             .map(AtomCore::to_canonical_string)
             .collect(),
-        precision: kernels.precision.clone(),
+        precision: &kernels.precision,
         sectors: kernels
             .sectors
             .iter()
-            .map(|sector| PortableSector {
+            .map(|sector| PortableSectorRef {
                 parameters: parameter_names(&sector.parameters),
-                program: sector.program_bytes.to_vec(),
+                program: &sector.program_bytes,
                 cancellation_degree: sector.cancellation.degree(),
-                cancellation_terms: sector.cancellation.terms().map(<[Vec<usize>]>::to_vec),
+                cancellation_terms: sector.cancellation.terms(),
             })
             .collect(),
         metadata: kernels.metadata.as_ref().map(PortableMetadata::from_native),
@@ -138,7 +169,7 @@ pub(super) fn generated(
             })
         })
         .collect::<Result<_, KernelError>>()?;
-    Ok(encoded(Payload {
+    Ok(encoded(&Payload {
         version: 3,
         program_codec: CODEC.into(),
         compiler_policy: COMPILER.into(),
@@ -233,14 +264,13 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
             "complex exact offset in real output layout".into(),
         ));
     }
-    let mut kernels = KernelSet::from_programs_with_progress(
+    let mut kernels = KernelSet::from_programs_for_load(
         payload.orders,
         programs,
         exact,
         payload.precision,
         metadata,
         use_complex,
-        |_| ControlFlow::Continue(()),
     )?;
     kernels.content_id = artifact.content_id;
     kernels.portable_artifact = Some(bytes.to_vec());

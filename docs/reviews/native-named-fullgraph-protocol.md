@@ -4,8 +4,11 @@ The next bounded trial uses the ordinary CLI with both native named coefficients
 and the existing exact `SingleUnitTerm` family preparation. The CLI adapter is
 accepted at `e42a017`: 38 focused tests, formatting and CLI all-target Clippy
 pass, with an [independent review](cli-family-preparation-independent.md).
-The fresh release build and concrete freeze review are accepted; the authorized
-scientific sequence is running after the serialized runtime handoff. Build and attempt outcomes
+The preceding prepared trial passed its release build and concrete freeze
+review, completed coefficient generation and sector compilation, then failed
+before publishing an artifact. No downstream stage ran. The persistence rerun
+awaits the committed persistence milestone and its fresh release build/freeze.
+Build and attempt outcomes
 are retained in [native-named-fullgraph-results.md](native-named-fullgraph-results.md).
 This protocol adds no
 algebra, input eligibility probe or production default change.
@@ -16,7 +19,7 @@ record is `output/diagnostics/native-named-public-actual-generation-2/public-pat
 (SHA-256 `9457fe8c8097609f953a0ad1c3e29126246e9e283af7cfac656ac47ade5fde15`).
 The prior combined workspace gate at `22dc1d9` passed 370 tests, with 23 explicit
 ignored probes, formatting and all-target Clippy. The new freeze binds these
-accepted records and the subsequent CLI source review, retaining the actual
+accepted records and subsequent CLI and native persistence reviews, retaining the actual
 source changes instead of attributing the new binary to the earlier source.
 
 ## Preserved earlier attempts
@@ -86,14 +89,19 @@ constrain the prepared geometry.
 
 ## Release freeze and bounded stages
 
-Compile the committed CLI milestone with pinned Rust 1.98.1, two Cargo jobs on
+Compile the committed persistence milestone with pinned Rust 1.98.1, two Cargo jobs on
 CPUs 10 and 11, using `cargo build -p fastsecdec-cli --release --locked
 --message-format=json`. Select the unique successful normal `fastsecdec` binary
 from Cargo's artifact record. Retain its hash, exact compiler/linker identities,
 source archive, native archives/patches, selected rlibs and feature fingerprints.
-The new freezer replaces only the independently reviewed CLI source paths in
-the previous accepted source map; all other production and native hashes must
-still match. Documentation changes are recorded separately from compiled input.
+The next freezer overlays the independently reviewed native and CLI persistence
+source maps, including the Cargo `serde_json/raw_value` feature, on the prior
+accepted source map. Shared reviewed hashes must agree; all other production
+and native sources still match. It binds the completed combined workspace,
+formatting and Clippy result and the committed persistence milestone.
+Documentation changes are recorded separately from compiled input. Existing
+original-input proofs and public representative/oracle results are reused;
+no new mathematical eligibility probe is introduced.
 
 Native evaluation remains production SymJIT **O2** with direct translation,
 distinct from the Rust release profile. The exact release Symbolica features
@@ -114,6 +122,18 @@ on the first failure, with no automatic retry or allocation increase:
 | Public generate, compile and save | 1,800 s | 5 s | 8 | 30 GiB |
 | Separate-process cold artifact inspection | 180 s | 5 s | 8 | 30 GiB |
 | Complete fixed full-integral allocation | 180 s | 5 s | 8,9 | 30 GiB |
+
+The persistence rerun retains these bounds and scientific inputs. Its only
+process-limit change is `prlimit --core=0:0` on each stage, requesting no core
+image after an abort. The host uses a piped core handler, for which Linux may
+ignore this limit; suppression of the prior core-dump delay is unverified.
+The existing watchdog remains in force. This does not change global host
+settings, numerical behavior or address-space admission. The prior final
+compilation callback occurred at 1,668.039795
+seconds, leaving **131.960205 seconds** within the 1,800-second stage for
+artifact construction and publication. This is headroom, not a guarantee that
+the new writer fits. Actual elapsed time and memory remain the acceptance
+evidence; no automatic deadline extension follows a failure.
 
 Integration uses `--full-integral`, 1,024 points per shift, eight shifts, seed
 20261004, two caller-owned workers and `kuo38005`. The saved native `QmcDesign`

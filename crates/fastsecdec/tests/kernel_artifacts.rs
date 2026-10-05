@@ -79,6 +79,7 @@ fn legacy_v1_v2_keep_original_identity_bytes_and_expression_semantics() {
             }
         }
         assert_eq!(total[0], -1.0);
+        assert_eq!(kernel.artifact_bytes().unwrap(), bytes);
         assert_eq!(kernel.to_bytes().unwrap(), bytes);
     }
 }
@@ -90,6 +91,8 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
         .to_kernel_bytes(PrecisionPolicy::default())
         .unwrap();
     let mut compiled = generated.compile().unwrap();
+    let retained_address = compiled.artifact_bytes().unwrap().as_ptr();
+    assert_eq!(compiled.artifact_bytes().unwrap(), before_compile);
     assert_eq!(compiled.to_bytes().unwrap(), before_compile);
     let payload: serde_json::Value = serde_json::from_slice(&before_compile).unwrap();
     assert_eq!(payload["payload"]["version"], 3);
@@ -124,6 +127,30 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
     }
     assert_eq!(restored.to_bytes().unwrap(), before_compile);
     assert_eq!(compiled.to_bytes().unwrap(), before_compile);
+    assert_eq!(
+        compiled.artifact_bytes().unwrap().as_ptr(),
+        retained_address
+    );
+    assert_eq!(restored.artifact_bytes().unwrap(), before_compile);
+}
+
+#[test]
+fn native_cold_load_retains_original_formatting_in_borrowed_transport() {
+    let generated = generated();
+    let bytes = generated
+        .to_kernel_bytes(PrecisionPolicy::default())
+        .unwrap();
+    let pretty =
+        serde_json::to_vec_pretty(&serde_json::from_slice::<serde_json::Value>(&bytes).unwrap())
+            .unwrap();
+    assert_ne!(pretty, bytes);
+    let original = KernelSet::from_bytes(&bytes).unwrap();
+    let restored = KernelSet::from_bytes(&pretty).unwrap();
+    assert_eq!(restored.content_id(), original.content_id());
+    assert_eq!(restored.artifact_bytes().unwrap(), pretty);
+    let copied = restored.to_bytes().unwrap();
+    assert_eq!(copied, pretty);
+    assert_ne!(copied.as_ptr(), restored.artifact_bytes().unwrap().as_ptr());
 }
 
 #[test]

@@ -69,14 +69,16 @@ impl GeneratedIntegral {
             )?);
             emit(sectors.len())?;
         }
-        KernelSet::finish(
+        let mut kernels = KernelSet::finish(
             self.orders().to_vec(),
             sectors,
             self.exact_coefficients().to_vec(),
             precision,
             Some(self.metadata().clone()),
             use_complex,
-        )
+        )?;
+        kernels.initialize_artifact()?;
+        Ok(kernels)
     }
 }
 
@@ -158,7 +160,9 @@ impl SectorKernel {
 }
 
 impl KernelSet {
-    pub(super) fn from_expressions(
+    // Codec loaders validate and retain their own original artifact after these
+    // constructors finish. Do not encode a replacement envelope only to discard it.
+    pub(super) fn from_expressions_for_load(
         orders: Vec<i32>,
         expressions: Vec<SectorExpressions>,
         exact_expressions: Vec<Atom>,
@@ -181,31 +185,26 @@ impl KernelSet {
                 program::build(sector.parameters, &coefficients, sector.cancellation)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Self::from_programs_with_progress(
+        Self::from_programs_for_load(
             orders,
             programs,
             exact_expressions,
             precision,
             metadata,
             use_complex,
-            |_| ControlFlow::Continue(()),
         )
     }
 
-    pub(super) fn from_programs_with_progress(
+    pub(super) fn from_programs_for_load(
         orders: Vec<i32>,
         programs: Vec<program::SectorProgram>,
         exact_expressions: Vec<Atom>,
         precision: PrecisionPolicy,
         metadata: Option<GenerationMetadata>,
         use_complex: bool,
-        mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
-        let started = Instant::now();
-        let total = programs.len();
-        emit(&mut progress, started, 0, total)?;
-        let mut sectors = Vec::with_capacity(total);
+        let mut sectors = Vec::with_capacity(programs.len());
         for program in programs {
             if program.exact.get_output_len() != orders.len() {
                 return Err(KernelError::Artifact(
@@ -217,7 +216,6 @@ impl KernelSet {
                 &precision,
                 use_complex,
             )?);
-            emit(&mut progress, started, sectors.len(), total)?;
         }
         Self::finish(
             orders,
@@ -254,7 +252,7 @@ impl KernelSet {
             return Err(KernelError::NonFinite);
         }
         use crate::status::CoefficientComponent::{Imag, Real};
-        let mut result = Self {
+        Ok(Self {
             portable_artifact: None,
             metadata,
             orders: coefficient_orders
@@ -283,9 +281,7 @@ impl KernelSet {
             exact_coefficients,
             content_id: String::new(),
             sectors,
-        };
-        result.initialize_artifact()?;
-        Ok(result)
+        })
     }
 }
 

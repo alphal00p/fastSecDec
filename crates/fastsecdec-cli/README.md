@@ -217,7 +217,15 @@ timings include coordinate generation and checked evaluation, and exclude time
 spent displaying progress. The final report retains load/generation timings
 separately from the measured repetitions.
 
-Portable artifacts store exact expressions, compilation policy, source hashes,
+New CLI artifacts use outer format version 2. Its scientific identity binds the
+source provenance and the native kernel content ID; loading also verifies the
+complete native payload and exact evaluator IR before returning kernels.
+Historical outer version 1 files retain their canonical identities and loading
+support. The embedded native kernel format remains version 3, with its bytes
+preserved unchanged. Current writes stream that native JSON payload directly,
+without expanding program byte arrays into a second JSON value tree.
+
+Portable artifacts store exact native evaluator IR, compilation policy, source hashes,
 normalization, domain assertions and exact dependency identities. Loading an
 artifact recompiles portable SymJIT O2 kernels locally without repeating graph
 algebra or sector generation. `integrate` needs only the artifact. `run --resume`

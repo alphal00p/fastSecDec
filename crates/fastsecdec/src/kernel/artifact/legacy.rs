@@ -93,7 +93,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         .metadata
         .map(|value| value.into_native(&coordinates))
         .transpose()?;
-    let mut restored = KernelSet::from_expressions(
+    let mut restored = KernelSet::from_expressions_for_load(
         payload.orders,
         sectors,
         payload

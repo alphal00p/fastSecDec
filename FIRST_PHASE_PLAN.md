@@ -27,6 +27,16 @@ each case once it meets the agreed criterion. Do not add optional optimization
 campaigns or pursue further speedups after acceptance. Threshold support and
 its plan await the user's subsequent instruction.
 
+**Reference-resource clarification (2026-10-05):** Do not keep pursuing
+pySecDec/FORM cases that exceed this machine's reasonable resources. Preserve
+their failures and use those providers only where they complete practically.
+FastSecDec must still complete the required cases. FastSecDecPathFinder remains
+the performance comparator, using its existing functional routes and explicit
+versioned environments. Complete coverage and establish parity or better for
+the required generation, highest-requested-order convergence and sector/sample
+metrics, then commit, push, mark the goal complete and stop. An infeasible
+pySecDec reference is not an additional completion gate.
+
 Confirmed decisions:
 
 | Topic | Decision |
@@ -572,7 +582,19 @@ Continue as planned, but don't overdo it on the performance part, and once you'r
 We'll then draft a plan for approaching the physical cases with threshold.
 ```
 
+```text
+Continue as planned, but don't push the pySecDec/FORM references where it can't complete on this machine. Only make sure the fastSecDec version completes there and only benchmark against cases that complete within reasonable resources in the original pySecDec. You should however always be able to benchmark against fastSecDecPathFinder.
+
+And as I said, once you're feature complete within what's stated in the goal, and reached parity or better everywhere according to the metric I mentioned earlier vs fastSecDecPathFinder, then commit+push, set the goal as completed and stop yourself so that we can plan together for the next step.
+```
+
 ## Implementation record
+
+- 2026-10-05: the persistence capacity fix passes **380 workspace tests**, zero failures and 23 explicit ignored probes across 63 summaries, plus formatting and all-target Clippy. Independent focused gates pass 16 native and 42 CLI tests. Borrowed native payloads and streaming hashing retain exact v3 bytes/IDs; cold loading avoids re-encoding an unused envelope. The CLI keeps embedded native JSON opaque, streams atomic output, retains legacy v1 identity/loading and explicitly writes a v2 outer identity. No algebra or dependency patch is added. These controls cover cold complete vectors, tamper rejection and interrupted writes; the bounded original full-graph rerun still determines capacity. The prepared Pathfinder direct continuation reuses 137 successfully built formula-cache entries with explicit provenance and unchanged physics; infeasible pySecDec/FORM routes remain closed. Representative performance work is limited to the existing five-case set and missing required metrics.
+
+- 2026-10-05: the prepared native whole graph completes all 1,026 coefficient expansions (1,531.885 seconds) and all 1,026 sector JITs (127.529 seconds). An allocation then fails under the 30-GiB address-space cap before artifact publication. The watchdog subsequently reaches its deadline during core dumping and reaps the process after 1,807.811 seconds; all 60 frozen checks pass and no artifact or integral result exists. The exact failing allocation site is not established. Source review identifies avoidable full-buffer and per-byte JSON-value copies in native/CLI persistence; a focused Serde-based correction is being implemented with explicit legacy identity handling. This is a persistence capacity gap, not unfinished coefficient mathematics or successful full-integral acceptance.
+
+- 2026-10-05: the latest user clarification ends further infeasible pySecDec/FORM attempts for the on-shell case. The existing Pathfinder direct route is the next comparator; its first attempt stops at a missing formula-cache entry after 19.186 seconds, before any complete bundle/result. The documented native fallback builder is the next configuration change, with the same bounded full-integral scope. A separately built matching Python binding imports correctly but its small smoke reveals an old Pathfinder return-type assumption; the existing working versioned environment remains available without an API-porting project.
 
 - 2026-10-05: a fresh independent projected reference using the provider's documented pure-Taylor option avoids the earlier recursive IBP memory failure but reaches its 600-second generation deadline while writing FORM sector 41 of 968. Shutdown completes in 605.098 seconds; the outer process finishes in 608.398 seconds. All 62 frozen checks pass, all owned groups are absent and partial files remain; no complete reference vector exists. The prepared native fullgraph release passes its build and independent review and starts under the existing bounded protocol. No successful whole-graph or parity result is inferred from progress.
 

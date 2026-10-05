@@ -1,6 +1,6 @@
 use std::{
-    fs::{self, OpenOptions},
-    io::Write,
+    fs::{self, File, OpenOptions},
+    io::{BufReader, BufWriter, Write},
     path::Path,
     time::Instant,
 };
@@ -8,6 +8,7 @@ use std::{
 use fastsecdec::kernel::KernelSet;
 use fastsecdec::status::GenerationTimings;
 use serde::{Deserialize, Serialize};
+use serde_json::value::RawValue;
 
 use crate::CliResult;
 
@@ -106,7 +107,11 @@ pub struct Artifact {
     format_version: u32,
     pub content_id: String,
     pub provenance: Provenance,
-    kernel: serde_json::Value,
+    // Keep the native JSON envelope verbatim: program byte arrays must never
+    // become a second tree of per-byte JSON values on the current path.
+    kernel: Box<RawValue>,
+    #[serde(skip)]
+    kernel_content_id: String,
     /// Observations are intentionally excluded from the scientific content hash.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_timings: Option<GenerationTimings>,
@@ -119,12 +124,13 @@ pub struct Artifact {
 
 impl Artifact {
     pub fn new(kernels: &KernelSet, provenance: Provenance) -> CliResult<Self> {
-        let kernel = serde_json::from_slice(&kernels.to_bytes()?)?;
+        let kernel = serde_json::from_slice(kernels.artifact_bytes()?)?;
         let mut result = Self {
-            format_version: 1,
+            format_version: 2,
             content_id: String::new(),
             provenance,
             kernel,
+            kernel_content_id: kernels.content_id().to_owned(),
             generation_timings: None,
             reference: None,
             loading_seconds: 0.0,
@@ -132,21 +138,44 @@ impl Artifact {
         result.content_id = result.identity()?;
         Ok(result)
     }
+
     fn identity(&self) -> CliResult<String> {
         let mut hasher = blake3::Hasher::new();
-        hasher.update(b"fastsecdec-artifact-v1");
-        hasher.update(&serde_json::to_vec(&self.provenance)?);
-        hasher.update(&serde_json::to_vec(&self.kernel)?);
+        match self.format_version {
+            1 => {
+                // Historical identities canonicalized the native JSON as Value.
+                // Keep this branch exact for existing files, including their IDs.
+                let kernel: serde_json::Value = serde_json::from_str(self.kernel.get())?;
+                hasher.update(b"fastsecdec-artifact-v1");
+                serde_json::to_writer(&mut hasher, &self.provenance)?;
+                serde_json::to_writer(&mut hasher, &kernel)?;
+            }
+            2 => {
+                // The native loader validates the payload against this native
+                // content ID before returning kernels to a caller.
+                hasher.update(b"fastsecdec-artifact-v2");
+                serde_json::to_writer(&mut hasher, &self.provenance)?;
+                hasher.update(self.kernel_content_id()?.as_bytes());
+            }
+            _ => return Err("artifact version is unsupported".into()),
+        }
         Ok(hasher.finalize().to_hex().to_string())
     }
+
     pub fn save(&self, path: &Path) -> CliResult<()> {
-        atomic_write(path, &serde_json::to_vec_pretty(self)?)
+        atomic_write_with(path, |writer| {
+            serde_json::to_writer_pretty(writer, self)?;
+            Ok(())
+        })
     }
+
     pub fn kernel_content_id(&self) -> CliResult<&str> {
-        self.kernel["content_id"]
-            .as_str()
-            .ok_or_else(|| "portable artifact has no kernel content identity".into())
+        if self.kernel_content_id.is_empty() {
+            return Err("portable artifact has no kernel content identity".into());
+        }
+        Ok(&self.kernel_content_id)
     }
+
     pub fn verify_input_sources(&self, input: &Path) -> CliResult<()> {
         let first = self
             .provenance
@@ -177,21 +206,43 @@ impl Artifact {
         preflight: impl FnOnce(&Self) -> CliResult<()>,
     ) -> CliResult<(Self, KernelSet)> {
         let started = Instant::now();
-        let mut artifact: Self = serde_json::from_slice(&fs::read(path)?)?;
-        if artifact.format_version != 1 || artifact.content_id != artifact.identity()? {
-            return Err("artifact version or complete content identity is invalid".into());
+        let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(path)?))?;
+        if !matches!(artifact.format_version, 1 | 2) {
+            return Err("artifact version is unsupported".into());
+        }
+        #[derive(Deserialize)]
+        struct KernelIdentity {
+            content_id: String,
+        }
+        artifact.kernel_content_id =
+            serde_json::from_str::<KernelIdentity>(artifact.kernel.get())?.content_id;
+        if artifact.content_id != artifact.identity()? {
+            return Err("artifact complete content identity is invalid".into());
         }
         if artifact.provenance.dependencies != dependencies() {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
         preflight(&artifact)?;
-        let kernels = KernelSet::from_bytes(&serde_json::to_vec(&artifact.kernel)?)?;
+        let kernels = KernelSet::from_bytes(artifact.kernel.get().as_bytes())?;
+        if kernels.content_id() != artifact.kernel_content_id()? {
+            return Err("validated native kernel identity differs from the artifact".into());
+        }
         artifact.loading_seconds = started.elapsed().as_secs_f64();
         Ok((artifact, kernels))
     }
 }
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> CliResult<()> {
+    atomic_write_with(path, |writer| {
+        writer.write_all(bytes)?;
+        Ok(())
+    })
+}
+
+fn atomic_write_with(
+    path: &Path,
+    write: impl FnOnce(&mut BufWriter<File>) -> CliResult<()>,
+) -> CliResult<()> {
     if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
         fs::create_dir_all(parent)?;
     }
@@ -200,22 +251,28 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> CliResult<()> {
         path.file_name().unwrap_or_default().to_string_lossy(),
         std::process::id()
     ));
-    let mut file = OpenOptions::new()
+    let file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(&temporary)?;
-    let result = (|| -> std::io::Result<()> {
-        file.write_all(bytes)?;
-        file.sync_all()?;
+    let mut writer = BufWriter::new(file);
+    let result = (|| -> CliResult<()> {
+        write(&mut writer)?;
+        writer.flush()?;
+        writer.get_ref().sync_all()?;
         fs::rename(&temporary, path)?;
         Ok(())
     })();
+    drop(writer);
     if result.is_err() {
         let _ = fs::remove_file(&temporary);
     }
-    result?;
-    Ok(())
+    result
 }
+
+#[cfg(test)]
+#[path = "artifact/persistence_tests.rs"]
+mod persistence_tests;
 
 #[cfg(test)]
 mod tests {

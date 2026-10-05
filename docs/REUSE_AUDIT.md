@@ -930,3 +930,21 @@ graph, reduction, algebra or coordinate-pullback implementation is added.
 The focused gate passes 38 tests, formatting and CLI all-target Clippy, including
 full weighted Laurent vectors, separate-process cold artifacts, fallback and
 tamper rejection. Full original on-shell integral acceptance remains separate.
+
+The [persistence memory review](reviews/native-persistence-independent.md)
+confirms reuse of Serde's borrowed serialization, streaming writers and
+`RawValue`, plus the existing native evaluator codec and BLAKE3 identity owner.
+Borrowed payload views preserve native v3 bytes and IDs. Cold loaders retain
+their validated input without rebuilding an unused envelope; callers can borrow
+artifact bytes while the existing owned accessor remains available. The CLI
+uses an explicit v2 envelope identity and keeps its v1 identity/load branch.
+Native payload verification remains mandatory, including when the claimed
+embedded ID is unchanged. Atomic streaming output retains failure cleanup and
+the CLI releases the generated symbolic object after compilation. No second
+algebra, graph, evaluator or parallel executor is introduced. The focused gates
+pass 16 native and 42 CLI tests, including legacy identities, complete complex
+vectors, cold processes, tampering and interrupted writes. Full-graph capacity
+is determined by the subsequent original-input run, not inferred from these
+small controls.
+The combined milestone passes 380 workspace tests, zero failures and 23 explicit
+ignored probes across 63 summaries, plus formatting and all-target Clippy.

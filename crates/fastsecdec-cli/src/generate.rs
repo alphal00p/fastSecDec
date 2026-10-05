@@ -161,6 +161,7 @@ pub fn generate_with_workers(
         return Err(error.into());
     }
     let kernels = kernels?;
+    drop(generated);
     if let Some(reference) = reference {
         reference.validate_identity(kernels.content_id())?;
     }
@@ -184,10 +185,16 @@ pub fn generate_with_workers(
         integration: serde_json::to_value(loaded.card.integration)?,
         family_preparation: loaded.family_preparation,
     };
+    status.detail = "Preparing portable artifact; all kernels compiled".into();
+    status.elapsed_seconds = started.elapsed().as_secs_f64();
+    dashboard.generation(&status)?;
     let mut artifact = Artifact::new(&kernels, provenance)?;
     artifact.reference = reference.map(|value| value.settings.clone());
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());
+    status.detail = format!("Saving portable artifact to {}", output.display());
+    status.elapsed_seconds = started.elapsed().as_secs_f64();
+    dashboard.generation(&status)?;
     artifact.save(output)?;
     status.stage = GenerationStage::Complete;
     status.kernels = kernels.sectors().len();

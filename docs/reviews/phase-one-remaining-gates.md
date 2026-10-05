@@ -1,18 +1,20 @@
-# Phase-one remaining gates — reconciled through `22dc1d9`
+# Phase-one remaining gates — current bounded completion work
 
 Source review, 2026-10-05. This reconciles the earlier remaining-gates audit with
-validated milestones through `22dc1d95f3cf5a96f412f60f1d151bafe334b0d8`.
+validated milestones through `59975b1` and the retained full-graph attempts.
 [FIRST_PHASE_PLAN.md](../../FIRST_PHASE_PLAN.md) remains authoritative; this
 document adds no requirement and claims no new test execution. The latest
-combined gate is **370 passed, zero failed, 23 ignored**, with workspace
+combined gate is **380 passed, zero failed, 23 ignored**, with workspace
 formatting and all-target Clippy passing. See the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
 
-The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 100 Covered,
-81 Retired and one Partial**. The Partial row, `test_integrals.py:6113`, now has
-an independent complete double-box reference; uncertainty calibration remains
-open. Retired backend, Python, sector-numbering and serialization interfaces do
+The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 101 Covered,
+81 Retired, zero Partial and zero Pending**. The double-box row
+`test_integrals.py:6113` is closed by its actual endpoint-formula identities,
+complete-vector allocation and checked five-order reference. That historical
+test does not require universal uncertainty calibration. Retired backend,
+Python, sector-numbering and serialization interfaces do
 not retire their scientific replacements. The plan's original 15 DOT examples,
 11 kinematics fixtures, 17 run cards, stored targets and hard-polynomial report
 remain the scientific inventory; the current 24-card/17-DOT loading gate is
@@ -39,24 +41,22 @@ additional input coverage, not proof of numerical completion.
    [independent public reconstruction audit](native-named-public-actual-independent.md).
    This closes the prerequisite; it does not establish full-integral agreement.
 
-2. **Complete the original on-shell triple-box graph.** After that public gate,
-   freeze the new release/source/dependency identities and run the reviewed
-   [native named full-graph protocol](native-named-fullgraph-protocol.md).
-   The sole scientific steering change is the explicit named coefficient
-   option. It preserves the full original graph, kinematics, order zero and O2:
-   generation/compilation/save has a 1,800-second limit plus five seconds of
-   grace, followed only on success by cold inspection and a complete fixed
-   full-integral allocation, each with its own 180+5-second limit and 30-GiB
-   address-space cap. Require complete native coverage, all coefficients,
-   exact offsets, covariance and portable reload. The previous physical trial
-   [timed out](native-series-fullgraph-attribution.md) after 1,805.689 seconds
-   with 80 of 1,026 representatives complete and no artifact; it remains
-   unchanged evidence. The new release campaign is independently preflighted
-   under `output/diagnostics/native-named-fullgraph-2`; its scientific outcome
-   remains pending. The first release build succeeded, but its freezer rejected
-   a logging-only feature difference. That failed freeze is retained; the
-   second bundle records the exact ordinary-release feature set and the
-   byte-identical executable.
+2. **Complete the original on-shell triple-box graph.** Use the reviewed
+   [native named full-graph protocol](native-named-fullgraph-protocol.md), with
+   explicit native named coefficients and exact `SingleUnitTerm` family
+   preparation. The ten-parameter `native-named-fullgraph-2` was intentionally
+   cancelled at 372/1,026 representatives after 1,006.900 seconds; it did not
+   time out. The subsequent equivalent eight-parameter prepared trial completed
+   all 1,026 coefficient expansions and sector compilations by 1,668.040 seconds,
+   then failed allocation before artifact publication under the 30-GiB
+   address-space bound. The narrow persistence fix removes large serialization
+   copies and passes the 380-test workspace gate, formatting and all-target
+   Clippy; repeat the complete artifact, cold-load and full-integral route.
+   Preserve the original graph, kinematics, order zero,
+   O2, full coefficient coverage, exact offsets and covariance. Generation has
+   the same 1,800+5-second bound; cold inspection and the complete fixed allocation
+   each have 180+5 seconds. Prior attempts and their distinct causes remain in
+   the [results](native-named-fullgraph-results.md).
 
 3. **Establish original-integral numerical agreement.** Successful generation,
    artifact inspection and the fixed allocation establish capability and
@@ -67,8 +67,11 @@ additional input coverage, not proof of numerical completion.
    independently audited reference with matching input and normalization.
    The [current reference inventory](reference-onshell-full-vector-proposal.md)
    finds no Checked original on-shell full vector; the two off-shell fixtures
-   do not substitute for it. Its minimal ordinary pySecDec reuse proposal is
-   separate from the source-only Pathfinder generation-baseline protocol.
+   do not substitute for it. Subsequent infeasible pySecDec/FORM attempts are
+   closed under the user's resource instruction. The existing
+   [Pathfinder direct route](reference-onshell-pathfinder-direct.md) is the
+   remaining comparator, with completed native formula-cache entries retained
+   for its bounded continuation.
 
 ## Remaining scientific and uncertainty gates
 
@@ -131,7 +134,9 @@ Numerica's successful Linux MSRV gate does not qualify those platforms or
 change FastSecDec's compiler baseline. Finish the independent native-reuse,
 HEPKit public-API, dependency-separation, example-delivery and CLI/platform
 review after the remaining scientific/performance work. Normal builds/tests
-must continue to need no Python, pySecDec, FORM, Normaliz or reference checkout.
+must continue to need no Python, pySecDec, FORM, Normaliz or reference-generator
+runtime. The documented native Rust ecosystem checkouts remain the authorized
+dependency setup; this is not a new packaging or dependency-publishing gate.
 
 ## Bounded completion addendum, after `a56107f`
 
@@ -145,9 +150,15 @@ for every card. No finite test block can certify uncertainty for every possible
 integrand. Preserve that qualification after completion rather than turning it
 into an unlimited gate.
 
+The user's subsequent reference-resource instruction ends further on-shell
+pySecDec/FORM retries on this machine. Retain practical completed references
+where available, but use FastSecDecPathFinder for the required performance
+comparisons. FastSecDec still has to complete the difficult case. Missing
+infeasible pySecDec results are not an additional completion requirement.
+
 | Minimum remaining decision | Evidence to reuse and bounded next action |
 | --- | --- |
-| Original on-shell integral capability and agreement | The ten-parameter NativeNamed trial was intentionally cancelled at 372/1,026 representatives after 1,006.900 seconds, with no artifact. The bounded native trial now runs with exact family preparation. Both original and projected external IBP reference generations reached their 30-GiB memory limits; the provider's existing pure-Taylor option instead reached its 600-second deadline while writing sector 41 of 968. No attempt supplies a reference vector. Assess an existing provider decomposition/direct route before any further reference execution. The projected representation preserves the completed native repeated-propagator identity, on-shell point, raised-power measure and Gamma factor. A projection is an equivalent representation, not reduced integral coverage. |
+| Original on-shell integral capability and agreement | The prepared native trial completes all 1,026 coefficient expansions and sector JITs, then fails allocation before artifact publication under its 30-GiB address-space cap. Fix the identified persistence copies using existing Serde/native codecs and repeat the complete artifact/cold/integral route. The original and projected external IBP attempts reached memory limits; pure Taylor reached its deadline. Those infeasible pySecDec routes are closed. Pathfinder's existing direct route is the comparator; its first attempt found a missing formula cache, and its existing native fallback builder is the next configuration change. Preserve original graph, on-shell point, raised-power measure and Gamma factor in all comparisons. |
 | Scientific uncertainty checks for the representative set | Reuse the [72 holdout rows](convergence-stage-a-independent.md): six families, three independent seeds, two work levels and two rules, all complete and no recorded comparison beyond the frozen investigation threshold. Do not repeat that matrix or automatically launch its earlier proposed larger matrix. Reuse the double-box [64-shift observation](direct-generation-performance.md) and [all-five-order checked comparison](remaining-reference-attempts.md), whose largest absolute pull is 1.26516. Off-shell scalar/rank-two, Issue 1 and hard-reference transports already close their documented normalization and value-comparison claims. Add bounded independent-seed/work checks only where these records leave a concrete representative uncertainty or accuracy question unresolved; retain every result and the original investigation criterion. |
 | Highest-order accuracy and representative performance parity | Keep the original small one-loop, double-box, numerator-heavy and hard-four-loop representative set. Use the required matched seven ordinary/three expensive paired observations to close missing parity claims, with accuracy and full-vector checks in the same records wherever possible. Existing [seven-pair one-loop measurements](first-paired-performance-independent.md) remain valid for their recorded boundaries; different precision/persistence policies prevent relabelling them as final matched acceptance. Reuse their attribution rather than repeat exploratory profiling. Stop each case once the agreed criterion passes. |
 | Eight-core target and latency reporting | Reuse the [fourteen native eight-core rows](eight-core-native-results.md) for their actual finite-part target crossings, and the accepted [individual-sample diagnostic](native-sample-latency-results.md) for its distinct timer boundary. Neither needs a new diagnostic merely for documentation. The reference eight-worker instance-limit failure still prevents a paired eight-core claim; repeating the same rejected configuration or extrapolating fewer workers would not close it. Record the remaining measured target/worker gaps explicitly and resolve only those needed by the plan. |
