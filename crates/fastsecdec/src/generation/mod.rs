@@ -30,9 +30,32 @@ use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::{PolynomialSupport, decompose};
 use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
 use symbolica::{
-    atom::{Atom, AtomCore},
+    atom::{Atom, AtomCore, AtomView},
     symbol,
 };
+
+/// Test-only access to the real Laurent stage, without manufacturing a partial
+/// generated integral or its domain/chart metadata.
+#[cfg(test)]
+pub(crate) struct CapturedLaurent {
+    pub template: Atom,
+    pub coefficients: BTreeMap<i32, symbolica::atom::AliasedAtom>,
+}
+
+#[cfg(test)]
+pub(crate) fn captured_coefficients(
+    expression: &Atom,
+    parameters: &[symbolica::atom::Symbol],
+    regulator: symbolica::atom::Symbol,
+    maximum: i32,
+) -> Result<CapturedLaurent, GenerationError> {
+    let mut cache = laurent::TemplateCache::default();
+    let coefficients = laurent::expand(expression, parameters, regulator, maximum, &mut cache)?;
+    Ok(CapturedLaurent {
+        template: cache.only_template().clone(),
+        coefficients,
+    })
+}
 
 pub fn generate(
     input: &ParametricIntegrand,
@@ -216,7 +239,12 @@ pub fn generate(
             &mut templates,
         )?
         .into_iter()
-        .map(|(order, coefficient)| (order, coefficient * Atom::num(multiplicity)))
+        .map(|(order, coefficient)| {
+            (
+                order,
+                coefficient.map_root(|root| root * Atom::num(multiplicity)),
+            )
+        })
         .collect::<BTreeMap<_, _>>();
         emit(GenerationProgress::PhaseTiming {
             phase: GenerationPhase::Laurent,
@@ -226,12 +254,21 @@ pub fn generate(
             minimum = minimum.min(*order);
         }
         if coefficients.values().all(|coefficient| {
-            parameters
-                .iter()
-                .all(|p| !coefficient.contains(Atom::var(*p).as_view()))
+            let symbols = coefficient.get_root().get_all_symbols(true);
+            parameters.iter().all(|p| {
+                let parameter = Atom::var(*p);
+                !symbols.contains(p)
+                    && coefficient.get_aliases().iter().all(|(handle, body)| {
+                        let AtomView::Var(handle) = handle.as_view() else {
+                            unreachable!("Laurent images are native symbols")
+                        };
+                        !symbols.contains(&handle.get_symbol())
+                            || !body.contains(parameter.as_view())
+                    })
+            })
         }) {
             for (order, coefficient) in coefficients {
-                *exact.entry(order).or_insert(Atom::Zero) += coefficient;
+                *exact.entry(order).or_insert(Atom::Zero) += coefficient.into_inner();
             }
         } else {
             kernel_indices.insert(representative_index, pending.len());
@@ -259,9 +296,10 @@ pub fn generate(
                     cancellation_terms,
                     parameters,
                     map,
+                    materialized: Default::default(),
                     coefficients: orders
                         .iter()
-                        .map(|order| coefficients.get(order).cloned().unwrap_or(Atom::Zero))
+                        .map(|order| coefficients.get(order).cloned().unwrap_or_default())
                         .collect(),
                 }
             },

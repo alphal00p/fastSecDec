@@ -26,7 +26,10 @@ fn compare(
         options.max_order,
         &mut TemplateCache::default(),
     )
-    .unwrap();
+    .unwrap()
+    .into_iter()
+    .map(|(order, coefficient)| (order, coefficient.into_inner()))
+    .collect::<BTreeMap<_, _>>();
     let orders = actual
         .keys()
         .chain(expected.keys())

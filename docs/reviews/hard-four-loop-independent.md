@@ -72,3 +72,63 @@ historical target is not independently certified; neither proximity to it nor
 finite complete native values establish correctness or calibrated uncertainty.
 Independent-reference and repeated-seed/convergence evidence remain necessary.
 No scientific or transport inconsistency was found in this bounded output audit.
+
+## Subsequent independent-reference proposal review
+
+The source-only [ordinary F-only reference proposal](hard-four-loop-reference-proposal.md)
+keeps the exact original full-orthant density while placing the fixed positive
+integer-power U factor in native `other_polynomials`. This is a supported native
+input channel, not removal of U from the integrand. Installed
+`decomposition/geometric.py` constructs the fan from `sector.cast`, transforms
+every `sector.other` with the same monomial maps, and preserves that factor on
+each cone. Installed `code_writer/make_package.py` subsequently refactorizes
+every other polynomial and includes its extracted monomial in the subtraction
+powers alongside the cast factors and Jacobian. U's sign and possible negative
+mapped powers at infinity therefore remain part of native subtraction.
+
+`geometric_infinity_no_primary` explicitly integrates the whole positive
+orthant. Reusing the existing request/card/UF readers and their exponent helper,
+with strict original-variable, measure, exponent, prefactor and source checks,
+avoids a second parser or normalization implementation. The ordinary
+`IntegralLibrary(together=True)` route computes uncertainty from each complete
+sector sum; no disteval marginal-variance recombination is required. The
+proposed one-CPU, 600-second shared deadline and 180-second numerical cap remain
+diagnostic bounds. No concrete external runner or scientific execution was
+reviewed in this proposal check, and independent coefficient evidence remains
+pending until its full physical tuple and actual allocation are audited.
+
+### Concrete runner source review, 2026-10-05
+
+The independent review now includes
+`output/probes/run_hard_four_loop_together.py`, SHA-256
+`f2d2a98b9f16d02c79c2dbe6400049145a8bebed22b73141c37a4be44293e83b`.
+It binds the original native/reference cards and U/F files, uses the existing
+request and UF polynomial helpers, and checks all nine ordered variables,
+zero measure powers, exponents `(1,0)` and `(-3,1)`, unit prefactor, full domain
+and absence of a sector selection. The native make-package call decomposes F
+and retains U as `other_polynomials`, as reviewed above.
+
+The runner separates generation, guarded ordinary compilation and guarded
+`IntegralLibrary(together=True)` evaluation. All stage watchdogs are clipped
+to one 600-second process budget; the numerical stage additionally has a
+180-second cap and passes that remaining deadline to the native provider.
+It retains the original string tuple before conversion and selects physical
+tuple member two, with no coefficient arithmetic or missing-value filling.
+The prescribed 8311-point/32-shift native QMC settings and seed are explicit;
+actual work remains unknown until the native output is inspected.
+
+Fail-closed import controls precede generation, source/tool hashes and the
+allowed/selected CPU are recorded, later failed stages remain explicit, and
+postflight checks detect changed sources. No source blocker was found. This
+was a read-only review: neither import controls nor scientific execution were
+run by the reviewer. Package metadata, complete returned orders, ordinary
+sector-sum uncertainty and actual completion remain outcome acceptance gates.
+
+The subsequently retained controls in
+`output/diagnostics/reference-import-controls-20261005T020026Z` were inspected
+independently. All three processes exit zero with no timeout and empty stderr:
+the negative control rejects Symbolica before module loading, and the projected
+and hard-integral callers import only the ordinary IntegralLibrary/converter
+under that fail-closed guard. The frozen source manifest still matches. These
+controls establish the intended import separation; they do not execute package
+generation, FORM/C++ construction or numerical integration.

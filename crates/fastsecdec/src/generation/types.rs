@@ -1,5 +1,6 @@
 use fastsecdec_sectors::{DecompositionOptions, DecompositionProgress, SectorMap};
-use symbolica::atom::{Atom, Symbol};
+use std::sync::OnceLock;
+use symbolica::atom::{AliasedAtom, Atom, Symbol};
 
 #[derive(Clone, Debug)]
 pub struct GenerationOptions {
@@ -76,7 +77,8 @@ pub struct GeneratedSector {
     pub(crate) cancellation_degree: usize,
     pub(crate) cancellation_terms: Vec<Vec<usize>>,
     pub(crate) parameters: Vec<Symbol>,
-    pub(crate) coefficients: Vec<Atom>,
+    pub(crate) coefficients: Vec<AliasedAtom>,
+    pub(crate) materialized: OnceLock<Vec<Atom>>,
     pub(crate) map: SectorMap,
 }
 
@@ -93,8 +95,22 @@ impl GeneratedSector {
     pub fn parameters(&self) -> &[Symbol] {
         &self.parameters
     }
-    pub fn coefficients(&self) -> &[Atom] {
+    /// Native coefficient roots and their coordinate-dependent definitions.
+    /// This view preserves shared subexpressions without restoring large Atoms.
+    pub fn aliased_coefficients(&self) -> &[AliasedAtom] {
         &self.coefficients
+    }
+    /// Materialize and cache the complete native expressions on explicit request.
+    /// Prefer [`Self::aliased_coefficients`] for compact symbolic inspection.
+    /// Kernel compilation and portable saving do not call this accessor.
+    pub fn coefficients(&self) -> &[Atom] {
+        self.materialized.get_or_init(|| {
+            self.coefficients
+                .iter()
+                .cloned()
+                .map(AliasedAtom::into_inner)
+                .collect()
+        })
     }
     pub fn map(&self) -> &SectorMap {
         &self.map

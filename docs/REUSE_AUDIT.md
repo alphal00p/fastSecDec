@@ -615,3 +615,26 @@ passes independent transport review using the existing native reference encoder
 and comparison API, retaining the complete native vector/covariance and all
 three provider errors. Its Checked label admits comparison under the audited
 sector-sum path without asserting calibration; every pull is below 0.857.
+
+The [production alias integration](reviews/native-template-alias-production-independent.md)
+now passes the complete 294-test workspace gate, final affected tests, formatting,
+all-target Clippy and the normal-dependency audit. Native `AliasedAtom` owns
+symbolic roots/images, and its explicit lazy restoration preserves the existing
+public Atom accessor. A shared native exact evaluator owns O2, conditioning and
+MPFR; worker clones share immutable bytes. Version-three persistence uses native
+serialization with an exact revision/codec contract, preserving legacy IDs and
+bytes. The essential fifth native Symbolica fix validates decoded IR in its
+owner; FastSecDec adds no instruction interpreter or validator. All six original
+malformed layouts are rejected by all three native decoders, and public artifact
+tests exercise malformed IR and complex fixed constants under real-layout tampering.
+
+The source-bound difficult representative passes exact native pre-series
+template/image identity, all eighteen independent original-expression oracle
+comparisons and seventy-two fresh/decoded weighted component checks. Native
+renaming alone does not establish a shared factored coefficient structure; both
+failed structural comparisons and every final structural flag remain recorded.
+No large expansion or custom equivalence algorithm was introduced to force that
+representation. Full-graph coverage and cold-load performance remain separate
+gates. The [remaining-gates audit](reviews/phase-one-remaining-gates.md) identifies
+the planned geometry cache/parallel execution, current parent-qualified sector
+IDs, affine endpoint admission limitation and final CLI color/terminal evidence.

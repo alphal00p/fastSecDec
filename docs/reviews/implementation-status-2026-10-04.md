@@ -36,10 +36,15 @@ at all five orders. Its uncertainty calibration remains open.
 Remaining coverage: complete on-shell triple-box generation; independent
 difficult triple-box/orthant vectors; difficult-case
 convergence/calibration; final matched performance and platform gates. The latest
-combined workspace gate passes **281 tests**, with seventeen explicit probes
-ignored. Formatting and all-target Clippy pass. It includes the CLI, family/input,
-experimental Series-first and Laurent capture/depth regressions; the separately
-executed expensive scientific campaigns retain their own evidence.
+combined workspace gate passes **294 tests**, with eighteen explicit probes
+ignored. Formatting and all-target Clippy pass, including focused repeats after
+two test-only lint corrections. The CLI, family/input, native alias/IR and
+Laurent capture/depth regressions pass; separately executed expensive scientific
+campaigns retain their own evidence. The independent
+[remaining-gates audit](phase-one-remaining-gates.md) also identifies planned
+geometry caching/parallel generation, sector identity wording and final
+interactive color/terminal evidence. General affine upper-cube endpoint charts
+remain unsupported; the no-threshold assertion does not override that limit.
 
 The additional regression covers a confirmed native Symbolica defect: an
 underscore-suffixed regulator could make Gamma's Laurent series silently empty.
@@ -70,8 +75,17 @@ The separately measured cached alias builder takes 0.123 seconds and produces
 1.52 MB of exact native evaluator IR without restoring huge coefficient Atoms.
 All six outputs agree with the independent point-first oracle at all three
 points under native high precision. Ordinary floating-point evaluation is
-unstable at all three; production precision-rescue integration is still needed.
-This is substage evidence, not full-graph generation or a production switch.
+unstable at all three. The subsequent production integration is now independently
+audited: native compact aliases feed one exact evaluator for O2, conditioning
+and MPFR, and v3 artifacts retain that program without restoring giant Atoms.
+The actual difficult representative passes all eighteen original-expression
+oracle checks and seventy-two fresh/decoded weighted component checks, with
+rescue to 256 or 512 bits. Its exact pre-series template and 201 native image
+bodies match; differently factored coefficient structures are retained as
+diagnostics. The complete diagnostic takes 78.551 seconds and 532,220 KiB peak
+RSS, including 45.141 seconds of fresh Laurent extraction. These test-build
+observations are not full-graph generation or performance acceptance. See the
+[production gate record](native-alias-production-results.md).
 See the [independent alias review](native-template-alias-independent.md).
 The independent point-first
 oracle now supplies all six coefficients at all three prescribed exact

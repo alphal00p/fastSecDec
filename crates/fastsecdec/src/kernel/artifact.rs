@@ -1,237 +1,108 @@
-use super::{
-    KernelError, KernelSet, PrecisionPolicy, SectorExpressions, cancellation::Cancellation,
-};
-use serde::{Deserialize, Serialize};
-use symbolica::atom::{Atom, AtomCore, AtomView};
+//! Strict versioned envelopes around native symbolic/evaluator serialization.
+//! Symbolica owns native program decoding and structural validation.
+mod legacy;
+mod native;
 
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Payload {
-    version: u32,
-    symjit_optimization: u8,
-    orders: Vec<i32>,
-    exact: Vec<String>,
-    precision: PrecisionPolicy,
-    sectors: Vec<PortableSector>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    metadata: Option<super::metadata::PortableMetadata>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PortableSector {
-    parameters: Vec<String>,
-    coefficients: Vec<String>,
-    cancellation_degree: usize,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    cancellation_terms: Option<Vec<Vec<usize>>>,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Artifact {
-    content_id: String,
-    payload: Payload,
-}
+use super::{KernelError, KernelSet, PrecisionPolicy};
+use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
 
 pub(super) fn atom(expression: String) -> Result<Atom, KernelError> {
+    // Recover native callbacks before expressions are parsed in a cold host.
+    let _ = symbolica::transcendental::gamma();
     Atom::parse(expression, "fastsecdec::artifact", Default::default())
         .map_err(KernelError::Artifact)
 }
 
-fn content_id(payload: &Payload) -> Result<String, KernelError> {
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(if payload.version == 1 {
-        b"fastsecdec-portable-kernel-v1:symbolica-3:symjit-2.26:f64"
-    } else {
-        b"fastsecdec-portable-kernel-v2:symbolica-3:symjit-2.26:f64"
-    });
-    hasher.update(&serde_json::to_vec(payload)?);
-    Ok(hasher.finalize().to_hex().to_string())
+fn parameters(values: Vec<String>) -> Result<Vec<Symbol>, KernelError> {
+    let parameters = values
+        .into_iter()
+        .map(|value| {
+            let value = atom(value)?;
+            let AtomView::Var(variable) = value.as_view() else {
+                return Err(KernelError::Artifact(
+                    "sector parameter is not a symbol".into(),
+                ));
+            };
+            Ok(variable.get_symbol())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if parameters
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        != parameters.len()
+    {
+        return Err(KernelError::Artifact("duplicate sector parameters".into()));
+    }
+    Ok(parameters)
+}
+
+fn validate_orders(orders: &[i32], exact_len: usize) -> Result<(), KernelError> {
+    if orders.is_empty()
+        || orders
+            .windows(2)
+            .any(|pair| pair[0].checked_add(1) != Some(pair[1]))
+        || exact_len != orders.len()
+    {
+        return Err(KernelError::Artifact(
+            "invalid Laurent output layout".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn parameter_names(parameters: &[Symbol]) -> Vec<String> {
+    parameters
+        .iter()
+        .map(|p| Atom::var(*p).to_canonical_string())
+        .collect()
 }
 
 impl crate::generation::GeneratedIntegral {
-    /// Save portable kernel expressions before compilation. Loading with
-    /// `KernelSet::from_bytes` validates and compiles the same O2 artifact.
+    /// Build and save portable native exact evaluator programs without JIT.
+    /// This performs native expression-to-IR translation; it does not materialize
+    /// aliased coefficients or compile host executable machine code.
     pub fn to_kernel_bytes(&self, precision: PrecisionPolicy) -> Result<Vec<u8>, KernelError> {
-        precision.validate()?;
-        let payload = Payload {
-            version: 2,
-            metadata: Some(super::metadata::PortableMetadata::from_native(
-                self.metadata(),
-            )),
-            symjit_optimization: 2,
-            orders: self.orders().to_vec(),
-            exact: self
-                .exact_coefficients()
-                .iter()
-                .map(AtomCore::to_canonical_string)
-                .collect(),
-            precision,
-            sectors: self
-                .sectors()
-                .iter()
-                .map(|sector| PortableSector {
-                    parameters: sector
-                        .parameters()
-                        .iter()
-                        .map(|p| Atom::var(*p).to_canonical_string())
-                        .collect(),
-                    coefficients: sector
-                        .coefficients()
-                        .iter()
-                        .map(AtomCore::to_canonical_string)
-                        .collect(),
-                    cancellation_degree: sector.cancellation_degree(),
-                    cancellation_terms: Some(sector.cancellation_terms().to_vec()),
-                })
-                .collect(),
-        };
-        Ok(serde_json::to_vec(&Artifact {
-            content_id: content_id(&payload)?,
-            payload,
-        })?)
+        native::generated(self, precision)
     }
 }
 
 impl KernelSet {
-    fn payload(&self) -> Payload {
-        Payload {
-            version: if self.metadata.is_some() { 2 } else { 1 },
-            metadata: self
-                .metadata
-                .as_ref()
-                .map(super::metadata::PortableMetadata::from_native),
-            symjit_optimization: 2,
-            orders: self.coefficient_orders.clone(),
-            exact: self
-                .exact_expressions
-                .iter()
-                .map(AtomCore::to_canonical_string)
-                .collect(),
-            precision: self.precision.clone(),
-            sectors: self
-                .sectors
-                .iter()
-                .map(|sector| PortableSector {
-                    parameters: sector
-                        .parameters
-                        .iter()
-                        .map(|p| Atom::var(*p).to_canonical_string())
-                        .collect(),
-                    coefficients: sector
-                        .coefficients
-                        .iter()
-                        .map(AtomCore::to_canonical_string)
-                        .collect(),
-                    cancellation_degree: sector.cancellation.degree(),
-                    cancellation_terms: sector.cancellation.terms().map(<[Vec<usize>]>::to_vec),
-                })
-                .collect(),
-        }
+    pub(super) fn initialize_artifact(&mut self) -> Result<(), KernelError> {
+        let (id, bytes) = native::compiled(self)?;
+        self.content_id = id;
+        self.portable_artifact = Some(bytes);
+        Ok(())
     }
 
-    pub(super) fn compute_content_id(&self) -> Result<String, KernelError> {
-        content_id(&self.payload())
-    }
-
-    /// Save expressions, metadata and numerical policy. Executable machine code
-    /// is deliberately absent; loading instantiates portable O2 kernels locally.
+    /// Save immutable portable programs, metadata and numerical policy. Loaded
+    /// version-one/two artifacts retain their original bytes and identities.
+    /// Executable code and mutable evaluator work stacks are excluded.
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
-        Ok(serde_json::to_vec(&Artifact {
-            content_id: self.content_id.clone(),
-            payload: self.payload(),
-        })?)
+        self.portable_artifact
+            .clone()
+            .ok_or_else(|| KernelError::Artifact("kernel artifact was not initialized".into()))
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
-        let artifact: Artifact = serde_json::from_slice(bytes)?;
-        let payload = artifact.payload;
-        if !matches!(payload.version, 1 | 2)
-            || payload.symjit_optimization != 2
-            || (payload.version == 2) != payload.metadata.is_some()
-        {
-            return Err(KernelError::Artifact(
-                "unsupported artifact version or compiler policy".into(),
-            ));
+        // Dispatch does not replace either codec's strict owned schema.
+        // Ignore the large program arrays here instead of allocating a second
+        // full JSON representation before the selected codec reads them.
+        #[derive(serde::Deserialize)]
+        struct Envelope {
+            payload: Version,
         }
-        if content_id(&payload)? != artifact.content_id {
-            return Err(KernelError::Artifact(
-                "kernel content identity mismatch".into(),
-            ));
+        #[derive(serde::Deserialize)]
+        struct Version {
+            version: u32,
         }
-        if payload.orders.is_empty()
-            || payload
-                .orders
-                .windows(2)
-                .any(|pair| pair[0].checked_add(1) != Some(pair[1]))
-            || payload.exact.len() != payload.orders.len()
-        {
-            return Err(KernelError::Artifact(
-                "invalid Laurent output layout".into(),
-            ));
+        let envelope: Envelope = serde_json::from_slice(bytes)?;
+        match envelope.payload.version {
+            1 | 2 => legacy::load(bytes),
+            3 => native::load(bytes),
+            _ => Err(KernelError::Artifact(
+                "unsupported kernel artifact version".into(),
+            )),
         }
-        let mut sectors = Vec::with_capacity(payload.sectors.len());
-        for sector in payload.sectors {
-            if sector.coefficients.len() != payload.orders.len() || sector.parameters.is_empty() {
-                return Err(KernelError::Artifact("invalid sector output layout".into()));
-            }
-            let parameters = sector
-                .parameters
-                .into_iter()
-                .map(|value| {
-                    let value = atom(value)?;
-                    let AtomView::Var(variable) = value.as_view() else {
-                        return Err(KernelError::Artifact(
-                            "sector parameter is not a symbol".into(),
-                        ));
-                    };
-                    Ok(variable.get_symbol())
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            if parameters
-                .iter()
-                .collect::<std::collections::BTreeSet<_>>()
-                .len()
-                != parameters.len()
-            {
-                return Err(KernelError::Artifact("duplicate sector parameters".into()));
-            }
-            let cancellation = Cancellation::new(
-                sector.cancellation_degree,
-                sector.cancellation_terms,
-                parameters.len(),
-            )?;
-            sectors.push(SectorExpressions {
-                parameters,
-                coefficients: sector
-                    .coefficients
-                    .into_iter()
-                    .map(atom)
-                    .collect::<Result<Vec<_>, _>>()?,
-                cancellation,
-            });
-        }
-        let metadata = payload
-            .metadata
-            .map(|metadata| metadata.into_native(&sectors))
-            .transpose()?;
-        let restored = Self::from_expressions(
-            payload.orders,
-            sectors,
-            payload
-                .exact
-                .into_iter()
-                .map(atom)
-                .collect::<Result<Vec<_>, _>>()?,
-            payload.precision,
-            metadata,
-        )?;
-        if restored.content_id != artifact.content_id {
-            return Err(KernelError::Artifact(
-                "kernel content identity mismatch".into(),
-            ));
-        }
-        Ok(restored)
     }
 }

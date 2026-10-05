@@ -48,25 +48,19 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let card = dir.path().join("input.toml");
         std::fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['1']").unwrap();
-        let (artifact, kernels) = crate::generate::generate(
+        let (artifact, _) = crate::generate::generate(
             &card,
             &dir.path().join("new.json"),
             &mut crate::display::Dashboard::new(false, false).unwrap(),
             None,
         )
         .unwrap();
-        // Re-sign a genuine version-one fixture in the native serializer's
-        // original field order, as the kernel's backward-compatibility test does.
-        let text = String::from_utf8(kernels.to_bytes().unwrap()).unwrap();
-        let end = text.find(",\"metadata\":").unwrap();
-        let mut legacy =
-            format!("{}}}}}", &text[..end]).replacen("\"version\":2", "\"version\":1", 1);
-        let start = legacy.find("\"payload\":").unwrap() + "\"payload\":".len();
-        let mut hash = blake3::Hasher::new();
-        hash.update(b"fastsecdec-portable-kernel-v1:symbolica-3:symjit-2.26:f64");
-        hash.update(&legacy.as_bytes()[start..legacy.len() - 1]);
-        legacy = legacy.replacen(kernels.content_id(), hash.finalize().to_hex().as_ref(), 1);
-        let restored = KernelSet::from_bytes(legacy.as_bytes()).unwrap();
+        // The historical expression fixture is independent of the current
+        // native-IR serializer and deliberately has no retained metadata.
+        let restored = KernelSet::from_bytes(include_bytes!(
+            "../../fastsecdec/tests/fixtures/kernel-v1-triangle.json"
+        ))
+        .unwrap();
         let path = dir.path().join("legacy.json");
         Artifact::new(&restored, artifact.provenance)
             .unwrap()
@@ -76,6 +70,6 @@ mod tests {
         let view = document(&artifact, &kernels).unwrap();
         assert_eq!(view["retained_metadata_available"], false);
         assert!(view["generation_metadata"].is_null());
-        assert_eq!(view["sectors"], 1);
+        assert_eq!(view["sectors"], 2);
     }
 }

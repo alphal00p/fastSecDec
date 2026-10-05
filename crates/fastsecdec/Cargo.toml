@@ -20,9 +20,9 @@ serde.workspace = true
 serde_json.workspace = true
 blake3.workspace = true
 thiserror.workspace = true
+bincode.workspace = true
 
 [dev-dependencies]
-bincode.workspace = true
 tempfile.workspace = true
 # Same native scalar-master provider/revision as the HEPKit community bridge.
 oneloop = { path = "../../DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/oneloopmaster", default-features = false }

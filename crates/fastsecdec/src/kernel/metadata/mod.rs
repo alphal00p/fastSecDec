@@ -2,7 +2,7 @@
 //! this layer validates current chart/domain associations before compilation.
 mod chart;
 mod domain;
-use super::{KernelError, SectorExpressions};
+use super::KernelError;
 use crate::generation::GenerationMetadata;
 use serde::{Deserialize, Serialize};
 use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
@@ -29,7 +29,7 @@ impl PortableMetadata {
     }
     pub(super) fn into_native(
         self,
-        sectors: &[SectorExpressions],
+        sectors: &[Vec<Symbol>],
     ) -> Result<GenerationMetadata, KernelError> {
         let domain = self.domain.into_native()?;
         let charts = self
@@ -63,7 +63,7 @@ impl PortableMetadata {
                 let sector = sectors
                     .get(index)
                     .ok_or_else(|| invalid("unknown chart kernel sector"))?;
-                if representative.coordinates.target_parameters != sector.parameters {
+                if representative.coordinates.target_parameters != *sector {
                     return Err(invalid("chart and kernel coordinates differ"));
                 }
                 covered[index] = true;

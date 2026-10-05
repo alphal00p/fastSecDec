@@ -2,7 +2,7 @@
 //! output uses adjacent real/imaginary components for each Laurent coefficient.
 use super::{KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, precision};
 use symbolica::{
-    atom::{Atom, AtomCore, Symbol},
+    atom::{Atom, AtomCore},
     domains::{
         float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
@@ -26,13 +26,13 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    #[cfg(test)]
     pub(super) fn new(
-        parameters: &[Symbol],
+        parameters: &[symbolica::atom::Symbol],
         coefficients: &[Atom],
         cancellation: Cancellation,
         precision: PrecisionPolicy,
     ) -> Result<Self, KernelError> {
-        precision.validate()?;
         let variables = parameters
             .iter()
             .map(|symbol| Atom::var(*symbol))
@@ -40,34 +40,57 @@ impl ComplexKernel {
         let exact = Atom::evaluator_multiple(coefficients, &variables)
             .build()
             .map_err(|error| KernelError::Compilation(error.to_string()))?;
+        Self::from_program(
+            exact,
+            cancellation,
+            precision,
+            coefficients.iter().map(|value| value.is_zero()).collect(),
+            coefficients
+                .iter()
+                .map(|value| !super::has_complex_coefficients(value))
+                .collect(),
+        )
+    }
+
+    pub(super) fn from_program(
+        exact: super::program::ExactProgram,
+        cancellation: Cancellation,
+        precision: PrecisionPolicy,
+        exact_zero: Vec<bool>,
+        real_coefficients: Vec<bool>,
+    ) -> Result<Self, KernelError> {
+        precision.validate()?;
+        let inputs = exact.get_input_len();
+        let outputs = exact.get_output_len();
+        let evaluator = exact
+            .jit_compile::<Complex<f64>>(
+                JITCompilationSettings::default()
+                    .optimization_level(2)
+                    .direct_translation(true),
+            )
+            .map_err(KernelError::Compilation)?;
         let conditioning = exact.clone().map_coeff(&|coefficient| {
             Complex::new(
                 tracked(coefficient.re.to_f64()),
                 tracked(coefficient.im.to_f64()),
             )
         });
-        let evaluator = exact
-            .jit_compile::<Complex<f64>>(JITCompilationSettings::default().optimization_level(2))
-            .map_err(KernelError::Compilation)?;
         Ok(Self {
             precision_cache: Default::default(),
             exact,
             evaluator,
             conditioning,
-            input: vec![Complex::new(0.0, 0.0); parameters.len()],
-            output: vec![Complex::new(0.0, 0.0); coefficients.len()],
-            check_input: vec![Complex::new(tracked(0.0), tracked(0.0)); parameters.len()],
-            check_output: vec![Complex::new(tracked(0.0), tracked(0.0)); coefficients.len()],
+            input: vec![Complex::new(0.0, 0.0); inputs],
+            output: vec![Complex::new(0.0, 0.0); outputs],
+            check_input: vec![Complex::new(tracked(0.0), tracked(0.0)); inputs],
+            check_output: vec![Complex::new(tracked(0.0), tracked(0.0)); outputs],
             cancellation,
             precision,
-            exact_zero: coefficients.iter().map(|value| value.is_zero()).collect(),
+            exact_zero,
             // Phase-one coordinates and residual functions are real. Native
             // real constants therefore certify an identically zero imaginary
             // component without inventing a symbolic real/imaginary splitter.
-            real_coefficients: coefficients
-                .iter()
-                .map(|value| !super::has_complex_coefficients(value))
-                .collect(),
+            real_coefficients,
         })
     }
 

@@ -1,25 +1,25 @@
 //! Portable SymJIT O2 vector kernels. Worker ownership is explicit.
 mod artifact;
 mod cancellation;
+mod compilation;
 mod complex;
 mod metadata;
 pub use metadata::PortableMetadata;
 mod precision;
 mod precision_cache;
+mod program;
 mod weighted;
 
 #[cfg(test)]
 mod function_map_probe;
-use crate::generation::GeneratedIntegral;
 pub use precision::{PrecisionPolicy, PrecisionReport};
-use std::{collections::HashMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
     domains::{
         float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
-    evaluate::{ExpressionEvaluator, JITCompilationSettings, JITCompiledEvaluator},
+    evaluate::{ExpressionEvaluator, JITCompiledEvaluator},
 };
 pub use weighted::{ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationContext};
 
@@ -64,7 +64,8 @@ pub struct SectorKernel {
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
     parameters: Vec<Symbol>,
-    coefficients: Vec<Atom>,
+    exact_zero: Vec<bool>,
+    program_bytes: std::sync::Arc<[u8]>,
     backend: Backend,
 }
 
@@ -93,7 +94,7 @@ impl SectorKernel {
         self.parameters.len()
     }
     pub fn output_count(&self) -> usize {
-        self.coefficients.len()
+        self.exact_zero.len()
             * if matches!(self.backend, Backend::Complex(_)) {
                 2
             } else {
@@ -147,10 +148,8 @@ impl SectorKernel {
         let range_loss = weight > 1.0
             && output
                 .iter()
-                .zip(&self.coefficients)
-                .any(|(value, expression)| {
-                    value.abs() < f64::MIN_POSITIVE && !expression.is_zero()
-                });
+                .zip(&self.exact_zero)
+                .any(|(value, zero)| value.abs() < f64::MIN_POSITIVE && !zero);
         for value in output.iter_mut() {
             *value *= weight;
         }
@@ -169,9 +168,9 @@ impl SectorKernel {
                 .check_output
                 .iter()
                 .zip(output.iter())
-                .zip(&self.coefficients)
-                .all(|((checked, compiled), expression)| {
-                    if expression.is_zero() {
+                .zip(&self.exact_zero)
+                .all(|((checked, compiled), zero)| {
+                    if *zero {
                         return *compiled == 0.0;
                     }
                     let value = checked.to_f64() * weight;
@@ -236,7 +235,8 @@ impl SectorKernel {
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
             parameters: self.parameters.clone(),
-            coefficients: self.coefficients.clone(),
+            exact_zero: self.exact_zero.clone(),
+            program_bytes: self.program_bytes.clone(),
             backend: match &self.backend {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
@@ -253,6 +253,7 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    portable_artifact: Option<Vec<u8>>,
     metadata: Option<crate::generation::GenerationMetadata>,
     coefficient_orders: Vec<i32>,
     components: Vec<crate::status::CoefficientComponent>,
@@ -286,199 +287,6 @@ impl KernelSet {
     }
     pub fn exact_coefficients(&self) -> &[f64] {
         &self.exact_coefficients
-    }
-}
-
-impl GeneratedIntegral {
-    pub fn compile(&self) -> Result<KernelSet, KernelError> {
-        self.compile_with_precision(PrecisionPolicy::default())
-    }
-
-    pub fn compile_with_precision(
-        &self,
-        precision: PrecisionPolicy,
-    ) -> Result<KernelSet, KernelError> {
-        self.compile_with_precision_and_progress(precision, |_| ControlFlow::Continue(()))
-    }
-
-    pub fn compile_with_progress(
-        &self,
-        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
-    ) -> Result<KernelSet, KernelError> {
-        self.compile_with_precision_and_progress(PrecisionPolicy::default(), progress)
-    }
-
-    pub fn compile_with_precision_and_progress(
-        &self,
-        precision: PrecisionPolicy,
-        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
-    ) -> Result<KernelSet, KernelError> {
-        KernelSet::from_expressions_with_progress(
-            self.orders().to_vec(),
-            self.sectors()
-                .iter()
-                .map(|sector| {
-                    Ok(SectorExpressions {
-                        parameters: sector.parameters().to_vec(),
-                        coefficients: sector.coefficients().to_vec(),
-                        cancellation: cancellation::Cancellation::new(
-                            sector.cancellation_degree(),
-                            Some(sector.cancellation_terms().to_vec()),
-                            sector.dimension(),
-                        )?,
-                    })
-                })
-                .collect::<Result<_, KernelError>>()?,
-            self.exact_coefficients().to_vec(),
-            precision,
-            Some(self.metadata().clone()),
-            progress,
-        )
-    }
-}
-
-impl KernelSet {
-    fn from_expressions(
-        orders: Vec<i32>,
-        expressions: Vec<SectorExpressions>,
-        exact_expressions: Vec<Atom>,
-        precision: PrecisionPolicy,
-        metadata: Option<crate::generation::GenerationMetadata>,
-    ) -> Result<Self, KernelError> {
-        Self::from_expressions_with_progress(
-            orders,
-            expressions,
-            exact_expressions,
-            precision,
-            metadata,
-            |_| ControlFlow::Continue(()),
-        )
-    }
-
-    fn from_expressions_with_progress(
-        orders: Vec<i32>,
-        expressions: Vec<SectorExpressions>,
-        exact_expressions: Vec<Atom>,
-        precision: PrecisionPolicy,
-        metadata: Option<crate::generation::GenerationMetadata>,
-        mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
-    ) -> Result<Self, KernelError> {
-        precision.validate()?;
-        let started = Instant::now();
-        let total = expressions.len();
-        let mut emit = |completed| {
-            if progress(&CompilationProgress {
-                completed,
-                total,
-                elapsed_seconds: started.elapsed().as_secs_f64(),
-            })
-            .is_break()
-            {
-                Err(KernelError::Cancelled)
-            } else {
-                Ok(())
-            }
-        };
-        emit(0)?;
-        let use_complex = expressions
-            .iter()
-            .flat_map(|sector| &sector.coefficients)
-            .chain(&exact_expressions)
-            .any(has_complex_coefficients);
-        let mut sectors = Vec::with_capacity(expressions.len());
-        for SectorExpressions {
-            parameters,
-            coefficients,
-            cancellation,
-        } in expressions
-        {
-            let backend = if use_complex {
-                Backend::Complex(complex::ComplexKernel::new(
-                    &parameters,
-                    &coefficients,
-                    cancellation.clone(),
-                    precision.clone(),
-                )?)
-            } else {
-                let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
-                let evaluator = Atom::evaluator_multiple(&coefficients, &variables)
-                    .build()
-                    .map_err(|error| KernelError::Compilation(error.to_string()))?;
-                let conditioning = evaluator.clone().map_coeff(&|coefficient| {
-                    ErrorPropagatingFloat::new(coefficient.re.to_f64(), 15.0)
-                });
-                let exact_evaluator = evaluator.clone();
-                let evaluator = evaluator
-                    .jit_compile::<f64>(JITCompilationSettings::default().optimization_level(2))
-                    .map_err(KernelError::Compilation)?;
-                Backend::Real(RealKernel {
-                    precision_cache: Default::default(),
-                    conditioning,
-                    check_input: vec![ErrorPropagatingFloat::new(0.0, 15.0); parameters.len()],
-                    check_output: vec![ErrorPropagatingFloat::new(0.0, 15.0); coefficients.len()],
-                    evaluator,
-                    exact_evaluator,
-                })
-            };
-            sectors.push(SectorKernel {
-                cancellation,
-                precision: precision.clone(),
-                parameters,
-                coefficients,
-                backend,
-            });
-            emit(sectors.len())?;
-        }
-        let constants = HashMap::<Atom, f64>::new();
-        let exact_coefficients = if use_complex {
-            complex::exact(&exact_expressions)?
-        } else {
-            exact_expressions
-                .iter()
-                .map(|coefficient| {
-                    coefficient
-                        .evaluate(&constants)
-                        .map_err(|error| KernelError::Compilation(error.to_string()))
-                })
-                .collect::<Result<Vec<f64>, _>>()?
-        };
-        if exact_coefficients.iter().any(|value| !value.is_finite()) {
-            return Err(KernelError::NonFinite);
-        }
-        let mut result = KernelSet {
-            metadata,
-            components: orders
-                .iter()
-                .flat_map(|_| {
-                    if use_complex {
-                        vec![
-                            crate::status::CoefficientComponent::Real,
-                            crate::status::CoefficientComponent::Imag,
-                        ]
-                    } else {
-                        vec![crate::status::CoefficientComponent::Real]
-                    }
-                })
-                .collect(),
-            content_id: String::new(),
-            precision,
-            exact_expressions,
-            coefficient_orders: orders.clone(),
-            orders: orders
-                .into_iter()
-                .flat_map(|order| {
-                    if use_complex {
-                        vec![order, order]
-                    } else {
-                        vec![order]
-                    }
-                })
-                .collect(),
-            sectors,
-            exact_coefficients,
-        };
-        result.content_id = result.compute_content_id()?;
-        Ok(result)
     }
 }
 

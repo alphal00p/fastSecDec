@@ -48,8 +48,11 @@ make/link and returned all orders minus four through zero with nonzero measured
 real uncertainties. Independent source, normalization and full-tuple review,
 followed by native Rust comparison, supports the new
 `examples/references/double_box.json` correctness fixture. Aggregate external
-work and uncertainty calibration remain unknown. The remaining routes below
-remain unexecuted until their assigned runtime slots.
+work and uncertainty calibration remain unknown. Issue 1 subsequently completed
+both the initially Unverified disteval route and a separately audited ordinary
+sector-sum observation. The next unexecuted route is the projected off-shell
+scalar triple box, using the refined
+[ordinary sector-sum protocol](projected-triple-reference-attempt.md).
 
 Its ignored `capture_pysecdec_series.py` launcher observes only the argument to
 the existing `_parse_pysecdec_json_series` function and delegates unchanged to
@@ -168,6 +171,7 @@ loop_package(
     processes=1, form_threads=1, contour_deformation=False,
     decomposition_method="iterative", enforce_complex=True,
     pylink_qmc_transforms=["korobov3x3"],
+    package_generator=ordinary_package,  # pySecDec.code_writer.make_package
 )
 ```
 
@@ -181,10 +185,15 @@ one and `s12=s23=-2`. The original graph weight is one. pySecDec owns the raised
 power measure and Gamma factorials; do not attach an extra projected Jacobian or
 factorial by hand.
 
-Build with `make -j1 pylink`, then use native `IntegralLibrary` with explicit
-native QMC seed, relative tolerance `0.01`, maximum-evaluation steering `65536`,
-and native wall-time limit `180` under the outer process-tree watchdog. Keep the
-complete returned tuple and compare its full physical result. This direct API
+Build the ordinary native `*_pylink.so` with one make job, then use native
+`IntegralLibrary(together=True)` with explicit N8311/R32, seed20261201 for scalar
+or20261202 for rank two, Korobov3, no fit function, relative tolerance `0.01`,
+absolute tolerance `1e-12`, and maximum-evaluation steering `265952`. The
+180-second numerical bound is clipped to the remaining 600-second whole-attempt
+budget. If provider logs confirm the initial allocation, 265952 counts scalar
+summed-coefficient point evaluations per coefficient, not full-vector work or
+an accuracy certificate. Keep the complete original string tuple before native
+conversion and compare its full physical result. This direct API
 glue belongs only in ignored external-reference output. The frozen DOT parser
 rejects nonpositive edge powers; editing DOT edges to zero would not be a valid
 way to access this native constructor. No new graph parser or denominator
@@ -192,9 +201,10 @@ deduplication is needed.
 
 ## Positive-orthant inputs: existing all-sector native route
 
-The next queued attempt is issue 1, after the separate eight-core smoke audit.
-Preparation is source-only as of 2026-10-05: no issue-1 reference process has
-started. The already reviewed launcher now additionally hashes the native card
+The original Issue 1 preparation is retained here as historical source evidence.
+Its bounded initial attempt and separately copied continuations have completed;
+see the [attempt record](remaining-reference-attempts.md) and
+[ordinary sector-sum outcome](issue-one-together-outcome.md). The launcher hashes the native card
 and polynomial alongside the external card/U/F parser and records the explicit
 domain and requested highest order. Its frozen source SHA-256 is
 `7fd3ba1ce6acc8fedede7c8a875e6f2dd110037ac596bedd4c6e09b96c1cdf61`.
@@ -203,9 +213,9 @@ launcher now uses verified existing GCC 15.3.0 and M4 1.4.21 paths, retains GNU
 Make 4.4.1, and records each actual executable path/hash/version. No scientific
 package setting or integration parameter changes.
 
-Use the distinct, currently nonexistent directory
-`output/diagnostics/remaining-pysecdec/issue1-attempt-1` and the existing command
-below only after the coordinator's runtime handoff. The 600-second whole-process,
+The directory `output/diagnostics/remaining-pysecdec/issue1-attempt-1` now contains
+the retained failed initial attempt and must never be reused. Its original command
+below records the historical source route. The prescribed 600-second whole-process,
 30-GiB process-tree memory and 180-second numerical bounds remain unchanged;
 the native disteval request begins at 8192 points and 32 shifts. One allowed CPU,
 one package worker and singleton native thread settings preserve serial symbolic
@@ -262,8 +272,11 @@ all-sector flag must be present in the final raw report. The hard `psd2807` card
 is a single raw sector and cannot reference the full integral or a native sector
 with a coincidentally equal index.
 
-The remaining launchers are prepared but **unexecuted**. From the FastSecDec
-workspace, use the frozen reference environment's interpreter:
+These original launcher commands are retained for traceability; Issue 1 has
+executed and its directory must not be reused. Hard four-loop remains unexecuted.
+The old triple-box draft below is superseded for new execution by
+`run_projected_triple_together.py`. No unexecuted command may launch without the
+coordinator's runtime handoff:
 
 ```sh
 DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python \
@@ -298,7 +311,7 @@ for an independently established coefficient. Native per-kernel logs are retaine
 for actual adaptive counts and coverage; initial 8192 points and 32 shifts are
 not reported as final work.
 
-For projected triple-box routes, `projected_triple_reference.py` calls the
+The original projected triple-box draft, `projected_triple_reference.py`, calls the
 existing DOT/kinematics readers and native constructor described above. It
 records original propagators, ten-entry projected powers, native surviving
 propagators/powers/parameters, exact replacement strings and the native Gamma
@@ -306,9 +319,10 @@ factor before generation. Scalar and numerator runs use explicit distinct native
 QMC seeds 20261201 and 20261202, respectively. The complete `IntegralLibrary`
 tuple is stored without another prefactor convolution or hole-filling parser;
 tuple entry two is recorded as the native physical-result entry, subject to the
-same generated-prefactor audit. `maxeval=65536` remains steering, not a measured
-work count. Python AST parsing checks all three new launchers' syntax; no native
-constructor or external integration has run through them yet.
+same generated-prefactor audit. That draft's `maxeval=65536` was steering, not a
+measured work count. The current ordinary-constituent runner replaces those
+implicit defaults with the explicit allocation above and samples the sector sum
+before estimating uncertainty. Neither triple-box runner has executed.
 
 The existing hard builder decomposes both U and F even though U has regular
 integer power one; this can cost more than native FastSecDec's justified F-only
@@ -336,8 +350,12 @@ do not introduce a second estimator or declare a reference exact. For repeated
 reference refinement, prespecify independent native seeds and retain every run.
 A greater-than-five combined-error discrepancy triggers investigation, not
 favourable reruns or omitted rows. The completed double-box reference is recorded
-above. The subsequent Issue 1 execution and transport pass, but its omitted
-cross-kernel covariance keeps the fixture Unverified; see
+above. The first subsequent Issue 1 execution and transport pass, but its omitted
+cross-kernel covariance keeps that fixture Unverified; see
 [the independent outcome audit](remaining-reference-independent.md).
+The separate `issue_1_together.json` observation has independently checked
+input, ordinary sector-sum uncertainty-path and transport evidence; its highest
+requested order still misses the one-per-mille target. Neither observation
+certifies general error calibration or overwrites the other.
 The other full-vector gates remain pending. No timing in this protocol is a
 matched FastSecDec performance claim.

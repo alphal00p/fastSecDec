@@ -1,0 +1,517 @@
+--- a/src/evaluate.rs
++++ b/src/evaluate.rs
+@@ -36,6 +36,7 @@
+ mod instruction;
+ mod optimize;
+ mod tree;
++mod validation;
+ 
+ #[cfg(feature = "native_code_generation")]
+ pub use backend::*;
+--- a/src/evaluate/evaluator.rs
++++ b/src/evaluate/evaluator.rs
+@@ -144,7 +144,7 @@
+             OptimizationSettings,
+         ) = serde::Deserialize::deserialize(deserializer)?;
+ 
+-        Ok(Self {
++        let evaluator = Self {
+             stack,
+             param_count,
+             reserved_indices,
+@@ -152,7 +152,11 @@
+             result_indices,
+             external_fns,
+             settings,
+-        })
++        };
++        evaluator
++            .validate_structure()
++            .map_err(serde::de::Error::custom)?;
++        Ok(evaluator)
+     }
+ }
+ 
+@@ -179,7 +183,7 @@
+     fn decode<D: bincode::de::Decoder<Context = Context>>(
+         decoder: &mut D,
+     ) -> Result<Self, bincode::error::DecodeError> {
+-        Ok(Self {
++        let evaluator = Self {
+             stack: bincode::Decode::decode(decoder)?,
+             param_count: bincode::Decode::decode(decoder)?,
+             reserved_indices: bincode::Decode::decode(decoder)?,
+@@ -187,7 +191,11 @@
+             result_indices: bincode::Decode::decode(decoder)?,
+             external_fns: bincode::Decode::decode(decoder)?,
+             settings: bincode::Decode::decode(decoder)?,
+-        })
++        };
++        evaluator
++            .validate_structure()
++            .map_err(bincode::error::DecodeError::OtherString)?;
++        Ok(evaluator)
+     }
+ }
+ 
+@@ -198,7 +206,7 @@
+     fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = Context>>(
+         decoder: &mut D,
+     ) -> Result<Self, bincode::error::DecodeError> {
+-        Ok(Self {
++        let evaluator = Self {
+             stack: bincode::BorrowDecode::borrow_decode(decoder)?,
+             param_count: bincode::BorrowDecode::borrow_decode(decoder)?,
+             reserved_indices: bincode::BorrowDecode::borrow_decode(decoder)?,
+@@ -206,7 +214,11 @@
+             result_indices: bincode::BorrowDecode::borrow_decode(decoder)?,
+             external_fns: bincode::BorrowDecode::borrow_decode(decoder)?,
+             settings: bincode::BorrowDecode::borrow_decode(decoder)?,
+-        })
++        };
++        evaluator
++            .validate_structure()
++            .map_err(bincode::error::DecodeError::OtherString)?;
++        Ok(evaluator)
+     }
+ }
+ 
+--- a/src/evaluate/external.rs
++++ b/src/evaluate/external.rs
+@@ -50,7 +50,11 @@
+         let mut external = Self {
+             export_name,
+             symbol,
+-            tags: tags.iter().map(|s| crate::parse!(s)).collect(),
++            tags: tags
++                .iter()
++                .map(|s| crate::try_parse!(s))
++                .collect::<Result<Vec<_>, _>>()
++                .map_err(serde::de::Error::custom)?,
+             fixed_args,
+             imp: None,
+             stack: Vec::new(),
+@@ -101,7 +105,11 @@
+         let mut external = Self {
+             export_name,
+             symbol,
+-            tags: tags.iter().map(|s| crate::parse!(s)).collect(),
++            tags: tags
++                .iter()
++                .map(|s| crate::try_parse!(s))
++                .collect::<Result<Vec<_>, _>>()
++                .map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?,
+             fixed_args,
+             imp: None,
+             stack: Vec::new(),
+@@ -133,7 +141,11 @@
+         let mut external = Self {
+             export_name,
+             symbol,
+-            tags: tags.iter().map(|s| crate::parse!(s)).collect(),
++            tags: tags
++                .iter()
++                .map(|s| crate::try_parse!(s))
++                .collect::<Result<Vec<_>, _>>()
++                .map_err(|e| bincode::error::DecodeError::OtherString(e.to_string()))?,
+             fixed_args,
+             imp: None,
+             stack: Vec::new(),
+--- /dev/null
++++ b/src/evaluate/validation.rs
+@@ -0,0 +1,158 @@
++use super::*;
++
++impl<T> ExpressionEvaluator<T> {
++    /// Check the structural invariants needed for evaluation, conversion and export.
++    ///
++    /// Deserializers call this before exposing an evaluator. This checks indices,
++    /// instruction shapes and acyclic control/call flow; it does not certify the
++    /// mathematical expression, coefficient values or external implementations.
++    pub fn validate_structure(&self) -> Result<(), String> {
++        if self.param_count > self.reserved_indices || self.reserved_indices > self.stack.len() {
++            return Err("Invalid evaluator stack partition".into());
++        }
++        for (index, external) in self.external_fns.iter().enumerate() {
++            if let Some(constant) = external.constant_index {
++                if constant >= self.reserved_indices - self.param_count || external.body.is_some() {
++                    return Err(format!("Invalid external constant binding {index}"));
++                }
++            }
++            if let Some(body) = &external.body {
++                if body.param_count > body.stack_size
++                    || (!external.stack.is_empty() && external.stack.len() < body.stack_size)
++                {
++                    return Err(format!("Invalid function stack {index}"));
++                }
++                validate_program(
++                    &body.instructions,
++                    body.param_count,
++                    body.stack_size,
++                    std::slice::from_ref(&body.result_index),
++                    &self.external_fns[..index],
++                )
++                .map_err(|e| format!("Function {index}: {e}"))?;
++            }
++        }
++        validate_program(
++            &self.instructions,
++            self.reserved_indices,
++            self.stack.len(),
++            &self.result_indices,
++            &self.external_fns,
++        )
++    }
++}
++
++fn validate_program<T>(
++    instructions: &[(Instr, ComplexPhase)],
++    reserved: usize,
++    stack_size: usize,
++    results: &[usize],
++    callees: &[ExternalFunctionContainer<T>],
++) -> Result<(), String> {
++    let input = |slot: usize| {
++        if slot < stack_size {
++            Ok(())
++        } else {
++            Err(format!("Invalid stack index {slot}"))
++        }
++    };
++    let output = |slot: usize| {
++        if slot >= reserved && slot < stack_size {
++            Ok(())
++        } else {
++            Err(format!("Invalid output stack index {slot}"))
++        }
++    };
++    for &slot in results {
++        input(slot)?;
++    }
++    for (position, (instruction, phase)) in instructions.iter().enumerate() {
++        let branch = |target: usize| {
++            if target > position
++                && matches!(instructions.get(target), Some((Instr::Label(Label(label)), _)) if *label == target)
++            {
++                Ok(())
++            } else {
++                Err(format!("Invalid forward branch at instruction {position}"))
++            }
++        };
++        match instruction {
++            Instr::Add(dst, args) | Instr::Mul(dst, args) => {
++                output(*dst)?;
++                if args.is_empty() {
++                    return Err(format!("Empty operands at instruction {position}"));
++                }
++                if let ComplexPhase::PartialReal(n) = phase
++                    && *n > args.len()
++                {
++                    return Err(format!("Invalid complex phase at instruction {position}"));
++                }
++                for &arg in args {
++                    input(arg)?;
++                }
++            }
++            Instr::Pow(dst, base, _) => {
++                output(*dst)?;
++                input(*base)?;
++            }
++            Instr::Powf(dst, base, exponent) => {
++                output(*dst)?;
++                input(*base)?;
++                input(*exponent)?;
++            }
++            Instr::BuiltinFun(dst, symbol, arg) => {
++                output(*dst)?;
++                input(*arg)?;
++                if !matches!(
++                    symbol.get_id(),
++                    Symbol::EXP_ID
++                        | Symbol::LOG_ID
++                        | Symbol::SIN_ID
++                        | Symbol::COS_ID
++                        | Symbol::SQRT_ID
++                        | Symbol::ABS_ID
++                        | Symbol::CONJ_ID
++                ) {
++                    return Err(format!("Unsupported builtin at instruction {position}"));
++                }
++            }
++            Instr::ExternalFun(dst, function, args) => {
++                output(*dst)?;
++                let callee = callees
++                    .get(*function)
++                    .ok_or_else(|| format!("Invalid function index at instruction {position}"))?;
++                if callee.constant_index.is_some()
++                    || callee
++                        .body
++                        .as_ref()
++                        .is_some_and(|body| body.param_count != args.len())
++                {
++                    return Err(format!("Invalid function call at instruction {position}"));
++                }
++                for &arg in args {
++                    input(arg)?;
++                }
++            }
++            Instr::IfElse(condition, target) => {
++                input(*condition)?;
++                branch(target.0)?;
++            }
++            Instr::Goto(target) => branch(target.0)?,
++            Instr::Label(label) => {
++                if label.0 != position {
++                    return Err(format!("Invalid label at instruction {position}"));
++                }
++            }
++            Instr::Join(dst, condition, yes, no) => {
++                output(*dst)?;
++                input(*condition)?;
++                input(*yes)?;
++                input(*no)?;
++            }
++        }
++    }
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests;
+--- /dev/null
++++ b/src/evaluate/validation/tests.rs
+@@ -0,0 +1,234 @@
++use super::*;
++
++fn simple() -> ExpressionEvaluator<f64> {
++    ExpressionEvaluator {
++        stack: vec![0., 0., 0.],
++        param_count: 1,
++        reserved_indices: 1,
++        instructions: vec![(Instr::Add(1, vec![0, 0]), ComplexPhase::Any)],
++        result_indices: vec![1],
++        external_fns: vec![],
++        settings: OptimizationSettings::default(),
++    }
++}
++
++fn reject(evaluator: ExpressionEvaluator<f64>) {
++    assert!(evaluator.validate_structure().is_err());
++    // Serializing malformed test data is safe. Never evaluate or export it.
++    #[cfg(feature = "bincode")]
++    {
++        let bytes = bincode::encode_to_vec(&evaluator, bincode::config::standard()).unwrap();
++        assert!(
++            bincode::decode_from_slice::<ExpressionEvaluator<f64>, _>(
++                &bytes,
++                bincode::config::standard(),
++            )
++            .is_err()
++        );
++        assert!(
++            bincode::borrow_decode_from_slice::<ExpressionEvaluator<f64>, _>(
++                &bytes,
++                bincode::config::standard(),
++            )
++            .is_err()
++        );
++    }
++}
++
++#[test]
++fn malformed_root_layout_and_instructions_are_rejected_before_evaluation() {
++    let mut evaluator = simple();
++    evaluator.param_count = 2;
++    reject(evaluator);
++    let mut evaluator = simple();
++    evaluator.reserved_indices = 4;
++    reject(evaluator);
++    let mut evaluator = simple();
++    evaluator.result_indices = vec![3];
++    reject(evaluator);
++    let invalid = [
++        Instr::Add(1, vec![]),
++        Instr::Mul(1, vec![]),
++        Instr::Add(3, vec![0]),
++        Instr::Mul(1, vec![3]),
++        Instr::Add(0, vec![0]),
++        Instr::Pow(3, 0, 2),
++        Instr::Pow(1, 3, 2),
++        Instr::Powf(1, 0, 3),
++        Instr::Powf(0, 1, 1),
++        Instr::BuiltinFun(1, Symbol::EXP, 3),
++        Instr::BuiltinFun(1, crate::symbol!("invalid_ir::unknown"), 0),
++        Instr::ExternalFun(1, 0, vec![0]),
++        Instr::IfElse(3, Label(2)),
++        Instr::IfElse(0, Label(99)),
++        Instr::Goto(Label(99)),
++        Instr::Goto(Label(0)),
++        Instr::Label(Label(1)),
++        Instr::Join(1, 3, 0, 0),
++        Instr::Join(1, 0, 3, 0),
++        Instr::Join(1, 0, 0, 3),
++        Instr::Join(3, 0, 0, 0),
++    ];
++    for instruction in invalid {
++        let mut evaluator = simple();
++        evaluator.instructions[0].0 = instruction;
++        reject(evaluator);
++    }
++    let mut evaluator = simple();
++    evaluator.instructions[0].1 = ComplexPhase::PartialReal(3);
++    reject(evaluator);
++    let mut evaluator = simple();
++    evaluator.instructions = vec![
++        (Instr::Goto(Label(1)), ComplexPhase::Any),
++        (Instr::Add(1, vec![0]), ComplexPhase::Any),
++    ];
++    reject(evaluator); // In-range branch targets must actually be labels.
++}
++
++fn with_body() -> ExpressionEvaluator<f64> {
++    let mut evaluator = simple();
++    evaluator
++        .external_fns
++        .push(ExternalFunctionContainer::with_body(
++            crate::symbol!("invalid_ir::body"),
++            vec![],
++            Arc::new(evaluator::FunctionBody {
++                param_count: 1,
++                stack_size: 2,
++                result_index: 1,
++                instructions: vec![(Instr::Pow(1, 0, 2), ComplexPhase::Any)],
++            }),
++        ));
++    evaluator.instructions[0].0 = Instr::ExternalFun(1, 0, vec![0]);
++    evaluator
++}
++
++#[test]
++fn malformed_function_bodies_calls_and_constant_bindings_are_rejected() {
++    for mutation in 0..7 {
++        let mut evaluator = with_body();
++        let body = Arc::make_mut(evaluator.external_fns[0].body.as_mut().unwrap());
++        match mutation {
++            0 => body.param_count = 3,
++            1 => body.result_index = 2,
++            2 => body.instructions[0].0 = Instr::Mul(1, vec![]),
++            3 => body.instructions[0].0 = Instr::ExternalFun(1, 0, vec![0]),
++            4 => body.instructions[0].0 = Instr::ExternalFun(1, 1, vec![0]),
++            5 => body.instructions[0].0 = Instr::Pow(1, 99, 2),
++            6 => body.instructions[0].0 = Instr::Pow(0, 0, 2),
++            _ => unreachable!(),
++        }
++        reject(evaluator);
++    }
++    let mut evaluator = with_body();
++    evaluator.instructions[0].0 = Instr::ExternalFun(1, 0, vec![]);
++    reject(evaluator);
++    let mut evaluator = with_body();
++    evaluator.external_fns[0].stack = vec![0.];
++    // Transient worker stacks are deliberately not serialized.
++    assert!(evaluator.validate_structure().is_err());
++    let mut evaluator = with_body();
++    evaluator.external_fns[0].constant_index = Some(0);
++    reject(evaluator);
++    let mut evaluator = simple();
++    evaluator.external_fns.push(ExternalFunctionContainer::new(
++        crate::symbol!("invalid_ir::constant"),
++        vec![],
++        vec![],
++    ));
++    evaluator.external_fns[0].constant_index = Some(0);
++    reject(evaluator); // No root constant slots exist.
++}
++
++#[test]
++fn native_branch_nested_zero_argument_and_evaluated_stacks_roundtrip() {
++    let expressions = [
++        crate::parse!("if(x,ir_valid::outer(x),ir_valid::zero())"),
++        crate::parse!("x+3"),
++    ];
++    let parameters = [crate::parse!("x"), crate::parse!("q")];
++    let exact = Atom::evaluator_multiple(&expressions, &parameters)
++        .add_function_with_options(
++            crate::symbol!("ir_valid::inner"),
++            vec![crate::symbol!("z")],
++            crate::parse!("z^2"),
++            FunctionRegistrationOptions::new().inlining(InliningPolicy::Never),
++        )
++        .unwrap()
++        .add_function_with_options(
++            crate::symbol!("ir_valid::outer"),
++            vec![crate::symbol!("z")],
++            crate::parse!("ir_valid::inner(z)+q"),
++            FunctionRegistrationOptions::new().inlining(InliningPolicy::Never),
++        )
++        .unwrap()
++        .add_function_with_options(
++            crate::symbol!("ir_valid::zero"),
++            Vec::<Symbol>::new(),
++            crate::parse!("q+1"),
++            FunctionRegistrationOptions::new().inlining(InliningPolicy::Never),
++        )
++        .unwrap()
++        .build()
++        .unwrap();
++    exact.validate_structure().unwrap();
++    let mut evaluator = exact.map_coeff(&|c| c.re.to_f64());
++    let mut values = [0.; 2];
++    evaluator.evaluate(&[2., 7.], &mut values);
++    assert_eq!(values, [11., 5.]);
++    evaluator.validate_structure().unwrap(); // Populated native body stacks.
++    evaluator.evaluate(&[0., 7.], &mut values);
++    assert_eq!(values, [8., 3.]);
++    #[cfg(feature = "bincode")]
++    {
++        let bytes = bincode::encode_to_vec(&evaluator, bincode::config::standard()).unwrap();
++        let (mut decoded, used): (ExpressionEvaluator<f64>, _) =
++            bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
++        assert_eq!(used, bytes.len());
++        decoded.validate_structure().unwrap();
++        decoded.evaluate(&[2., 7.], &mut values);
++        assert_eq!(values, [11., 5.]);
++    }
++    let empty = ExpressionEvaluator::<f64> {
++        stack: vec![],
++        param_count: 0,
++        reserved_indices: 0,
++        instructions: vec![],
++        result_indices: vec![],
++        external_fns: vec![],
++        settings: OptimizationSettings::default(),
++    };
++    empty.validate_structure().unwrap();
++}
++
++#[test]
++#[cfg(feature = "bincode")]
++fn malformed_external_tag_is_a_decode_error() {
++    let symbol = crate::symbol!("invalid_ir::tagged");
++    let bytes = bincode::encode_to_vec(
++        (
++            "tagged",
++            symbol,
++            vec!["("],
++            Vec::<Complex<Rational>>::new(),
++            None::<usize>,
++            None::<evaluator::FunctionBody>,
++        ),
++        bincode::config::standard(),
++    )
++    .unwrap();
++    assert!(
++        bincode::decode_from_slice::<ExternalFunctionContainer<f64>, _>(
++            &bytes,
++            bincode::config::standard(),
++        )
++        .is_err()
++    );
++    assert!(
++        bincode::borrow_decode_from_slice::<ExternalFunctionContainer<f64>, _>(
++            &bytes,
++            bincode::config::standard(),
++        )
++        .is_err()
++    );
++}

@@ -215,7 +215,7 @@ fn resign(mut text: String, version: u32) -> Vec<u8> {
 }
 
 #[test]
-fn legacy_identity_is_preserved_and_resigned_semantic_tampering_is_rejected() {
+fn resigned_semantic_tampering_is_rejected() {
     let value = generated(
         ParametricDomain::UnitCube,
         parse!("1+metadata::x"),
@@ -225,6 +225,9 @@ fn legacy_identity_is_preserved_and_resigned_semantic_tampering_is_rejected() {
     );
     let bytes = value.to_kernel_bytes(PrecisionPolicy::default()).unwrap();
     let text = String::from_utf8(bytes).unwrap();
+    let version = serde_json::from_str::<serde_json::Value>(&text).unwrap()["payload"]["version"]
+        .as_u64()
+        .unwrap() as u32;
     for (before, after) in [
         ("\"representative\":0", "\"representative\":999"),
         (
@@ -238,23 +241,10 @@ fn legacy_identity_is_preserved_and_resigned_semantic_tampering_is_rejected() {
     ] {
         assert!(text.contains(before), "missing test mutation {before}");
         assert!(
-            KernelSet::from_bytes(&resign(text.replacen(before, after, 1), 2)).is_err(),
+            KernelSet::from_bytes(&resign(text.replacen(before, after, 1), version)).is_err(),
             "accepted {after}"
         );
     }
-    // Construct a version-one fixture in its original field order; loading and
-    // re-emitting it must not invent a certificate or change its original hash.
-    let marker = text.find(",\"metadata\":").unwrap();
-    let legacy = format!("{}}}}}", &text[..marker]).replacen("\"version\":2", "\"version\":1", 1);
-    let legacy = resign(legacy, 1);
-    let mut restored = KernelSet::from_bytes(&legacy).unwrap();
-    assert!(restored.generation_metadata().is_none());
-    assert_eq!(restored.to_bytes().unwrap(), legacy);
-    let mut output = [0.0];
-    restored.sectors_mut()[0]
-        .evaluate(&[0.5], &mut output)
-        .unwrap();
-    assert!((output[0] - 2.0 / 3.0).abs() < 1e-14);
 }
 
 #[test]

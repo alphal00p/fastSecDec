@@ -1,16 +1,27 @@
 use super::GenerationError;
 use std::collections::BTreeMap;
 use symbolica::{
-    atom::{Atom, AtomCore, AtomView, Symbol},
+    atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol},
+    poly::series::SeriesDepth,
     symbol,
 };
 
 #[cfg(test)]
 pub(super) mod profiling;
+#[cfg(test)]
+mod tests;
 
 #[derive(Default)]
 pub(super) struct TemplateCache {
     coefficients: BTreeMap<(Atom, i32), BTreeMap<i32, Atom>>,
+}
+
+#[cfg(test)]
+impl TemplateCache {
+    pub(super) fn only_template(&self) -> &Atom {
+        assert_eq!(self.coefficients.len(), 1);
+        &self.coefficients.first_key_value().unwrap().0.0
+    }
 }
 
 pub(super) fn expand(
@@ -19,7 +30,7 @@ pub(super) fn expand(
     regulator: Symbol,
     max_order: i32,
     cache: &mut TemplateCache,
-) -> Result<BTreeMap<i32, Atom>, GenerationError> {
+) -> Result<BTreeMap<i32, AliasedAtom>, GenerationError> {
     #[cfg(test)]
     if profiling::skip_current() {
         return Ok(BTreeMap::new());
@@ -32,7 +43,9 @@ pub(super) fn expand(
     // including extra orders required by endpoint and Gamma prefactor poles.
     let epsilon = Atom::var(regulator);
     let coordinates = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
-    let source_symbols = expression.get_all_symbols(true);
+    let mut source_symbols = expression.get_all_symbols(true);
+    source_symbols.extend(parameters.iter().copied());
+    source_symbols.insert(regulator);
     let mut atoms = BTreeMap::<Atom, Symbol>::new();
     let mut images = BTreeMap::<Symbol, Atom>::new();
     let mut next = 0usize;
@@ -75,22 +88,24 @@ pub(super) fn expand(
     }
     let mut coefficients = BTreeMap::new();
     for (order, coefficient) in &cache.coefficients[&key] {
-        let restored = coefficient.replace_map(|term, _, out| {
-            if let AtomView::Var(variable) = term
-                && let Some(value) = images.get(&variable.get_symbol())
-            {
-                **out = value.clone();
-            }
-        });
-        let restored = if restored.as_view().get_byte_size() <= 256
-            && restored.is_polynomial(true, false).is_none()
-        {
-            restored.together()
-        } else {
-            restored
-        };
-        if !restored.is_zero() {
-            coefficients.insert(*order, restored);
+        let mut aliased = AliasedAtom::from(coefficient.clone());
+        for (symbol, body) in &images {
+            aliased.register_alias(Atom::var(*symbol), body.clone());
+        }
+        // Retain the existing small-expression simplification without restoring
+        // a potentially enormous coefficient. The native byte count includes
+        // definitions, so the bound is conservative even with unused images.
+        if aliased.get_byte_size() <= 256 {
+            let restored = aliased.clone().into_inner();
+            let restored = if restored.is_polynomial(true, false).is_none() {
+                restored.together()
+            } else {
+                restored
+            };
+            aliased = aliased.map_root(|_| restored);
+        }
+        if !aliased.get_root().is_zero() {
+            coefficients.insert(*order, aliased);
         }
     }
     Ok(coefficients)
@@ -101,9 +116,26 @@ fn expand_template(
     regulator: Symbol,
     max_order: i32,
 ) -> Result<BTreeMap<i32, Atom>, GenerationError> {
-    let series = expression
-        .series(regulator, 0, i64::from(max_order))
+    if expression.is_zero() {
+        return Ok(BTreeMap::new());
+    }
+    let first = expression
+        .series(regulator, 0, SeriesDepth::relative(1))
         .map_err(|error| GenerationError::Series(error.to_string()))?;
+    let series = if first.absolute_order() > max_order {
+        first
+    } else {
+        let depth = symbolica::domains::rational::Rational::from(i64::from(max_order) + 1)
+            - first.get_trailing_exponent();
+        expression
+            .series(regulator, 0, SeriesDepth::relative(depth))
+            .map_err(|error| GenerationError::Series(error.to_string()))?
+    };
+    if series.absolute_order() <= max_order {
+        return Err(GenerationError::Series(
+            "native series does not cover the requested absolute order".into(),
+        ));
+    }
     let mut coefficients = BTreeMap::new();
     for (order, coefficient) in series.terms() {
         if coefficient.is_zero() {

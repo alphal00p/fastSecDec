@@ -35,9 +35,14 @@ fn native_relative_depth_covers_high_poles_cancellation_and_negative_orders() {
         (parse!("laurent_replay_control::eps^3"), -2),
         (Atom::Zero, 0),
     ] {
-        let expected = super::super::expand_template(&expression, epsilon, maximum).unwrap();
-        let (actual, _) = replay::relative(&expression, epsilon, maximum);
-        assert_eq!(expected, replay::coefficients(&actual, maximum).unwrap());
+        let actual = super::super::expand_template(&expression, epsilon, maximum).unwrap();
+        let absolute = expression.series(epsilon, 0, i64::from(maximum)).unwrap();
+        if expression.is_zero() {
+            assert!(absolute.is_zero());
+            assert!(actual.is_empty());
+        } else {
+            assert_eq!(actual, replay::coefficients(&absolute, maximum).unwrap());
+        }
     }
 }
 
