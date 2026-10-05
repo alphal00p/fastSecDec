@@ -255,3 +255,117 @@ independent correctness check. The existing fixture transport target passes
 both active tests, including complete order/uncertainty/projection preservation
 and current native input hashes; its two expensive-data recorder tests remain
 ignored.
+
+## Issue 1, first full-orthant reference attempt
+
+The separately approved first attempt is retained under
+`output/diagnostics/remaining-pysecdec/issue1-attempt-1`. It hit the unchanged
+600-second whole-process bound during native package compilation and exited
+124 after 601.342390 seconds. The watchdog sent SIGINT at 600.5 seconds and
+reported the entire owned process tree exited; the launcher session was reaped.
+There is no numerical result or reference estimate. No deadline was extended.
+
+The generated metadata confirms seven integration variables, requested highest
+order +2, actual orders `[0,1,2]`, unit prefactor and 616 sectors per order
+(1,848 coefficient kernels). Native and reference F strings agree exactly after
+removing whitespace, with SHA-256
+`7ee830824a77c1c7b3b78b988fd1b16dfa9f4295a281c59c582b9651af360365`.
+The whole positive orthant and all-sector scope remain unchanged. This is not
+the projective graph measure, and no extra Gamma factor is attached.
+
+At interruption the package retained 305 completed FORM sector stamps and 914
+coefficient objects. The active native make target was `sector_373_2.o`; sector
+ordering is lexical, so that name is not a count of completed sectors. There
+was no reported compiler/scientific error before the watchdog. Sampled
+process-tree peak RSS was 0.224 GiB. The package occupies approximately 42.2 MB;
+its partial files and all logs remain intact for a separately reviewed copied
+continuation. These costs are diagnostic, not matched cold-generation timing.
+
+The preparation records actual GCC 15.3.0, GNU Make 4.4.1 and M4 1.4.21
+executable paths/hashes, installed native helper identities, one allowed CPU,
+one package worker and unchanged 30-GiB/180-second numerical limits. All recorded
+source hashes rechecked unchanged after completion. The preparation and completion
+SHA-256 values are respectively
+`7cb6e0b9e9db2c13e6f3fd7748210a33c9c54fbe2a575d45e153ce61fdedd566` and
+`5665fb2ec81291c53bd62046f4533b2233bf774214f8207b515bd2bd1a839819`.
+The pending continuation proposal is in
+`issue-one-reference-continuation-plan.md`; a preserved partial package does not
+itself close the independent full-vector reference gate.
+
+## Issue 1, completed copied-package continuation
+
+The separately authorized second attempt completed under its unchanged
+600/180/800-second compile/numerical/outer bounds. Native `make -j8 disteval`
+used eight distinct physical CPUs with `FORMTHREADS=1` and `FORMOPT=2`; the
+numerical stage used one existing native CPU worker on CPU0. Compile, numerical
+subprocess and outer durations were respectively **81.301481**, **51.586893**
+and **133.994916 seconds**, with every exit zero. The native numerical driver
+reported 50.018125 seconds of integration. These are copied-package diagnostic
+costs with disclosed concurrent native correctness work, not cold generation or
+parallel speedup measurements.
+
+All 6,752 original package files (42,329,285 bytes) were verified before copying
+and remained unchanged afterward, as did the guarded launcher/tool sources.
+The fail-closed guard prohibits Symbolica imports without replacing modules;
+the continuation uses only native FORM/export, C++ make and disteval. Generated
+metadata and source preserve the whole seven-dimensional positive orthant,
+`F^(eps-2)`, unit constituent prefactor and sum coefficient one. No projective
+measure or extra Gamma factor was introduced.
+
+The complete physical `sums` result is:
+
+| Epsilon order | Value | Native standard error |
+| --- | ---: | ---: |
+| 0 | 10.353244236120734 | 0.0009814070449116756 |
+| 1 | 99.57228105084454 | 0.011963742555179839 |
+| 2 | 760.7522873022788 | 0.09586600861575804 |
+
+The physical sum is retained directly; constituent rows differ slightly by
+floating-point rounding and are not recombined. All returned imaginary values
+and errors are zero. The exact native JSON block is preserved in
+`issue1-attempt-2/native-result.json` alongside the unchanged watchdog-wrapped
+`numerical.stdout.log`; their SHA-256 hashes are respectively
+`19895e90247a1d9902947778fc602590dcdca597509cc8ac7b9fd8c6af8f8ead` and
+`ba09df6d5d0ea085ec15881d7b40b8949612b11f74695381be454d4ef06787cd`.
+
+Independent outcome review verifies one complete schedule of 1,848 coefficient
+kernels, each with 32 shifts and an actual lattice size of 8,311, with every
+kernel updated once and no retry or timeout. This establishes **491,479,296
+integration kernel-point evaluations**, excluding presampling and calibration.
+The native `kern_di` timing statistic is heuristic and is not used as an exact
+work count. The native implementation initializes each kernel's shift generator
+with `numpy.random.RandomState(0)`; this is retained as actual source evidence,
+not a user-supplied seed. External joint covariance is unavailable and is not
+reconstructed from marginal errors. The result is independent correctness
+evidence; convergence, error calibration and matched performance remain
+separate questions.
+
+The covariance limitation is concrete: the installed disteval code shares the
+same seed-zero shifts between these equal-dimensional kernels, but computes the
+amplitude variance as a sum of weighted marginal variances without cross-kernel
+covariance. Therefore `examples/references/issue_1.json` deliberately remains
+typed **Unverified**, even though the independent source, normalization,
+immutable-copy and transport audits passed. These checks are recorded in its
+provenance. The existing reference API returns diagnostic pulls but keeps
+`eligibility=false` with `UnverifiedReference`; a textual caveat does not replace
+that guard.
+
+The pure-data Rust writer `output/probes/record_issue_one_reference.rs` loads
+the existing saved full-scope result through `results::read_result`, preserves
+all nine native covariance entries, and calls `reference::compare` for the
+complete `[0,1,2]` vector. Diagnostic pulls are
+`[0.7846417217, 0.5791879738, 0.8697455109]`. No negative-order padding, new
+sampling or alternate variance calculation is introduced. The physical fixture
+SHA-256 is
+`ab74294add79facfb73ef0242c05759827993b1a3f761bed83f1b1f22ce625c3`.
+The historical target and run card remain unchanged. Writer build/source hashes,
+the unchanged native estimate, and comparisons are retained in
+`output/reference-fixtures/issue-one-native-reference`.
+
+Independent fixture review confirms exact source means/errors, real projection,
+the final audit record, the preserved native covariance and the ineligible
+comparison. The focused pure-data fixture target passed **3 tests**, with the
+two expensive-data recorder/comparison tests still ignored. Its new regression
+checks all three physical values/errors, full-orthant normalization, original
+input hashes, the scalar coefficient-kernel work unit, and typed ineligibility.
+Evidence is `output/issue-one-reference-transport-tests.log`.

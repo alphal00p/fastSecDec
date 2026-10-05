@@ -335,5 +335,9 @@ comparison, with explicit independence evidence and retained native covariance;
 do not introduce a second estimator or declare a reference exact. For repeated
 reference refinement, prespecify independent native seeds and retain every run.
 A greater-than-five combined-error discrepancy triggers investigation, not
-favourable reruns or omitted rows. No reference result is currently produced by
-this protocol, and no timing in it is a matched FastSecDec performance claim.
+favourable reruns or omitted rows. The completed double-box reference is recorded
+above. The subsequent Issue 1 execution and transport pass, but its omitted
+cross-kernel covariance keeps the fixture Unverified; see
+[the independent outcome audit](remaining-reference-independent.md).
+The other full-vector gates remain pending. No timing in this protocol is a
+matched FastSecDec performance claim.

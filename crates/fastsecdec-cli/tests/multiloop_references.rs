@@ -122,6 +122,116 @@ fn double_box_reference_preserves_the_complete_audited_laurent_vector() {
 }
 
 #[test]
+fn issue_one_reference_preserves_full_orthant_data_without_certifying_omitted_covariance() {
+    let reference =
+        read_reference(&fs::read(repository().join("examples/references/issue_1.json")).unwrap())
+            .unwrap();
+    // The provider shares shifts between kernels but omits their covariance.
+    // Source/normalization/transport review must not make this statistically eligible.
+    assert_eq!(reference.validation, ReferenceValidation::Unverified);
+    assert_eq!(
+        reference
+            .coefficients
+            .iter()
+            .map(|c| c.key.order)
+            .collect::<Vec<_>>(),
+        vec![0, 1, 2]
+    );
+    let means = [10.353244236120734, 99.57228105084454, 760.7522873022788];
+    let errors = [
+        0.0009814070449116756,
+        0.011963742555179839,
+        0.09586600861575804,
+    ];
+    for (i, coefficient) in reference.coefficients.iter().enumerate() {
+        assert_eq!(coefficient.key.component, CoefficientComponent::Real);
+        assert_eq!(coefficient.value, means[i]);
+        assert_eq!(
+            coefficient.uncertainty,
+            ReferenceUncertainty::StandardError(errors[i])
+        );
+    }
+    let attributes = &reference.provenance.attributes;
+    assert_eq!(attributes["reference_domain"], "positive_orthant");
+    assert_eq!(attributes["dimension"], 7);
+    assert_eq!(attributes["density"], "F^(eps-2)");
+    assert_eq!(attributes["prefactor"], "1");
+    assert_eq!(attributes["sum_coefficient"], "1");
+    assert!(attributes["sector_filter"].is_null());
+    assert_eq!(
+        attributes["external_imaginary_values"],
+        json!([0.0, 0.0, 0.0])
+    );
+    assert_eq!(
+        attributes["external_imaginary_standard_errors"],
+        json!([0.0, 0.0, 0.0])
+    );
+    assert!(attributes["external_covariance"].is_null());
+    assert_eq!(attributes["actual_evaluations"], 491_479_296_u64);
+    assert_eq!(attributes["actual_lattice_size"], 8311);
+    assert_eq!(attributes["shifts"], 32);
+    assert_eq!(attributes["coefficient_kernels"], 1848);
+    assert!(
+        attributes["actual_evaluation_unit"]
+            .as_str()
+            .unwrap()
+            .contains("scalar coefficient-kernel")
+    );
+    assert!(
+        attributes["external_variance_policy"]
+            .as_str()
+            .unwrap()
+            .contains("calibration unverified")
+    );
+    for source in attributes["native_sources"].as_array().unwrap() {
+        assert_eq!(
+            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
+                .to_hex()
+                .as_str(),
+            source["blake3"].as_str().unwrap()
+        );
+    }
+    // Exercise the public eligibility boundary with an explicitly independent
+    // comparison; unverified provider covariance must remain visible to callers.
+    let estimate = VectorEstimate {
+        orders: vec![0, 1, 2],
+        components: vec![CoefficientComponent::Real; 3],
+        mean: means.to_vec(),
+        standard_error: vec![1.0; 3],
+        covariance_of_mean: vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        production_complete: true,
+    };
+    let context = fastsecdec::reference::ComparisonContext {
+        kernel_content_id: "fixture-transport-control".into(),
+        normalization: fastsecdec::reference::Compatibility::Confirmed {
+            basis: "test control".into(),
+        },
+        kinematics: fastsecdec::reference::Compatibility::Confirmed {
+            basis: "test control".into(),
+        },
+        independence: fastsecdec::reference::Independence::Independent {
+            basis: "test control".into(),
+        },
+    };
+    let comparison = compare(&estimate, &reference, &context).unwrap();
+    assert!(!comparison.eligibility.eligible);
+    assert_eq!(
+        comparison.eligibility.reasons,
+        vec![fastsecdec::reference::IneligibilityReason::UnverifiedReference]
+    );
+    assert!(
+        comparison
+            .rows
+            .iter()
+            .all(|row| matches!(row.pull, Pull::Value(0.0)))
+    );
+    assert_eq!(
+        read_reference(&encode_reference(&reference).unwrap()).unwrap(),
+        reference
+    );
+}
+
+#[test]
 #[ignore = "requires the audited frozen inputs and six ignored external reports; records candidates under output/reference-fixtures only"]
 fn record_six_external_reference_candidates() {
     let repository = repository();

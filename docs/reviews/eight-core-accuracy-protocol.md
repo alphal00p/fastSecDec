@@ -5,8 +5,9 @@ all four labelled smoke processes completed. Both native rows passed; both
 reference eight-worker processes aborted under the installed Symbolica instance
 limit. The paired stage is not accepted and no paired timing campaign has run.
 See [retained smoke outcomes](eight-core-smoke-results.md). The separately
-approved native-only seven-seed continuation excludes the smoke seed and must
-not be presented as a paired comparison. This is a baseline measurement, not
+approved [native-only seven-seed continuation](eight-core-native-results.md)
+completed all fourteen rows, excludes the smoke seed and must not be presented
+as a paired comparison. This is a baseline measurement, not
 a lattice/default optimization.
 The user's latest correction is authoritative: the target is the **largest
 signed requested epsilon order**, usually the finite coefficient, rather than
@@ -240,6 +241,6 @@ separate reviewed task within the authorized implementation.
 Root has approved the fixed ladder, precision/coverage criteria and watchdog
 budget. The runner and actual smoke evidence have independent review; the
 reference startup failure prevents paired acceptance. Native-only continuation
-has separate source review and explicit qualification. The result note retains
-the observed smoke values and boundaries; this protocol supplies no missing
-reference measurement or unexecuted seven-seed result.
+has separate source and outcome review with explicit qualification. Its result
+note retains the observed seven-seed values and boundaries; this protocol
+supplies no missing reference measurement or individual-sample latency maximum.

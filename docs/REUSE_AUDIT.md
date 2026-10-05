@@ -566,3 +566,28 @@ candidate for source review, not a measured improvement. A separate
 existing custom `AtomField` normalization and native alias facilities, with
 explicit cancellation and peak-memory limitations. No replacement CAS or
 dependency feature patch was added.
+
+The subsequent [native template/alias audit](reviews/native-template-alias-independent.md)
+passes nine small controls, all six representative coefficients at three
+independent exact points, cold native-IR reload, and fresh native Laurent
+generation. `EvaluatorBuilder::add_aliases` registers the existing 201 images
+once and lowers them into native common-subexpression instructions; there is no
+replacement symbolic registry, derivative callback, series arithmetic or
+process-global cache. Native relative-series remainder bounds govern extraction.
+The 42.539-second fresh Laurent substage and separate 0.123-second cached builder
+do not establish full-graph performance. Native high precision supplies the
+accepted numerical agreement; ordinary precision is unstable at all three
+points. Production metadata, persistence, lifetime and adaptive precision rescue
+are the next independent integration gates.
+
+The [Issue 1 reference audit](reviews/remaining-reference-independent.md)
+uses the existing versioned reference encoder and comparison API, preserving
+the complete physical vector, provider errors and original native covariance.
+Its external disteval implementation shares shifts between kernels but sums
+marginal variances without their covariance. The fixture therefore remains
+`ReferenceValidation::Unverified`, and a regression verifies comparison
+ineligibility despite complete source/normalization/transport checks. No new
+uncertainty schema or estimator is needed. The existing provider's ordinary
+constituent `IntegralLibrary` with `together=True` sums sector integrands before
+native integration and is being prepared as the supported alternative. Other
+fixtures from disteval are under review for the same limitation.

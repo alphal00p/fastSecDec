@@ -63,12 +63,32 @@ remain unverified; production behavior is unchanged. The actual callback trial r
 preparation to 6.617 seconds but still reaches its combined 180-second limit in
 native series, without a coefficient vector. It did not apply the existing late
 epsilon-template substitution, so its result does not isolate a callback cost.
-The next proposal reuses that substitution and native evaluator aliases.
+The subsequent native template/alias proof passes: the fresh original Laurent
+substage takes 42.539 process seconds (38.389 seconds in native series), peaks
+at 547,900 KiB, and reproduces all six saved template coefficients exactly.
+The separately measured cached alias builder takes 0.123 seconds and produces
+1.52 MB of exact native evaluator IR without restoring huge coefficient Atoms.
+All six outputs agree with the independent point-first oracle at all three
+points under native high precision. Ordinary floating-point evaluation is
+unstable at all three; production precision-rescue integration is still needed.
+This is substage evidence, not full-graph generation or a production switch.
+See the [independent alias review](native-template-alias-independent.md).
 The independent point-first
 oracle now supplies all six coefficients at all three prescribed exact
 points, including two near-boundary points; native 512-/1024-bit agreement and
 an exact absolute-/relative-series control pass. This is representative-level
 evidence, not an integral-level convergence result.
+
+Issue 1 now has an independently audited full positive-orthant reference for
+orders `[0,1,2]`. Its source, normalization and transport pass, and the existing
+native comparison gives diagnostic pulls below 0.87 against the retained native
+vector. The external provider shares shifts between kernels but omits their
+covariance when combining reported errors. Consequently the fixture remains
+typed **Unverified** and comparison-ineligible; its means and reported errors
+are preserved. Three focused transport tests pass, with two recording/scientific
+tests ignored. Existing references from the same provider are being reviewed
+for this limitation. The source-only alternative reuses the provider's existing
+sector-sum integration API; it introduces no statistical estimator.
 
 ## Generation and fixed-work measurements, alongside Pathfinder
 
@@ -123,7 +143,7 @@ cores. The smoke seed is excluded. All fourteen rows reach the target by the **f
 unmeasured. The criterion is the reported standard error divided by the absolute
 finite coefficient, not a certified true-error bound.
 
-| Case | FastSecDec integration / full process | Pathfinder integration / full process | Native finite-part relative SE |
+| Case | FastSecDec integration / full process | Pathfinder integration / full process | Native finite-part relative SE range |
 | --- | ---: | --- | ---: |
 | Triangle | 0.0330 s / 0.0431 s | Unavailable: Symbolica instance-limit abort | 4.46e-9–6.06e-9 |
 | Box | 0.0416 s / 0.0540 s | Unavailable: Symbolica instance-limit abort | 5.95e-7–9.50e-7 |

@@ -36,6 +36,13 @@ Consequently the normalization hook is not a guaranteed callback for every
 coefficient entering storage. A proposed identity-hook test should record actual
 callback coverage; it must not infer universal interception from the field API.
 
+`AtomField::PartialEq` at `domains/atom.rs:51` always returns true, and its hash
+omits the normalization configuration. A future stateful normalization/alias
+experiment must therefore keep one coherent field and alias-binding context;
+native field equality will not reject accidentally mixed registries. This is
+another reason to prefer the already exposed native template/evaluator alias
+route for a first experiment. No custom-field probe is introduced by this note.
+
 The native alias tests cover creation, nested application, conflict detection,
 renaming and arithmetic with alias-map preservation. There is no inspected
 `Ring` implementation whose elements are `AliasedAtom`, and `Series<AtomField>`

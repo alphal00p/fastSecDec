@@ -83,3 +83,10 @@ wait4/waitid timing. Input/artifact/runner hashes verify unchanged before and
 after. The separately reviewed native-only runner differs from the frozen
 smoke runner only in its admitted mode/approval keys and selecting the native
 program. It never launches a reference process.
+
+An independent fourteen-row outcome audit confirmed the exact seeds, complete
+native covariance/coverage/settings, source identities and zero failures. Its
+separate extraction agrees with every reported timing/cost median. The maximum
+absolute real-component historical-target pull across the accepted rows is
+2.804736; the reference's validation status remains unchanged. Root's additional
+descriptive extraction independently agrees with the median values above.
