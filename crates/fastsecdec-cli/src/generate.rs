@@ -1,7 +1,12 @@
-use std::{ops::ControlFlow, path::Path, time::Instant};
+mod geometry_dispatch;
+
+use std::{cell::RefCell, ops::ControlFlow, path::Path, sync::atomic::Ordering, time::Instant};
 
 use fastsecdec::{
-    generation::{self, GenerationOptions, GenerationPhase, GenerationProgress},
+    generation::{
+        self, GenerationContext, GenerationEvent, GenerationOptions, GenerationPhase,
+        GenerationProgress,
+    },
     kernel::KernelSet,
     status::{GenerationSnapshot, GenerationStage},
 };
@@ -13,12 +18,26 @@ use crate::{
     input,
 };
 
+#[cfg(test)]
 pub fn generate(
     path: &Path,
     output: &Path,
     dashboard: &mut Dashboard,
     reference: Option<&crate::reference::PreparedReference>,
 ) -> CliResult<(Artifact, KernelSet)> {
+    generate_with_workers(path, output, dashboard, reference, 1)
+}
+
+pub fn generate_with_workers(
+    path: &Path,
+    output: &Path,
+    dashboard: &mut Dashboard,
+    reference: Option<&crate::reference::PreparedReference>,
+    geometry_workers: usize,
+) -> CliResult<(Artifact, KernelSet)> {
+    if geometry_workers == 0 {
+        return Err("geometry workers must be positive".into());
+    }
     let started = Instant::now();
     let mut status = GenerationSnapshot {
         stage: GenerationStage::Input,
@@ -53,74 +72,66 @@ pub fn generate(
     options.decomposition.max_sectors = loaded.card.generation.max_sectors;
     options.decomposition.max_support_pairs = loaded.card.generation.max_support_pairs;
     let mut display_error = None;
-    let generated = generation::generate(&loaded.integrand, &options, |progress| {
-        match progress {
-            GenerationProgress::Decomposition(progress) => {
-                status.stage = GenerationStage::Geometry;
-                status.completed = progress.completed_constraints;
-                status.total = Some(progress.total_constraints);
-                status.sectors = progress.sectors;
-                status.detail = format!(
-                    "{:?} · chart {} · {} rays",
-                    progress.phase, progress.chart, progress.rays
-                );
-            }
-            GenerationProgress::Factorization { sector, total } => {
-                status.stage = GenerationStage::Mapping;
-                status.completed = *sector;
-                status.total = Some(*total);
-                status.detail = "Substituting exact sector maps".into();
-            }
-            GenerationProgress::Subtraction {
-                sector,
-                total,
-                terms,
-            } => {
-                status.stage = GenerationStage::Subtraction;
-                status.completed = *sector + 1;
-                status.total = Some(*total);
-                status.detail = format!("{} endpoint subtraction terms", terms);
-            }
-            GenerationProgress::LaurentExpansion { sector, total } => {
-                status.stage = GenerationStage::Expansion;
-                status.completed = *sector + 1;
-                status.total = Some(*total);
-                status.detail = format!("Expanding through ε^{}", options.max_order);
-            }
-            GenerationProgress::PhaseTiming { phase, seconds } => {
-                if *phase == GenerationPhase::Symmetry {
-                    status.stage = GenerationStage::Symmetry;
-                    status.detail = "Verifying complete density permutations".into();
-                }
-                let elapsed = match phase {
-                    GenerationPhase::Domain => &mut status.timings.domain_seconds,
-                    GenerationPhase::Geometry => &mut status.timings.geometry_seconds,
-                    GenerationPhase::Mapping => &mut status.timings.mapping_seconds,
-                    GenerationPhase::Symmetry => &mut status.timings.symmetry_seconds,
-                    GenerationPhase::Subtraction => &mut status.timings.subtraction_seconds,
-                    GenerationPhase::Laurent => &mut status.timings.laurent_seconds,
-                };
-                *elapsed += seconds;
-            }
-            GenerationProgress::Complete { sectors, orders } => {
-                status.stage = GenerationStage::Compilation;
-                status.sectors = *sectors;
-                status.completed = 0;
-                status.total = Some(*sectors);
-                status.detail = format!("Portable SymJIT O2 · orders {orders:?}");
-            }
-        }
-        status.elapsed_seconds = started.elapsed().as_secs_f64();
-        if let Err(error) = dashboard.generation(&status) {
-            display_error = Some(error.to_string());
-            return ControlFlow::Break(());
-        }
-        if dashboard.cancelled() {
-            ControlFlow::Break(())
+    let cancelled = dashboard.cancellation_handle();
+    let generated = {
+        let ui = RefCell::new((&mut *dashboard, &mut status, &mut display_error));
+        let mut present = |progress: &GenerationProgress| {
+            let mut ui = ui.borrow_mut();
+            let (dashboard, status, error) = &mut *ui;
+            observe_generation(
+                dashboard,
+                status,
+                error,
+                started,
+                options.max_order,
+                progress,
+            )
+        };
+        if geometry_workers == 1 {
+            generation::generate(&loaded.integrand, &options, &mut present)
         } else {
-            ControlFlow::Continue(())
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(geometry_workers)
+                .build()?;
+            let mut stage = 0;
+            let mut dispatch = |jobs: &mut dyn ExactSizeIterator<
+                Item = generation::GeometryJob,
+            >| {
+                let label = if stage == 0 { "chart" } else { "cone" };
+                stage += 1;
+                geometry_dispatch::run(&pool, geometry_workers, jobs, &cancelled, |progress| {
+                    let mut ui = ui.borrow_mut();
+                    let (dashboard, status, error) = &mut *ui;
+                    status.stage = GenerationStage::Geometry;
+                    status.completed = progress.completed;
+                    status.total = Some(progress.total);
+                    status.elapsed_seconds = started.elapsed().as_secs_f64();
+                    status.detail = format!(
+                        "{geometry_workers} geometry workers · {label} jobs returned ({} running); native admission pending{}",
+                        progress.running,
+                        progress
+                            .latest
+                            .as_ref()
+                            .map_or_else(String::new, |(id, p)| format!(
+                                " · {id:?} {:?} {}/{} local constraints",
+                                p.phase, p.completed_constraints, p.total_constraints
+                            ))
+                    );
+                    publish_generation(dashboard, status, error)
+                })
+            };
+            GenerationContext::new(0).generate_with_dispatch(
+                &loaded.integrand,
+                &options,
+                &mut dispatch,
+                || cancelled.load(Ordering::Relaxed),
+                |event| match event {
+                    GenerationEvent::Progress(progress) => present(progress),
+                    GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
+                },
+            )
         }
-    });
+    };
     if let Some(error) = display_error {
         return Err(error.into());
     }
@@ -183,4 +194,89 @@ pub fn generate(
     status.detail = format!("Saved {}", output.display());
     dashboard.generation(&status)?;
     Ok((artifact, kernels))
+}
+
+fn observe_generation(
+    dashboard: &mut Dashboard,
+    status: &mut GenerationSnapshot,
+    display_error: &mut Option<String>,
+    started: Instant,
+    max_order: i32,
+    progress: &GenerationProgress,
+) -> ControlFlow<()> {
+    match progress {
+        GenerationProgress::Decomposition(progress) => {
+            status.stage = GenerationStage::Geometry;
+            status.completed = progress.completed_constraints;
+            status.total = Some(progress.total_constraints);
+            status.sectors = progress.sectors;
+            status.detail = format!(
+                "{:?} · chart {} · {} rays",
+                progress.phase, progress.chart, progress.rays
+            );
+        }
+        GenerationProgress::Factorization { sector, total } => {
+            status.stage = GenerationStage::Mapping;
+            status.completed = *sector;
+            status.total = Some(*total);
+            status.detail = "Substituting exact sector maps".into();
+        }
+        GenerationProgress::Subtraction {
+            sector,
+            total,
+            terms,
+        } => {
+            status.stage = GenerationStage::Subtraction;
+            status.completed = *sector + 1;
+            status.total = Some(*total);
+            status.detail = format!("{} endpoint subtraction terms", terms);
+        }
+        GenerationProgress::LaurentExpansion { sector, total } => {
+            status.stage = GenerationStage::Expansion;
+            status.completed = *sector + 1;
+            status.total = Some(*total);
+            status.detail = format!("Expanding through ε^{}", max_order);
+        }
+        GenerationProgress::PhaseTiming { phase, seconds } => {
+            if *phase == GenerationPhase::Symmetry {
+                status.stage = GenerationStage::Symmetry;
+                status.detail = "Verifying complete density permutations".into();
+            }
+            let elapsed = match phase {
+                GenerationPhase::Domain => &mut status.timings.domain_seconds,
+                GenerationPhase::Geometry => &mut status.timings.geometry_seconds,
+                GenerationPhase::Mapping => &mut status.timings.mapping_seconds,
+                GenerationPhase::Symmetry => &mut status.timings.symmetry_seconds,
+                GenerationPhase::Subtraction => &mut status.timings.subtraction_seconds,
+                GenerationPhase::Laurent => &mut status.timings.laurent_seconds,
+            };
+            *elapsed += seconds;
+        }
+        GenerationProgress::Complete { sectors, orders } => {
+            status.stage = GenerationStage::Compilation;
+            status.sectors = *sectors;
+            status.completed = 0;
+            status.total = Some(*sectors);
+            status.detail = format!("Portable SymJIT O2 · orders {orders:?}");
+        }
+    }
+    status.elapsed_seconds = started.elapsed().as_secs_f64();
+    publish_generation(dashboard, status, display_error)
+}
+
+fn publish_generation(
+    dashboard: &mut Dashboard,
+    status: &GenerationSnapshot,
+    display_error: &mut Option<String>,
+) -> ControlFlow<()> {
+    if let Err(error) = dashboard.generation(status) {
+        display_error.get_or_insert_with(|| error.to_string());
+        dashboard.request_cancel();
+        return ControlFlow::Break(());
+    }
+    if dashboard.cancelled() {
+        ControlFlow::Break(())
+    } else {
+        ControlFlow::Continue(())
+    }
 }

@@ -51,6 +51,17 @@ before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
 
+`generate` and `run` accept `--geometry-workers N` (default `1`). Values above
+one use a CLI-owned pool for native chart and cone geometry jobs; symbolic
+mapping, subtraction and Laurent expansion keep their existing execution path.
+The coordinator retains terminal input and cancellation, joins launched jobs,
+and lets the native library validate and merge their results in canonical order.
+Progress distinguishes returned jobs awaiting admission from accepted geometry.
+This option is separate from integration `--workers` and does not change artifact
+or checkpoint identity. A resumed run loads its artifact without dispatching
+geometry. The CLI retains no geometry cache between commands; library callers
+can supply their own dispatcher and retain a `GenerationContext`.
+
 Integration methods are `qmc`, `adaptive_qmc`, `mc`, and `adaptive_mc`.
 QMC uses the historical `kuo33002` catalogue by default. Select another native
 published catalogue explicitly, without regenerating the symbolic artifact:

@@ -339,16 +339,25 @@ impl Dashboard {
         Ok(())
     }
 
-    #[cfg(test)]
     pub(crate) fn request_cancel(&self) {
         self.interrupt.flag.store(true, Ordering::Relaxed);
     }
 
+    pub(crate) fn cancellation_handle(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.interrupt.flag)
+    }
+
     pub fn cancelled(&self) -> bool {
-        self.interrupt.flag.load(Ordering::Relaxed)
-            || (self.terminal.is_some()
-                && event::poll(Duration::ZERO).unwrap_or(false)
-                && matches!(event::read(),Ok(Event::Key(key)) if matches!(key.code,KeyCode::Esc|KeyCode::Char('q')|KeyCode::Char('c'))))
+        if self.interrupt.flag.load(Ordering::Relaxed) {
+            return true;
+        }
+        let pressed = self.terminal.is_some()
+            && event::poll(Duration::ZERO).unwrap_or(false)
+            && matches!(event::read(),Ok(Event::Key(key)) if matches!(key.code,KeyCode::Esc|KeyCode::Char('q')|KeyCode::Char('c')));
+        if pressed {
+            self.request_cancel();
+        }
+        pressed
     }
 }
 

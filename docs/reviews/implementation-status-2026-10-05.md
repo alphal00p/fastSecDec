@@ -53,10 +53,17 @@ component checks. This is representative-level evidence. All performance
 tables below retain their older frozen build identities and **do not measure
 the newly committed alias pipeline or cache**.
 
+The subsequent CLI-only slice passes all 49 CLI tests (three explicit probes
+ignored), formatting and CLI all-target Clippy. `generate` and `run` accept
+`--geometry-workers`, defaulting to one independently of integration workers.
+Real PTYs exercise parallel geometry resize/cancellation and colored/monochrome
+completion, with terminal restoration and no artifact after cancellation.
+These focused gates follow the 330-test workspace baseline above; no new full
+workspace count or generation speedup is claimed.
+
 Still open: complete original on-shell triple-box generation and full-vector
 validation; the independent hard-orthant reference;
-difficult-case convergence and error calibration; CLI adoption of
-caller-owned chart/cone dispatch; matched performance and
+difficult-case convergence and error calibration; matched performance and
 platform gates. Cache adoption and the identified CLI color/terminal gaps are
 now covered by the gates above. General
 affine upper-cube endpoint charts remain explicitly unsupported. Future Python
@@ -79,8 +86,9 @@ using native Series, differentiation, face substitution and shared aliases,
 with full coefficient comparisons. Separate bounded evaluator/precision and
 cold-reload controls now pass 96 complete weighted-vector calls (768 real/imaginary
 component checks), with independent unchanged-subtraction references stable at
-512/1024 bits. The actual difficult representative remains a pending gate;
-this test-only strategy is not the production default.
+512/1024 bits. Its first actual difficult-representative composition attempt
+times out at 180.116 seconds without coefficients; this remains an open gate.
+This test-only strategy is not the production default.
 
 ## Small-case generation and eight-core accuracy
 
@@ -166,7 +174,7 @@ eight-core time to one-per-mille accuracy or individual-sample maxima.
 | Off-shell triple box, rank two | 55.406 s original; 16.411 s native projected family | Not measured | 3.753 / 78.284 | Not measured | Not measured |
 | Issue 1 | 3.463 s | Not measured | 0.295 / 0.365 | Not measured | Not measured |
 | Hard four-loop full orthant | 36.755 s | Not measured | 25.944 / 71.703 | Not measured | Not measured |
-| Original on-shell triple box | No accepted complete generation | Not measured | Not available | Not measured | Not measured |
+| Original on-shell triple box | Timed out at 1805.689 s; no artifact | Not measured | Not available | Not measured | Not measured |
 
 All larger numerical observations preserve full vectors, not a selected pole
 or favorable sector. The separate checked Issue 1 reference reaches epsilon-two
@@ -202,3 +210,16 @@ to finish within the unchanged 180-second total bound (180.483 s observed,
 frozen input checks passed and the child was reaped. This is a separate
 development probe, not an end-to-end generation time; see
 [the IBP protocol and terminal record](native-triplebox-ibp-proposal.md).
+
+The subsequent named-coefficient experiment uses those same captured mapped
+terms directly, without replaying the giant physical Taylor subtraction.
+Its independently reviewed, frozen generation-only process times out after
+180.116318 seconds, with peak RSS 1,831,116 KiB and no generated coefficient
+files, final native remainder, evaluator or numerical result. All 89 immutable
+hash checks pass and the child is reaped. The last recorded stage is native
+named Taylor composition; there is no finer executed timing that identifies its
+internal bottleneck. Program/oracle stages do not start after this failure.
+The small controls remain valid, but they do not establish feasibility on the
+actual representative. See the [actual-target protocol and outcome](native-named-actual-proposal.md).
+Guarded reference compilation overlaps on other CPUs, so this is a bounded
+capability diagnostic, not a matched generation benchmark.

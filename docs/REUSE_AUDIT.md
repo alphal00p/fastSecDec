@@ -733,3 +733,22 @@ transport milestone passes **330 workspace tests**, with 22 explicit probes
 ignored and zero failures. Both newly ignored program probes were separately
 executed and independently reviewed. Formatting and all-target Clippy pass.
 Evidence is retained in `output/dispatch-named-rank2-workspace-{tests,fmt,clippy}.log`.
+
+The [CLI dispatch review](reviews/cli-geometry-dispatch-independent.md) accepts
+the application-owned Rayon adapter over native opaque geometry jobs. Existing
+standard channels carry tagged observations and complete native results;
+`in_place_scope` keeps terminal ownership on the caller and joins workers.
+No pool enters the library or Numerica. The coordinator unwind guard drops the
+receiver before joining blocked senders, and terminal keys latch the existing
+shared cancellation flag. All 49 CLI tests pass, including exact serial/parallel
+artifact identity and an independent complete-vector Mellin control. Formatting,
+CLI all-target Clippy and [real PTY checks](reviews/cli-geometry-dispatch-terminal.md)
+pass. Worker settings remain outside mathematical and checkpoint identity.
+
+The first actual named-coefficient generation remains unaccepted after its
+180.116-second timeout. It returns no coefficients or final native bound;
+independent oracle and program stages do not run. The successful small controls
+do not establish the larger input. The next diagnostic instruments existing
+native operation boundaries only, preserving the unchanged Series, derivative,
+face and alias owners; no replacement algebra or production strategy follows
+from the timeout.

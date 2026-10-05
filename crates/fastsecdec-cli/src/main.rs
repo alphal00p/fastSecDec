@@ -65,12 +65,18 @@ enum Action {
         input: PathBuf,
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Caller-owned workers for exact chart/cone geometry only.
+        #[arg(long, default_value = "1")]
+        geometry_workers: std::num::NonZeroUsize,
     },
     /// Generate and integrate a native TOML run card.
     Run {
         input: PathBuf,
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Caller-owned geometry workers; resumed artifacts need no generation.
+        #[arg(long, default_value = "1")]
+        geometry_workers: std::num::NonZeroUsize,
         #[command(flatten)]
         integration: IntegrationArgs,
     },
@@ -283,24 +289,34 @@ fn run(cli: Cli) -> CliResult<()> {
         )
     };
     match cli.command {
-        Action::Generate { input, output } => {
+        Action::Generate {
+            input,
+            output,
+            geometry_workers,
+        } => {
             let reference = reference::from_card(&input, None)?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
-            let (artifact, kernels) =
-                generate::generate(&input, &output, &mut dashboard, reference.as_ref())?;
+            let (artifact, kernels) = generate::generate_with_workers(
+                &input,
+                &output,
+                &mut dashboard,
+                reference.as_ref(),
+                geometry_workers.get(),
+            )?;
             if let Some(reference) = &reference {
                 reference.validate_identity(kernels.content_id())?;
             }
             drop(dashboard);
             report(
-                &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings}),
+                &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings,"geometry_workers":geometry_workers.get()}),
                 render_json,
             )?;
         }
         Action::Run {
             input,
             output,
+            geometry_workers,
             integration,
         } => {
             let reference = reference::from_card(&input, integration.reference.as_deref())?;
@@ -314,7 +330,13 @@ fn run(cli: Cli) -> CliResult<()> {
                     Ok(())
                 })?
             } else {
-                generate::generate(&input, &output, &mut dashboard, reference.as_ref())?
+                generate::generate_with_workers(
+                    &input,
+                    &output,
+                    &mut dashboard,
+                    reference.as_ref(),
+                    geometry_workers.get(),
+                )?
             };
             if integration.resume {
                 artifact.verify_input_sources(&input)?;
