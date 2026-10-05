@@ -71,6 +71,14 @@ external reference's original and projected generation attempts both hit their
 30-GiB process-tree memory limits, after 530.288 and 431.801 seconds respectively.
 All processes are reaped and frozen checks pass; neither attempt supplies a
 reference vector. These are capability diagnostics, not new benchmark rows.
+The provider's documented pure-Taylor option then avoids the recursive IBP
+memory stop but reaches its 600-second generation deadline while writing FORM
+sector 41 of 968. Its 605.098-second generation process and 608.398-second outer
+process are reaped, all 62 frozen checks pass and no complete reference is
+produced. The prepared native release builds successfully and its fullgraph
+trial is running under the existing bounds. See the
+[native attempt record](native-named-fullgraph-results.md) and
+[external reference record](reference-onshell-full-vector-proposal.md).
 
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
@@ -94,8 +102,14 @@ comparison explicitly lacks order minus three; a separate complete native
 generation proves zero through that order. Seven focused reference tests pass,
 two probes ignored, with focused Clippy and formatting passing. This reference
 has about 0.57% finite-part uncertainty and does not certify calibration or 1‰.
-The historical matrix has 100 Covered, 81 intentionally Retired and one Partial
-row out of 182. This matrix does not replace complete difficult-example gates.
+The historical matrix now has **101 Covered and 81 intentionally Retired** rows
+out of 182, with none Partial or Pending. Independent review closes its last
+double-box endpoint-equivalence row using existing native identities and the
+audited complete five-order comparison; the historical test did not require
+statistical calibration. This matrix does not replace complete difficult-example
+or representative accuracy/performance gates. The
+[delivery audit](phase-one-delivery-audit.md) finds no additional missing required
+subsystem or HEPKit integration blocker.
 
 The compact production alias pipeline and version-three native evaluator-IR
 artifacts are committed at `6332676`; the cache core at `2db942b`. Native

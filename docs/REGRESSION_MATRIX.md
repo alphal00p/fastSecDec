@@ -12,6 +12,16 @@ reducer checks, Q/MC: integration, P: precision, C: CLI, R: references). Each ke
 names concrete tests in that audit. Retirement concerns old interfaces or private
 execution mechanics only; complete scientific and performance gates remain.
 
+Current inventory: **182 rows — 101 Covered, 81 Retired, 0 Partial, 0 Pending**.
+On 2026-10-05, the remaining double-box row was reconciled against its original
+body: it checked two implementations of multi-axis endpoint subtraction at two
+interior points and asserted legacy cache population; it did not require
+statistical calibration. Existing native endpoint identities, actual double-box
+rescue and the independently audited complete-vector comparison close that
+scientific behavior. Earlier audit notes preserve their then-pending state.
+These row counts do not declare the separate full on-shell or bounded
+accuracy/performance gates complete.
+
 | Reference location | Test | Area | Status | Native coverage or retirement reason |
 |---|---|---|---|---|
 | test_runtime_benchmark.py:29 | `test_runtime_benchmark_returns_partial_report_on_interrupt` | Artifacts and results | Covered | `diagnostics::benchmark_cancels_inside_repetition_and_preserves_complete_median` retains completed and explicitly incomplete measurements; the CLI delegates cancellation to this API. |
@@ -176,7 +186,7 @@ execution mechanics only; complete scientific and performance gates remain.
 | test_integrals.py:5988 | `test_symbolica_formula_generator_matches_legacy_builder_on_toy_sector` | Scientific regression | Covered | S/G provide independent toy-integral and multiaxis meromorphic identities. Equality to a second legacy formula builder is not needed for the single native direct implementation. |
 | test_integrals.py:6045 | `test_symbolica_formula_generator_matches_legacy_builder_on_dot_box_sector` | Scientific regression | Covered | S's native graph box and G/H's triangle compare full Laurent vectors with analytic/native-master references. Their evidence is stronger than pointwise agreement of two old builders sharing inputs. |
 | test_integrals.py:6076 | `test_endpoint_projector_backend_matches_recursive_for_triangle_and_box` | Symbolic generation | Covered | S's native graph box and G/H's triangle compare full Laurent vectors with analytic/native-master references. Their evidence is stronger than pointwise agreement of two old builders sharing inputs. |
-| test_integrals.py:6113 | `test_endpoint_projector_backend_matches_recursive_for_dot_double_box_sector` | Symbolic generation | Partial | Direct double-box generation, numerical boundary rescue and an independently integrated leading-pole identity are recorded. The completed 64-shift full vector also agrees with the audited independent pySecDec reference within 1.27 combined standard errors at every order; its measured errors and normalization are preserved in `examples/references/double_box.json`. Difficult-case error calibration remains open. Do not mark covered merely because legacy projector caches were removed. |
+| test_integrals.py:6113 | `test_endpoint_projector_backend_matches_recursive_for_dot_double_box_sector` | Symbolic generation | Covered | Native multi-axis Taylor identities and boundary rescue cover the endpoint operations; actual double-box generation and the complete 64-shift, 6,684,672-evaluation vector have zero evaluation failures. All five orders −4..0 agree with the independently audited ordinary pySecDec reference, maximum absolute combined-error pull 1.26516. `double_box_reference_preserves_the_complete_audited_laurent_vector` retains every coefficient, reported uncertainty, normalization and source identity. See [independent reference/transport review](reviews/remaining-reference-independent.md#completed-double-box-continuation-attempt-3). This covers the historical scientific behavior; two legacy formula caches and their pointwise equality are not required native interfaces. Global precision, qualified uncertainty and matched-performance acceptance remain separate. |
 | test_integrals.py:6154 | `test_endpoint_projector_signature_is_lower_than_full_dot_box_signature` | Symbolic generation | Retired | Tests only the relative size of two old projector/dual signatures. Keep complete-vector performance gates, not these internal layout counts. |
 | test_integrals.py:6183 | `test_integration_does_not_generate_subtraction_formulas_at_runtime` | Symbolic generation | Covered | Direct vectors and native numeric precision evaluators are built before dispatch; worker cloning/rescue uses no Atom/Workspace algebra. Two-worker process tests pass. |
 | test_integrals.py:6210 | `test_projector_formula_backend_does_not_generate_formulas_at_runtime` | Scientific regression | Covered | Direct vectors and native numeric precision evaluators are built before dispatch; worker cloning/rescue uses no Atom/Workspace algebra. Two-worker process tests pass. |

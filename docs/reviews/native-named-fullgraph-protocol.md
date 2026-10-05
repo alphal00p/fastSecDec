@@ -1,131 +1,142 @@
-# Original on-shell graph: named-route capability protocol
+# Original on-shell graph: native prepared named-route protocol
 
-Source-only draft, 2026-10-05. No binary was built or scientific process launched
-for this protocol. The ordinary public reconstruction of the captured
-representative, its complete independent oracle/cold-artifact comparisons, and
-the combined workspace/format/Clippy gate must pass before a release freeze.
-The combined gate is now accepted at `22dc1d9` (370 passed, 23 ignored;
-formatting and all-target Clippy pass). The actual public representative also
-passes all 21 signed coefficient comparisons and 24 cold weighted vectors;
-see its [independent audit](native-named-public-actual-independent.md).
-The aggregate accepted record is
-`output/diagnostics/native-named-public-actual-generation-2/public-path-independent-review.json`
+The next bounded trial uses the ordinary CLI with both native named coefficients
+and the existing exact `SingleUnitTerm` family preparation. The CLI adapter is
+accepted at `e42a017`: 38 focused tests, formatting and CLI all-target Clippy
+pass, with an [independent review](cli-family-preparation-independent.md).
+The fresh release build and concrete freeze review are accepted; the authorized
+scientific sequence is running after the serialized runtime handoff. Build and attempt outcomes
+are retained in [native-named-fullgraph-results.md](native-named-fullgraph-results.md).
+This protocol adds no
+algebra, input eligibility probe or production default change.
+
+The earlier public representative gate remains accepted: all 21 signed
+coefficient/point comparisons and 24 cold weighted vectors pass. Its aggregate
+record is `output/diagnostics/native-named-public-actual-generation-2/public-path-independent-review.json`
 (SHA-256 `9457fe8c8097609f953a0ad1c3e29126246e9e283af7cfac656ac47ade5fde15`).
-The new release build/freeze is next. Concrete prerequisite records must bind
-these accepted outcomes and source/result digests, not merely exist on disk.
+The prior combined workspace gate at `22dc1d9` passed 370 tests, with 23 explicit
+ignored probes, formatting and all-target Clippy. The new freeze binds these
+accepted records and the subsequent CLI source review, retaining the actual
+source changes instead of attributing the new binary to the earlier source.
 
-## Frozen scientific input and route change
+## Preserved earlier attempts
 
-The draft reuses the copied full native HEPKit graph/card from the failed
-`output/diagnostics/production-alias-fullgraph-1` campaign. The original graph,
-model and massless parameter card are byte-identical. The run card adds only:
+`native-named-fullgraph-1` built successfully, but its freezer rejected the
+ordinary release feature set because it omitted the test workspace's
+`tracing_max_level_info`. Independent source review confirmed that this flag
+maps solely to `tracing/release_max_level_info`. The failed freeze is retained.
+The fresh second freeze explicitly records this sole logging difference;
+scientific and codec features and native dependency sources are unchanged.
+
+`native-named-fullgraph-2` used the original ten-parameter representation and
+the named coefficient route. The coordinator intentionally cancelled it after
+**1,006.899916801 seconds**, at **372 of 1,026 representatives**, to adopt the
+existing exact prepared-family route for the same graph. Peak RSS was
+14,077,364 KiB. The process returned the typed `generation cancelled` error,
+exited 1 and was reaped; this was **not** the 1,800-second deadline. All 58 frozen
+hashes passed. No artifact, inspection, integration, checkpoint or result was
+created. The separate cancellation record retains the reason, process identity,
+progress, memory observation and signals. The accepted independent record is
+`output/diagnostics/native-named-fullgraph-2/independent-review.json`
+(SHA-256 `6fd458bd29ddb3eef6f04c7110c9d79ce100af607aaf18769671b2abb508f433`).
+Its timer's group cleanup after the leader exited is not a deadline kill.
+
+The original and equivalent eight-parameter external reference generations
+separately reached their 30-GiB **RSS** bounds and supply no numerical reference.
+Their outcomes do not change this native trial's address-space limit or permit
+a zero result. Reference evidence and subsequent reference work have separate
+owners and retained attempts.
+
+## Unchanged physical input and two explicit options
+
+The new ignored harness is `output/probes/native_named_prepared_fullgraph/`.
+Its graph, model and massless parameter card are byte-identical to the original
+`output/diagnostics/production-alias-fullgraph-1` inputs. The run card adds only:
 
 ```toml
 [generation.coefficient_expansion]
 method = "native_named"
+
+[generation.family_preparation.SingleUnitTerm]
+max_states = 32
 ```
 
-A pure-data source control removes that one parsed table and requires exact
-parsed equality with the original card. Original SHA-256 identities are:
+Removing exactly these two parsed tables must recover the original parsed card.
+The preparation bound is the existing native policy's 32 partial-fraction
+states; it is not a deadline. Named attempt/width/request caps remain omitted.
 
-| Input | SHA-256 |
+| Original input | SHA-256 |
 | --- | --- |
-| Original run card | `d3b9078b3042a895f1766f03e108c48f034ff9ec17af23b881d79a465f90b196` |
+| Run card | `d3b9078b3042a895f1766f03e108c48f034ff9ec17af23b881d79a465f90b196` |
 | Triple-box DOT | `f36bb36842ce37447ff2e5d8e0f8416463482c47c9454a23da7e4cf9e6ac9a89` |
 | Scalar model | `b89bf9ca4162d3784896ced020da4efe06aa9b803334fb88761fd501b0cf89f2` |
-| Massless parameter card | `98f6f3644366c68da8abcdd06841b1008410957082442c5806aa8d02ad13f1a3` |
+| Massless card | `98f6f3644366c68da8abcdd06841b1008410957082442c5806aa8d02ad13f1a3` |
 
-Thus dimension `4-2*eps`, on-shell kinematics `s12=s23=-1`, unit measure
-multiplier, no-threshold policy, full graph and requested maximum order zero
-remain unchanged. Native Taylor remains the subtraction choice. Geometry uses
-the original sequential CLI default. No projected family, representative subset,
-changed numerator, omitted pole, or inferred zero enters this campaign.
+Dimension `4-2*eps`, on-shell `s12=s23=-1`, unit measure, requested maximum
+epsilon order zero, native Taylor subtraction, sequential geometry and the
+original threshold policy remain unchanged. There is no subset, altered
+numerator, omitted pole or sampled-zero inference. The native preparation API
+has already established the exact reduction to eight active parameters for
+this original graph. The actual CLI report, active original indices/powers and
+coordinate metadata remain the evidence for what this execution used. The
+prepared projective domain has seven integration coordinates; it is not an
+invertible relabeling of the redundant original Schwinger coordinates. The
+full integral is the scientific scope. Old chart/representative counts do not
+constrain the prepared geometry.
 
-Optional named attempt/width/request caps are omitted (`None`), so this whole
-graph is not rejected by an arbitrary small-control request budget. Existing
-subtraction and geometry limits remain unchanged. The predeclared process time
-and address-space bounds are the capability limit. Native absolute coverage is
-still checked by the library; no relative width is treated as a cutoff proof.
+## Release freeze and bounded stages
 
-The draft files are under `output/probes/native_named_fullgraph/`:
-`run.sh`, copied `inputs/`, original card and `source-control.json`. The launcher
-SHA-256 is `744d18a1a2709bd0d46fcc63beab51702f410fe10a9256ecf7f488a816c1b73a`;
-the modified card SHA-256 is
-`83ad3713675f0091528fbd3cca292913ad3f5a83d191874e405f7d1c767641e0`.
-Shell syntax and the pure-data input-equality control pass. No release executable,
-process directory or final campaign manifest exists in this draft.
+Compile the committed CLI milestone with pinned Rust 1.98.1, two Cargo jobs on
+CPUs 10 and 11, using `cargo build -p fastsecdec-cli --release --locked
+--message-format=json`. Select the unique successful normal `fastsecdec` binary
+from Cargo's artifact record. Retain its hash, exact compiler/linker identities,
+source archive, native archives/patches, selected rlibs and feature fingerprints.
+The new freezer replaces only the independently reviewed CLI source paths in
+the previous accepted source map; all other production and native hashes must
+still match. Documentation changes are recorded separately from compiled input.
 
-## Build, freeze and bounded stages
+Native evaluation remains production SymJIT **O2** with direct translation,
+distinct from the Rust release profile. The exact release Symbolica features
+remain `bincode`, `float-mpfr`, `integer-gmp`, `native_code_generation`, `serde`;
+the previously reviewed logging-only difference is explicit. The retained
+official release check from 2026-10-05 08:52:48 UTC found Symbolica 3.0.1 and
+SymJIT 2.26.4 unchanged; it is historical evidence, not a new package query or
+the executable's build identity.
 
-After prerequisite acceptance, make a **new** release build using the reviewed
-Rust toolchain and unchanged accepted native dependency features. Record the
-successful Cargo artifact selection, compiler/linker paths and versions, full
-build command and logs, binary hash, exact native rlib identities, upstream
-revisions plus local patches, and immutable source archives. Bind archived
-source, not mutable live source, so unrelated later work cannot change the
-binary's attribution. Do not reuse the historical physical-route binary or its
-old dependency identity as a description of the new executable.
-
-A read-only release recheck at **2026-10-05 08:52:48 UTC** found the latest
-unyanked stable releases still match the pins: [Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest)
-and [SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). Both official sparse
-registry responses were verified with the system TLS trust store. The local
-Symbolica base remains `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, with the
-accepted five fixes and unchanged features; its tracked patch SHA-256 remains
-`0314bc58ee94e1da836b0109c6cb10055d30f57a882ccb9c0598b0c1ca69efce`.
-The source responses, crate checksums and local identities are retained in
-`output/diagnostics/releases-20261005-0851/result.json`. This check made no
-dependency change and is not a release-build identity.
-
-The native evaluator remains production SymJIT **O2**, with direct translation;
-this is distinct from the Rust release optimization profile. The new freeze
-must bind the source settings that establish it. Bind the copied process timer,
-launcher, card/DOT/model/parameter card, build record, accepted-prerequisite
-records and source/dependency archives in the new immutable manifest. Verify
-all hashes before and after; independently review the concrete freeze and obtain
-the serialized runtime handoff before launch.
-
-Use a fresh `output/diagnostics/native-named-fullgraph-*` directory. The launcher
-rejects existing generation, inspection, integration, artifact, checkpoint or
-result paths. It has the same sequential fail-closed stages as the old campaign:
+A fresh `output/diagnostics/native-named-prepared-fullgraph-*` campaign binds
+the copied launcher, timer, inputs, prerequisite records, source/dependency
+archives and selected release executable. Existing scientific output paths are
+rejected. Check immutable hashes before and after. The unchanged sequence stops
+on the first failure, with no automatic retry or allocation increase:
 
 | Stage | Whole-process deadline | Grace | CPU affinity | Address-space cap |
 | --- | ---: | ---: | --- | ---: |
-| Full public generate, compile and save | 1,800 s | 5 s | 8 | 30 GiB |
-| Ordinary cold artifact inspection | 180 s | 5 s | 8 | 30 GiB |
+| Public generate, compile and save | 1,800 s | 5 s | 8 | 30 GiB |
+| Separate-process cold artifact inspection | 180 s | 5 s | 8 | 30 GiB |
 | Complete fixed full-integral allocation | 180 s | 5 s | 8,9 | 30 GiB |
 
-The final allocation remains `1024` points per shift, `8` shifts, seed
-`20261004`, two caller-owned workers and `kuo38005`, with `--full-integral`.
-Preserve the native saved `QmcDesign` as the authority for effective method,
-periodization and complete allocation. No extra adaptive round, omitted sector
-or increased deadline follows a failure. A successful stage and reaped process
-are prerequisites for the next stage. The 30-GiB bound is virtual address space,
-not an RSS claim.
+Integration uses `--full-integral`, 1,024 points per shift, eight shifts, seed
+20261004, two caller-owned workers and `kuo38005`. The saved native `QmcDesign`
+is authoritative for the effective method, periodization and allocation.
+Every successful stage must be reaped before the next begins. Native scientific
+execution waits for any external Symbolica generation to exit and be reaped;
+release compilation may overlap on its assigned CPUs, with overlap recorded.
 
-## Evidence and interpretation
+## Retained output and acceptance scope
 
-Retain every complete generated signed order through zero, exact offsets,
-conditioning profiles, original chart/domain metadata, covariance and complete
-saved-result scope. Check actual chart/representative coverage against the
-unchanged original geometry (previously 2,112 charts and 1,026 representatives),
-without assuming the new representation must produce the same kernel count or
-leading symbolic order. Do not trim extra leading coefficients. Successful
-inspection validates the ordinary native artifact route; it does not by itself
-establish integral accuracy.
+Retain the native preparation report and original source hashes in provenance,
+every generated signed order through zero, exact offsets, complete chart/domain
+metadata, conditioning profiles, covariance and full saved-result scope. Do not
+trim extra leading coefficients. Cold inspection validates ordinary artifact
+loading; it alone does not establish integral accuracy.
 
-Save JSON status with the unchanged 100-ms presentation setting. Named stage,
-attempt, formal piece/request/alias counts and completed coefficient phase times
-identify where a bound occurs. Keep active incomplete work distinct from
-completed phase totals; exact physical fallback is observable and timed only in
-the named coefficient phase. Record timer wall/user/system time, peak RSS,
-page faults and context switches, output/native-IR/envelope sizes where present,
-and every concurrent workload. Failure leaves its partial evidence intact and
-starts no automatic retry.
+Status remains JSON at the existing 100-ms cadence. Preserve attempt, formal
+piece/request/alias counts and completed phase timings; incomplete active work
+is not a completed duration. Record wall/user/system time, peak RSS, readily
+available virtual size, page faults, context switches and concurrent workloads.
+Retain partial evidence on failure without presenting it as a complete vector.
 
-This is a fresh changed-implementation **capability trial**, not an extension of
-the historical 1,800-second failure and not a matched performance comparison.
-The fixed integration allocation tests full coverage and transport; it makes no
-0.1% convergence or eight-core throughput claim. Original physical graph
-acceptance, independent numerical comparison and eventual performance acceptance
-remain separate conclusions drawn only from their completed evidence.
+This is a bounded full-input capability trial. Its fixed allocation makes no
+one-per-mille convergence, eight-core throughput or matched performance claim.
+Full-integral numerical agreement and performance acceptance require their own
+completed evidence. No optional tuning campaign follows automatically.
