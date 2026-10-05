@@ -19,12 +19,12 @@ use ratatui::{
     Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
-    style::{Color, Modifier, Style},
+    style::{Color, Modifier},
     text::{Line, Span},
     widgets::{Block, Borders, Gauge, Paragraph, Row, Table},
 };
 
-use crate::CliResult;
+use crate::{CliResult, terminal_policy::ColorPolicy};
 
 const TEAL: Color = Color::Rgb(68, 210, 188);
 const GOLD: Color = Color::Rgb(243, 195, 91);
@@ -37,6 +37,7 @@ pub struct Dashboard {
     json_status: bool,
     scope: fastsecdec::results::ResultScope,
     integration_cadence: crate::status_policy::StatusCadence,
+    color: ColorPolicy,
 }
 
 impl Dashboard {
@@ -82,6 +83,7 @@ impl Dashboard {
             json_status,
             scope: Default::default(),
             integration_cadence: crate::status_policy::StatusCadence::new(interval),
+            color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
         })
     }
 
@@ -98,6 +100,10 @@ impl Dashboard {
             }
             self.last_frame = Instant::now();
             terminal.draw(|frame| {
+                if frame.area().width < 72 || frame.area().height < 18 {
+                    compact(frame, "Generation", snapshot.to_string(), self.color);
+                    return;
+                }
                 let chunks = Layout::vertical([
                     Constraint::Length(3),
                     Constraint::Length(5),
@@ -106,7 +112,7 @@ impl Dashboard {
                     Constraint::Length(1),
                 ])
                 .split(frame.area());
-                frame.render_widget(title("Generation"), chunks[0]);
+                frame.render_widget(title("Generation", self.color), chunks[0]);
                 let rows = [
                     Row::new(vec![
                         "Stage".into(),
@@ -131,7 +137,7 @@ impl Dashboard {
                             Constraint::Min(8),
                         ],
                     )
-                    .block(panel("Progress"))
+                    .block(panel("Progress", self.color))
                     .column_spacing(2),
                     chunks[1],
                 );
@@ -145,21 +151,21 @@ impl Dashboard {
                 );
                 frame.render_widget(
                     Gauge::default()
-                        .block(panel("Current stage"))
-                        .gauge_style(Style::default().fg(TEAL))
+                        .block(panel("Current stage", self.color))
+                        .gauge_style(self.color.foreground(TEAL))
                         .ratio(ratio)
                         .label(label),
                     chunks[2],
                 );
                 frame.render_widget(
                     Paragraph::new(snapshot.detail.clone())
-                        .block(panel("Activity"))
+                        .block(panel("Activity", self.color))
                         .wrap(ratatui::widgets::Wrap { trim: true }),
                     chunks[3],
                 );
                 frame.render_widget(
                     Paragraph::new("  q / Esc  cancel safely")
-                        .style(Style::default().fg(Color::DarkGray)),
+                        .style(self.color.foreground(Color::DarkGray)),
                     chunks[4],
                 );
             })?;
@@ -195,6 +201,15 @@ impl Dashboard {
         }
         if let Some(terminal) = &mut self.terminal {
             terminal.draw(|frame| {
+                if frame.area().width < 72 || frame.area().height < 22 {
+                    compact(
+                        frame,
+                        "Integration",
+                        format!("{} · {elapsed:.2} s\n{snapshot}", self.scope),
+                        self.color,
+                    );
+                    return;
+                }
                 let chunks = Layout::vertical([
                     Constraint::Length(3),
                     Constraint::Length(3),
@@ -203,7 +218,10 @@ impl Dashboard {
                     Constraint::Length(3),
                 ])
                 .split(frame.area());
-                frame.render_widget(title(&format!("Integration · {}", self.scope)), chunks[0]);
+                frame.render_widget(
+                    title(&format!("Integration · {}", self.scope), self.color),
+                    chunks[0],
+                );
                 let ratio = if snapshot.planned_points == 0 {
                     1.0
                 } else {
@@ -211,11 +229,11 @@ impl Dashboard {
                 };
                 frame.render_widget(
                     Gauge::default()
-                        .block(panel(&format!(
-                            "{:?} · {:?}",
-                            snapshot.method, snapshot.stage
-                        )))
-                        .gauge_style(Style::default().fg(TEAL))
+                        .block(panel(
+                            &format!("{:?} · {:?}", snapshot.method, snapshot.stage),
+                            self.color,
+                        ))
+                        .gauge_style(self.color.foreground(TEAL))
                         .ratio(ratio)
                         .label(format!(
                             "{} / {} points    {:.2} s",
@@ -260,12 +278,12 @@ impl Dashboard {
                     )
                     .header(
                         Row::new(["Order", "Value", "Std. error", "Relative"])
-                            .style(Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+                            .style(self.color.foreground(GOLD).add_modifier(Modifier::BOLD)),
                     )
-                    .block(panel(&format!(
-                        "Laurent coefficients · {:?}",
-                        snapshot.uncertainty
-                    )))
+                    .block(panel(
+                        &format!("Laurent coefficients · {:?}", snapshot.uncertainty),
+                        self.color,
+                    ))
                     .column_spacing(2),
                     chunks[2],
                 );
@@ -291,9 +309,9 @@ impl Dashboard {
                     )
                     .header(
                         Row::new(["Sector", "Dim.", "Points", "Replicas", "CPU s"])
-                            .style(Style::default().fg(GOLD)),
+                            .style(self.color.foreground(GOLD)),
                     )
-                    .block(panel("Sector coverage"))
+                    .block(panel("Sector coverage", self.color))
                     .column_spacing(2),
                     chunks[3],
                 );
@@ -311,7 +329,7 @@ impl Dashboard {
                             "; restart this MC pilot to continue"
                         } else {" and saves a checkpoint"}
                     ))
-                    .style(Style::default().fg(Color::DarkGray)),
+                    .style(self.color.foreground(Color::DarkGray)),
                     chunks[4],
                 );
             })?;
@@ -374,22 +392,39 @@ impl Drop for Dashboard {
     }
 }
 
-fn panel(title: &str) -> Block<'_> {
+fn panel(title: &str, color: ColorPolicy) -> Block<'_> {
     Block::default()
         .title(title)
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_style(color.foreground(Color::DarkGray))
 }
-fn title(stage: &str) -> Paragraph<'_> {
+fn title(stage: &str, color: ColorPolicy) -> Paragraph<'_> {
     Paragraph::new(Line::from(vec![
         Span::styled(
             " FastSecDec ",
-            Style::default().fg(TEAL).add_modifier(Modifier::BOLD),
+            color.foreground(TEAL).add_modifier(Modifier::BOLD),
         ),
         Span::raw(format!(" · {stage}")),
     ]))
-    .block(panel(""))
+    .block(panel("", color))
+}
+
+/// Reuse the public status display when panels would crowd out their contents.
+fn compact(frame: &mut ratatui::Frame<'_>, stage: &str, status: String, color: ColorPolicy) {
+    let mut lines = vec![Line::from(vec![
+        Span::styled(
+            "FastSecDec",
+            color.foreground(TEAL).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(format!(" · {stage}")),
+    ])];
+    lines.extend(status.lines().map(|line| Line::raw(line.to_owned())));
+    lines.push(Line::raw("q / Esc cancels safely"));
+    frame.render_widget(
+        Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: true }),
+        frame.area(),
+    );
 }
 
 #[derive(serde::Serialize)]

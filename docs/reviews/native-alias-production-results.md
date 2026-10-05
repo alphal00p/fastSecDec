@@ -116,3 +116,46 @@ success by bounded inspection and a complete all-kernel 1,024×8 integration
 allocation. The original graph/card and all Laurent orders remain unchanged.
 A successful representative cannot establish whole-graph coverage, integration
 convergence, or sample throughput.
+
+## Original full-graph release trial: bounded failure
+
+`production-alias-fullgraph-1` used the release binary built from committed
+`6332676a215f32d1fccf840175a433dc9dbc77d2`, SHA-256
+`dbc0dbbb8e5c7ca83e273f8af3590b92fbef2e50d561d4759ae9689b1cd00e7e`.
+The original on-shell card, DOT, model and parameter card were copied unchanged.
+Committed source and actual patched native dependencies were archived and bound
+to an immutable 26-file manifest, so subsequent live-source edits did not alter
+the measured binary's provenance. All pre/post checks passed.
+
+Generation hit its predeclared **1,800-second deadline** during displayed
+representative **81 of 1,026** (zero-based index 80). SIGINT was sent at
+1,800.003 seconds; the original five-second grace ended with SIGKILL at
+1,805.003 seconds. The child was reaped with signal 9 and the wrapper returned
+124, at **1,805.689 seconds** wall time. Its process group is empty. There is
+**no kernel artifact, inspection, integration, checkpoint or saved result**.
+No failed or partial vector is promoted into a numerical result.
+
+The original geometry produced 2,112 charts. Eighty Laurent calls completed;
+the slowest completed call was ordinal 80, with 504 endpoint terms and
+539.1885 seconds in the reported Laurent interval. Ordinal 81 has 872 terms and
+started its expansion at elapsed 806.720 seconds. The interval includes template
+preparation/cache/native series/wrapping, so it does not isolate native series
+arithmetic. The terminal completed-phase totals were geometry 1.977 seconds,
+mapping 1.928, symmetry 1.625, subtraction 29.974, and Laurent 771.007; the active
+unfinished call is not included in that last cumulative total.
+
+Native `wait4` retained peak RSS **7,085,428 KiB (6.76 GiB)**, user CPU 579.939
+seconds, system CPU 1,204.727 seconds, 516,802,223 minor faults, 6,081 major
+faults, and 236 voluntary/8,900 involuntary context switches. The unusual system
+CPU share is evidence to investigate, not proof of swapping or of a particular
+symbolic operation. The imposed 30-GiB limit is virtual address space, not RSS.
+Earlier cached templates/roots and pending generated coefficients also contribute
+to resident memory. Source attribution and a separately bounded targeted capture
+are recorded in `native-series-fullgraph-attribution.md`.
+
+This is a capability failure within the declared bound, not a controlled speed
+measurement. Guarded external C++/FORM work overlapped on other CPUs, with no
+concurrent Symbolica process. Raw timer/status records, all immutable snapshots,
+and the derived completed-call ledger remain under
+`output/diagnostics/production-alias-fullgraph-1/`. Whole-original-graph
+acceptance therefore remains open despite the earlier representative success.

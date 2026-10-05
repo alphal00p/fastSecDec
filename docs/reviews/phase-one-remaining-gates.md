@@ -35,7 +35,7 @@ physical integral requiring a duplicate numerical campaign.
 
 ## Concrete implementation and scope items outside the matrix
 
-1. **Geometry reuse adoption and parallel scheduling remain plan items.**
+1. **Parallel geometry scheduling remains a plan item.**
    The plan explicitly calls for geometry caching by domain/canonical support
    and parallel independent charts/cones. `fastsecdec-sectors/src/decompose.rs`
    iterates projective charts and candidate vertices serially;
@@ -45,7 +45,9 @@ physical integral requiring a duplicate numerical campaign.
    a local face cache. The subsequent independently reviewed
    [cache core](geometry-cache-independent.md) adds bounded caller-owned reuse
    of complete decompositions, with all 28 sector tests passing. Generation
-   entry-point adoption is next; parallel chart/cone work remains unimplemented.
+   entry-point adoption subsequently passes its independent audit and the
+   combined 305-test workspace gate through `GenerationContext`. Parallel
+   chart/cone work remains unimplemented.
    These are efficiency/interface deliverables, not missing values for an
    admitted integral. Preserve caller-owned execution, deterministic merging,
    cancellation and exact existing geometry ownership.
@@ -75,17 +77,16 @@ physical integral requiring a duplicate numerical campaign.
    that queued contract without claiming CAS equivalence or changing existing
    artifact bytes.
 
-4. **Interactive presentation needs final closure.** Plain/JSON status,
+4. **The identified interactive presentation gaps are now addressed.** Plain/JSON status,
    numerical failures, real SIGINT, partial resume and scoped results have
    process tests. Dashboard setup/error/drop has terminal-restoration code,
-   but this audit found no retained interactive resize/cleanup/monochrome
-   acceptance test or visual review. `NO_COLOR` is honored by the boundary
-   renderer but is not consulted by `display.rs` or the colored terminal error
-   branch in `main.rs`; even `--plain` does not currently suppress that error
-   branch's ANSI color on a terminal. This is a concrete final CLI behavior
-   gap, separate from scientific correctness. A small shared color policy and
-   focused PTY/visual evidence would close it without restoring old fixed-width
-   formatter tests.
+   and subsequent [actual PTY controls](terminal-policy-results.md) now verify
+   resize, cleanup, monochrome output and key cancellation. A shared policy
+   handles `NO_COLOR`, plain runtime errors and boundary/dashboard colors.
+   Compact public-status rendering fixes the observed crowded small window.
+   Argument parsing/help remains owned by Clap. This Linux PTY evidence does
+   not establish every terminal emulator or platform; final platform
+   qualification remains separate.
 
 No production change is proposed by this audit. In particular, automatic family
 projection in the CLI is an optional optimization: native prepared-family APIs

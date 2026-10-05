@@ -41,7 +41,8 @@ pub fn observe_scan(
 
 pub fn display_scan(report: &BoundaryScanReport, plain: bool) {
     let colored =
-        !plain && std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+        crate::terminal_policy::ColorPolicy::for_stream(plain, std::io::stdout().is_terminal())
+            .enabled();
     for line in report.to_string().lines() {
         if colored && (line.starts_with('╭') || line.starts_with('╰') || line.contains("Attempt"))
         {

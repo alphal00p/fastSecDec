@@ -2,11 +2,15 @@
 //!
 //! Symbolica owns all polynomial manipulation, derivatives and series expansions.
 //! This module owns the integral-specific order of these operations.
+mod context;
 mod domain;
+mod geometry;
 mod laurent;
 mod mapping;
 mod metadata;
 mod metadata_display;
+pub use crate::status::GeometryReuseStatus;
+pub use context::{GenerationContext, GenerationEvent};
 pub use metadata_display::MetadataView;
 #[cfg(test)]
 pub(crate) mod profiling;
@@ -27,7 +31,9 @@ pub use types::{
 };
 
 use crate::parametric::ParametricIntegrand;
-use fastsecdec_sectors::{PolynomialSupport, decompose};
+use context::emit;
+use fastsecdec_sectors::{GeometryCache, PolynomialSupport};
+use geometry::Geometry;
 use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView},
@@ -62,19 +68,27 @@ pub fn generate(
     options: &GenerationOptions,
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
-    let mut emit = |status| {
-        if progress(&status).is_break() {
-            Err(GenerationError::Cancelled)
-        } else {
-            Ok(())
-        }
-    };
+    generate_inner(input, options, None, |event| match event {
+        GenerationEvent::Progress(status) => progress(status),
+        GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
+    })
+}
+
+fn generate_inner(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    geometry_cache: Option<&mut GeometryCache>,
+    mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<GeneratedIntegral, GenerationError> {
     let started = Instant::now();
     let domain = domain::check(input, options.assume_no_threshold)?;
-    emit(GenerationProgress::PhaseTiming {
-        phase: GenerationPhase::Domain,
-        seconds: started.elapsed().as_secs_f64(),
-    })?;
+    emit(
+        &mut progress,
+        GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Domain,
+            seconds: started.elapsed().as_secs_f64(),
+        },
+    )?;
     let started = Instant::now();
     let mut source_supports = support::SupportCache::new(input.parameters());
     let mut supports = Vec::new();
@@ -94,27 +108,25 @@ pub fn generate(
             input.parameters().len()
         ]])?);
     }
-    let decomposition = if input.terms().is_empty() {
+    let mut decomposition = if input.terms().is_empty() {
         None
     } else {
-        Some(decompose(
+        Some(Geometry::compute(
             input.domain(),
             &supports,
             &options.decomposition,
-            |status| {
-                if emit(GenerationProgress::Decomposition(status.clone())).is_err() {
-                    ControlFlow::Break(())
-                } else {
-                    ControlFlow::Continue(())
-                }
-            },
+            geometry_cache,
+            &mut progress,
         )?)
     };
-    let total = decomposition.as_ref().map_or(0, |d| d.sectors.len());
-    emit(GenerationProgress::PhaseTiming {
-        phase: GenerationPhase::Geometry,
-        seconds: started.elapsed().as_secs_f64(),
-    })?;
+    let total = decomposition.as_ref().map_or(0, Geometry::len);
+    emit(
+        &mut progress,
+        GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Geometry,
+            seconds: started.elapsed().as_secs_f64(),
+        },
+    )?;
     let mut source_symbols = input.density().get_all_symbols(true);
     // Unused input coordinates still belong to the source chart and must not
     // be reused as target symbols merely because the density omits them.
@@ -128,14 +140,17 @@ pub fn generate(
     let mut representatives = BTreeMap::new();
     let mut charts = Vec::new();
     for (index, map) in decomposition
-        .into_iter()
-        .flat_map(|d| d.sectors)
+        .iter_mut()
+        .flat_map(Geometry::maps)
         .enumerate()
     {
-        emit(GenerationProgress::Factorization {
-            sector: index,
-            total,
-        })?;
+        emit(
+            &mut progress,
+            GenerationProgress::Factorization {
+                sector: index,
+                total,
+            },
+        )?;
         let mut namespace = 0usize;
         let parameters = loop {
             let candidates = (0..map.dimension())
@@ -152,10 +167,13 @@ pub fn generate(
         let started = Instant::now();
         let coordinates = mapping::coordinates(input, &map, &parameters);
         let mapped = mapping::map_terms(input, &map, &coordinates, &mut source_supports)?;
-        emit(GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Mapping,
-            seconds: started.elapsed().as_secs_f64(),
-        })?;
+        emit(
+            &mut progress,
+            GenerationProgress::PhaseTiming {
+                phase: GenerationPhase::Mapping,
+                seconds: started.elapsed().as_secs_f64(),
+            },
+        )?;
         let started = Instant::now();
         let density = mapped
             .iter()
@@ -177,10 +195,10 @@ pub fn generate(
             representative_permutation: matched.permutation.clone(),
             kernel_sector: None,
             coordinates,
-            geometry: map.clone(),
+            geometry: map.as_ref().clone(),
         });
         if matched.representative == index {
-            representatives.insert(index, (map, parameters, mapped, 1usize));
+            representatives.insert(index, (map.into_owned(), parameters, mapped, 1usize));
         } else {
             let representative = representatives
                 .get_mut(&matched.representative)
@@ -189,10 +207,13 @@ pub fn generate(
                 })?;
             representative.3 += 1;
         }
-        emit(GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Symmetry,
-            seconds: started.elapsed().as_secs_f64(),
-        })?;
+        emit(
+            &mut progress,
+            GenerationProgress::PhaseTiming {
+                phase: GenerationPhase::Symmetry,
+                seconds: started.elapsed().as_secs_f64(),
+            },
+        )?;
     }
     let total = representatives.len();
     let mut kernel_indices = BTreeMap::new();
@@ -217,19 +238,28 @@ pub fn generate(
             .map(|row| row.iter().sum::<usize>())
             .max()
             .unwrap_or(0);
-        emit(GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Subtraction,
-            seconds: started.elapsed().as_secs_f64(),
-        })?;
-        emit(GenerationProgress::Subtraction {
-            sector: index,
-            total,
-            terms,
-        })?;
-        emit(GenerationProgress::LaurentExpansion {
-            sector: index,
-            total,
-        })?;
+        emit(
+            &mut progress,
+            GenerationProgress::PhaseTiming {
+                phase: GenerationPhase::Subtraction,
+                seconds: started.elapsed().as_secs_f64(),
+            },
+        )?;
+        emit(
+            &mut progress,
+            GenerationProgress::Subtraction {
+                sector: index,
+                total,
+                terms,
+            },
+        )?;
+        emit(
+            &mut progress,
+            GenerationProgress::LaurentExpansion {
+                sector: index,
+                total,
+            },
+        )?;
         let started = Instant::now();
         let coefficients = laurent::expand(
             &expression,
@@ -246,10 +276,13 @@ pub fn generate(
             )
         })
         .collect::<BTreeMap<_, _>>();
-        emit(GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Laurent,
-            seconds: started.elapsed().as_secs_f64(),
-        })?;
+        emit(
+            &mut progress,
+            GenerationProgress::PhaseTiming {
+                phase: GenerationPhase::Laurent,
+                seconds: started.elapsed().as_secs_f64(),
+            },
+        )?;
         if let Some(order) = coefficients.keys().next() {
             minimum = minimum.min(*order);
         }
@@ -315,9 +348,12 @@ pub fn generate(
         sectors,
         exact_coefficients,
     };
-    emit(GenerationProgress::Complete {
-        sectors: result.sectors.len(),
-        orders: result.orders.clone(),
-    })?;
+    emit(
+        &mut progress,
+        GenerationProgress::Complete {
+            sectors: result.sectors.len(),
+            orders: result.orders.clone(),
+        },
+    )?;
     Ok(result)
 }

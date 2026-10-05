@@ -9,6 +9,7 @@ mod inspect;
 mod reference;
 mod results;
 mod status_policy;
+mod terminal_policy;
 
 use clap::{Args, Parser, Subcommand};
 use config::IntegrationInput;
@@ -38,7 +39,11 @@ impl std::error::Error for ReportedFailure {}
 struct Cli {
     #[arg(long, global = true, help = "Write the final report as JSON")]
     json: bool,
-    #[arg(long, global = true, help = "Disable the live terminal dashboard")]
+    #[arg(
+        long,
+        global = true,
+        help = "Disable the live dashboard and report colors"
+    )]
     plain: bool,
     #[arg(
         long,
@@ -245,6 +250,8 @@ fn main() -> ExitCode {
     }
     let cli = Cli::parse();
     let json = cli.json;
+    let color =
+        terminal_policy::ColorPolicy::for_stream(cli.plain, std::io::stderr().is_terminal());
     match run(cli) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
@@ -256,7 +263,7 @@ fn main() -> ExitCode {
                     "{}",
                     serde_json::json!({"error":{"message":error.to_string()}})
                 );
-            } else if std::io::stderr().is_terminal() {
+            } else if color.enabled() {
                 eprintln!("\x1b[31;1mfastsecdec\x1b[0m: {error}");
             } else {
                 eprintln!("fastsecdec: {error}");

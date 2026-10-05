@@ -234,3 +234,44 @@ Retained result SHA-256:
 `8e71ad4d198929b3bff6aaf606b0dc1c35fbefaa86ba1c6d20a78dfc54ca61e4`;
 process report SHA-256:
 `2d8f155f5c63f4c6a96fe6bc9539e7a6b3a9d9d39504fde2b1dd15d5c7ede59e`.
+## Whole-graph trial and next capture boundary
+
+The frozen release trial in
+`output/diagnostics/production-alias-fullgraph-1` reached its original
+1,800-second deadline without producing an artifact. The native process
+received SIGINT at 1,800.003 seconds and SIGKILL after the five-second grace;
+the retained wait report records 1,805.689394 seconds and 7,085,428 KiB peak
+resident memory under its documented wait4 semantics. It is not an aggregate
+tree-memory measurement. No inspect or numerical integration stage ran.
+
+The final status is displayed representative 81 of 1,026, with 2,112 geometry
+charts, entered at 806.719603 seconds after 771.007458 cumulative Laurent
+seconds. It follows the completed 539.1885-second ordinal-80 Laurent stage.
+This establishes a remaining whole-graph capability limit; it does not identify
+whether active native series work, retained earlier roots, allocation or other
+operations caused the observed time and memory. Guarded external compilation
+overlapped part of this diagnostic, so this is not isolated timing acceptance.
+
+Independently reviewed the subsequent frozen capture protocol at
+`output/diagnostics/production-alias-capture-81`: zero-based target 80 matches
+the terminal ordinal, and the original source/chart identity must be read from
+the native capture. The preserved representative-3 test binary is bound to
+the archived source/input equivalence records. All 441 immutable manifest
+entries were independently rechecked before launch. The unchanged capture
+test skips earlier Laurent calls, retains original mapping/symmetry/subtraction,
+requires the known 2,112/1,026 structural counts and ends in typed cancellation;
+the missing-target barrier prevents a usable partial integral. Its independent
+180-second plus five-second grace and 30-GiB **address-space** bounds remain
+explicit. This source review accepts no automatic replay or new numerical result.
+
+The capture subsequently completed with exit zero, no timeout, in 89.233588
+seconds and 801,232 KiB peak RSS. Postflight 441 hashes were independently
+rechecked again. Native fixture metadata confirms 2,112 charts and 1,026
+representatives, with target 80 mapping to source chart 119 and multiplicity
+four. The nine-coordinate mapped term retains a 1,351-byte regular body;
+the exported subtraction expression is 137,835,408 bytes and its native
+template 69,451,573 bytes, with 415 image definitions and 8.717971 seconds of
+template preparation. Those are retained object sizes, not allocator/RSS
+attributions. The capture test passed its typed-cancellation completion
+contract; no native series replay, usable partial integral or numerical
+coefficient vector was produced by this diagnostic.

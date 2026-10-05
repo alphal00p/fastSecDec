@@ -15,11 +15,12 @@ checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
 extension is published as PR 8. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **294 tests**, with eighteen explicit
-probes ignored, clean formatting and all-target Clippy. The subsequently added
-bounded caller-owned geometry cache passes **28 sector tests**, including six
-new controls independently rerun, and sector Clippy. These are different gates,
-not an assertion that the complete workspace was rerun after the cache addition.
+The latest complete workspace gate passes **305 tests**, with eighteen explicit
+probes ignored, clean formatting and all-target Clippy. This includes the six
+new geometry-cache tests and five generation-context controls. The earlier
+alias milestone passed 294 tests; its timing observations keep their own source
+identities. Actual PTYs additionally verify monochrome output, wide/compact
+resizing, key cancellation and terminal restoration.
 
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
@@ -38,9 +39,10 @@ the newly committed alias pipeline or cache**.
 
 Still open: complete original on-shell triple-box generation and full-vector
 validation; independent off-shell scalar/rank-two and hard-orthant references;
-difficult-case convergence and error calibration; generation cache adoption,
-caller-owned parallel chart/cone dispatch and additive sector content IDs;
-final CLI color/terminal checks; matched performance and platform gates. General
+difficult-case convergence and error calibration; caller-owned parallel
+chart/cone dispatch and additive sector content IDs; matched performance and
+platform gates. Cache adoption and the identified CLI color/terminal gaps are
+now covered by the gates above. General
 affine upper-cube endpoint charts remain explicitly unsupported. Future Python
 bindings and phase-two contour/GCAD algorithms are outside this phase.
 
@@ -137,3 +139,21 @@ calibration remains open even for a checked reference. No two-worker timing is
 scaled to pretend to be an eight-core result. See the source-linked
 [earlier detailed snapshot](implementation-status-2026-10-04.md), and the
 [remaining-gates audit](phase-one-remaining-gates.md).
+
+### New on-shell capability trial
+
+The release build from `6332676` did not complete the original on-shell triple
+box within its predeclared 1,800-second generation limit. It completed 80 of
+1,026 representative Laurent stages, then reached the deadline during
+representative 81 (872 endpoint terms). The original five-second grace was
+followed by SIGKILL; the process was reaped after 1,805.689 seconds, with peak
+RSS 7,085,428 KiB. No kernel artifact or numerical result was produced, and
+inspection/integration did not start. All 26 frozen-input checks passed.
+
+The physical card, ten-parameter graph, requested order zero and complete-vector
+scope were unchanged. Source and native dependency archives bind the frozen
+release binary. This bounded capability result does not replace the older
+benchmark tables or establish performance parity; guarded external compilation
+overlapped on other CPUs. See the [full terminal evidence and limits](native-alias-production-results.md)
+and [source-only attribution](native-series-fullgraph-attribution.md). The
+on-shell coverage gate remains open.

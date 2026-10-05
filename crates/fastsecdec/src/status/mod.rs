@@ -1,7 +1,9 @@
 //! Serializable status snapshots with terminal-independent display functions.
 mod diagnostics;
+mod geometry;
 mod timings;
 pub use diagnostics::{DiagnosticsOverflow, EvaluationDiagnostics};
+pub use geometry::GeometryReuseStatus;
 use std::fmt;
 pub use timings::GenerationTimings;
 

@@ -19,7 +19,13 @@ fastsecdec benchmark output/bubble.fsd.json
 fastsecdec check-boundaries output/bubble.fsd.json
 ```
 
-`--plain` disables the live terminal dashboard. `--json` writes one final JSON
+`--plain` disables the live terminal dashboard and report/run-time error colors. Setting
+`NO_COLOR` keeps the live dashboard but uses terminal-default colors throughout
+the dashboard, boundary report and errors. Redirected reports omit color.
+Short or narrow terminals show a compact view of the same public status.
+Clap owns argument-validation and help formatting; use `NO_COLOR` to request
+monochrome output before argument parsing as well.
+`--json` writes one final JSON
 document to stdout; `--status-json` streams public status snapshots to stderr.
 Integration JSON snapshots default to a minimum 100 ms interval. Set
 `--status-interval-ms 0` for every worker batch, or choose a longer interval to

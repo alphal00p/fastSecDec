@@ -649,3 +649,16 @@ cancellation and failed misses cannot corrupt prior entries. All 28 sector
 tests and sector Clippy pass, with six new tests independently rerun. This
 establishes the cache core only; generation-level domain reassessment, typed
 progress integration and parallel work interfaces retain their own next audit.
+
+The [generation-context audit](reviews/generation-context-independent.md)
+accepts the additive caller-owned entry with fresh domain admission on every
+request. Only exact integer geometry is shared; source coefficients, weights,
+regular factors, coordinate symbols, assertions and mapped residual checks
+remain current. Compact native roots, aliases, chart metadata, kernel identity
+and independent complete-vector controls agree on cold/warm/free paths. The
+combined 305-test workspace gate, formatting and Clippy pass. The
+[terminal review](reviews/terminal-policy-independent.md) also accepts shared
+CLI color decisions and compact rendering through the existing public status
+Displays, with real PTY cleanup/resize/cancellation evidence. No presentation
+dependency or executor enters the library. Parallel chart/cone interfaces and
+additive sector content IDs remain separate work.
