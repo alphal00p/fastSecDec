@@ -798,6 +798,38 @@ the original-source pole bound and strict analytic input admission. An actual
 adapter must expose that coverage basis distinctly, never manufacture a native
 Series remainder field to satisfy an older reader. Actual-input certification
 and production adoption remain open.
+The shared helper extraction also passes the same six-case/40-row control:
+all semantic result fields equal the original after excluding timings, with
+all 21 frozen hashes intact. The actual adapter remains disconnected and uses
+this same helper. Native numeric exports distinguish stored MPFR precision
+from canonical numeric zero, which supplies no symbolic-zero certificate.
+The first actual point-zero adapter reaches seven precision-stable rows but
+fails before complete export because its metadata asserted requested precision
+equalled native result precision. Numerica deliberately tracks precision loss
+through arithmetic; the observed first pair is 505/511 bits after a 512-bit
+evaluation request. The failure is retained, no oracle is accepted, and the
+narrow transport correction must preserve actual component precision rather
+than reset it or change native arithmetic/comparison tolerances.
+The corrected writer and reader now pass separate native arithmetic controls
+for precision loss, precision growth, numeric zero, exact native decimal/Atom
+round trips and rejected metadata substitutions. Existing native APIs supply
+round-trip text; no formatter or precision-restoration arithmetic is added.
+The corrected original point-zero adapter subsequently completes all seven
+orders and fourteen native exports in 28.32 seconds, with all source/proof and
+32+78 frozen checks intact. Actual precision is retained without padding.
+The other two prescribed exact points subsequently pass with the same frozen
+build in 32.79 and 31.65 seconds. Each preserves all seven signed orders,
+fourteen native exports, actual component precision and the same source/proof
+and 32+78 immutable checks. All three original-input numerical oracles are now
+independently accepted. The native analytic Taylor coverage is not relabeled
+as a Series remainder or symbolic-zero certificate.
+The separately frozen three-process cold reader then passes all 21 signed-order
+comparisons and 24 weighted vectors (168 real components), including worker
+clones and forced replay. All 5,417 pre/postflight hashes pass. Every weighted
+vector is checked and rescued, at 256 bits for points zero/one and 384 for point
+two. This closes numerical agreement for the captured representative only,
+without multiplicity; public generation adoption and whole-graph completion
+remain open. Native evaluator/MPFR/alias/codec ownership is unchanged.
 The [prospective production boundary review](reviews/native-named-production-boundaries.md)
 therefore remains an interface proposal, with admission, conditioning,
 resource/cancellation and public progress decisions explicit before adoption.

@@ -1,14 +1,15 @@
 # Original-expression native dual adapter protocol
 
-This is source preparation, 2026-10-05. Following independent acceptance of the
-six disconnected small controls and their 40 full-vector rows, the coordinator
-authorized a disconnected adapter draft in
-`output/probes/original_dual_adapter/`. HEP independently accepted this protocol.
-The adapter has not been compiled or run. Pathfinder owns the extracted
-`native_core.rs` and a fresh shared-core small harness; the original frozen
-small source remains unchanged. Repeating that affected small gate, independent
-source review, a frozen actual-input preflight and an explicit coordinator
-handoff remain prerequisites for an actual-input process.
+This is the reviewed diagnostic adapter protocol, updated 2026-10-05. The
+disconnected Rust adapter in `output/probes/original_dual_adapter/` reuses
+Pathfinder's extracted `native_core.rs`; its six-case, 40-row shared control and
+independent source review pass. The corrected build has independently accepted
+original-expression oracles at all three prescribed exact points. The retained
+failures, transport correction, build identities
+and individual outcomes are in [native-original-dual-results.md](native-original-dual-results.md).
+The separate [cold candidate audit](native-dual-original-oracle-independent.md#complete-cold-candidate-comparisons)
+now accepts complete agreement and weighted replay at all three points for the
+one captured Taylor representative. Public production adoption remains gated.
 
 The original native Series attempts remain failed evidence in
 `output/diagnostics/original-taylor-point-0-attempt-{1,2}`: 180.167230052 and
@@ -40,7 +41,7 @@ the resulting ordinary evaluator is mapped independently to 512- and 1024-bit
 `Complex<Float>` evaluation. There is no assumption that external Gamma
 functions register a direct `HyperDual<Float>` evaluator.
 
-The prospective standalone entry point accepts only:
+The standalone entry point accepts only:
 
 ```text
 ORIGINAL_CAPTURE TAYLOR_IDENTITY_PROGRESS POINT_INDEX NEW_OUTPUT
@@ -168,14 +169,25 @@ Preserve the existing numerical row keys `order`, `value_512`, `value_1024`,
 `absolute_precision_difference` and `precision_agreement`; add explicit
 imaginary values/checks and the native component index. Any exported MPFR Atom
 must be labeled approximate, include its precision and digest, and must not be
-called an exact coefficient export. HEP's concrete source review required an
-additional storage check: each evaluated real/imaginary component's actual
-precision must equal the requested precision. Nonzero native Float exports
-must survive native export/import with equal values and component precisions.
+called an exact coefficient export. Record requested evaluator precision and
+actual native component precision separately. Numerica arithmetic tracks result
+precision dynamically: cancellation can reduce it and operations such as square
+root can increase it. Require positive actual precision, without padding or an
+equality/upper-bound assertion against the requested precision. Nonzero native
+Float exports must survive native export/import with equal values and actual
+component precisions.
 `Atom::num` canonicalizes a numerical Float zero to `Atom::Zero`, so that storage
 case is explicitly labeled `native-canonical-numeric-zero` with null stored
 precision. It certifies neither an exact source zero nor retained Float
 precision. Every numeric export sets `symbolic_zero_certified: false`.
+Coefficient-row transport uses native
+`Float::as_raw().to_string_radix(10, None)` and the reader parses each component
+at its recorded actual precision before requiring exact agreement with the
+native export. `Display` strings are explicitly labeled diagnostic only. The
+row fields `requested_evaluator_precision_bits`,
+`actual_component_precision_bits_512`, `actual_component_precision_bits_1024`
+and `numeric_text_format: "native-roundtrip-decimal"` make this distinction
+explicit; export metadata records evaluated and stored precision separately.
 Retain the native exact vectorized program
 through an existing native codec if that export is needed and available under
 the exact linked feature identity. The reader consumes the numerical rows, not
@@ -200,11 +212,9 @@ Writing `"1"`, relabeling a dual result as the old native-Series result, or
 constructing a superficial finite polynomial solely to obtain that metadata
 would hide the change of certificate.
 
-Therefore complete record compatibility with the unchanged reader is blocked
-by its coverage admission contract; the coefficient layout is compatible. The
-coordinator accepted a source-level proposal for an additive coverage variant,
-with HEP's agreement. The old Series-v1 branch and every numerical comparison
-remain unchanged. The prospective new format is
+Therefore the diagnostic reader uses an independently reviewed additive
+coverage variant; its old Series-v1 branch and numerical comparisons remain
+unchanged. The new format is
 `native-original-taylor-dual-oracle`, version one, with coverage fields:
 
 ```json
@@ -235,10 +245,13 @@ the presence of a fabricated `native_absolute_order` in this variant. Existing
 common checks still require all three complete source-bound oracle records
 before any candidate comparison.
 
-This is a metadata admission change for a diagnostic reader, not a new numerical
-reader or production serializer. Its source change and frozen rebuilt reader
-need independent review after the small gate. No reader code has been changed,
-and no old-format result is emitted by this protocol.
+This is a metadata admission change for a diagnostic reader, not a production
+serializer. Its controls also reject false nominal-as-actual precision metadata
+and exercise native loss/growth/zero transport. See
+[native-dual-reader-admission.md](native-dual-reader-admission.md). No old-format
+result is emitted by this protocol. The completed diagnostic comparison passed
+all three independent-oracle and concrete-reader gates; this contract remains
+required for subsequent candidates.
 
 ## Failure, resource and timing protocol
 
@@ -251,7 +264,7 @@ source revision. The existing successful oracle build uses Symbolica rlib
 SHA-256 `01601b6df1747703693fdbf78818f9bf2bb74f4e4b1a888a5971b678cc60b61a`.
 A normal CLI's different feature identity is not interchangeable evidence.
 
-The prospective default ceiling is the existing 180 seconds plus five seconds
+The frozen ceiling is 180 seconds plus five seconds
 termination grace, CPU8 and 30 GiB address space, unless the coordinator
 explicitly freezes another reviewed limit. The Rust process-group timer owns
 the deadline and reaps children; an address-space limit is not an RSS promise.
@@ -277,8 +290,26 @@ precision/realness checks, exports and source postflight pass. No failure is a
 zero result and no later point or comparison reader starts automatically after
 a failure.
 
-The next accepted milestone requires the shared-helper small-control outcome
-review, the additive reader coverage change, source review, frozen
-build/preflight and a coordinator runtime handoff. Actual coefficient
-agreement, the remaining points, whole-graph integration and performance all
-remain unverified.
+The accepted shared-helper, source and build gates do not establish actual
+coefficient agreement. Actual point execution requires independent concrete
+preflight and a coordinator runtime handoff; candidate acceptance additionally
+requires all three source-bound oracles and the reviewed comparison readers.
+The linked audit accepts candidate coefficient agreement for this captured
+representative. Whole-graph integration and performance remain unverified.
+
+## Frozen build and execution evidence
+
+The shared-core repeat passed six cases and 40 complete signed-order rows in
+7.688539 seconds, with all 21 frozen hashes passing. HEP independently verified
+exact equality of every semantic JSON field against the original accepted small
+control after excluding timings. Its core SHA-256 is
+`4be1d53b69ae54c28034bcc4a84680c9056ab63f3092a082985a77e4b6969c5f`.
+The source review additionally covers dynamically tracked native precision,
+exact native decimal transport and canonical numeric-zero storage. The same
+`io.rs` passed six arithmetic/export controls before build three; the build
+wrapper binds that accepted control's exact source digest. The three accepted
+actual point outcomes are maintained in
+[native-original-dual-results.md](native-original-dual-results.md), including the
+preserved compiler mismatch and failed first export assertion. A build or
+preflight alone grants no coefficient, candidate, integration or performance
+acceptance.

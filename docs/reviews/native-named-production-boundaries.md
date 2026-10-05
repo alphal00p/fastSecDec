@@ -1,9 +1,11 @@
 # Prospective production boundary for native named coefficients
 
 This is a source/interface review, not an adoption decision. The candidate now
-produces the captured representative and builds native IR/O2, but its independent
-original-expression oracles and cold complete-order numerical checks remain
-open. The original production route stays unchanged until those gates pass.
+produces the captured representative and builds native IR/O2. Its independent
+original-expression oracles and three cold complete-order comparisons now pass
+as recorded in the [independent oracle review](native-dual-original-oracle-independent.md).
+This closes one representative's numerical diagnostic gate. The original
+production route stays unchanged pending public-path and whole-graph acceptance.
 
 ## Place the change before the physical Taylor expression
 
@@ -137,3 +139,38 @@ Use existing weighted adaptive/forced-replay and worker controls at the same
 rounded coordinates. Check metadata, multiplicity and no unresolved names at
 the executable boundary. Finally establish whole-graph completion independently;
 one representative and small controls do not close that capability gate.
+
+## Source review of the concrete adoption slices
+
+The [implementation handoff](native-named-production-slices.md) separates the
+shared endpoint rule, native Series composition, local request resolution,
+conditioning and generation/status integration. Its physical-default opt-in,
+whole-representative unregulated fallback and unchanged alias/evaluator/artifact
+owners satisfy the boundaries above. Optional caller limits replace diagnostic
+caps without silently changing existing defaults. A failed resource, native
+series or cancellation operation must not trigger an expensive fallback.
+The original-input oracles and cold candidate comparisons now cover all three
+points. The public-path and broader production gates above remain required.
+
+The face premise has concrete existing source support: `mapping::map_terms`
+calls `domain::check_residual` for every singular residual. A nonzero constant
+and uniform coefficient sign, globally or on every zero/one face, establish
+nonvanishing through the required face intersections. Polynomial-role factors
+instead require nonnegative integer powers in `ParametricIntegrand::new`.
+Production interleaving must remain downstream of these checks, with the
+existing branch/domain restrictions intact. Its argument-shape predicate is
+not an independent regularity certificate.
+
+One additional promotion gate concerns globally interned native symbol names.
+Restarting local counters permits name reuse without per-generation namespaces;
+bodies and partial/face caches remain caller-owned local maps. However, bare
+native `symbol!` can retrieve an incompatible previously registered name.
+Explicit empty attributes alone also do not exclude existing hooks:
+`state.rs::custom_function_matches` accepts an absent requested hook. The public
+native composite is strict empty metadata admission followed by
+`Symbol::is_exportable()`, which checks that all five hook families are absent.
+This corrects the initial empty-attributes-only source inference. A focused
+native probe must verify this composite, stable repeated names, independent
+simultaneous body maps and incompatible registrations before choosing the
+production adapter. No global reset, callback body registry, custom symbol
+table or dependency patch is justified by the available API.

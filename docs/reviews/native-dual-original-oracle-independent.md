@@ -1,9 +1,12 @@
-# Native dual evaluation of the original oracle — independent source review
+# Native dual evaluation of the original oracle — independent review
 
-This is source-only feasibility work following the retained 180- and 600-second
-exact-Atom oracle timeouts. No alternative adapter, symbolic execution or
-dependency patch was introduced by this review. The named candidate's
-coefficients and pole orders must not supply
+This review began with source feasibility work following the retained 180- and
+600-second exact-Atom oracle timeouts. Subsequent small-control results and
+disconnected adapter reviews are recorded below. All three original-expression
+oracle points and the candidate's three cold comparisons are now accepted for
+this representative only. Production adoption and whole-graph gates remain
+open. The named
+candidate's coefficients and pole orders must not supply
 an independent oracle's input or admission certificate. The corresponding
 [native API survey](native-original-oracle-numeric-series-audit.md) remains
 explicit about its unexecuted scope.
@@ -160,9 +163,198 @@ axes, monomial power, exact intermediate admission and complete native Taylor
 shape; all seven component/order pairs remain explicit. The old Series-v1
 reader branch must remain intact. Approximate MPFR exports retain precision and
 digest labels, and every original input/proof/exact-point/multiplicity check
-remains mandatory. Shared small-helper extraction needs its affected control
-rerun. This accepts the bounded diagnostic interface, not an implementation,
-actual runtime or numerical result.
+remains mandatory. This interface acceptance does not accept actual runtime or
+an actual-input numerical result.
+
+The extracted helper subsequently passes its affected repeat under
+`output/diagnostics/native-pole-dual-shared-small-1`: exit zero, no timeout,
+7.688539304 seconds, peak child RSS 9,216 KiB and all 21 frozen files intact.
+Independent comparison removes only timing fields and finds every remaining
+JSON field identical to the accepted original, including all 40 rows, six
+shapes/bounds, nine rejections and literal-zero evidence. The original source
+remains unchanged. The shared helper SHA-256 is
+`4be1d53b69ae54c28034bcc4a84680c9056ab63f3092a082985a77e4b6969c5f`.
+
+The disconnected actual adapter implementation also passes source review for
+compile-only preparation. Its native numeric export/import check preserves
+both component values and precision for nonzero `Complex<Float>` atoms.
+Native canonical numeric zero carries no stored Float precision; the record
+labels that explicitly and never certifies symbolic zero. Failed stages retain
+partial diagnostics, while a complete result requires all seven component
+pairs, precision/realness agreement and immutable-input postflight. Actual
+execution and the separate reader's transport checks remain subsequent gates.
+
+The additive reader draft passes source review after one transport correction:
+canonical-zero storage cannot accompany a nonzero coefficient row. It imports
+all fourteen small native numeric exports to verify exact recorded values and
+stored component precisions, or native numeric zero with no symbolic-zero
+claim. The old Series-v1 remainder guard remains unchanged. The dual branch
+instead validates the exact analytic/Taylor coverage, original proof and build
+bindings, fourteen approximate exports and three native intermediates. Its
+schema and export controls use accepted small-case values, including noninteger
+Gamma coefficients, with explicitly synthetic provenance fixtures. Their
+execution is a separate gate and cannot certify an actual captured vector.
+
+That reader control now passes independently at
+`output/diagnostics/native-dual-reader-small-1`: exit zero in 0.0284365 seconds,
+no timeout, peak child RSS 3,072 KiB and all 27 frozen files intact. Four complete
+real cases admit 28 rows; 31 rejection controls include the complex original,
+negative requested maximum, false coverage, missing/changed bindings,
+contradictory zero storage and numeric value/precision mismatches. Fourteen
+noninteger Gamma-model exports retain exact native values and precision. This
+accepts the diagnostic reader's admission and transport checks only.
+
+The actual adapter's first compile failed before execution because Rust 1.97.1
+could not read the frozen Rust 1.98.1 dependency. It remains retained. Fresh
+build two uses the matching compiler and passes its 29-file immutable check;
+the standalone source and shared helper are unchanged. Point-zero preparation
+at `output/diagnostics/original-taylor-dual-point-0-attempt-1` passes all 78
+frozen checks and binds only the original capture and completed Taylor proof.
+The reviewed wrapper permits one 180-second process, five-second grace,
+30-GiB address-space cap and CPU8, with no automatic later point or reader.
+This closes concrete preflight, not the actual numerical outcome.
+
+The first actual point-zero process then failed after 28.70488624 seconds
+(exit one, no timeout, peak child RSS 589,848 KiB). Native factoring, exact
+analytic admission, monomial reversal and dual evaluation completed, and all
+seven recorded precision/realness comparisons passed. The first approximate
+export rejected component precisions `[505, 511]` after evaluation requested at
+512 bits. No final result or complete numeric export vector exists; the
+independent outcome explicitly rejects oracle acceptance. All 78 input checks
+remain intact.
+
+The export assertion was too strict. Native Numerica `Float` operations loosely
+track result precision: addition/subtraction can reduce it after cancellation,
+multiplication/division inherit the lower input precision, and `get_precision`
+returns this current precision. The frozen `multiprecision.rs` source and its
+`zero_does_not_restore_lost_precision` control confirm the behavior; the source
+SHA-256 is `ed49b16eff4521a7fadd61bf623c4753a6d60522eb0b8dee9856814d892464d1`.
+The required correction separates requested evaluator precision from actual
+component precision and preserves actual values/precision through native
+export/import. The reader must parse each component at its recorded actual
+precision. Resetting precision to the requested value would erase native
+information and is not accepted. This is transport metadata, not a new error
+bound, arithmetic algorithm or tolerance. A focused dynamic-precision control
+and fresh bounded actual attempt remain required.
+
+Transport text also needs the native round-trip formatter. `Float::Display`
+explicitly prints only significant digits and warns that its output may not
+reconstruct the stored value. The existing public
+`Float::as_raw().to_string_radix(10, None)` API supplies enough digits for native
+MPFR round-trip parsing at the recorded actual precision. The correction must
+check that exact round trip rather than treating display text as a lossless
+serialization or upgrading its precision during import.
+
+The corrected writer's six-case control now passes independently at
+`output/diagnostics/native-float-export-control-1`: exit zero in 0.009625888
+seconds and all 19 frozen files intact. Requested 512/1024-bit arithmetic
+produces cancellation components at 483/995 bits and square-root components
+at 513/1025 bits; native zero retains its separate storage semantics. Exact
+native decimal parsing and Atom export/import preserve every observed value
+and component precision. The accepted shared I/O source has SHA-256
+`3251cab5482b8e962a38fefd0ee11b4bbdbd2278cd19ccab4da6626f9f6ffb52`.
+This closes the writer transport correction, while a fresh actual-input
+outcome remains separate. The revised reader control also passes at
+`output/diagnostics/native-dual-reader-small-2`: exit zero in 0.034905062 seconds
+and all 24 hashes intact. The four real cases/28 rows and 31 prior rejections
+remain, with two additional native arithmetic transport cases. They preserve
+cancellation precision 446/958 and square-root precision 513/1025 against
+requests of 512/1024 bits, and reject substitution of nominal precision for
+actual precision. The legacy Series-v1 reader is unchanged; no actual captured
+coefficient agreement follows from these small transport controls.
+
+Corrected actual point zero now passes independently under
+`output/diagnostics/original-taylor-dual-point-0-attempt-2`: exit zero in
+28.316419658 seconds, peak child RSS 589,832 KiB, all 32 build and 78 attempt
+hashes intact. All original source hashes, the exact completed Taylor proof
+and all 17 output artifacts were independently rehashed. Seven orders from
+−6 through zero pass the requested 512/1024-bit evaluations and realness checks;
+fourteen native numeric exports preserve actual component precision. Real
+components retain 501–505 and 1013–1017 bits respectively; imaginary components
+retain 511 and 1023. None is padded to the nominal request.
+
+The accepted result BLAKE3 is
+`d448310303c4a15a5d8915e583e2237ba18b21f3fe9977a7b5ba365802ab0b36`.
+Its independent audit binds the absolute result path, point index and digest
+for explicit reader selection. This is a complete approximate oracle at one
+exact point, based on original-source pole coverage and native analytic Taylor
+evaluation. It is not a Series remainder certificate, candidate agreement,
+symbolic-zero proof or whole-integral validation. The failed earlier attempts
+remain unchanged. This point-zero acceptance was followed by the two outcomes
+below; the candidate comparisons were a separate subsequent gate.
+
+Points one and two also pass independently with the same frozen build, native
+operations, tolerances and bounds. Point one uses the exact near-boundary tuple
+`[1/10^20,37/100,37/100,37/100,37/100,37/100,37/100,37/100,37/100]`;
+point two alternates `1/10^8` and `73/100`, starting and ending with `1/10^8`.
+Each retains all seven orders, fourteen native exports and seventeen native
+output artifacts. Their original source/proof bindings and all 32 build plus
+78 attempt hashes were independently checked. Actual real-component precision
+reaches 455/967 bits at point one and 479/991 bits at point two, with all
+requested two-precision agreement and realness checks passing unchanged.
+
+| Point | Retained attempt under `output/diagnostics/` | Process wall seconds | Peak child RSS KiB |
+| --- | --- | --- | --- |
+| 1 | `original-taylor-dual-point-1-attempt-1` | 32.789803612 | 610,396 |
+| 2 | `original-taylor-dual-point-2-attempt-1` | 31.645152999 | 598,164 |
+
+Both processes exited zero, were reaped and did not time out. Their result
+BLAKE3 values are respectively
+`1c948f789b73161f8e0ccd00b52a4eda296ee65201cfc617612a933ae38e3988`
+and `47afbfe4b1f7e4ce2062c4271d096d8bc020c028dbaf1f6c64c495a262513548`.
+Each independent audit exposes the accepted point index, absolute result path
+and exact digest for the explicit reader selection. No old failed attempt is
+eligible for that selection. These three complete original-input oracles close
+the independent input side of the comparison gate. By themselves they do not
+establish agreement of the candidate, whole-integral correctness or matched
+performance.
+
+## Complete cold candidate comparisons
+
+The explicit reader selection binds point zero attempt two, point one attempt
+one and point two attempt one. The rebuilt additive reader preserves the old
+Series-v1 branch and admits the distinct analytic-Taylor coverage and native
+approximate exports. Its compiled source archive matches the independently
+reviewed reader and transport controls; the temporary library wiring was
+restored byte for byte after compilation.
+
+The three separately started cold readers under
+`output/diagnostics/native-named-actual-readers-dual-1` all exit zero without
+timeouts. Independent preflight and postflight verify all 5,417 frozen files;
+the 5,411 configuration input BLAKE3 bindings were also rehashed. Final
+`result/result.json` records, rather than intentionally earlier progress
+snapshots, provide the acceptance evidence.
+
+| Point | Process wall seconds | Peak child RSS KiB | Weighted evaluation precision |
+| --- | --- | --- | --- |
+| 0 | 60.168910078 | 876,748 | 256 bits |
+| 1 | 61.542492682 | 860,104 | 256 bits |
+| 2 | 64.462581823 | 885,408 | 384 bits |
+
+All 21 exact-coordinate coefficient comparisons cover the full signed union
+`[-6,-5,-4,-3,-2,-1,0]`, including the additional leading order, against the
+independent original-expression oracles. Candidate native MPFR evaluation
+agrees at requests of 512 and 1024 bits and with the original oracle under
+the existing scaled `1e-70` rule. No missing coefficient was padded or accepted
+as a sampled symbolic zero.
+
+At the identical rounded coordinates, the cold `SectorKernel` and its native
+worker clone each pass weights one and `1e40`, with adaptive and forced replay:
+24 complete vectors and 168 real output components. The rounded native MPFR
+reference independently agrees at both precision requests; weighted outputs
+meet the existing `2e-12 * max(abs(expected), 1)` criterion. All 24 vectors
+receive checks and rescue, including all 12 forced replay vectors. This
+preserves the conservative cold unknown-real/zero facts and does not reduce the
+precision policy to improve the result.
+
+The native IR remains 14,579,188 bytes with BLAKE3
+`f9ff07d37d3b82cb8c3b1aa234c4660ebe80088fd35ea36eb5b5fd2ea58d7362`.
+The aggregate independent review has SHA-256
+`a2600da64d07802684693f22a01dad9f0ef7854c71d96a06faffc706771de54e`.
+This closes complete numerical agreement and cold evaluator/weighted replay
+for one captured Taylor representative, without its chart multiplicity.
+Public generation integration, status/limits, full original graph completion,
+integration convergence and matched performance remain separate gates.
 
 Reviewed source SHA-256 values are
 `a6da1267821bb28f8c8f7eda8584c73f574308f93592ef74409d74b86519e040`

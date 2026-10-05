@@ -112,19 +112,24 @@ rescue up to 320 bits. The captured actual representative then generates in
 54.875504 seconds under the same 180-second limit, retaining all formal orders
 minus six through zero and native remainder one. Its complete evaluator builds
 in a separate 43.313581-second process and retains 14.58 MB of native exact IR.
-Independent original-expression comparisons remain pending: the first oracle
-times out in native series at 180.167 seconds without a coefficient vector.
+The first independent original-expression oracle times out in native series
+at 180.167 seconds without a coefficient vector.
 A fresh unchanged-math point-zero attempt also times out, at 600.315 seconds,
-without returning the full series. Both are retained; later points and readers
-remain unstarted. Native factor extraction and high-precision automatic
+without returning the full series. Both failures are retained; that Series
+chain stops. Native factor extraction and high-precision automatic
 differentiation subsequently pass a disconnected small gate: six cases and
 forty signed coefficient rows agree with original-expression native Series at
 512/1024 bits. Relative-only tiny nonzero controls, complex output, negative
 requested maxima, nine typed rejections and a separate literal-zero control
-also pass independent review. The actual captured-expression adapter remains
-under development. Its analyticity/Taylor coverage has a distinct diagnostic
-format and cannot be reported as a native Series remainder. No production
-strategy or whole-graph performance claim changes.
+also pass independent review. Following a separately tested numeric-transport
+correction, the actual adapter completes all three prescribed points and gains
+independent acceptance. The cold candidate reader then passes all 21 signed
+coefficient/point comparisons and 24 weighted full-vector calls, with rescue at
+256/384 bits and all immutable checks passing. Its analyticity/Taylor coverage
+has a distinct diagnostic format and cannot be reported as a native Series
+remainder. This closes the captured representative's agreement gate; public
+production integration and the full graph remain open. No benchmark row below
+changes.
 
 ## Small-case generation and eight-core accuracy
 
@@ -290,18 +295,50 @@ seconds, including 3.712188 seconds for native exact program construction and
 27.017606 seconds for production backend construction, with peak RSS
 1,337,068 KiB. All 5,202 immutable checks pass. This compiles previously generated
 coefficients; it does not include their generation or certify their values.
-The three independent original-expression oracles and complete cold-reader
-comparisons are still required.
+At that stage, the three independent original-expression oracles and complete
+cold-reader comparisons remained required.
 
 The first original-expression point fails at both separately declared limits:
 180.167230 and 600.315441 seconds. Exact binding leaves a 22.69 MB Atom; native
 relative width one returns leading order minus six and remainder minus five,
 but the width-seven request never completes within either limit. The longer
 attempt peaks at 3,617,212 KiB; its inputs remain unchanged and the child is
-reaped. No complete oracle, subsequent point or reader is accepted. See the
+reaped. No complete oracle or dependent comparison was accepted from those
+Series attempts. See the
 [original-oracle record](native-original-taylor-point-first-oracle.md). This
-failure limits validation of the candidate; it is not a timed production
+failure initially limited validation of the candidate; it is not a timed production
 integration or a coefficient disagreement.
+
+The alternative native-dual adapter subsequently completes its first actual
+point's mathematical stages, including exact pole removal and all seven
+two-precision/realness checks, but exits after 28.704886 seconds during numeric
+export. The adapter incorrectly expected output precision to equal requested
+precision; native Float arithmetic intentionally tracks precision dynamically.
+All 78 input and 29 build postchecks pass, but no complete oracle or accepted
+numeric export exists. A narrow transport correction records the actual
+component precisions separately, using native round-trip decimal formatting
+without padding precision or changing arithmetic/tolerances. The corrected
+writer's six cancellation/growth/zero cases and the reader's full-vector,
+malformed-record and dynamic-precision controls now pass independent review.
+The fresh point-zero attempt then succeeds in 28.316420 seconds, with peak RSS
+589,832 KiB. Independent review accepts all seven orders, fourteen native
+numeric exports, the original-expression proof and all 32 build/78 input
+checks. Requested 512/1024-bit evaluations retain their actual real-component
+precision ranges of 501–505/1013–1017 bits. The two remaining prescribed points
+also succeed and pass independent review: 32.789804 and 31.645153 seconds, with
+the complete seven-order vectors and fourteen native exports each. Actual
+real-component precisions remain at least 455/967 and 479/991 bits, respectively.
+All three original-expression oracles are accepted. The subsequent cold reader
+also passes independent review: all 21 coefficient/point comparisons over the
+complete `[-6,-5,-4,-3,-2,-1,0]` union, and 24 weighted cold/worker-clone vectors
+(168 real components), including twelve forced replay vectors. All 24 calls
+use precision rescue: 256 bits at the first two points and 384 at the third.
+The reader processes take 60.168910, 61.542493 and 64.462582 seconds, with no
+timeouts and all 5,417 immutable checks passing. This closes the captured
+representative's candidate agreement. Public production integration and the
+full original graph remain separate gates. The shared-helper repeat also passed
+with every non-timing field equal to the original small gate. These diagnostics
+do not change any benchmark row above.
 
 ### Hard four-loop independent reference
 
