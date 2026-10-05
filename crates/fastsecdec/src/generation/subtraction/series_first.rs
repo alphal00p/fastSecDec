@@ -1,6 +1,7 @@
 //! Bounded, test-only series-first composition experiment. Native Symbolica
 //! owns every series operation and truncation bound; no inferred pole budget or
 //! coefficient convolution is used here.
+mod named;
 mod replay;
 mod tests;
 
@@ -60,6 +61,16 @@ pub(crate) fn expand(
     regulator: Symbol,
     options: &GenerationOptions,
 ) -> Result<(BTreeMap<i32, Atom>, Vec<Attempt>), GenerationError> {
+    expand_with_names(terms, parameters, regulator, options, None)
+}
+
+fn expand_with_names(
+    terms: &[MappedTerm],
+    parameters: &[Symbol],
+    regulator: Symbol,
+    options: &GenerationOptions,
+    names: Option<&named::Coefficients>,
+) -> Result<(BTreeMap<i32, Atom>, Vec<Attempt>), GenerationError> {
     // Preserve production's exact unregulated-endpoint admission. This rare
     // path may require epsilon-dependent exact boundary derivatives; a zero
     // *truncated* series cannot establish their all-order vanishing.
@@ -100,7 +111,7 @@ pub(crate) fn expand(
                 *count,
             )
         } else {
-            compose(terms, parameters, regulator, options, width)?
+            compose(terms, parameters, regulator, options, width, names)?
         };
         let bound = series.absolute_order();
         attempts.push(Attempt {
@@ -142,6 +153,7 @@ fn compose(
     regulator: Symbol,
     options: &GenerationOptions,
     width: i64,
+    names: Option<&named::Coefficients>,
 ) -> Result<(NativeSeries, usize), GenerationError> {
     let mut expansion = Expansion {
         regulator,
@@ -154,7 +166,13 @@ fn compose(
             Ok(Piece {
                 powers: term.powers.iter().cloned().map(Some).collect(),
                 prefactor: term.prefactor.clone(),
-                regular: expansion.series(&term.regular)?,
+                regular: {
+                    let regular = expansion.series(&term.regular)?;
+                    match names {
+                        Some(names) => names.wrap_series(&regular),
+                        None => regular,
+                    }
+                },
             })
         })
         .collect::<Result<Vec<_>, GenerationError>>()?;
@@ -190,12 +208,15 @@ fn compose(
                     next.push(Piece {
                         powers,
                         prefactor: piece.prefactor.clone(),
-                        regular: &boundary * &inverse,
+                        regular: scale(&boundary, &inverse, names),
                     });
-                    piece.regular = &piece
-                        .regular
-                        .map_coeff(|coefficient| -coefficient.derivative(*parameter))
-                        * &inverse;
+                    piece.regular = scale(
+                        &piece
+                            .regular
+                            .map_coeff(|coefficient| -coefficient.derivative(*parameter)),
+                        &inverse,
+                        names,
+                    );
                     power = denominator;
                     piece.powers[axis] = Some(power.clone());
                 }
@@ -227,7 +248,7 @@ fn compose(
                     next.push(Piece {
                         powers,
                         prefactor: piece.prefactor.clone(),
-                        regular: &coefficient * &inverse,
+                        regular: scale(&coefficient, &inverse, names),
                     });
                 }
                 if degree + 1 < count {
@@ -253,7 +274,11 @@ fn compose(
         let mut regular = piece.regular;
         for (parameter, power) in parameters.iter().zip(piece.powers) {
             if let Some(power) = power {
-                regular = &regular * &expansion.series(&Atom::var(*parameter).pow(power))?;
+                regular = scale(
+                    &regular,
+                    &expansion.series(&Atom::var(*parameter).pow(power))?,
+                    names,
+                );
             }
         }
         if let Some(group) = groups.get_mut(&piece.prefactor) {
@@ -264,7 +289,7 @@ fn compose(
     }
     let mut result = None;
     for (prefactor, regular) in groups {
-        let term = &expansion.series(&prefactor)? * &regular;
+        let term = scale(&regular, &expansion.series(&prefactor)?, names);
         result = Some(match result {
             Some(sum) => &sum + &term,
             None => term,
@@ -277,6 +302,21 @@ fn compose(
         },
         count,
     ))
+}
+
+/// The only products involving formal regular coefficients have an independent
+/// scalar series. No inverse or nonlinear series operation sees those names.
+fn scale(
+    regular: &NativeSeries,
+    scalar: &NativeSeries,
+    names: Option<&named::Coefficients>,
+) -> NativeSeries {
+    if let Some(names) = names {
+        for (_, coefficient) in scalar.terms() {
+            names.assert_independent(coefficient);
+        }
+    }
+    regular * scalar
 }
 
 fn coefficients(

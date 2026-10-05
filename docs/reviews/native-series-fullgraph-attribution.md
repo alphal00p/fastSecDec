@@ -121,7 +121,7 @@ given pointwise integrand. Any comparison requires native complete-vector
 integral controls and the actual captured endpoint powers. No alternative
 strategy or prefactor-convolution implementation is introduced here.
 
-## Prepared capture protocol, not executed
+## Original capture protocol, before the terminal outcome
 
 If this trial does not finish, the already frozen workspace test binary used by
 representative attempt three contains the independently tested capture hook.
@@ -170,3 +170,41 @@ provides the actual failed representative for the next bounded comparison. It
 does not establish that native series arithmetic alone consumed the remaining
 whole-graph deadline, nor that IBP will be cheaper. The source-bound existing-IBP
 comparison is separately specified in `native-triplebox-ibp-proposal.md`.
+
+## Existing IBP preparation did not complete within its bound
+
+The independently reviewed `native-ibp-prepare-1` first reproduced the captured
+Taylor expression exactly, including its 872 pieces (32.382 seconds), then
+passed the same mapped native fields to the existing production IBP strategy.
+Preparation reached its unchanged total 180-second limit during subtraction:
+180.483 seconds wall, child SIGINT, wrapper 124, peak RSS 6,020,136 KiB.
+All 52 frozen files passed postflight verification and the child was reaped.
+No IBP expression or piece count was exported, so its independent oracle,
+Laurent, evaluator and integration stages remain unexecuted.
+
+This development/test build used native dependency opt-level 2 and unchanged
+allocator features; it is not a controlled release comparison. The negative
+result shows that changing the existing subtraction option alone did not
+complete this preparation under its declared bound. It does not prove that IBP
+is mathematically unsuitable or determine its eventual release cost. Before a
+new attempt, the next source question is how to avoid materializing the large
+physical derivative/boundary density before epsilon expansion, using native
+series and evaluator definition ownership. The reference's coefficient-first
+ordering is relevant; its separate series implementation must not be copied.
+
+## Queued allocator control, separate from IBP
+
+The frozen full-graph Cargo artifact record enables Symbolica features
+`bincode`, `float-mpfr`, `integer-gmp`, `native_code_generation`, and `serde`.
+It does **not** enable native `faster_alloc`. The existing Symbolica feature
+selects mimalloc (`Cargo.toml:51–54`), whose process-global allocator is installed
+only under that feature (`src/lib.rs:195–197`). Native owned Atom storage is
+`Vec<u8>` (`atom/representation.rs:164`), including derived clones of sums.
+
+Together with the recorded high minor-fault/system-CPU counts, this motivates a
+separate, bounded native-feature control if the existing IBP strategy is
+insufficient. It does not diagnose the present CPU split, establish a benefit,
+or justify an allocator default. Allocator ownership is process-global; the
+HEPKit caller/application must retain that choice. The IBP comparison keeps the
+current native feature set unchanged so mathematical strategy and allocator
+changes are not confounded. No custom allocator or new dependency is proposed.

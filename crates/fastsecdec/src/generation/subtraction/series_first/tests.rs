@@ -17,6 +17,31 @@ fn compare(
     options: GenerationOptions,
 ) -> (BTreeMap<i32, Atom>, Vec<Attempt>) {
     let (actual, attempts) = expand(&terms, parameters, regulator, &options).unwrap();
+    let (named, named_attempts, statistics) =
+        named::expand_named(&terms, parameters, regulator, &options).unwrap();
+    for order in actual
+        .keys()
+        .chain(named.keys())
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
+        let difference = actual.get(&order).cloned().unwrap_or(Atom::Zero)
+            - named
+                .get(&order)
+                .cloned()
+                .map(|a| a.into_inner())
+                .unwrap_or(Atom::Zero);
+        assert!(
+            difference.as_view().get_byte_size() < 128_000,
+            "bounded complete-vector named control"
+        );
+        assert!(
+            difference.together().expand().is_zero(),
+            "named coefficient order {order}: {difference}"
+        );
+    }
+    assert!(!named_attempts.is_empty());
+    eprintln!("named native composition: {statistics:?}; attempts: {named_attempts:?}");
     let (density, _, _) =
         crate::generation::subtraction::subtract(terms, parameters, regulator, &options).unwrap();
     let expected = laurent::expand(
@@ -234,6 +259,18 @@ fn native_series_first_keeps_large_regular_power_compact() {
     let eps = symbol!("series_first_compact::eps");
     let x_atom = Atom::var(x);
     let regular = (Atom::one() + &x_atom).pow(Atom::num(10_000));
+    let (named, _, statistics) = named::expand_named(
+        &[term(
+            Atom::one(),
+            regular.clone(),
+            vec![Atom::num(-2) + Atom::var(eps)],
+        )],
+        &[x],
+        eps,
+        &GenerationOptions::default(),
+    )
+    .unwrap();
+    assert!(statistics.root_bytes < 2048 && statistics.definition_bytes < 2048);
     let (coefficients, _) = expand(
         &[term(
             Atom::one(),
@@ -257,6 +294,14 @@ fn native_series_first_keeps_large_regular_power_compact() {
         .replace(Pattern::Literal(regular))
         .with(Atom::var(symbol!("series_first_compact::opaque")));
     assert!(difference.together().expand().is_zero());
+    for order in [-1, 0] {
+        let difference = (&coefficients[&order] - named[&order].clone().into_inner())
+            .replace(Pattern::Literal(
+                (Atom::one() + &x_atom).pow(Atom::num(10_000)),
+            ))
+            .with(Atom::var(symbol!("series_first_compact::opaque_named")));
+        assert!(difference.together().expand().is_zero());
+    }
 }
 
 #[test]

@@ -9,9 +9,11 @@ mod cache;
 mod cone;
 mod decompose;
 mod map_validation;
+mod stages;
 mod support;
 mod triangulate;
 mod types;
+mod work;
 
 pub use cache::{GeometryCache, GeometryCacheOutcome};
 pub use decompose::decompose;
@@ -19,4 +21,8 @@ pub use support::PolynomialSupport;
 pub use types::{
     Decomposition, DecompositionOptions, DecompositionPhase, DecompositionProgress,
     ParametricDomain, SectorError, SectorMap,
+};
+pub use work::{
+    GeometryCompletion, GeometryJob, GeometryJobId, GeometryPlan, GeometryWorkError,
+    PreparedGeometry,
 };

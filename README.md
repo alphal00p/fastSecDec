@@ -53,3 +53,9 @@ The workspace separates the public physics library (`fastsecdec`), exact sector
 geometry (`fastsecdec-sectors`), and command-line orchestration (`fastsecdec-cli`).
 The QMC library extension lives on a separate branch of Numerica. Reference
 checkouts and generated artifacts are deliberately excluded from this repository.
+
+Library callers can retain a `GenerationContext` for exact geometry reuse.
+The sector crate also exposes [caller-scheduled chart and cone jobs](docs/reviews/parallel-geometry-implementation.md),
+with deterministic native merging and cancellation. `KernelSet::sector_content_id`
+provides an additional representation identity for diagnostics and reuse;
+existing artifact, checkpoint and sector-index conventions remain unchanged.

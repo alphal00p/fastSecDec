@@ -3,8 +3,12 @@
 Review and staged implementation plan, 2026-10-05. This addresses the explicit
 geometry-cache and parallel chart/cone items in `FIRST_PHASE_PLAN.md`. The
 coordinator accepted the complete-cache first slice; its implementation and
-sector-only gate are recorded in `geometry-cache-core.md`. Parallel geometry,
-generation-entry wiring and per-sector identities remain proposed later slices.
+sector-only gate are recorded in `geometry-cache-core.md`. The additive generation
+context is implemented and tested as recorded in
+`generation-context-geometry-reuse.md`. The native two-stage parallel geometry
+API and its focused tests are recorded in `parallel-geometry-implementation.md`;
+main-library parallel adoption remains a separate proposed slice. The additive
+per-sector identity source/gates are recorded in `sector-content-identity.md`.
 Complete on-shell generation and pending reference outcomes retain priority.
 The sector crate already owns the required exact mathematical operations.
 
@@ -13,7 +17,7 @@ The sector crate already owns the required exact mathematical operations.
 | Existing owner | Reusable contract | Limit |
 | --- | --- | --- |
 | `fastsecdec-sectors::PolynomialSupport` | `from_exact` validates dimensions/nonnegative native integers, then sorts and deduplicates monomial exponent rows. | It canonicalizes each support; it does not identify arbitrary coordinate permutations or translated supports. |
-| `decompose.rs`, `cone.rs`, `triangulate.rs` | Native exact Minkowski candidates, deterministic double description, candidate normal cones, pulling triangulation, determinants/Jacobians/valuations. | Execution and output accumulation are currently serial. Do not duplicate these algorithms to parallelize them. |
+| `decompose.rs`, `stages.rs`, `cone.rs`, `triangulate.rs` | Native exact Minkowski candidates, deterministic double description, candidate normal cones, pulling triangulation, determinants/Jacobians/valuations. | Serial and caller-scheduled paths share native stage helpers; main generation still uses its original serial route. |
 | `arithmetic.rs` / Numerica | Existing exact integer/rational matrix rank, inversion and determinant. | No floating hull heuristic, custom bigint/matrix backend or additional CAS is required. |
 | `generation/support.rs` | Caller-generation-local native Atom to exact support reuse. | This saves support extraction, not complete geometry. Domain certificates and mapped residuals remain outside it. |
 | Numerica `numerical_integration::qmc` | Immutable plans/work descriptions, caller dispatch, typed completion and duplicate rejection illustrate the existing ownership model. | Those types contain lattice/randomization/statistical semantics; they are not generic geometry jobs or an executor to reuse directly. |
@@ -158,10 +162,12 @@ from a caller intentionally stopping dispatch.
 
 ## Acceptance before connecting the slice
 
-The focused Rust prototype must establish native integer/support/map
-`Send + Sync` usability with caller-owned scoped workers; source review alone
-does not replace that executable reuse proof. No prototype or timing has run
-for this proposal.
+The implemented sector-only API establishes native integer/support/map
+`Send + Sync` usability with caller-owned scoped workers and exact canonical
+merge through the gates in `parallel-geometry-implementation.md`. No parallel
+timing campaign or main-library parallel-generation control has run. The
+accepted complete cache and generation-context tests remain recorded in their
+separate implementation reviews.
 
 Meaningful tests then cover:
 
@@ -250,5 +256,11 @@ contour/GCAD strategy.
 Deterministic merge preserves existing original sector indices qualified by
 their parent kernel content identity. The additive accessor above meets the
 separate content-reuse requirement without changing those indices: the same
-geometric map can act on different numerators, prefactors or branches. None of
-the implementation outlined here is connected or executed by this proposal.
+geometric map can act on different numerators, prefactors or branches. Parallel
+scheduling is implemented at the sector-only work boundary with the focused
+gates in `parallel-geometry-implementation.md`; main-generation adoption is
+still pending. Commit `33a01ec` implements the additive content accessor with
+four tests and the independent audit in `sector-content-identity-independent.md`.
+Its selected parent kernel ordinal is localized to zero while original chart
+IDs/order remain bound. These additions and the completed cache/context slices
+do not change the existing identity or mathematical scopes above.

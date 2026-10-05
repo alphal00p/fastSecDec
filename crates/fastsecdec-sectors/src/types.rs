@@ -79,8 +79,10 @@ pub struct Decomposition {
     pub geometric_vertices: usize,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum SectorError {
+    #[error(transparent)]
+    Work(#[from] crate::GeometryWorkError),
     #[error("invalid polynomial support: {0}")]
     InvalidSupport(String),
     #[error(

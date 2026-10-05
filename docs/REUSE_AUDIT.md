@@ -682,3 +682,21 @@ introduces no new algebra, decoder, graph identity or persistence schema.
 Four focused tests, formatting and library Clippy pass. Parent artifact,
 checkpoint/result and replay identity contracts remain unchanged; no
 machine-code cache or mathematical-equivalence claim follows from the digest.
+
+The [parallel geometry audit](reviews/parallel-geometry-api-independent.md)
+accepts a two-stage native work boundary with caller-owned threads. Both serial
+and scheduled paths use the same extracted native support, cone and map helpers;
+Numerica owns exact arithmetic. Private provenance and canonical complete merge
+reject missing/foreign work and preserve native error/limit precedence.
+The 38-test sector gate and independent ten-test rerun pass. Cache/context
+adoption is a separate next slice; the core creates no library executor.
+
+The [named-coefficient audit](reviews/native-regular-coefficient-independent.md)
+accepts the bounded small test-only composition gate: eight scientific controls
+pass while Symbolica retains Series/remainder arithmetic, differentiation,
+literal face substitution and aliases. Local names/cache records introduce no
+alternative CAS or global callback registry. Numerical evaluator, weighted
+precision, cold-reload and actual-large-input gates are still pending. The
+combined workspace includes these controls and passes 323 tests. All eight
+affected controls pass again after a type-alias-only lint correction; formatting
+and all-target Clippy pass, with the earlier lint failure retained.

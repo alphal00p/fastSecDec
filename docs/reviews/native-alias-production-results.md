@@ -159,3 +159,11 @@ concurrent Symbolica process. Raw timer/status records, all immutable snapshots,
 and the derived completed-call ledger remain under
 `output/diagnostics/production-alias-fullgraph-1/`. Whole-original-graph
 acceptance therefore remains open despite the earlier representative success.
+
+The subsequent targeted capture and existing-IBP preparation do not close that
+gate. Capture81 exported the exact original mapped/Taylor inputs successfully;
+`native-ibp-prepare-1` then passed an exact 872-piece Taylor replay but timed out
+after 180.483 seconds during existing native IBP subtraction. No IBP expression,
+Laurent vector, evaluator or integration was produced. The full retained outcome,
+unchanged bounds and development/test profile limitation are recorded in
+`native-triplebox-ibp-proposal.md`; no default strategy changed.

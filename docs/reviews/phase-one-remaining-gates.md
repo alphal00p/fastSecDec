@@ -47,7 +47,11 @@ physical integral requiring a duplicate numerical campaign.
    of complete decompositions, with all 28 sector tests passing. Generation
    entry-point adoption subsequently passes its independent audit and the
    combined 305-test workspace gate through `GenerationContext`. Parallel
-   chart/cone work remains unimplemented.
+   chart/cone work subsequently passes its 38-test sector gate, independent
+   ten-test rerun and source audit, using the same native mathematics and
+   private caller-scheduled jobs. Its cache/context dispatch adoption remains
+   the next integration slice; main-library generation still invokes serial
+   geometry by default.
    These are efficiency/interface deliverables, not missing values for an
    admitted integral. Preserve caller-owned execution, deterministic merging,
    cancellation and exact existing geometry ownership.

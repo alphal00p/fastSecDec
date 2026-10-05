@@ -63,6 +63,30 @@ pub(crate) fn captured_coefficients(
     })
 }
 
+/// Test-only replay of already admitted, source-bound mapped inputs.
+/// Tuple order is (prefactor, regular factor, coordinate powers).
+#[cfg(test)]
+pub(crate) fn captured_subtraction(
+    terms: Vec<(Atom, Atom, Vec<Atom>)>,
+    parameters: &[symbolica::atom::Symbol],
+    regulator: symbolica::atom::Symbol,
+    options: &GenerationOptions,
+) -> Result<(Atom, usize, Vec<Vec<usize>>), GenerationError> {
+    subtraction::subtract(
+        terms
+            .into_iter()
+            .map(|(prefactor, regular, powers)| mapping::MappedTerm {
+                powers,
+                prefactor,
+                regular,
+            })
+            .collect(),
+        parameters,
+        regulator,
+        options,
+    )
+}
+
 pub fn generate(
     input: &ParametricIntegrand,
     options: &GenerationOptions,

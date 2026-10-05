@@ -15,9 +15,12 @@ checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
 extension is published as PR 8. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **305 tests**, with eighteen explicit
-probes ignored, clean formatting and all-target Clippy. This includes the six
-new geometry-cache tests and five generation-context controls. The earlier
+The latest complete workspace gate passes **323 tests**, with twenty explicit
+probes ignored. This includes the geometry-cache/context controls, ten new
+parallel-geometry controls, four sector-identity tests and the small test-only
+named-coefficient controls. Formatting and all-target Clippy pass. Clippy first
+requested a name for a test-only tuple result; after that type-alias-only change,
+all eight affected controls pass again. The earlier
 alias milestone passed 294 tests; its timing observations keep their own source
 identities. Actual PTYs additionally verify monochrome output, wide/compact
 resizing, key cancellation and terminal restoration.
@@ -45,12 +48,26 @@ the newly committed alias pipeline or cache**.
 
 Still open: complete original on-shell triple-box generation and full-vector
 validation; independent off-shell rank-two and hard-orthant references;
-difficult-case convergence and error calibration; caller-owned parallel
-chart/cone dispatch and additive sector content IDs; matched performance and
+difficult-case convergence and error calibration; cache/context adoption of
+caller-owned chart/cone dispatch; matched performance and
 platform gates. Cache adoption and the identified CLI color/terminal gaps are
 now covered by the gates above. General
 affine upper-cube endpoint charts remain explicitly unsupported. Future Python
 bindings and phase-two contour/GCAD algorithms are outside this phase.
+
+The additive sector content-ID API passes four focused tests,
+independent review, formatting and library Clippy. It hashes the current native
+representation and associated semantics without changing parent artifact or
+checkpoint identities. It does not establish mathematical equivalence or a
+machine-code cache. The native parallel geometry API also passes its focused
+38-test sector gate and independent review. Callers own all workers; canonical
+merge preserves exact maps, failures, cancellation and resource limits. The main
+generation context still uses its existing serial geometry route.
+
+The next compact-coefficient composition is test-only. Eight small controls pass
+using native Series, differentiation, face substitution and shared aliases,
+with full coefficient comparisons. Evaluator/precision/cold-reload controls
+and the actual difficult representative remain separate pending gates.
 
 ## Small-case generation and eight-core accuracy
 
@@ -163,3 +180,12 @@ benchmark tables or establish performance parity; guarded external compilation
 overlapped on other CPUs. See the [full terminal evidence and limits](native-alias-production-results.md)
 and [source-only attribution](native-series-fullgraph-attribution.md). The
 on-shell coverage gate remains open.
+
+A subsequent preparation-only comparison replayed the actual failed
+representative's mapped input and proved exact identity with its 872-term
+Taylor expression in 32.382 seconds. The existing IBP alternative then failed
+to finish within the unchanged 180-second total bound (180.483 s observed,
+6,020,136 KiB peak RSS). It produced no IBP expression or evaluator. All 52
+frozen input checks passed and the child was reaped. This is a separate
+development probe, not an end-to-end generation time; see
+[the IBP protocol and terminal record](native-triplebox-ibp-proposal.md).

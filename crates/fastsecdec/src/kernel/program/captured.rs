@@ -1,4 +1,6 @@
 //! Explicit bounded diagnostic against the independent original-expression oracle.
+mod ibp;
+
 use super::*;
 use crate::kernel::{PrecisionPolicy, SectorKernel};
 use std::{fs, fs::File, path::Path, time::Instant};
