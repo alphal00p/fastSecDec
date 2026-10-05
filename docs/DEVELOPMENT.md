@@ -59,6 +59,13 @@ updating its exact SymJIT pin and compiled-cache identity together; see
 [the patch record](dependency-patches/oneloop-symjit-2.26.4.md). Its optional
 prebuilt caches are disabled; no master formulas were changed.
 
+Before the existing-IBP evaluator probe, a 2026-10-05 03:32 UTC recheck of the
+published crate documentation still reports [Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest)
+and [SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). The registry API was
+unavailable (HTTP 403); this supplementary check uses the latest documentation
+pages, rather than claiming a successful new registry-index query. The existing
+pins and five local Symbolica fixes remain unchanged.
+
 Standard checks as implementation lands:
 
 ```sh

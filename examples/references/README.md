@@ -18,11 +18,32 @@ See the [attempt record](../../docs/reviews/remaining-reference-attempts.md) and
 The older uncertainty-free target in `examples/targets/double_box.json` remains
 historical evidence and is not overwritten by this reference.
 
+`issue_1_together.json` retains all three orders `[0,1,2]` from ordinary
+`IntegralLibrary` with `together=True`: sectors are summed before native QMC
+computes uncertainty. The older `issue_1.json` remains Unverified because its
+disteval route omitted cross-sector covariance. These observations are kept
+separate. The checked fixture does not certify error calibration or the
+epsilon-two one-per-mille target.
+
+`triple_box_offshell_scalar.json` retains the complete `[-3,-2,-1,0]` vector
+for the scalar off-shell triple box, with massless internal lines, four external
+virtualities `-1` and `s12=s23=-2`. The native projection has coefficient `1` and gives
+eight active propagators with powers `[1,1,2,2,1,1,1,1]`. The returned physical
+vector already includes `Gamma(4+3*eps)` once. Original and projected native
+vectors are compared separately, preserving their complete covariance; all
+pulls are below 2.816 combined standard errors. They are not pooled. The finite
+reference coefficient is `2.283413488400494 +/- 0.05718537938081278`, still above
+one-per-mille relative uncertainty. Four logged `8311 × 32` allocations give
+1,063,808 scalar summed-coefficient point evaluations, excluding auxiliary
+work; this is not a complete-vector sample count. See the
+[independent audit](../../docs/reviews/projected-triple-reference-independent.md).
+
 `Checked` records the independent source, graph, normalization and transport
 review, followed by a bounded comparison of the complete native vector. It does
 not certify convergence or matched performance. The original external imaginary
 value and error are explicitly retained in provenance; both were zero for these
-Euclidean cases. Unknown actual lattice sizes and evaluation counts remain null.
+Euclidean cases. Where the older reports do not expose actual lattice sizes or
+evaluation counts, those fields remain null.
 Requested `maxeval` is not presented as measured work.
 
 Each file preserves the command, source revisions, versions, raw-report digest,

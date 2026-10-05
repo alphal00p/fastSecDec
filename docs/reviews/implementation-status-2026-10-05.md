@@ -25,6 +25,12 @@ resizing, key cancellation and terminal restoration.
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,
 six massive families, double box and Issue 1 have further independent evidence.
+The off-shell scalar triple box subsequently gains a checked independent full
+`[-3,-2,-1,0]` reference: separate native original/projected comparisons retain
+their full covariance and have maximum pulls below 2.816/2.023. Five focused
+reference tests pass, with two recorders ignored. The finite reference value
+`2.283413488400494 +/- 0.05718537938081278` has about 2.5% relative uncertainty;
+this closes a reference gate, not calibration, performance or the 1‰ target.
 The historical matrix has 100 Covered, 81 intentionally Retired and one Partial
 row out of 182. This matrix does not replace complete difficult-example gates.
 
@@ -38,7 +44,7 @@ tables below retain their older frozen build identities and **do not measure
 the newly committed alias pipeline or cache**.
 
 Still open: complete original on-shell triple-box generation and full-vector
-validation; independent off-shell scalar/rank-two and hard-orthant references;
+validation; independent off-shell rank-two and hard-orthant references;
 difficult-case convergence and error calibration; caller-owned parallel
 chart/cone dispatch and additive sector content IDs; matched performance and
 platform gates. Cache adoption and the identified CLI color/terminal gaps are

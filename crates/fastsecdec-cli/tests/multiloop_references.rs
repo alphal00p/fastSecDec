@@ -313,6 +313,109 @@ fn issue_one_together_reference_preserves_native_sector_sum_uncertainty() {
 }
 
 #[test]
+fn offshell_scalar_triple_box_reference_preserves_all_orders_and_native_measure() {
+    let reference = read_reference(
+        &fs::read(repository().join("examples/references/triple_box_offshell_scalar.json"))
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        reference.validation,
+        ReferenceValidation::Checked { .. }
+    ));
+    assert_eq!(
+        reference
+            .coefficients
+            .iter()
+            .map(|c| c.key.order)
+            .collect::<Vec<_>>(),
+        vec![-3, -2, -1, 0]
+    );
+    // Provider IEEE values are independent transport oracles. Preserve the tiny
+    // measured leading pole and positive errors; do not round it to exact zero.
+    let mean_bits = [
+        13_725_411_892_556_917_872,
+        13_821_433_552_745_504_933,
+        4_605_142_885_197_471_199,
+        4_612_324_208_867_764_023,
+    ];
+    let error_bits = [
+        4_504_790_491_703_934_771,
+        4_569_642_537_828_582_985,
+        4_580_356_015_104_913_395,
+        4_588_402_102_740_449_436,
+    ];
+    for (i, coefficient) in reference.coefficients.iter().enumerate() {
+        assert_eq!(coefficient.key.component, CoefficientComponent::Real);
+        assert_eq!(coefficient.value.to_bits(), mean_bits[i]);
+        let ReferenceUncertainty::StandardError(error) = coefficient.uncertainty else {
+            panic!("reported uncertainty must stay statistical")
+        };
+        assert_eq!(error.to_bits(), error_bits[i]);
+        assert!(error > 0.0 && error.is_finite());
+    }
+    let attributes = &reference.provenance.attributes;
+    assert_eq!(attributes["loops"], 3);
+    assert_eq!(attributes["original_propagators"], 10);
+    assert_eq!(attributes["active_propagators"], 8);
+    assert_eq!(
+        attributes["original_order_projected_powers"],
+        json!([1, 1, 0, 2, 0, 2, 1, 1, 1, 1])
+    );
+    assert_eq!(attributes["active_powers"], json!([1, 1, 2, 2, 1, 1, 1, 1]));
+    assert_eq!(attributes["constituent_prefactor"], "Gamma(4+3*eps)");
+    assert_eq!(attributes["additional_prefactor"], "1");
+    assert_eq!(attributes["numerator"], "1");
+    assert_eq!(attributes["physical_tuple_index"], 2);
+    assert_eq!(attributes["geometric_sectors"], 1182);
+    assert_eq!(attributes["together"], true);
+    assert!(attributes["sector_filter"].is_null());
+    assert_eq!(
+        attributes["kinematics"]["external_virtualities"],
+        json!(["-1", "-1", "-1", "-1"])
+    );
+    assert_eq!(attributes["kinematics"]["s12"], "-2");
+    assert_eq!(attributes["kinematics"]["s23"], "-2");
+    assert_eq!(
+        attributes["external_imaginary_values"],
+        json!([0.0, 0.0, 0.0, 0.0])
+    );
+    assert_eq!(
+        attributes["external_imaginary_standard_errors"],
+        json!([0.0, 0.0, 0.0, 0.0])
+    );
+    assert!(attributes["external_covariance"].is_null());
+    assert_eq!(attributes["actual_evaluations"], 1_063_808);
+    assert_eq!(attributes["scalar_summed_coefficient_calls"], 4);
+    assert!(
+        attributes["actual_evaluation_unit"]
+            .as_str()
+            .unwrap()
+            .contains("scalar summed-sector coefficient")
+    );
+    assert_eq!(attributes["calibration_certified"], false);
+    assert_eq!(attributes["exactness"], false);
+    assert_eq!(attributes["highest_order_target"], 0);
+    assert_eq!(attributes["highest_order_target_met"], false);
+    assert_ne!(
+        attributes["native_kernel_content_ids"]["original"],
+        attributes["native_kernel_content_ids"]["projected"]
+    );
+    for source in attributes["native_sources"].as_array().unwrap() {
+        assert_eq!(
+            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
+                .to_hex()
+                .as_str(),
+            source["blake3"].as_str().unwrap()
+        );
+    }
+    assert_eq!(
+        read_reference(&encode_reference(&reference).unwrap()).unwrap(),
+        reference
+    );
+}
+
+#[test]
 #[ignore = "requires the audited frozen inputs and six ignored external reports; records candidates under output/reference-fixtures only"]
 fn record_six_external_reference_candidates() {
     let repository = repository();

@@ -72,8 +72,8 @@ DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python \
   /common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/triple-scalar-together-attempt-1
 ```
 
-Rank two uses `rank2` and its own `triple-rank2-together-attempt-1` directory.
-Neither has run. The independent HEPKit source review finds no scientific or
+Rank two uses `rank2` and its own `triple-rank2-together-attempt-1` directory;
+that attempt has not run. The independent HEPKit source review finds no scientific or
 blocking API issue; the native Gaussian/Gamma owner `loop_integral/common.py`
 and native uncertainty header are included in the recorded source hashes.
 Standard-library AST parsing and the authorized guarded import controls pass.
@@ -90,9 +90,37 @@ The old `run_remaining_reference.py` and
 execution uses this explicitly ordinary-sector-sum route. No production Python,
 new algebra or new statistics engine is introduced.
 
-The launch is prepared on CPU0, awaiting the coordinator's explicit handoff
+The launch was prepared on CPU0, awaiting the coordinator's explicit handoff
 after native representative acceptance and the production commit. The
 generation subprocess must exit and be reaped before another Symbolica owner
 starts. Only subsequent guarded FORM/C++ and numerical work may overlap
 coordinated, untimed native science on another CPU. Existing 600/180-second and
 30-GiB bounds remain unchanged.
+
+## Retained scalar attempt one
+
+After production commit `6332676`, the coordinator launched the frozen runner
+on CPU0 in `output/diagnostics/remaining-pysecdec/triple-scalar-together-attempt-1`.
+Generation passed in 136.321 seconds: eight active parameters with the expected
+positive powers, 1182 sectors, and native `gamma(4+3*eps)` expanded through the
+required prefactor order three. The generation child exited and was reaped;
+an empty process-group check is retained before the explicit handoff to native
+FastSecDec work. Subsequent reference compilation ran under the import guard.
+Other-CPU release compilation and later native science make these diagnostic
+stage durations unsuitable as matched performance measurements.
+
+The original 600-second watchdog expired during compilation. The outer process
+reported exit124 after 601.680 seconds including shutdown. All owned process
+groups were reaped, the frozen sources are unchanged, and the package retains
+136 completed FORM stamps and 412 native object files. Its 4313 files total
+40,915,571 bytes; the complete retained manifest has SHA256
+`dfd9082ca6cf1055cf8fd30c409a754e3d22a3086e2c539cfb758e837733fdbc`.
+The interrupted `src/sector_112_n1.o` is absent, so ordinary make will rebuild
+that missing target. No numerical phase, raw tuple, or reference result exists.
+
+This failure remains immutable. The [separately bounded copy continuation](projected-triple-reference-continuation.md)
+completed compilation but timed out during its180-second numerical phase, with
+no physical tuple. Both failures remain retained. The separately approved
+[numeric-only attempt three](projected-triple-reference-numeric-continuation.md)
+subsequently returned the complete physical vector; its independent outcome and
+native transport evidence are recorded separately from those failures.

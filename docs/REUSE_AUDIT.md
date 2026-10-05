@@ -662,3 +662,14 @@ CLI color decisions and compact rendering through the existing public status
 Displays, with real PTY cleanup/resize/cancellation evidence. No presentation
 dependency or executor enters the library. Parallel chart/cone interfaces and
 additive sector content IDs remain separate work.
+
+The [off-shell scalar reference audit](reviews/projected-triple-reference-independent.md)
+now accepts all four physical coefficients through the existing native
+reference encoder/reader and comparison APIs. Its source is an ordinary
+external sector-sum integration with the native Gamma factor applied once;
+all eight provider value/error bit patterns survive transport. Existing
+`SavedResult`/QMC reduction preserves each original/projected native covariance
+and supplies separate comparisons. No new uncertainty estimator, polynomial
+projection, prefactor convolution or result schema was introduced. The five
+focused reference tests pass; calibration and the highest-order accuracy gate
+remain explicitly unverified.
