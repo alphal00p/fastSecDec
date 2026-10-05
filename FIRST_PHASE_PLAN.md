@@ -676,6 +676,22 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: delegated exact-input gg→HH reference feasibility is complete.
+  Pathfinder and direct pySecDec both time out during generation, with charged
+  times 597.533/597.402 seconds including a conservative ten-second preparation
+  allowance each. Sampled peak RSS is approximately 132.10/76.80 MiB. Neither
+  produces a ready artifact or numerical estimate; both process groups are
+  reaped, source/read-cache checks pass and independent review accepts the input
+  transport and bounded outcomes. No retry is planned. The retained native CLI
+  result remains 61.285 seconds generation and 8.781 seconds integration on
+  eight workers, at 1.0273% finite-part relative standard error. This is a
+  feasibility comparison, not matched performance or independent numerical
+  agreement; see `docs/reviews/gghh-reference-feasibility.md`. The separate
+  off-shell rank-two Pathfinder attempt also reaches its original 1,800-second
+  limit without a bundle; its failure is retained without a retry. The current
+  Korobov2 release CLI builds and passes source-owner postchecks, but no new
+  physical K2 result is claimed. Native notebook gg→HH validation continues.
+
 - 2026-10-05: optional Korobov-2 is published in Numerica PR #8 at `bb996e4`
   and exposed through native FastSecDec settings and CLI run cards. Numerica
   owns all transform arithmetic; Korobov-3 and Monte Carlo defaults are

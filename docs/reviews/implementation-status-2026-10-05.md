@@ -21,13 +21,19 @@ earlier actual Pyodide and browser lifecycle checks retain their own build
 identities. Generic external states are delivered through merged PR #17.
 The native gg→HH CLI example completes generation in 61.285 seconds and an
 eight-worker allocation in 8.781 seconds, with 1.0273% finite-part relative
-standard error. Its browser cost remains unmeasured. The draft's documented
+standard error. The delegated exact-input Pathfinder and pySecDec comparisons
+both stop during generation, after charged times of 597.533 and 597.402 seconds
+within their separate ten-minute limits. Neither produces a numerical result;
+observed memory stays below 133 MiB and no retry is planned. See the
+[bounded reference record](gghh-reference-feasibility.md).
+The notebook's native gg→HH lifecycle is still being validated, and its browser
+cost remains unmeasured. The draft's documented
 dependency patches remain necessary, and dedicated hosted CI was terminated
 during dependency compilation before tests; see the
 [bridge review](hepkit-fastsecdec-bridge.md).
 
-Current-main scalar double-box generation takes 4.441 seconds. A bounded
-larger-package integration reaches 0.393‰ finite-part relative standard error
+The retained pre-Korobov2 release's scalar double-box generation takes
+4.441 seconds. A bounded larger-package integration reaches 0.393‰ finite-part relative standard error
 in 479.451 seconds on eight workers, with all five coefficients and full
 covariance exactly equal to the retained calculation. Pathfinder's existing
 prime catalogue reaches 0.577‰ reported finite error in 275.506 seconds.
@@ -35,6 +41,21 @@ These are single observations with different rules and error semantics;
 double-box parity remains open. The [side-by-side record](double-box-lattice-followup.md)
 includes actual sample counts, worker/sector costs and the unmeasured individual
 maxima. Larger packages showed no timing improvement; defaults are unchanged.
+
+The additive Korobov2 option is now published with Numerica `bb996e4` and
+FastSecDec `1b8b808`. Numerica passes 243/246/223 tests on Rust 1.89; FastSecDec
+passes 37 focused tests, workspace linting/formatting and the portable-host
+compile check. The fresh release CLI builds successfully with verified source
+owners. No physical Korobov2 timing or convergence result is available yet;
+Korobov3 remains the default. See the [integration review](korobov2-integration.md).
+
+The separately bounded off-shell rank-two triple-box Pathfinder generation
+also stops without a completed bundle, after 1,800.716 seconds at its original
+1,800-second deadline, with peak `ru_maxrss` 1,344,664 KiB. Independent review
+verifies the unchanged inputs/read caches and process cleanup. It supplies no
+integration or parity result and will not be retried automatically. This older
+case has a separate protocol from the new ten-minute ggHH reference limits;
+evidence is in `output/diagnostics/remaining-pathfinder-rank2-generation-1/`.
 
 ## Retained matched triangle measurements
 
