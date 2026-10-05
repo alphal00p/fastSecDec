@@ -3,7 +3,9 @@ use std::ops::ControlFlow;
 
 use fastsecdec::{
     Atom,
-    generation::{GenerationOptions, generate},
+    generation::{
+        CoefficientExpansionMethod, CoefficientExpansionOptions, GenerationOptions, generate,
+    },
     parametric::{ParametricDomain, ParametricIntegrand, ParametricTerm},
     status::CoefficientComponent,
 };
@@ -25,34 +27,43 @@ fn gamma_and_endpoint_poles_keep_the_complete_underscored_regulator_vector() {
         )],
     )
     .unwrap();
-    let kernels = generate(
-        &input,
-        &GenerationOptions {
-            max_order: 1,
-            ..Default::default()
-        },
-        |_| ControlFlow::Continue(()),
-    )
-    .unwrap()
-    .compile()
-    .unwrap();
-    assert_eq!(kernels.orders(), [-2, -1, 0, 1]);
-    assert!(
-        kernels
-            .components()
-            .iter()
-            .all(|part| *part == CoefficientComponent::Real)
-    );
-    assert!(kernels.sectors().is_empty());
-    // Independent analytic constants, including a positive epsilon order.
-    let expected = [
-        1.0,
-        -0.577_215_664_901_532_9,
-        0.989_055_995_327_972_6,
-        -0.907_479_076_080_886_3,
-    ];
-    assert_eq!(kernels.exact_coefficients().len(), expected.len());
-    for (actual, expected) in kernels.exact_coefficients().iter().zip(expected) {
-        assert!(actual.is_finite() && (actual - expected).abs() < 2e-14);
+    for method in [
+        CoefficientExpansionMethod::Physical,
+        CoefficientExpansionMethod::NativeNamed,
+    ] {
+        let kernels = generate(
+            &input,
+            &GenerationOptions {
+                max_order: 1,
+                coefficient_expansion: CoefficientExpansionOptions {
+                    method,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap()
+        .compile()
+        .unwrap();
+        assert_eq!(kernels.orders(), [-2, -1, 0, 1]);
+        assert!(
+            kernels
+                .components()
+                .iter()
+                .all(|part| *part == CoefficientComponent::Real)
+        );
+        assert!(kernels.sectors().is_empty());
+        // Independent analytic constants, including a positive epsilon order.
+        let expected = [
+            1.0,
+            -0.577_215_664_901_532_9,
+            0.989_055_995_327_972_6,
+            -0.907_479_076_080_886_3,
+        ];
+        assert_eq!(kernels.exact_coefficients().len(), expected.len());
+        for (actual, expected) in kernels.exact_coefficients().iter().zip(expected) {
+            assert!(actual.is_finite() && (actual - expected).abs() < 2e-14);
+        }
     }
 }

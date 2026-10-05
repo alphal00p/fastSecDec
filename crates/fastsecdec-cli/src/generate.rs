@@ -1,12 +1,12 @@
 mod geometry_dispatch;
+mod progress;
+
+use progress::{observe_generation, publish_generation};
 
 use std::{cell::RefCell, ops::ControlFlow, path::Path, sync::atomic::Ordering, time::Instant};
 
 use fastsecdec::{
-    generation::{
-        self, GenerationContext, GenerationEvent, GenerationOptions, GenerationPhase,
-        GenerationProgress,
-    },
+    generation::{self, GenerationContext, GenerationEvent, GenerationOptions, GenerationProgress},
     kernel::KernelSet,
     status::{GenerationSnapshot, GenerationStage},
 };
@@ -47,6 +47,7 @@ pub fn generate_with_workers(
         kernels: 0,
         elapsed_seconds: 0.0,
         timings: Default::default(),
+        coefficient_expansion: None,
         detail: format!("Reading {}", path.display()),
     };
     dashboard.generation(&status)?;
@@ -67,6 +68,7 @@ pub fn generate_with_workers(
     let mut options = GenerationOptions {
         max_order: loaded.card.generation.order,
         assume_no_threshold: loaded.card.generation.assume_no_threshold,
+        coefficient_expansion: loaded.card.generation.coefficient_expansion.clone(),
         ..GenerationOptions::default()
     };
     options.decomposition.max_sectors = loaded.card.generation.max_sectors;
@@ -194,89 +196,4 @@ pub fn generate_with_workers(
     status.detail = format!("Saved {}", output.display());
     dashboard.generation(&status)?;
     Ok((artifact, kernels))
-}
-
-fn observe_generation(
-    dashboard: &mut Dashboard,
-    status: &mut GenerationSnapshot,
-    display_error: &mut Option<String>,
-    started: Instant,
-    max_order: i32,
-    progress: &GenerationProgress,
-) -> ControlFlow<()> {
-    match progress {
-        GenerationProgress::Decomposition(progress) => {
-            status.stage = GenerationStage::Geometry;
-            status.completed = progress.completed_constraints;
-            status.total = Some(progress.total_constraints);
-            status.sectors = progress.sectors;
-            status.detail = format!(
-                "{:?} · chart {} · {} rays",
-                progress.phase, progress.chart, progress.rays
-            );
-        }
-        GenerationProgress::Factorization { sector, total } => {
-            status.stage = GenerationStage::Mapping;
-            status.completed = *sector;
-            status.total = Some(*total);
-            status.detail = "Substituting exact sector maps".into();
-        }
-        GenerationProgress::Subtraction {
-            sector,
-            total,
-            terms,
-        } => {
-            status.stage = GenerationStage::Subtraction;
-            status.completed = *sector + 1;
-            status.total = Some(*total);
-            status.detail = format!("{} endpoint subtraction terms", terms);
-        }
-        GenerationProgress::LaurentExpansion { sector, total } => {
-            status.stage = GenerationStage::Expansion;
-            status.completed = *sector + 1;
-            status.total = Some(*total);
-            status.detail = format!("Expanding through ε^{}", max_order);
-        }
-        GenerationProgress::PhaseTiming { phase, seconds } => {
-            if *phase == GenerationPhase::Symmetry {
-                status.stage = GenerationStage::Symmetry;
-                status.detail = "Verifying complete density permutations".into();
-            }
-            let elapsed = match phase {
-                GenerationPhase::Domain => &mut status.timings.domain_seconds,
-                GenerationPhase::Geometry => &mut status.timings.geometry_seconds,
-                GenerationPhase::Mapping => &mut status.timings.mapping_seconds,
-                GenerationPhase::Symmetry => &mut status.timings.symmetry_seconds,
-                GenerationPhase::Subtraction => &mut status.timings.subtraction_seconds,
-                GenerationPhase::Laurent => &mut status.timings.laurent_seconds,
-            };
-            *elapsed += seconds;
-        }
-        GenerationProgress::Complete { sectors, orders } => {
-            status.stage = GenerationStage::Compilation;
-            status.sectors = *sectors;
-            status.completed = 0;
-            status.total = Some(*sectors);
-            status.detail = format!("Portable SymJIT O2 · orders {orders:?}");
-        }
-    }
-    status.elapsed_seconds = started.elapsed().as_secs_f64();
-    publish_generation(dashboard, status, display_error)
-}
-
-fn publish_generation(
-    dashboard: &mut Dashboard,
-    status: &GenerationSnapshot,
-    display_error: &mut Option<String>,
-) -> ControlFlow<()> {
-    if let Err(error) = dashboard.generation(status) {
-        display_error.get_or_insert_with(|| error.to_string());
-        dashboard.request_cancel();
-        return ControlFlow::Break(());
-    }
-    if dashboard.cancelled() {
-        ControlFlow::Break(())
-    } else {
-        ControlFlow::Continue(())
-    }
 }

@@ -234,6 +234,12 @@ passes 30 QMC and nine existing MC tests. After the user's publication
 authorization, its full default, serde and alternative-backend suites also
 passed; it is published as
 [Numerica PR #8](https://github.com/symbolica-dev/numerica/pull/8).
+The [minimum-version follow-up](reviews/numerica-qmc-upstream-readiness.md)
+also accepts exact Rust/Cargo 1.89.0 on Linux at that unchanged head: 237
+default, 240 serde and 217 alternative-backend tests pass, with no failures or
+ignored tests. All 73 source and two manifest/lockfile hashes remain intact.
+This closes the Linux minimum-version test gap without changing native owners;
+macOS, other architectures and performance remain separate checks.
 
 The [coupled-sunset campaign](reviews/coupled-sunset-numerator.md) and its
 [independent review](reviews/coupled-sunset-independent.md) close the mixed-loop
@@ -848,6 +854,42 @@ preserve zero-slope pruning/error precedence. Generation now checks cancellation
 degree overflow through a typed error. This creates one reusable admission
 owner without selecting a new coefficient method, changing an artifact or
 adding symbolic mathematics.
+The [private request-seam review](reviews/native-named-request-interface-independent.md)
+accepts a source-only four-method boundary using native Series mapping,
+derivatives, literal replacement and shared aliases. Existing infallible native
+callbacks require a local first-error latch and complete failed-attempt discard;
+there is no new replacement engine or Series constructor. The caller retains
+cancellation/status ownership, and a unique-request cap explicitly does not
+claim to bound native intermediate memory. Concrete implementation and its
+error/cancellation/scientific controls subsequently pass 14 focused tests plus
+15 existing subtraction/Series tests, with no failures and two explicit replay
+probes ignored. The independent audit verifies the eight-file source snapshot,
+native complete-vector/coverage/error controls, actual allocator hygiene and
+local cache lifetimes. Formatting and scoped library/test Clippy pass. Public
+options/status adoption, cold replay and whole-graph acceptance remain separate;
+the physical default is unchanged by this private gate.
+The subsequent public coordinator's independent focused audit verifies 16
+archived source files and 41 distinct passing tests. Explicit `NativeNamed`
+selection reuses the admitted mapped density and rejoins the existing complete
+vector, multiplicity, metadata and evaluator owners. The physical default and
+exact unregulated fallback retain their semantics. Fresh named conditioning is
+explicitly a componentwise mapped-endpoint bound for the existing precision
+heuristic; unchanged artifact rows do not fabricate a cold-loaded basis.
+Public complex/Gamma vectors, independent native Series/MPFR comparisons,
+weighted replay, worker clones, separate cold processes, geometry reuse,
+limits/cancellation and admitted zero-chart preservation all pass. The CLI
+source directly reuses native options and typed snapshots, keeps timing
+exclusive and polls cancellation during coalesced presentation. Formatting
+and scoped library/test Clippy pass. The combined closure then passes 370
+workspace tests, zero failures and 23 ignored across 62 summaries, with
+formatting and all-target Clippy passing. The CLI correction preserves existing
+generation JSON and terminal/plain behavior and coalesces only new coefficient
+JSON; the original chart/cone regression remains exercised. Its first cadence
+failure and the separate test-only wrong-error-stream assertion are retained.
+This accepts public opt-in adoption and the bridge. The actual reconstructed
+public representative, whole-graph completion and performance remain separate
+gates; no new graph, Series, evaluator, serialization or statistics owner was
+introduced.
 The [prospective production boundary review](reviews/native-named-production-boundaries.md)
 therefore remains an interface proposal, with admission, conditioning,
 resource/cancellation and public progress decisions explicit before adoption.

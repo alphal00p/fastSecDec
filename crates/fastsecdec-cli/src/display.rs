@@ -37,6 +37,8 @@ pub struct Dashboard {
     json_status: bool,
     scope: fastsecdec::results::ResultScope,
     integration_cadence: crate::status_policy::StatusCadence,
+    generation_cadence: crate::status_policy::StatusCadence,
+    generation_boundary: Option<crate::status_policy::GenerationBoundary>,
     color: ColorPolicy,
 }
 
@@ -83,12 +85,26 @@ impl Dashboard {
             json_status,
             scope: Default::default(),
             integration_cadence: crate::status_policy::StatusCadence::new(interval),
+            generation_cadence: crate::status_policy::StatusCadence::new(interval),
+            generation_boundary: None,
             color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
         })
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
         if self.json_status {
+            let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
+            let force = self.generation_boundary != Some(boundary);
+            self.generation_boundary = Some(boundary);
+            // Existing geometry and compilation events have their own semantic
+            // boundaries. Coalesce only the new frequent coefficient polls.
+            if snapshot.stage == fastsecdec::status::GenerationStage::CoefficientExpansion
+                && !self
+                    .generation_cadence
+                    .due(Duration::from_secs_f64(snapshot.elapsed_seconds), force)
+            {
+                return Ok(());
+            }
             eprintln!("{}", serde_json::to_string(snapshot)?);
             return Ok(());
         }

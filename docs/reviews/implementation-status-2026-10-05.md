@@ -19,13 +19,19 @@ This closes the Numerica Linux minimum-version gap; other platform and
 performance gates remain open. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
-The latest complete workspace gate passes **336 tests**, with twenty-three
-explicit probes ignored (`output/interleaved-workspace-tests.log`, 60 summaries,
-zero failures). This includes cache/context dispatch, parallel geometry and its
-CLI, sector identity, small named/interleaved controls and rank-two reference
-transport. Formatting and all-target Clippy pass; the latter finishes in
-4.00 seconds after correcting an unused test-only forwarding call. The initial
-lint failure is retained. Production generation remains unchanged.
+The latest complete workspace gate passes **370 tests**, with twenty-three
+explicit probes ignored (`output/coefficient-first-workspace-tests-2.log`,
+62 summaries, zero failures). Workspace formatting and all-target Clippy pass;
+the latter finishes in 11.81 seconds. This includes the public `NativeNamed`
+opt-in, exact unregulated fallback, caller limits/cancellation, conservative
+conditioning, context/dispatch, weighted precision replay, worker cloning and
+cold native artifacts. The CLI reuses native option types and reports one
+exclusive coefficient-expansion duration. Its request JSON cadence preserves
+the existing geometry and final-output behavior. Earlier failed test/lint and
+presentation-regression evidence is retained. `Physical` remains the default.
+The preceding 336-test gate covered cache/context dispatch, parallel geometry,
+sector identity, small named/interleaved controls and rank-two reference
+transport.
 The separate ignored small named-program writer/reader were explicitly executed
 and independently reviewed before this gate. The earlier
 alias milestone passed 294 tests; its timing observations keep their own source
@@ -72,7 +78,8 @@ ignored), formatting and CLI all-target Clippy. `generate` and `run` accept
 Real PTYs exercise parallel geometry resize/cancellation and colored/monochrome
 completion, with terminal restoration and no artifact after cancellation.
 These focused gates initially followed the 330-test baseline and are now also
-included in the 336-test workspace gate above. No generation speedup is claimed.
+included in the preceding 336-test and current 370-test workspace gates.
+No generation speedup is claimed.
 
 Still open: complete original on-shell triple-box generation and full-vector
 validation; difficult-case convergence and error calibration; matched performance and
@@ -93,7 +100,7 @@ cache and symbolic pipeline. Its focused 41 sector and eight context tests pass,
 including caller-owned threads, complete analytic vectors, cache reuse and
 rejection/cancellation boundaries. Existing methods retain their serial route.
 
-The next compact-coefficient composition is test-only. Eight small controls pass
+The initial compact-coefficient composition was developed test-only. Eight small controls pass
 using native Series, differentiation, face substitution and shared aliases,
 with full coefficient comparisons. Separate bounded evaluator/precision and
 cold-reload controls now pass 96 complete weighted-vector calls (768 real/imaginary
@@ -131,8 +138,8 @@ independent acceptance. The cold candidate reader then passes all 21 signed
 coefficient/point comparisons and 24 weighted full-vector calls, with rescue at
 256/384 bits and all immutable checks passing. Its analyticity/Taylor coverage
 has a distinct diagnostic format and cannot be reported as a native Series
-remainder. This closes the captured representative's agreement gate; public
-production integration and the full graph remain open. No benchmark row below
+remainder. This closes the captured representative's experimental agreement gate;
+the corresponding public representative and full graph remain open. No benchmark row below
 changes.
 
 The first production adoption slice now extracts shared native endpoint
@@ -140,14 +147,16 @@ admission and checks cancellation-degree overflow. Its independently reviewed
 focused gate passes **50 tests**, with two explicit probes ignored; package
 formatting and all-target Clippy pass. Existing Taylor/IBP schedules, exact
 pruning, error precedence and defaults are preserved. This is a focused gate;
-the latest complete workspace run remains the 336-test run above. Separately,
+that extraction preceded the complete 370-test public-adoption gate above. Separately,
 the native symbol-hygiene probe rejects all 17 foreign metadata/hook conflicts
 without executing callbacks and verifies occupied-input names, stable repeated
 names and independent simultaneously live alias maps. The native API/probe
-prerequisite is closed; production allocator tests, private named composition,
-public integration and whole-graph validation remain open. See the
+prerequisite and production allocator/private/public small-case gates are now
+closed. Public reconstruction of the actual captured representative and
+whole-graph validation remain open. See the
 [endpoint audit](native-endpoint-admission-independent.md) and
-[symbol-hygiene audit](native-symbol-hygiene-independent.md).
+[symbol-hygiene audit](native-symbol-hygiene-independent.md), and the
+[public integration record](native-named-public-integration.md).
 
 ## Small-case generation and eight-core accuracy
 

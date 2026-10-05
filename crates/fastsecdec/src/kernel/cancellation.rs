@@ -1,5 +1,6 @@
-//! Endpoint subtraction metadata used by numerical conditioning. Each row is
-//! one retained Taylor remainder, with its cancellation order on each axis.
+//! Coordinate profiles used by numerical conditioning. A row can describe a
+//! retained Taylor remainder or a conservative bound from mapped endpoint powers.
+//! Rows schedule precision checks; they are not floating-point error certificates.
 //! Historical artifacts have only a total degree and retain a conservative
 //! bound using the smallest coordinate.
 use super::KernelError;

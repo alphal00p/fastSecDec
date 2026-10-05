@@ -180,3 +180,18 @@ now passes all 17 conflict cases, both occupied-input skips and 64 repeated loca
 jobs, with independent simultaneously live alias bodies and no foreign callback
 execution. This closes the narrow API/probe prerequisite; actual production
 allocator and public-generation regression tests remain required during wiring.
+
+For the captured representative's public-path gate, construct a real
+`ParametricIntegrand` on `UnitCube` from the frozen mapped prefactor, nine
+endpoint powers and the two native `Pow` factors of its regular Atom. Assert
+that fixed shape and the expected native exponents, use the existing
+`PolynomialFactor` constructor with singularity roles, and require exact rebuilt
+regular-product and full-density identities against the bound capture/Taylor
+evidence. No general factor parser or manufactured generated metadata is needed.
+Ordinary generation must actually return a single unit-measure identity or
+permutation chart; translate the original oracle coordinates through its public
+`CoordinateMap::images` rather than assuming target symbol names or order.
+This new cube integral has multiplicity one; the original chart/representative
+and multiplicity four remain provenance only. Public compile, save and cold
+load must then compare the complete signed vector. This is a source-reviewed
+construction plan, not an executed actual-input gate.

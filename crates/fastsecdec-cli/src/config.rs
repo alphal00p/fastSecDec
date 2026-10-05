@@ -2,6 +2,9 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use serde::Deserialize;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunCard {
@@ -80,6 +83,7 @@ pub struct GenerationInput {
     pub assume_no_threshold: bool,
     pub max_sectors: usize,
     pub max_support_pairs: usize,
+    pub coefficient_expansion: fastsecdec::generation::CoefficientExpansionOptions,
 }
 
 impl Default for GenerationInput {
@@ -89,6 +93,7 @@ impl Default for GenerationInput {
             assume_no_threshold: false,
             max_sectors: 1_000_000,
             max_support_pairs: 10_000_000,
+            coefficient_expansion: Default::default(),
         }
     }
 }

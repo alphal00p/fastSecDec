@@ -1,7 +1,9 @@
 //! Serializable status snapshots with terminal-independent display functions.
+mod coefficient;
 mod diagnostics;
 mod geometry;
 mod timings;
+pub use coefficient::CoefficientExpansionSnapshot;
 pub use diagnostics::{DiagnosticsOverflow, EvaluationDiagnostics};
 pub use geometry::GeometryReuseStatus;
 use std::fmt;
@@ -130,6 +132,7 @@ pub enum GenerationStage {
     Symmetry,
     Subtraction,
     Expansion,
+    CoefficientExpansion,
     Compilation,
     Complete,
 }
@@ -144,6 +147,10 @@ pub struct GenerationSnapshot {
     pub elapsed_seconds: f64,
     #[serde(default)]
     pub timings: GenerationTimings,
+    /// Absent for physical-only generation. A named run retains the current or
+    /// last completed representative's per-attempt observations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coefficient_expansion: Option<CoefficientExpansionSnapshot>,
     pub detail: String,
 }
 

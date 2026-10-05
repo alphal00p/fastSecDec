@@ -27,12 +27,16 @@ Clap owns argument-validation and help formatting; use `NO_COLOR` to request
 monochrome output before argument parsing as well.
 `--json` writes one final JSON
 document to stdout; `--status-json` streams public status snapshots to stderr.
-Integration JSON snapshots default to a minimum 100 ms interval. Set
-`--status-interval-ms 0` for every worker batch, or choose a longer interval to
+Named coefficient and integration JSON snapshots default to a minimum 100 ms interval. Set
+`--status-interval-ms 0` for every update, or choose a longer interval to
 reduce observation work. This option affects neither numerical settings nor
 checkpoint identity; terminal/plain intervals remain 40 ms/1 s. Initial,
 stage/round-boundary and final states are always emitted, including cancelled or
-failed outcomes. Generation and standalone diagnostic progress are unchanged.
+failed integration outcomes. Named progress also emits attempt changes, exact
+fallback decisions and completed representatives. Other generation JSON,
+including chart/cone admission and final saved state, remains unthrottled.
+Generation failures keep their final error report and do not emit completion.
+Standalone diagnostic progress is unchanged.
 
 Worker evaluation/submission failures, replay acceptance and cancellation remain
 checked after every batch. Numerical-statistics range failures discovered by
@@ -46,10 +50,47 @@ initialization so machine-readable stdout remains clean. Licensing is unchanged.
 Generation snapshots update after each compiled kernel and include cumulative
 stage timings. Final JSON and artifacts retain input, parametrization, domain
 checks, geometry, mapping, verified symmetry, subtraction, Laurent expansion,
-and compilation times. Generation total ends after preparing artifact metadata,
+and compilation times. The opt-in named route uses one separate
+`coefficient_expansion_seconds` duration, including exact physical fallback;
+its work is not counted again under subtraction or Laurent expansion.
+Generation total ends after preparing artifact metadata,
 before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
+
+Physical endpoint subtraction remains the default. To opt into native named
+coefficient expansion, add this nested run-card section:
+
+```toml
+[generation.coefficient_expansion]
+method = "native_named"
+max_series_attempts = 12
+max_relative_width = 128
+max_unique_requests = 10000
+```
+
+The three limits are optional caller caps, shown here as an example. They apply
+only to native named composition. The existing subtraction limits govern exact
+physical fallback when an unregulated endpoint needs the physical route's
+pruning decision. Failed series, resource limits and cancellation return errors;
+they do not trigger a different algorithm. Relative width is a native Series
+request, not an absolute Laurent cutoff. The unique-request cap counts distinct
+derivative/face tuples within one attempt, not intermediate memory or body size.
+
+Named snapshots include `coefficient_expansion`, with requested/effective
+methods, the current attempt, formal pieces and request/alias counts. Those
+counts reset on a new attempt and do not count physical contributions. An
+attempt and width of zero denote admission before native work or exact physical
+fallback. The outer completed count advances only when a representative finishes.
+Untouched physical runs omit this optional snapshot. Cancellation is checked on
+every callback even when status output is coalesced; a native symbolic call
+remains nonpreemptible. The CLI supplies options and presentation only; the
+library owns coefficient generation, aliases and numerical conditioning.
+
+This explicit opt-in is under validation. Accepted representative controls do
+not establish completion of every full graph or matched performance. Saved
+conditioning rows retain their existing numeric meaning; the fresh result's
+descriptive conditioning basis is not inferred from a loaded artifact.
 
 `generate` and `run` accept `--geometry-workers N` (default `1`). Values above
 one use a CLI-owned pool for native chart and cone geometry jobs; symbolic

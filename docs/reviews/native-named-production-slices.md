@@ -3,9 +3,10 @@
 Source-only implementation handoff, 2026-10-05. This narrows
 [the production-boundary review](native-named-production-boundaries.md) to files,
 interfaces and acceptance steps. No production edit or default change is
-authorized by this document. The required three independent original-expression
-oracles and complete cold-reader gate must close first; successful generation,
-native program construction or one accepted point is insufficient.
+authorized by this document. The three independent original-expression oracles
+and complete cold-reader gate have closed for the captured representative; see
+[the accepted reader evidence](native-dual-reader-admission.md). This supports
+the staged adoption work below, not public-path or whole-graph acceptance.
 
 The first production patch should extract shared endpoint admission without
 changing the physical route. The later named route starts from admitted
@@ -22,7 +23,7 @@ files. The independent auditor should not author the slice being accepted.
 | Owner role | Files | Single responsibility |
 | --- | --- | --- |
 | Symbolic implementation author | `generation/subtraction/endpoints.rs` (new), narrow calls in `subtraction.rs` | Exact affine endpoint admission and checked subtraction degree; shared by both routes |
-| Symbolic implementation author | `generation/subtraction/coefficient_first.rs` (new), `coefficient_first/compose.rs` | Native Series attempt controller and endpoint/weight/prefactor composition |
+| Symbolic implementation author | `generation/coefficient_first.rs` (new), `coefficient_first/compose.rs` | Native Series attempt controller and endpoint/weight/prefactor composition |
 | Symbolic implementation author | `coefficient_first/requests.rs`, `requests/interleaved.rs` | Local coefficient bodies, native derivative/face requests, separate caches and flat native alias lowering |
 | Generation integration author | `generation/coefficients.rs` (new), representative block in `generation/mod.rs` | Route selection and a common completed coefficient result; retain existing assembly exactly |
 | Generation integration author | `generation/conditioning.rs` (new), relevant `types.rs` definitions/docs | Checked conditioning profiles and honest basis labels; no numeric estimator |
@@ -273,10 +274,11 @@ adapts presentation only and owns no symbolic executor or numerical loop.
 
 ## 6. Acceptance and promotion sequence
 
-1. Close the three original-input oracle and cold-reader gates. Preserve every
-   failed earlier attempt and the complete extra-leading-order comparison.
-2. Land endpoint extraction and meaningful regressions; independently audit the
-   shared admission and checked counts before accepting that milestone.
+1. The three original-input oracle and cold-reader gates are complete. Preserve
+   every failed earlier attempt and the complete extra-leading-order comparison.
+2. Endpoint extraction and meaningful regressions landed in `ce0fbff`, with
+   independently accepted shared admission/counts, 50 focused passing tests,
+   two explicit ignored tests, formatting and package Clippy.
 3. Implement the separated native modules, private coordinator and explicit
    physical-default opt-in, including limits/conditioning/status together.
 4. Run public small Taylor/IBP generation, native program compilation and

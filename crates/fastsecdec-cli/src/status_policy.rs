@@ -1,6 +1,38 @@
-//! Caller-owned observation cadence. No integration settings or estimators are
-//! changed; the caller asks before constructing an expensive native snapshot.
+//! Caller-owned observation cadence. No numerical settings or estimators are
+//! changed. Generation polls still reach cancellation; integration asks before
+//! constructing an expensive native snapshot.
 use std::time::Duration;
+
+use fastsecdec::{
+    generation::CoefficientExpansionMethod,
+    status::{GenerationSnapshot, GenerationStage},
+};
+
+/// Cheap presentation boundaries. Ordinary request counts do not force output;
+/// retries, exact fallback and completed representatives do.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GenerationBoundary {
+    stage: GenerationStage,
+    completed: Option<usize>,
+    representative: Option<usize>,
+    attempt: Option<usize>,
+    effective_method: Option<CoefficientExpansionMethod>,
+}
+
+impl From<&GenerationSnapshot> for GenerationBoundary {
+    fn from(snapshot: &GenerationSnapshot) -> Self {
+        let coefficient = snapshot.coefficient_expansion.as_ref();
+        Self {
+            stage: snapshot.stage,
+            // The display uses this boundary only to coalesce named coefficient
+            // polls; existing geometry JSON events remain unthrottled.
+            completed: (snapshot.stage != GenerationStage::Geometry).then_some(snapshot.completed),
+            representative: coefficient.map(|value| value.sector),
+            attempt: coefficient.map(|value| value.attempt),
+            effective_method: coefficient.map(|value| value.effective_method),
+        }
+    }
+}
 
 pub struct StatusCadence {
     interval: Duration,

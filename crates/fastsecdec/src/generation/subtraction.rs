@@ -8,7 +8,7 @@ use symbolica::{
 pub(super) mod endpoints;
 #[cfg(test)]
 use endpoints::endpoint_power;
-pub(super) use endpoints::{checked_cancellation_degree, rational};
+pub(super) use endpoints::rational;
 
 #[cfg(test)]
 pub(super) mod series_first;

@@ -14,6 +14,9 @@ pub struct GenerationTimings {
     pub symmetry_seconds: f64,
     pub subtraction_seconds: f64,
     pub laurent_seconds: f64,
+    /// Entire named coefficient phase, including any exact physical fallback.
+    /// This duration does not overlap subtraction_seconds or laurent_seconds.
+    pub coefficient_expansion_seconds: f64,
     pub compilation_seconds: f64,
     pub total_seconds: f64,
 }

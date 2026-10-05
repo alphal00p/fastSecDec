@@ -51,7 +51,7 @@ struct Cli {
         help = "Stream status snapshots as JSON lines to stderr"
     )]
     status_json: bool,
-    /// Minimum interval for JSON integration status; zero emits every worker batch.
+    /// Minimum interval for JSON coefficient/integration status; zero emits every update.
     #[arg(long, global = true, default_value_t = 100)]
     status_interval_ms: u64,
     #[command(subcommand)]

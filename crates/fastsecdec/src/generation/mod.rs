@@ -2,6 +2,9 @@
 //!
 //! Symbolica owns all polynomial manipulation, derivatives and series expansions.
 //! This module owns the integral-specific order of these operations.
+mod coefficient_first;
+mod coefficients;
+mod conditioning;
 mod context;
 mod domain;
 mod geometry;
@@ -30,8 +33,9 @@ pub use metadata::{
     FactorCertificate, GenerationMetadata,
 };
 pub use types::{
-    GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationPhase,
-    GenerationProgress, SubtractionStrategy,
+    CoefficientExpansionMethod, CoefficientExpansionOptions, CoefficientExpansionStage,
+    CoefficientRequestCounts, ConditioningBasis, GeneratedIntegral, GeneratedSector,
+    GenerationError, GenerationOptions, GenerationPhase, GenerationProgress, SubtractionStrategy,
 };
 
 use crate::parametric::ParametricIntegrand;
@@ -263,55 +267,36 @@ fn generate_inner(
                 options.max_order,
             )?;
         }
-        let started = Instant::now();
-        let (expression, terms, cancellation_terms) =
-            subtraction::subtract(mapped, &parameters, input.regulator(), options)?;
-        let cancellation_degree = subtraction::checked_cancellation_degree(&cancellation_terms)?;
-        emit(
-            &mut progress,
-            GenerationProgress::PhaseTiming {
-                phase: GenerationPhase::Subtraction,
-                seconds: started.elapsed().as_secs_f64(),
-            },
-        )?;
-        emit(
-            &mut progress,
-            GenerationProgress::Subtraction {
-                sector: index,
-                total,
-                terms,
-            },
-        )?;
-        emit(
-            &mut progress,
-            GenerationProgress::LaurentExpansion {
-                sector: index,
+        let output = coefficients::expand(
+            mapped,
+            coefficients::Representative {
+                parameters: &parameters,
+                regulator: input.regulator(),
+                index,
                 total,
             },
-        )?;
-        let started = Instant::now();
-        let coefficients = laurent::expand(
-            &expression,
-            &parameters,
-            input.regulator(),
-            options.max_order,
+            options,
             &mut templates,
-        )?
-        .into_iter()
-        .map(|(order, coefficient)| {
-            (
-                order,
-                coefficient.map_root(|root| root * Atom::num(multiplicity)),
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
+            &mut progress,
+        )?;
+        let coefficients = output
+            .coefficients
+            .into_iter()
+            .map(|(order, coefficient)| {
+                (
+                    order,
+                    coefficient.map_root(|root| root * Atom::num(multiplicity)),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
         emit(
             &mut progress,
             GenerationProgress::PhaseTiming {
-                phase: GenerationPhase::Laurent,
-                seconds: started.elapsed().as_secs_f64(),
+                phase: output.phase,
+                seconds: output.phase_started.elapsed().as_secs_f64(),
             },
         )?;
+        let conditioning = output.conditioning;
         if let Some(order) = coefficients.keys().next() {
             minimum = minimum.min(*order);
         }
@@ -334,13 +319,7 @@ fn generate_inner(
             }
         } else {
             kernel_indices.insert(representative_index, pending.len());
-            pending.push((
-                map,
-                parameters,
-                coefficients,
-                cancellation_degree,
-                cancellation_terms,
-            ));
+            pending.push((map, parameters, coefficients, conditioning));
         }
     }
     #[cfg(test)]
@@ -352,18 +331,17 @@ fn generate_inner(
     let sectors = pending
         .into_iter()
         .map(
-            |(map, parameters, coefficients, cancellation_degree, cancellation_terms)| {
-                GeneratedSector {
-                    cancellation_degree,
-                    cancellation_terms,
-                    parameters,
-                    map,
-                    materialized: Default::default(),
-                    coefficients: orders
-                        .iter()
-                        .map(|order| coefficients.get(order).cloned().unwrap_or_default())
-                        .collect(),
-                }
+            |(map, parameters, coefficients, conditioning)| GeneratedSector {
+                cancellation_degree: conditioning.degree,
+                cancellation_terms: conditioning.rows,
+                conditioning_basis: conditioning.basis,
+                parameters,
+                map,
+                materialized: Default::default(),
+                coefficients: orders
+                    .iter()
+                    .map(|order| coefficients.get(order).cloned().unwrap_or_default())
+                    .collect(),
             },
         )
         .collect();

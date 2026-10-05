@@ -1,6 +1,8 @@
 //! Independent public-pipeline controls for retained native coefficient images.
 use fastsecdec::{
-    generation::{GenerationOptions, generate},
+    generation::{
+        CoefficientExpansionMethod, CoefficientExpansionOptions, GenerationOptions, generate,
+    },
     kernel::{KernelSet, ReplayPolicy},
     parametric::{
         FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
@@ -68,11 +70,21 @@ fn hidden_complex_coordinate_images_preserve_gamma_vector_and_weighted_reload() 
         )],
     )
     .unwrap();
-    for maximum in [-1, 2] {
+    for (method, maximum) in [
+        CoefficientExpansionMethod::Physical,
+        CoefficientExpansionMethod::NativeNamed,
+    ]
+    .into_iter()
+    .flat_map(|method| [-1, 2].map(|maximum| (method, maximum)))
+    {
         let generated = generate(
             &input,
             &GenerationOptions {
                 max_order: maximum,
+                coefficient_expansion: CoefficientExpansionOptions {
+                    method,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             |_| ControlFlow::Continue(()),
@@ -129,38 +141,56 @@ fn hidden_complex_coordinate_images_preserve_gamma_vector_and_weighted_reload() 
         assert_eq!(restored.content_id(), kernels.content_id());
         assert_eq!(restored.orders().len(), 2 * expected_coefficients.len());
         for kernels in [&kernels, &restored] {
-            let mut context = kernels
-                .evaluation_context(0, ReplayPolicy::default())
-                .unwrap();
-            for point in [0.2, 0.6, 1e-80] {
-                let mut expected =
-                    vec![
-                        Complex::new(Float::with_val(512, 0), Float::with_val(512, 0));
-                        expected_coefficients.len()
-                    ];
-                reference.evaluate(
-                    &[Complex::new(
-                        Float::with_val(512, point),
-                        Float::with_val(512, 0),
-                    )],
-                    &mut expected,
-                );
-                let weight = 1e40;
-                let mut values = vec![0.0; kernels.orders().len()];
-                let report = context
-                    .evaluate_weighted(&[point], weight, &mut values)
+            for minimum_bits in [128, 256] {
+                let mut context = kernels
+                    .evaluation_context(
+                        0,
+                        ReplayPolicy {
+                            minimum_bits,
+                            ..Default::default()
+                        },
+                    )
                     .unwrap();
-                assert!(values.iter().all(|value| value.is_finite()));
-                if point == 0.2 {
-                    assert!(report.replayed);
-                }
-                for (pair, expected) in values.as_chunks::<2>().0.iter().zip(expected) {
-                    for (actual, expected) in pair.iter().zip([expected.re, expected.im]) {
-                        let expected = (expected * Float::with_val(512, weight)).to_f64();
-                        assert!(
-                            (actual - expected).abs() <= 2e-11 * expected.abs().max(1.0),
-                            "order maximum {maximum}, point {point}: {actual} vs {expected}"
-                        );
+                let mut worker = kernels.sectors()[0].try_clone().unwrap();
+                for point in [0.2, 0.6, 1e-80] {
+                    let mut expected =
+                        vec![
+                            Complex::new(Float::with_val(512, 0), Float::with_val(512, 0));
+                            expected_coefficients.len()
+                        ];
+                    reference.evaluate(
+                        &[Complex::new(
+                            Float::with_val(512, point),
+                            Float::with_val(512, 0),
+                        )],
+                        &mut expected,
+                    );
+                    let mut cloned_values = vec![0.0; kernels.orders().len()];
+                    worker.evaluate(&[point], &mut cloned_values).unwrap();
+                    for (pair, expected) in cloned_values.as_chunks::<2>().0.iter().zip(&expected) {
+                        for (actual, expected) in pair.iter().zip([&expected.re, &expected.im]) {
+                            let expected = expected.to_f64();
+                            assert!((actual - expected).abs() <= 2e-11 * expected.abs().max(1.0));
+                        }
+                    }
+                    let weight = 1e40;
+                    let mut values = vec![0.0; kernels.orders().len()];
+                    let report = context
+                        .evaluate_weighted(&[point], weight, &mut values)
+                        .unwrap();
+                    assert!(values.iter().all(|value| value.is_finite()));
+                    if point == 0.2 {
+                        assert!(report.replayed);
+                        assert!(report.precision.bits >= minimum_bits * 2);
+                    }
+                    for (pair, expected) in values.as_chunks::<2>().0.iter().zip(expected) {
+                        for (actual, expected) in pair.iter().zip([expected.re, expected.im]) {
+                            let expected = (expected * Float::with_val(512, weight)).to_f64();
+                            assert!(
+                                (actual - expected).abs() <= 2e-11 * expected.abs().max(1.0),
+                                "order maximum {maximum}, point {point}: {actual} vs {expected}"
+                            );
+                        }
                     }
                 }
             }

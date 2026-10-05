@@ -5,19 +5,22 @@ use std::{ops::ControlFlow, process::Command};
 #[test]
 fn gamma_artifact_loads_in_a_fresh_process() {
     let temporary = tempfile::tempdir().unwrap();
-    for mode in ["write", "read"] {
-        let output = Command::new(std::env::current_exe().unwrap())
-            .args(["--exact", "artifact_process_child", "--test-threads=1"])
-            .env("FASTSECDEC_ARTIFACT_PROCESS_MODE", mode)
-            .env("FASTSECDEC_ARTIFACT_PROCESS_DIR", temporary.path())
-            .output()
-            .unwrap();
-        assert!(
-            output.status.success(),
-            "{mode} child failed:\n{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
+    for method in ["physical", "native_named"] {
+        for mode in ["write", "read"] {
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args(["--exact", "artifact_process_child", "--test-threads=1"])
+                .env("FASTSECDEC_ARTIFACT_PROCESS_MODE", mode)
+                .env("FASTSECDEC_ARTIFACT_COEFFICIENT_METHOD", method)
+                .env("FASTSECDEC_ARTIFACT_PROCESS_DIR", temporary.path())
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{mode} child failed:\n{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
 }
 
@@ -33,7 +36,10 @@ fn artifact_process_child() {
     if mode == "write" {
         use fastsecdec::{
             Atom,
-            generation::{GenerationOptions, generate},
+            generation::{
+                CoefficientExpansionMethod, CoefficientExpansionOptions, GenerationOptions,
+                generate,
+            },
             parametric::{
                 FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
             },
@@ -58,6 +64,17 @@ fn artifact_process_child() {
             &input,
             &GenerationOptions {
                 max_order: 4,
+                coefficient_expansion: CoefficientExpansionOptions {
+                    method: match std::env::var("FASTSECDEC_ARTIFACT_COEFFICIENT_METHOD")
+                        .unwrap()
+                        .as_str()
+                    {
+                        "physical" => CoefficientExpansionMethod::Physical,
+                        "native_named" => CoefficientExpansionMethod::NativeNamed,
+                        other => panic!("unknown coefficient method {other}"),
+                    },
+                    ..Default::default()
+                },
                 ..Default::default()
             },
             |_| ControlFlow::Continue(()),
