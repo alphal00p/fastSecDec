@@ -43,9 +43,10 @@ C++ integration code was imported. `cargo package --list` includes the vector
 payloads, source text and attribution/license files.
 
 The declared Rust minimum remains 1.89. The new fixed-array chunk API is stable
-since 1.88, within that baseline. Tests here used Rust 1.98.1 on Linux; an exact
-1.89 toolchain run and a macOS run were not performed in this review. Both native
-GMP/MPFR and alternative Malachite/Astro backends were exercised.
+since 1.88, within that baseline. The initial gates used Rust 1.98.1 on Linux;
+the subsequent exact Rust 1.89 gate below closes that minimum-version check.
+A macOS run remains outstanding. Both native GMP/MPFR and alternative
+Malachite/Astro backends were exercised.
 
 ## Validation
 
@@ -73,6 +74,28 @@ Local evidence is retained as `output/numerica-upstream-{default,serde,alternati
 `numerica-upstream-qmc-clippy.log`. Exact PR title/body drafts are in the
 coordinator's temporary files.
 
+## Exact minimum-version follow-up
+
+On 2026-10-05, the unchanged reviewed head passed all three locked test
+configurations above with **rustc 1.89.0 and Cargo 1.89.0**, on
+`x86_64-unknown-linux-gnu`. The default configuration passed 237 tests, serde
+passed 240, and the no-default-feature Malachite/Astro/serde configuration
+passed 217. Each includes the library, integration and documentation counts
+shown above, with zero failures or ignored tests. All three processes exited
+zero and were reaped. No source or dependency lockfile change was required.
+
+The independent audit reread all six summaries per configuration, the recorded
+toolchain versions, commands and feature sets, then rechecked all 73 source
+hashes and both manifest/lockfile hashes against the clean checkout at
+`e4638da22a17cfa931fa14c6829d3350b7a8de2b`. Evidence is retained in
+`output/numerica-msrv-1/results.json`, its three `*-tests.log` files, version
+records and source/manifest postchecks. The toolchain is pinned through
+rust-overlay revision `dbc715a4b7c0ace63b9769a032d1dd34cd89e5bd` and uses a
+separate Cargo target directory. This accepts the exact Linux minimum-version
+test gate; it does not qualify macOS, other architectures, performance or
+FastSecDec's own compiler baseline. The earlier unrelated all-target Clippy
+limitation remains unchanged.
+
 ## Publication
 
 [Numerica PR #8](https://github.com/symbolica-dev/numerica/pull/8) is open against
@@ -88,3 +111,7 @@ explicitly tags `@benruijl` for review; that mention was verified after updating
 the PR. At publication, the `license/cla` check was pending. No contributor
 agreement was signed on the user's behalf. The PR description records the
 complete successful test gates and the preexisting all-target lint failures.
+The description was subsequently updated and reread to verify the exact Rust
+1.89 results above, preserving the reviewer mention. The branch remains at the
+same source revision. At that follow-up, the PR remained open without reviews,
+and the CLA check remained pending.

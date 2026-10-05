@@ -12,7 +12,11 @@ polynomial-numerator conversion; exact sector geometry and symmetry; endpoint
 subtraction and complete Laurent-vector direct evaluators; portable SymJIT O2,
 conditioning and native MPFR rescue; caller-driven MC/QMC, covariance,
 checkpoint/resume, typed status, results and the CLI dashboard. Numerica's QMC
-extension is published as PR 8. The native production dependency graph excludes
+extension is published as PR 8. Its unchanged branch also passes exact Rust
+1.89.0/Cargo 1.89.0 on Linux: 237 default, 240 serde and 217 alternative-backend
+tests, independently checked against unchanged source and lockfile hashes.
+This closes the Numerica Linux minimum-version gap; other platform and
+performance gates remain open. The native production dependency graph excludes
 Python and pySecDec; external reference execution is a development activity.
 
 The latest complete workspace gate passes **336 tests**, with twenty-three
