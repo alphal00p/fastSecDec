@@ -1,13 +1,14 @@
 # Original on-shell graph: native prepared named-route protocol
 
-The next bounded trial uses the ordinary CLI with both native named coefficients
+The bounded trial uses the ordinary CLI with both native named coefficients
 and the existing exact `SingleUnitTerm` family preparation. The CLI adapter is
 accepted at `e42a017`: 38 focused tests, formatting and CLI all-target Clippy
 pass, with an [independent review](cli-family-preparation-independent.md).
-The preceding prepared trial passed its release build and concrete freeze
-review, completed coefficient generation and sector compilation, then failed
-before publishing an artifact. No downstream stage ran. The persistence rerun
-awaits the committed persistence milestone and its fresh release build/freeze.
+The preceding prepared trial completed coefficient generation and sector
+compilation, then failed before publishing an artifact. The persistence rerun
+at `c3ec42a` passes generation/publication and fresh-process inspection within
+the same limits. Its 180-second integration stage times out with partial
+checkpoint coverage and no full-integral estimate. All processes are reaped.
 Build and attempt outcomes
 are retained in [native-named-fullgraph-results.md](native-named-fullgraph-results.md).
 This protocol adds no
@@ -94,7 +95,7 @@ CPUs 10 and 11, using `cargo build -p fastsecdec-cli --release --locked
 --message-format=json`. Select the unique successful normal `fastsecdec` binary
 from Cargo's artifact record. Retain its hash, exact compiler/linker identities,
 source archive, native archives/patches, selected rlibs and feature fingerprints.
-The next freezer overlays the independently reviewed native and CLI persistence
+The persistence freezer overlays the independently reviewed native and CLI persistence
 source maps, including the Cargo `serde_json/raw_value` feature, on the prior
 accepted source map. Shared reviewed hashes must agree; all other production
 and native sources still match. It binds the completed combined workspace,
@@ -160,3 +161,13 @@ This is a bounded full-input capability trial. Its fixed allocation makes no
 one-per-mille convergence, eight-core throughput or matched performance claim.
 Full-integral numerical agreement and performance acceptance require their own
 completed evidence. No optional tuning campaign follows automatically.
+
+After the accepted fourth artifact/inspection and numerical timeout, further
+numerical work must reuse that saved artifact. Existing CLI `--resume` can
+restore a copied checkpoint while retaining the original attempt unchanged;
+native restore validates complete problem scope, settings, design and accepted
+replay state. The checkpoint is older than the final observed progress. No
+600-second extension or eight-worker run has been frozen or launched: the
+heterogeneous accepted prefix and eager evaluator ownership require a bounded
+source/cost assessment first. This does not authorize regeneration, reduced
+coverage, changed precision rules or an automatic retry.

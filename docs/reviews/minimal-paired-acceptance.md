@@ -31,8 +31,9 @@ sector partitions remain recorded rather than forced to agree.
 Use one worker on the same allowed physical CPU for both programs, alternating
 native/reference order by repetition. Native and Pathfinder both use their
 ordinary SymJIT O2 routes; the reference explicitly selects the already validated
-complex evaluator, full-support correlated democratic QMC and disables its
-optional optimized evaluators. Keep all native weighted checks/replay and all
+complex evaluator, its normal boundary-support correlated democratic QMC and
+enabled optimized evaluators. The old full-support opt-out had no documented
+correctness obstacle justifying its use as the only final comparator. Keep all native weighted checks/replay and all
 reference precision tiers active. Compare against the same complete physical
 vectors and accuracy targets, retaining actual rescue/precision/failure counts;
 identical internal rescue decisions are not required or fabricated.
@@ -67,9 +68,9 @@ or the individual-maximum comparison.
 A read-only inventory found complete Pathfinder strict bundles only at
 `output/benchmarks/eight-core-preparation-20261005/{triangle,box}.reference.bundle/`.
 Their manifests retain explicit complex O2, orders through zero and prepared
-sector IDs. They can supply existing-environment prepared integration after the
-ordinary strict loader accepts their frozen sources/options. They cannot count
-as new generation observations. No `manifest.json` for a complete double-box,
+sector IDs. Their full-support/optimization-disabled settings remain usable
+for historical attribution after ordinary strict loading, not the final default
+Pathfinder acceptance route or new generation observations. No `manifest.json` for a complete double-box,
 rank-two triple-box or hard-four-loop Pathfinder bundle was found under the
 reference cache/examples outputs or current `output/benchmarks` and
 `output/diagnostics` roots. The pySecDec libraries/fixtures are not substitutes
@@ -118,8 +119,10 @@ prespecified doubling ladder and include every attempted level's process cost
 as **cumulative tested-process wall time to the first observed SE ≤ 1‰**.
 This is neither continuously resumed runtime nor certified true-error time.
 For Pathfinder, preserve the actual reported L1 prefactor-error propagation label
-where it differs from a jointly estimated physical standard error. Stop a row once
-the criterion and complete-vector independent checks pass; do not add a broad tuning campaign.
+where it differs from a jointly estimated physical standard error. Stop a row once the reported highest-order target is observed and available
+reference comparisons pass. Missing union rows do not justify more sampling;
+they remain separate scientific acceptance gaps, not timing failures. The
+ladder never exceeds Kuo33002’s supported 2^20 points. Do not add a tuning campaign.
 If a component is independently known to vanish, preserve the labelled absolute
 zero check rather than dividing by a noisy mean. Fixed-work medians and accuracy
 medians stay separate. Unequal sector counts make actual total work and scientific
@@ -151,14 +154,81 @@ diagnostic to an already prepared artifact. The reference's existing batch
 reports do not contain individual maxima, and the ordinary native `benchmark`
 command times batches at interior points rather than actual weighted QMC replay.
 Neither supplies the missing statistic by division or relabelling. The required
-Pathfinder maximum therefore needs a narrow development-only adaptation of its
-existing timing hook around the ordinary weighted complete-vector evaluation,
-retaining precision dispatch and the actual slow sample. Reuse the native
-instrumented/uninstrumented result and clock-overhead control pattern; do not
-replace batches with a new evaluator or build a generic instrumentation framework.
-This is a concrete remaining metric, not a permanently unavailable row.
+Pathfinder maximum therefore needs a narrow ignored diagnostic using captured
+actual transformed points and its existing `evaluate_batch(sector, row[None,:])`
+API plus the same coefficient masking and QMC weights. Compare complete results
+and precision counts with the ordinary batch path. Label this observed single-row
+API latency, including Python/NumPy dispatch and native precision/rescue work;
+vectorized batch time cannot yield individual maxima. Exclude lattice/transform,
+shift reduction and recording from that bracket and retain clock overhead.
+Reference global-prefactor convolution remains separately attributed.
+The existing `runtime_benchmark.py` forced-f64 interior-point route is unsuitable.
+Preserve the actual QMC policy: its weighted-rescue behavior is not the separate
+Havana records path. No new evaluator, precision policy or generic instrumentation
+framework is proposed. This is a concrete remaining metric, not a permanently
+unavailable row.
 
 This source-only proposal awaits coordinator scheduling and makes no performance
 claim. After coverage, run only missing rows under agreed finite bounds, retain failures,
 report medians and paired ratios, and investigate only regressions beyond the
 plan's 5% allowance. Once representative parity is demonstrated, stop.
+
+
+## Concrete ignored adaptation
+
+Source is in `output/probes/minimal_paired/`: `cases.py` fixes the five existing
+cards and supported choices; `run.py` reuses the process timer and existing CLI
+commands; `native_observe.rs` reuses `read_result`, `read_reference` and native
+`reference::compare`; `observe_reference.py` retains the complete Pathfinder
+report and reuses its scalar formatting/comparison functions without inventing
+covariance. `summarize.py` computes descriptive medians only when the complete
+prescribed block is present. The sources have not executed scientific workloads. Their separate data-only
+reader build and frozen plan will bind the current release libraries.
+
+The rank-two native row selects the already validated `SingleUnitTerm` policy
+with bound 32 and retains physical coefficient generation. The other rows retain
+the existing physical/original route. Copied card file paths become absolute;
+physical expressions and original cards stay unchanged. Current native outer-v2
+artifacts are loaded by the production CLI; the reader consumes its validated
+saved-result API instead of reconstructing an outer artifact or expanding its
+program-byte arrays in JSON.
+
+Prospective default Pathfinder admission checks its own scheduled-sector IDs,
+group counts, raw sample target, aggregate/evaluated counts and each active
+order's complete sixteen shift estimates. Work is the sum over actual groups;
+zero-dimensional groups use one point per shift. It is not sectors times the
+nominal point count. The existing owner sums completed group/sector vectors at
+matching shift indices before estimating aggregate errors. Optimized artifacts
+being prepared does not prove fused evaluation ran: correlated precomputed
+coordinates can use the ordinary component path. Both the requested default and
+actual diagnostic route remain visible; no reference executor is changed.
+
+The source proposes 180-second ordinary / 1,800-second expensive generation
+limits, 180-second ordinary / 1,200-second expensive numerical-row limits, and
+600/3,600-second cumulative numerical ladders. These finite scheduling bounds
+must be agreed before execution, not extended after seeing a row. Only ladder mode launches prepared numerical work; its first row is also the
+fixed-work observation. There is no separate duplicate integration launch.
+Observers run outside the scientific process interval. Existing results are
+not overwritten.
+Unknown or missing reference components, notably the hard-case earlier leading
+zero row, remain explicit and cannot be silently padded to make a block pass.
+
+The summary separates complete process blocks and descriptive timing medians
+from numerical acceptance. Readers report matching-row residuals, complete-real
+projection coverage and full complex-union coverage separately. Missing imaginary
+references do not become zero references. The hard-case exact zero-through-−3
+[certificate](hard-four-loop-lower-order-scope.md) is bound as separate evidence;
+the native comparison still returns `MissingEstimate`, and neither its mean nor
+covariance is padded. Unexpected missing orders remain unresolved. Generation
+medians require completed program admission, and formula read-cache inventories
+are checked for additions as well as changed files.
+
+The corrected source review accepted the build/preparation boundary. The
+standalone native data reader compiled successfully in 118.887 seconds against
+the exact fullgraph-4 libraries; source and library hashes passed afterward.
+`output/diagnostics/minimal-paired-reader-build-1/build-evidence.json` binds the
+reader, and `output/benchmarks/minimal-paired-current-1/plan.json` binds all five
+cases and 616 inputs. Preparation performed no scientific generation or
+integration. The source-only Pathfinder individual-row counterpart is in
+`output/probes/pathfinder_sample_latency_current/`; its invocation remains tied
+to a later ordinary paired result and actual default-dispatch observation.

@@ -26,8 +26,8 @@ all-target Clippy pass. The focused native and CLI gates separately pass 16 and
 JSON remove large persistence copies while retaining native v3 identity and
 legacy CLI v1 loading; newly saved CLI envelopes explicitly use v2. Cold
 loaders keep validated input rather than rebuilding a discarded envelope.
-The original full-graph rerun determines whether this closes the observed
-capacity gap. See the [independent review](native-persistence-independent.md).
+The original full-graph rerun closes the observed artifact-publication capacity
+gap. See the [independent review](native-persistence-independent.md).
 
 The preceding complete workspace gate passes **370 tests**, with twenty-three
 explicit probes ignored (`output/coefficient-first-workspace-tests-2.log`,
@@ -102,6 +102,19 @@ A validated focused correction reuses Serde streaming and raw JSON while
 preserving native v3 and explicitly handling legacy CLI identities. See the
 [native attempt record](native-named-fullgraph-results.md) and
 [external reference record](reference-onshell-full-vector-proposal.md).
+
+The committed fix then completes full generation, O2 compilation and publication
+in **1,695.486 seconds**, peaking at **16,063,700 KiB (15.32 GiB)**. The artifact
+is **957,122,802 bytes** and retains all 1,026 sectors and orders −6 through zero.
+Cold inspection succeeds in **136.719 seconds**, peaking at **8,458,348 KiB**,
+with the same identity and complete coverage. These are whole-process clocks.
+The following 180-second integration stage reaches its deadline and is reaped
+after 186.784 seconds. Its last status retains 38,912/8,404,992 points, zero
+completed sectors and zero evaluation failures; its checkpoint contains accepted
+partial work, and no complete result exists. All 71 frozen checks pass.
+Publication and cold-load capability are now established. Full-integral numerical
+agreement remains open; the next native allocation will reuse this artifact.
+These capability timings do not replace the representative performance tables.
 
 All 24 run cards and 17 modern native DOT fixtures load. Independent controls
 cover twelve scalar one-loop and eight numerator points; the coupled sunset,

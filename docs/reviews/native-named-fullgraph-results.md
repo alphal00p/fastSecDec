@@ -1,7 +1,8 @@
 # Native original on-shell fullgraph attempts
 
-No complete original on-shell fullgraph artifact or integral estimate is yet
-accepted. The public captured representative is independently accepted; its
+The complete original on-shell fullgraph artifact and fresh-process inspection
+are now independently accepted. The bounded numerical stage remains incomplete,
+with no full-integral estimate. The public captured representative is separately accepted; its
 scope is recorded separately in
 [native-named-public-actual-results.md](native-named-public-actual-results.md).
 
@@ -29,6 +30,7 @@ under `output/diagnostics/native-named-prepared-fullgraph-*`:
 | 1 | Pre-build metadata check rejected a new documentation-only Markdown file. No Cargo or scientific process started. The narrowly permitted documentation paths are now recorded. |
 | 2 | Pre-build source overlay used absolute keys against the prior relative-key map and failed its hash check. No Cargo or scientific process started. Exact same-path replacement fixed the metadata mismatch. |
 | 3 | Release build and independent preflight passed. All 1,026 coefficient expansions and sector compilations completed, but allocation failed before artifact publication. The whole process was reaped after watchdog cleanup of its core dump; no downstream stage ran. |
+| 4 | Persistence milestone `c3ec42a` publishes the complete artifact within the original bounds; fresh-process inspection passes. Integration reaches its 180-second deadline with a retained checkpoint but incomplete coverage. |
 
 Both failed metadata attempts remain preserved. The third binary SHA-256 is
 `033b8ed667c220f0c6b7934f654ed87b60bb4ddadd684bb3ddbf37b6edc76919`;
@@ -82,4 +84,68 @@ record, including all 1,026 coefficient-completion events, process cleanup and
 `552de8975a2b527df25034ab71f9f0f53a1a5f727821de47b5d86276ea889307`.
 See [native-persistence-memory-audit.md](native-persistence-memory-audit.md) for
 the source-backed persistence findings. No unchanged-input retry or larger
-resource limit is authorized by this outcome.
+resource limit was authorized by that outcome alone.
+
+## Persistence rerun: complete artifact, incomplete allocation
+
+The fourth attempt uses committed persistence milestone `c3ec42a`, with the
+same original inputs, two explicit native options, O2 kernels, allocation and
+30-GiB address-space cap. Its release build completes in 404.823495 seconds;
+the frozen binary SHA-256 is
+`62e4cf5d2775519c2ffbf44f6df61db352053ead34c364998870396fffa1ce15`.
+Independent preflight verifies all 71 frozen files, 236 production/archive
+bindings and 1,414 native source bindings. The only process-limit delta is
+`RLIMIT_CORE=0`; dump suppression is unverified with this host's piped handler.
+No core dump occurred in this attempt.
+
+| Stage | Whole-process seconds | Peak RSS (KiB) | Outcome |
+| --- | ---: | ---: | --- |
+| Generate, compile and publish | 1,695.486132 | 16,063,700 | Exit 0, no timeout |
+| Fresh-process inspection | 136.719176 | 8,458,348 | Exit 0, no timeout |
+| Full 1,024-by-eight allocation | 186.784460 | 16,955,128 | 180-second deadline, then grace and cleanup; incomplete |
+
+All 1,026 coefficient expansions finish at 1,546.689512 seconds. The final
+saved phase duration is 1,545.569096 seconds for named coefficients. The last
+sector-JIT callback occurs at 1,676.897213 seconds, reporting 126.843446 seconds
+of sector compilation. Compilation return, including native artifact
+initialization, reports 139.490668 seconds. The outer artifact reaches the
+saved event at 1,692.599848 seconds, about 15.703 seconds after the final JIT
+callback. These boundaries distinguish sector JIT work, native envelope
+construction and publication; they do not identify filesystem throughput.
+No buffered-hash tuning is needed to accept this observed publication.
+
+The published artifact is **957,122,802 bytes**, SHA-256
+`15acd32dbe54e83e8530db148a0cf34c567e73ebfd20c0ef68be77ebb78ef3a9`,
+with outer content ID
+`1ea785545dcdb1831a71aa9df1c36f1550ba40bf431ef7af038e1471dfeaf006`.
+Cold inspection retains all 1,026 seven-dimensional sectors and signed orders
+−6 through 0, with seven zero exact offsets. The native preparation report is
+`Projected`, with active original indices `[0,1,3,5,6,7,8,9]` and powers
+`[1,1,2,2,1,1,1,1]`. Inspection reports **134.462139 seconds** of loading.
+
+The integration deadline includes another cold load. This interrupted process
+does not emit its final `loading_seconds`, so the separate inspection duration
+must not be substituted as that process's exact load measurement. Its last
+status records 38,912 of 8,404,992 sector-points, zero complete sectors,
+23,042 precision rescues, maximum 640 bits and zero evaluation failures.
+There is no integral estimate or saved result. The earlier atomic checkpoint
+retains **36,864** accepted points and **21,570** rescues; it must not be described
+as the later status. Its SHA-256 is
+`a30054516e0c9a18847efd4436dc6e864498a6158a6b5445a2a235b678cf98f2`.
+
+The checkpoint covers one 1,024-point package in each of sectors 0–35, with
+37.279067 accepted worker-seconds. Individual package times span 0.009604 to
+14.058518 seconds (median 0.232116). This small, heterogeneous prefix is not a
+whole-graph throughput estimate. The existing native resume path checks the
+artifact, complete scope, settings, QMC design and replay state. Resume admission
+has not yet been executed for this checkpoint. A numeric-only continuation can
+reuse the artifact; no regeneration is needed. Its worker count and finite
+budget remain subject to source/cost assessment and a separate runtime handoff.
+
+The whole chain is reaped with wrapper exit 124, all eight recorded PIDs and
+four process groups are absent, and all 71 postflight hashes pass. The
+independent terminal review SHA-256 is
+`621a922005dc7e9ad7ded84e91f6dc50d2bdf5b8ddc350464cc0642c94221e2f`,
+at `output/diagnostics/native-named-prepared-fullgraph-4/independent-terminal-review.json`.
+It accepts full generation, publication and cold loading. Complete numerical
+allocation, scientific agreement and performance parity remain unaccepted.
