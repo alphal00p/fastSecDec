@@ -1,0 +1,348 @@
+{
+  "format": "fastsecdec-reference",
+  "reference": {
+    "coefficients": [
+      {
+        "key": {
+          "component": "Real",
+          "order": -4
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 2.1150505867918003e-15
+        },
+        "value": -1.0269562977782698e-15
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": -3
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.00036128998422068834
+        },
+        "value": 1.500432835114506
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": -2
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.0016102860609434047
+        },
+        "value": 1.269034715961728
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": -1
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.006481159774516808
+        },
+        "value": 2.997315028586949
+      },
+      {
+        "key": {
+          "component": "Real",
+          "order": 0
+        },
+        "uncertainty": {
+          "kind": "standard_error",
+          "value": 0.027253699339267728
+        },
+        "value": -14.883187577966803
+      }
+    ],
+    "kernel_content_id": null,
+    "provenance": {
+      "attributes": {
+        "actual_evaluations": null,
+        "actual_lattice_size": null,
+        "case": "double_box",
+        "constituent_prefactor": "-Gamma(3+2*eps)",
+        "copied_package_summary": {
+          "bytes": 77406484,
+          "complete_manifest_record": "preparation.json (hash retained in record_hashes)",
+          "files": 2097,
+          "parent": "double-box-attempt-2",
+          "unchanged": true
+        },
+        "dimension": "4-2*eps",
+        "external_covariance": null,
+        "external_imaginary_standard_errors": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "external_imaginary_values": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "external_sources_sha256": {
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/FSD.py": "6a2d7817a603f8805b7a2579dce2f06e56e1acd757712f503b96dc8440045410",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/examples/graphs/double_box.dot": "d3ef910e8037b3e917d3a6e393447e723c59d9f05aa0e4dc0af14959dd050cfc",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/examples/graphs/double_box_kinematics.yaml": "0cf6a4570b9084cf3743753a64b5e56d49f1cbce3c2383b6e486c4474bbf2faa",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/dot_parser.py": "ce25a150c8de628a3b35407c619e2748677b7850702c4ff5fc585d80b2aad5d8",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/kinematics.py": "4cd5f576d8bfe7effc0d17d197921dbbb54ea45e759b64971d82f6376f0cc2b5",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/pysecdec_bridge.py": "81dc285ffcc74702b5cbb7b563b05a595dad3bf5028ba17c46192dd0e426310d",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/src/run_with_memory_watch.py": "791bde19b760afe9cc06360833bd2996e61d06bf4920613c33783fc7ba20ef20",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_series.py": "8fcb5e87ecb9de356198b8393f2ba2803f2452c979b03ce060eae30094b94a5e",
+          "/common/dev/fastsecdec/output/probes/run_double_box_reference.sh": "5cd1008ebbf6fb7cabe92739a4dcfda0a885fc4b39c95cdf3bc4fe5ef81ad4e6"
+        },
+        "generated_files_sha256": {
+          "package/fsd_psd_double_box/fsd_psd_double_box_integral/codegen/form.set": {
+            "bytes": 117,
+            "sha256": "c646d0c7cc1c2549a857dbaff822c0342813e5da3c16f43dc02f2de95426e2f7"
+          },
+          "package/fsd_psd_double_box/fsd_psd_double_box_integral/libfsd_psd_double_box_integral.a": {
+            "bytes": 13177430,
+            "sha256": "411ab8675bd40e1d91b357e6a354d1b0eb06b070021016390ac3455d9fa3de78"
+          },
+          "package/fsd_psd_double_box/fsd_psd_double_box_integral/src/prefactor.cpp": {
+            "bytes": 611,
+            "sha256": "5d50017023cd0dc0f48b55a005be02c3c9d3e9f1aa7a13930d41197ebcce68d6"
+          },
+          "package/fsd_psd_double_box/fsd_psd_double_box_pylink.so": {
+            "bytes": 10596399,
+            "sha256": "26a54ac2d282163ec54eff58c6c92355ae9954ee956f44516430ec39f942ce74"
+          },
+          "package/fsd_psd_double_box/src/fsd_psd_double_box_integral_weighted_integral.cpp": {
+            "bytes": 43093,
+            "sha256": "9ef67bcd9f059e317cbf82b1b1f2c52c040461fdd7008be18fe76f1e0c8fb378"
+          }
+        },
+        "generation_command": [
+          "taskset",
+          "-c",
+          "0",
+          "/common/dev/fastsecdec/DO_NOT_PUSH_FOR_REFERENCE_ONLY/FastSecDecPathFinder/.venv/bin/python",
+          "/common/dev/fastsecdec/output/probes/capture_pysecdec_series.py",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/double-box-attempt-1",
+          "FSD.py",
+          "run",
+          "--dot-file",
+          "examples/graphs/double_box.dot",
+          "--kinematics",
+          "examples/graphs/double_box_kinematics.yaml",
+          "--mode",
+          "massless",
+          "--dot-engine",
+          "pysecdec",
+          "--prefactor-convention",
+          "pysecdec",
+          "--sector-method",
+          "iterative",
+          "--workers",
+          "1",
+          "--max-eps-order",
+          "0",
+          "--pysecdec-maxeval",
+          "65536",
+          "--pysecdec-epsrel",
+          "0.01",
+          "--pysecdec-workdir",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/double-box-attempt-1/package",
+          "--result-path",
+          "/common/dev/fastsecdec/output/diagnostics/remaining-pysecdec/double-box-attempt-1/result.json",
+          "--json",
+          "--no-progress"
+        ],
+        "independent_audit": {
+          "actual_aggregate_point_count": null,
+          "assessment": "Independent correctness observation; not convergence or performance certification.",
+          "coefficients": [
+            {
+              "imaginary_mean": 0.0,
+              "imaginary_standard_error": 0.0,
+              "mean": -1.0269562977782698e-15,
+              "order": -4,
+              "standard_error": 2.1150505867918003e-15
+            },
+            {
+              "imaginary_mean": 0.0,
+              "imaginary_standard_error": 0.0,
+              "mean": 1.500432835114506,
+              "order": -3,
+              "standard_error": 0.00036128998422068834
+            },
+            {
+              "imaginary_mean": 0.0,
+              "imaginary_standard_error": 0.0,
+              "mean": 1.269034715961728,
+              "order": -2,
+              "standard_error": 0.0016102860609434047
+            },
+            {
+              "imaginary_mean": 0.0,
+              "imaginary_standard_error": 0.0,
+              "mean": 2.997315028586949,
+              "order": -1,
+              "standard_error": 0.006481159774516808
+            },
+            {
+              "imaginary_mean": 0.0,
+              "imaginary_standard_error": 0.0,
+              "mean": -14.883187577966803,
+              "order": 0,
+              "standard_error": 0.027253699339267728
+            }
+          ],
+          "final_files_verified": 5,
+          "guarded_sources_verified": 6,
+          "native_tagged_tuple_matches_raw_repr": true,
+          "no_symbolica_import": true,
+          "outer_prefactor": "1",
+          "parent_package_bytes_verified": 77406484,
+          "parent_package_files_verified": 2097,
+          "parent_records_verified": 10,
+          "physical_tuple": 2
+        },
+        "kinematics": {
+          "external_virtualities": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "masses_squared": "0",
+          "s12": "-1",
+          "s23": "-1"
+        },
+        "loops": 2,
+        "measure_multiplier": "1",
+        "native_comparison_record": {
+          "blake3": "edc09d391c2f073cb68a46defd5faff5b29ff35dbf5d9216bf74154bb94d434e",
+          "bytes": 15953,
+          "path": "output/probes/double-box-integral-taylor-1024x64-seed18932-workers4.json"
+        },
+        "native_kernel_content_id": "81d8f31509947ae4dcb7dd55b8066630eefc6961e0a5f9ac05b21cc7921ec2c9",
+        "native_regulator_basis": "all epsilon orders -4 through0; no prefactor reconvolution",
+        "native_sources": [
+          {
+            "blake3": "f711f6b2648e1990dc56e5629d76c232d128dc28543aa878a659e674c01e41b2",
+            "bytes": 646,
+            "path": "examples/runs/double_box.toml"
+          },
+          {
+            "blake3": "73d79addf90746a7cb6b6b838562e6d534823f972a559d2988da86e0260f36de",
+            "bytes": 563,
+            "path": "examples/graphs/double_box.dot"
+          },
+          {
+            "blake3": "202292c4ed5bd40f8284efb94aca0084210b905f31ccda41c13ddde677d7059a",
+            "bytes": 1775,
+            "path": "examples/models/scalar.json"
+          },
+          {
+            "blake3": "3bd1255de6024b05240a1b2688fbfa4ea71633084a4bc05ae03239f5eb2a3149",
+            "bytes": 19,
+            "path": "examples/models/massless.json"
+          }
+        ],
+        "orders": [
+          -4,
+          -3,
+          -2,
+          -1,
+          0
+        ],
+        "outer_prefactor": "1",
+        "physical_tuple_index": 2,
+        "prefactor_application": "generated weighted_integral once",
+        "propagators": 7,
+        "raw_report_blake3": "e6235d9307a801ccddb04af741320f38f5baccafb9b1cd493fd15a9034ca8c18",
+        "record_hashes": [
+          {
+            "blake3": "e6235d9307a801ccddb04af741320f38f5baccafb9b1cd493fd15a9034ca8c18",
+            "bytes": 12273,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/result.json"
+          },
+          {
+            "blake3": "1b8f9e12a216756b6ebc1df36ab1a707c8b04c82c4fbc147dd9044a405127421",
+            "bytes": 748,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/raw-series.repr.txt"
+          },
+          {
+            "blake3": "72d772868c26c49795c658c73c5bda311eb212ab753be31388b99b2badbd2106",
+            "bytes": 1380,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/independent-review.json"
+          },
+          {
+            "blake3": "542e0151b3849b9de582490e188ff465a59329a2611e986a85df0638a204eef4",
+            "bytes": 396825,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/preparation.json"
+          },
+          {
+            "blake3": "4a6042cdad04848da5a1d6b61315602a276a718b6c33e86537dbfbee47be6123",
+            "bytes": 1116,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/completion.json"
+          },
+          {
+            "blake3": "b097a741f6f4c4632d075ea3b055c0d61e2352fab74d2aebd5e93c9378391ea3",
+            "bytes": 803,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/native-integration-input.json"
+          },
+          {
+            "blake3": "475c4effca966124ab6d665c58d85a2f2c02d499d8e0824fde144f6c6fb67fc2",
+            "bytes": 325409,
+            "path": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/numerical.stderr.log"
+          }
+        ],
+        "recorded_finished_unix": 1791157534.2737472,
+        "reference_domain": "Euclidean massless on-shell; s12=s23=-1; no contour deformation",
+        "reference_versions": {
+          "pySecDec": "1.6.6",
+          "symbolica": "2.1.0",
+          "sympy": "1.14.0"
+        },
+        "requested_settings": {
+          "cputhreads": 1,
+          "epsabs": 1e-7,
+          "epsrel": 0.01,
+          "maxeval": 65536,
+          "names_of_real_parameters": [
+            "s12",
+            "s23"
+          ],
+          "number_of_threads": 1,
+          "real_parameters": [
+            -1,
+            -1
+          ],
+          "seed": 20261203,
+          "transform": "korobov3",
+          "verbosity": 1,
+          "wall_clock_limit": 180
+        }
+      },
+      "convention": "Per-loop d^Dk/(i*pi^(D/2)); D=4-2*eps; original seven propagator factors at unit powers; massless on-shell external legs; s12=s23=-1; multiplier 1; generated -Gamma(3+2*eps) included exactly once",
+      "engine": "pySecDec 1.6.6; native FORM and generated C++ GCC15.3.0; QMC seed20261203",
+      "location": "output/diagnostics/remaining-pysecdec/double-box-attempt-3/result.json",
+      "notes": [
+        "Independent HEPKit source/outcome audit verifies the exact tagged tuple, package hashes, physical parameter point and one application of the generated Gamma prefactor; docs/reviews/remaining-reference-independent.md.",
+        "Explicit real-component projection: all external imaginary means/errors are zero and preserved below. Every returned real uncertainty, including the tiny leading-pole error, remains StandardError; no numerical coefficient is promoted to exactness.",
+        "This complete vector is initial independent correctness evidence, not convergence, uncertainty-calibration or matched-performance certification. Both earlier bounded failed attempts remain retained.",
+        "Requested maxeval65536 is steering, not actual work. Logs include per-call10061-point/32-shift blocks; aggregate evaluations and joint external covariance remain unknown and are not inferred from marginal errors.",
+        "Native comparison retains the complete64-shift native covariance and uses existing fastsecdec::reference::compare. The source-native kernel ID is provenance, not a restriction to a historical artifact implementation."
+      ],
+      "recorded_utc": null,
+      "revision": "582d8c7f6dde9bf750750d4c2a2d85a94ce940cd",
+      "source": "Independent pySecDec C++ package; audited copied-package continuation, physical IntegralLibrary tuple 2"
+    },
+    "validation": {
+      "evidence": "Independent source/package/normalization/full-tuple audit followed by native comparison of all five Laurent coefficients against the retained complete64-shift Rust vector; actual reference errors preserved. Checked records this evidence, not convergence or uncertainty calibration.",
+      "status": "checked"
+    }
+  },
+  "version": 1
+}

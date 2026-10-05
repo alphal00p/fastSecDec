@@ -63,6 +63,65 @@ fn frozen_references_preserve_uncertainty_projection_and_input_evidence() {
 }
 
 #[test]
+fn double_box_reference_preserves_the_complete_audited_laurent_vector() {
+    let reference = read_reference(
+        &fs::read(repository().join("examples/references/double_box.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        reference.validation,
+        ReferenceValidation::Checked { .. }
+    ));
+    assert_eq!(
+        reference
+            .coefficients
+            .iter()
+            .map(|c| c.key.order)
+            .collect::<Vec<_>>(),
+        vec![-4, -3, -2, -1, 0]
+    );
+    for coefficient in &reference.coefficients {
+        assert_eq!(coefficient.key.component, CoefficientComponent::Real);
+        assert!(matches!(coefficient.uncertainty,
+            ReferenceUncertainty::StandardError(error) if error.is_finite() && error > 0.0));
+    }
+    // Preserve a tiny measured pole and its uncertainty; the independent exact
+    // zero proof must not rewrite this numerical observation.
+    assert_ne!(reference.coefficients[0].value, 0.0);
+    let attributes = &reference.provenance.attributes;
+    assert_eq!(attributes["physical_tuple_index"], 2);
+    assert_eq!(attributes["outer_prefactor"], "1");
+    assert_eq!(attributes["constituent_prefactor"], "-Gamma(3+2*eps)");
+    assert_eq!(
+        attributes["external_imaginary_values"],
+        json!([0.0, 0.0, 0.0, 0.0, 0.0])
+    );
+    assert_eq!(
+        attributes["external_imaginary_standard_errors"],
+        json!([0.0, 0.0, 0.0, 0.0, 0.0])
+    );
+    assert!(attributes["actual_evaluations"].is_null());
+    assert!(attributes["external_covariance"].is_null());
+    assert_eq!(attributes["requested_settings"]["seed"], 20261203);
+    assert_eq!(attributes["kinematics"]["s12"], "-1");
+    assert_eq!(attributes["kinematics"]["s23"], "-1");
+    for source in attributes["native_sources"].as_array().unwrap() {
+        let path = source["path"].as_str().unwrap();
+        assert_eq!(
+            blake3::hash(&fs::read(repository().join(path)).unwrap())
+                .to_hex()
+                .as_str(),
+            source["blake3"].as_str().unwrap(),
+            "source {path} changed; reassess reference compatibility"
+        );
+    }
+    assert_eq!(
+        read_reference(&encode_reference(&reference).unwrap()).unwrap(),
+        reference
+    );
+}
+
+#[test]
 #[ignore = "requires the audited frozen inputs and six ignored external reports; records candidates under output/reference-fixtures only"]
 fn record_six_external_reference_candidates() {
     let repository = repository();

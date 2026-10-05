@@ -5,6 +5,11 @@ one-per-mille convergence, and per-sector sample-cost status. It is a progress
 record, not phase-one acceptance. The governing plan remains
 [`FIRST_PHASE_PLAN.md`](../../FIRST_PHASE_PLAN.md).
 
+The user clarified the convergence target: **the largest signed requested
+epsilon power**, usually the finite coefficient, rather than the most singular
+pole. The tables retain their original measurements; no eight-core crossing
+measurement has yet been recorded under either interpretation.
+
 ## Capability coverage
 
 Implemented: native HEPKit/FeynKit/Linnet input and graph conventions; scalar
@@ -21,9 +26,12 @@ independent density and Laurent-vector controls. All six massive multiloop
 fixtures have independent references and a completed 72-row holdout. Off-shell
 triple-box scalar/rank-two and both difficult orthant cases generate and integrate
 complete vectors, with their scientific certification still pending.
+The double-box full vector now has an independently audited pySecDec reference;
+the retained 64-shift native result agrees within 1.27 combined standard errors
+at all five orders. Its uncertainty calibration remains open.
 
-Remaining coverage: complete on-shell triple-box generation; independent higher
-double-box coefficients and difficult triple-box/orthant vectors; difficult-case
+Remaining coverage: complete on-shell triple-box generation; independent
+difficult triple-box/orthant vectors; difficult-case
 convergence/calibration; final matched performance and platform gates. The latest
 combined workspace gate passes **281 tests**, with seventeen explicit probes
 ignored. Formatting and all-target Clippy pass. It includes the CLI, family/input,
@@ -42,8 +50,14 @@ experiment completed one difficult representative but took about 83 s and
 5.37 GiB, worse than the earlier approximately 42 s / 1.22 GiB ordering. It stays
 test-only. The small proof using native formal derivatives and shared FunctionMap
 bodies passes complete-vector O2, MPFR and portable-reload checks under both
-inlining policies. Adapting it to the actual difficult representative and
-comparing against an independent original-expression oracle remain in progress.
+inlining policies. Its first actual-representative attempt is a negative result:
+preparation takes 144.909 seconds and leaves a 17.1 MB expression, followed by a
+180-second native-series timeout without coefficients. Public native derivative
+callbacks are the next bounded proof, to preserve early polynomial zero pruning.
+That oracle now supplies all six coefficients at all three prescribed exact
+points, including two near-boundary points; native 512-/1024-bit agreement and
+an exact absolute-/relative-series control pass. This is representative-level
+evidence, not an integral-level convergence result.
 
 ## Generation and fixed-work measurements, alongside Pathfinder
 
@@ -92,7 +106,7 @@ not eight-core measurements or time-to-accuracy claims.
 ## One-per-mille convergence on eight cores
 
 **Not measured yet for either program.** No recorded experiment establishes eight-core elapsed time
-to `standard_error / abs(deepest_nonzero_pole) <= 0.001`. Existing hard-case
+to `standard_error / abs(coefficient_at_highest_requested_order) <= 0.001`. Existing hard-case
 trials use two workers and stop at their fixed allocations without convergence;
 the holdout uses one worker. Do not extrapolate them by dividing elapsed time by
 four or eight. The triangle/box runs exceed the requested precision at their
@@ -103,10 +117,12 @@ five-standard-error reference flags. At 8192 points HKKN's estimated error is
 lower for all six fixtures; at 1024 it is higher for four. This supports a
 measured lattice/transform campaign, not an automatic default change.
 
-For a pole known to cancel exactly, relative error to zero is undefined. The
-future campaign must label an absolute zero-residue check separately from the
-deepest nonzero coefficient's relative target, while retaining the full vector.
-It will use eight distinct available physical cores, record observed target
+Relative error to zero is undefined. If the selected highest-order coefficient
+is known to vanish, use an explicit absolute criterion without switching
+coefficient. Known cancellations in lower orders retain separate absolute
+checks, while the highest requested order remains the convergence target.
+The [approved baseline protocol](eight-core-accuracy-protocol.md) uses
+eight distinct available physical cores, records observed target
 crossing and full-vector scientific checks, and separate generation/loading from
 integration. Estimated one-per-mille error alone is not independent certification.
 

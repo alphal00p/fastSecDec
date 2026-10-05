@@ -240,3 +240,41 @@ native partials and literal substitutions, preserve all orders and cancellation
 metadata, and reject unsupported unregulated captures before introducing
 opacity. Its complete-vector comparison remains against the separately
 authored point-first oracle.
+
+## Actual representative: pre-execution source review
+
+The disconnected `output/probes/formal_actual.rs` and
+`formal_actual/{sources,numeric}.rs` were independently reviewed before symbolic
+execution. They import the captured mapped terms and original production
+expression, assert fixture/chart/multiplicity/order and exact native parameter
+and regulator identities, and hash every imported source. The ordinary
+production subtraction file is reused directly and its reconstructed expression
+must equal the original capture before the formal variant proceeds. Piece
+counts and cancellation tuples are retained for both variants.
+
+Only coordinate-dependent, regulator-independent polynomial bodies pass native
+structural admission and become opaque calls; literal restoration must recover
+the original mapped regular expression exactly. Symbolica owns differentiation,
+mixed partials, simultaneous face substitution and Laurent expansion. The
+adapter deduplicates exact native bodies, caches native partial/face expressions,
+and resolves surviving calls to ordinary FunctionMap definitions. Exact constant
+faces are simplified before series. Every singular endpoint in this bounded
+capture must have a nonzero regulator slope; other captures are rejected rather
+than using opacity to evade the production unregulated-endpoint check.
+
+The evaluator stage deserializes one native exact IR, retains all native orders
+(including any extra formally present poles), and checks the complete union
+against each available independently computed point-first oracle. Comparison
+requires the complete original capture metadata and every oracle source hash to
+match the preparation, as well as the exact rational point. Missing oracle
+results are explicitly marked unavailable. The O2 and eager values, conditioning
+estimates and differences are retained without pretending an unstable raw f64
+value is rescued automatically. Separate native 512/1024-bit full vectors and
+worker cloning are exercised. Multiplication by `1e40` demonstrates native MPFR
+weight arithmetic; it is not labelled an execution of the production adaptive
+weighted-replay policy.
+
+This closes the source gate for the bounded experiment only. Actual completion,
+all-order oracle agreement, ordinary/rescued runtime and resulting sizes still
+require outcome review. No production representation, serializer or evaluator
+selection has changed.

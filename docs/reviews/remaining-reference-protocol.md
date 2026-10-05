@@ -1,7 +1,8 @@
 # Remaining independent scientific references
 
-This is a source-checked execution protocol, not a record of completed reference
-calculations. It uses the ignored Pathfinder checkout at
+This is a source-checked execution protocol; completed outcomes are recorded
+separately in [the bounded-attempt record](remaining-reference-attempts.md).
+It uses the ignored Pathfinder checkout at
 `582d8c7f6dde9bf750750d4c2a2d85a94ce940cd` and its installed pySecDec 1.6.6.
 No Python dependency or implementation is added to FastSecDec. Native HEPKit
 one-loop masters and reduction do not supply these multiloop integrals; the
@@ -40,6 +41,15 @@ in [the bounded-attempt record](remaining-reference-attempts.md). Workspace
 compilation overlapped with coordination; no elapsed time from this scientific
 attempt is a matched performance measurement. The directory above now exists
 and must not be reused or overwritten.
+
+Two separately approved copied-package continuations preserved that failure.
+The second reached its compile bound; the third completed the remaining native
+make/link and returned all orders minus four through zero with nonzero measured
+real uncertainties. Independent source, normalization and full-tuple review,
+followed by native Rust comparison, supports the new
+`examples/references/double_box.json` correctness fixture. Aggregate external
+work and uncertainty calibration remain unknown. The remaining routes below
+remain unexecuted until their assigned runtime slots.
 
 Its ignored `capture_pysecdec_series.py` launcher observes only the argument to
 the existing `_parse_pysecdec_json_series` function and delegates unchanged to
@@ -108,8 +118,9 @@ may explicitly configure native `use_Qmc(seed=..., verbosity=...)` and preserve
 the complete returned tuple; that is reference orchestration, not a new sampler.
 
 The exact native proof that the leading order minus four vanishes remains an
-independent algebraic check. The orders minus three through zero still require
-the new numerical reference. Historical `dot_double_box_pysecdec_target.json`
+independent algebraic check. The new independently audited numerical fixture now
+covers orders minus four through zero; its measured leading coefficient and
+error are retained rather than replaced by that proof. Historical `dot_double_box_pysecdec_target.json`
 contains manually recorded central values with zero placeholder errors and is
 not an independently measured pySecDec reference despite its filename.
 

@@ -389,11 +389,15 @@ Measure separately:
 - Peak memory, point-generation cost, reduction cost, and rescue rates.
 
 Report an explicit eight-physical-core time to one-per-mille estimated relative
-uncertainty for the deepest nonzero Laurent pole, together with independent
-reference checks and the complete vector. Record the first observed crossing,
+uncertainty for the coefficient at the **largest signed requested epsilon
+power**, together with independent reference checks and the complete vector.
+The user clarified that this is what they meant by the hardest coefficient:
+usually the finite part for a request through order zero, and the highest
+positive order when requested. It is not the most singular pole. Record the first observed crossing,
 actual work, seed/rule/transform and worker affinity; separate generation and
-loading from integration. For a residue known to vanish, use a labelled absolute
-zero check rather than dividing by zero or a noisy near-zero estimate. Do not
+loading from integration. If the selected coefficient is known to vanish, use a
+labelled absolute zero check rather than dividing by zero or a noisy near-zero
+estimate; do not silently switch to another coefficient. Do not
 infer eight-core timing by scaling a one- or two-worker measurement. Keep
 per-sector average worker cost, maximum sector-average cost and instrumented
 individual-sample maximum latency as distinct metrics.
@@ -549,7 +553,13 @@ Continue as planned, but summarize where you're at regarding what's planned to b
 Can you build an MRE for this symbolica bug that I could escalate to the author, i.e. Ben Ruijl? Put it in a standalone folder in the workspace (and make it in the form of a standalone rustscript reproduction, with a README describing it and the patch for the fix you'd want). Delegate an agent to setting up this MRE and continue on your side as planned.
 ```
 
+```text
+Sorry when I meant the "deepest" I always mean the hardest to compute which is the one with the largest signed epsilon power (so often, the finite part), not the deepest pole of course, sorry.
+```
+
 ## Implementation record
+
+- 2026-10-05: independent double-box reference milestone: the copied native pySecDec package completed after two retained bounded build failures. Its full physical vector through order zero, uncertainties and exactly-once Gamma normalization were independently audited. The existing native comparison API finds every coefficient of the retained 64-shift FastSecDec vector within 1.27 combined standard errors. The new versioned reference preserves all source identities, measured uncertainties and unknown work/covariance; the historical target and run card remain unchanged. Both reference transport tests pass through Cargo, with formatting and all-target Clippy passing; production code remains at the preceding 281-test combined gate. The independent original-expression oracle also now supplies all six Laurent coefficients at three exact points, with 512-/1024-bit agreement and an exact absolute-/relative-series control. The user clarified that the requested 1‰ target is the largest signed requested epsilon power, usually the finite coefficient. An eight-physical-core baseline protocol for the validated small examples is approved under that criterion; no measured crossing is claimed yet. Full on-shell generation, difficult-case calibration, remaining scientific references and final performance/platform gates remain open.
 
 - 2026-10-04: literal-series dependency milestone: **281 workspace tests passed**, seventeen explicit probes ignored; formatting and all-target Clippy pass. A native reproduction proves that generic function-series substitution treated a valid underscore-suffixed regulator as a wildcard and could erase the full Gamma series. The minimal fourth Symbolica patch makes the two substitutions literal; native Gamma/composed-function regressions and a FastSecDec full-vector Gamma/endpoint regression pass. The first two formal-function probe attempts are rejected as empty-vector evidence. The corrected six-case proof passes full-vector native identities, O2, weighted MPFR and fresh-process native-IR checks, with independent review; actual difficult-representative validation remains open. Existing performance binaries retain their original dependency identities. At the user's request an agent delivered the standalone Rust-script MRE, README, patch and observed outcomes in `mre/symbolica-literal-series-variable/`: published 3.0.1 fails and the unchanged script linked to the corrected checkout passes. The patch applies cleanly to the published source. This milestone does not complete the phase-one goal.
 

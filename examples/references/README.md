@@ -1,10 +1,22 @@
 # Independent multiloop references
 
-These six versioned `fastsecdec-reference` files retain the finite real
+The six massive versioned `fastsecdec-reference` files retain the finite real
 coefficient and positive reported standard error from independently generated
 pySecDec C++ packages. They correspond to the equally named native run cards:
 mass one, external virtualities minus one, `D=4-2*eps`, unit propagator powers and
 normalized per-loop measure `d^Dk/(i*pi^(D/2))`.
+
+`double_box.json` additionally preserves the full real vector from orders minus
+four through zero for the massless on-shell card at `s12=s23=-1`, with the same
+normalized measure. It comes from an independently generated pySecDec C++ package
+and retains every reported standard error, including the tiny measured leading
+pole and its nonzero uncertainty. The constituent `-Gamma(3+2*eps)` factor is
+already applied; it must not be multiplied a second time. The full native
+64-shift comparison agrees within 1.27 combined standard errors at every order.
+See the [attempt record](../../docs/reviews/remaining-reference-attempts.md) and
+[independent audit](../../docs/reviews/remaining-reference-independent.md).
+The older uncertainty-free target in `examples/targets/double_box.json` remains
+historical evidence and is not overwritten by this reference.
 
 `Checked` records the independent source, graph, normalization and transport
 review, followed by a bounded comparison of the complete native vector. It does
@@ -33,3 +45,7 @@ pySecDec or overwrite these frozen files. The ignored `massive_multiloop` CLI
 harness generates and integrates all six cards and reports the library's full
 typed comparisons. Its five-standard-error threshold is an initial correctness
 check, separate from convergence acceptance.
+The additional double-box transport regression checks all five coefficient
+orders, the measured zero-residue observation, exactly-once prefactor ownership,
+explicit imaginary projection and native input hashes. The fixture does not
+certify difficult-case convergence or uncertainty calibration.

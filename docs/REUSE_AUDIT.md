@@ -515,3 +515,36 @@ linked to the corrected local library. The folder includes the minimal patch,
 observed before/after output, source/version hashes and reproducible instructions;
 the patch also applies cleanly to the published source. No FastSecDec dependency
 or maintainer contact is needed to run the reproduction.
+
+The independently generated double-box reference now retains all five orders
+and their reported uncertainties in `examples/references/double_box.json`.
+The native recorder uses the existing `ReferenceResult` transport and `compare`
+API against the original complete 64-shift estimate and its unchanged covariance.
+Independent review verifies physical tuple selection, exactly-once Gamma
+normalization, source/package identities and explicit imaginary projection.
+Every coefficient agrees within 1.27 combined standard errors. Unknown external
+work/covariance remain unknown, and the checked label does not certify error
+calibration. Both fixture transport tests pass through Cargo; formatting and
+all-target Clippy pass. Production code remains at the 281-test combined gate.
+
+The [independent point-first oracle](reviews/point-first-laurent-oracle.md)
+binds exact coordinates into the original captured expression, then uses native
+Symbolica Series and multiprecision evaluation. All six coefficients now pass at
+three prescribed points. Native relative-depth requests use actual remainder
+bounds, with exact agreement to the absolute-series control at the interior
+point; both earlier absolute-depth timeouts are preserved. No new series
+arithmetic, interpolation or uncertainty estimator was introduced. This supplies
+an independent check for the compact-generation experiment, not a full-domain
+identity or an integral convergence result.
+
+The first [actual polynomial-function prototype](reviews/native-formal-actual-prototype.md)
+is a retained negative result: preparation preserves exact original subtraction
+and conservative cancellation metadata, but delayed native zero pruning produces
+larger intermediates and the subsequent series hits its 180-second bound.
+No coefficient/JIT comparison or production switch follows. Native public
+symbol derivative callbacks can potentially preserve that pruning while
+Symbolica still owns the chain rule; their focused proof is next. A separate
+[coefficient API audit](reviews/native-series-coefficient-api.md) identifies
+existing custom `AtomField` normalization and native alias facilities, with
+explicit cancellation and peak-memory limitations. No replacement CAS or
+dependency feature patch was added.

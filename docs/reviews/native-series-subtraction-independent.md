@@ -98,3 +98,13 @@ and `output/diagnostics/series-first/replay-index38.process.json`. The result
 motivates inspecting native function definitions and formal coefficient reuse
 before constructing large expanded Atom bodies, as a separate measured
 experiment rather than a new derivative or series implementation.
+
+The subsequent 180-second comparison attempt was reaped at 180.074 seconds
+while processing the finite coefficient. Its retained progress contains orders
+**-5 through -1**, each checked at all three prescribed points and both 512 and
+1024 bits. Order -5 is also exactly equal as a native Atom; the other retained
+orders agree numerically within the proof's native-precision criterion.
+`compare-index38.process.json` records `timed_out: true`; no completed finite
+coefficient row or full-vector comparison is claimed. The partial checks remain
+useful evidence, while the test-only strategy's full difficult-vector gate stays
+open.
