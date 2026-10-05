@@ -46,14 +46,26 @@ pub struct GraphInput {
 pub struct KinematicsInput {
     #[serde(default)]
     pub products: Vec<Product>,
+    /// Additional formal vectors in a numerator, such as external helicities.
+    #[serde(default)]
+    pub auxiliary_momenta: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Product {
-    pub left: usize,
-    pub right: usize,
+    pub left: MomentumName,
+    pub right: MomentumName,
     pub value: String,
+}
+
+/// Integer labels preserve the native graph's P(i) shorthand. Expressions
+/// allow existing HEPKit momentum names without a second vector notation.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum MomentumName {
+    External(usize),
+    Expression(String),
 }
 
 #[derive(Clone, Debug, Deserialize)]

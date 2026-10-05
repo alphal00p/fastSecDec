@@ -7,6 +7,10 @@ of numerical parity. The 20 native graph run cards now in `runs/` cover these
 topologies, numerator variants, off-shell kinematics and massive one-loop cases.
 The inventory contains 24 graph and direct-parametric run cards and 17 native
 DOT files; the CLI input test covers every card.
+The separate [generated gg→HH double box](gghh_double_box/README.md) adds a
+Standard-Model diagram, numerical helicity projectors and its full provenance.
+Its first bounded native CLI generation did not complete; it is an explicit
+development example, outside the validated card inventory above.
 Native bubble and triangle CLI runs pass initial analytic checks, and the native
 massless box passes its complete Laurent-vector QMC regression. Eleven native
 one-loop graph cases also pass complete-vector comparisons against HEPKit's Rust

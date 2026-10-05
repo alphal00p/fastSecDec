@@ -1,0 +1,224 @@
+{
+  "color_projection": "unnormalized delta_ab; no color or spin average",
+  "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
+  "external_dimension": 4,
+  "external_point": {
+    "dependent_coordinates": [
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(3)"
+    ],
+    "external_index_by_coordinate": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "independent_coordinates": [
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)"
+    ],
+    "physical_momenta": {
+      "0": [
+        "150",
+        "0",
+        "0",
+        "150"
+      ],
+      "1": [
+        "150",
+        "0",
+        "0",
+        "-150"
+      ],
+      "2": [
+        "150",
+        "11^(1/2)*15",
+        "0",
+        "11^(1/2)*20"
+      ],
+      "3": [
+        "150",
+        "-15*11^(1/2)",
+        "0",
+        "-20*11^(1/2)"
+      ]
+    },
+    "polarization_components": [
+      [
+        [
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.7071067811865475,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.7071067811865475
+        ],
+        [
+          -0.0,
+          -0.0
+        ]
+      ],
+      [
+        [
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.7071067811865475,
+          -0.0
+        ],
+        [
+          -0.0,
+          0.7071067811865475
+        ],
+        [
+          -0.0,
+          -0.0
+        ]
+      ]
+    ],
+    "polarization_gram_checks_complete": true,
+    "products": [
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "value": "45000"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "-3000*11^(1/2)+22500"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "11^(1/2)*3000+22500"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "15625"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "11^(1/2)*23883943771971645/2251799813685248"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "11^(1/2)*23883943771971645/2251799813685248"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "-2535301200456458353478625262249/2535301200456458802993406410752"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      }
+    ]
+  },
+  "format": "native-generated-gghh-double-box",
+  "gauge_invariant_sum": false,
+  "generation_seconds": 0.933834927,
+  "helicities": [
+    1,
+    1
+  ],
+  "internal_dimension": "4-2*eps",
+  "matching_generation_indices": [
+    18,
+    23,
+    49,
+    53,
+    58,
+    80,
+    84,
+    91
+  ],
+  "numerical_integral_complete": false,
+  "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
+  "parametric_generation_complete": false,
+  "projected_numerator_is_raw": true,
+  "selected_diagram": "FK018",
+  "selected_diagram_id": "eb51e855105cae69514fd9dcdd4bbffe",
+  "selection": {
+    "box_external_pdgs": [
+      [
+        21,
+        25
+      ],
+      [
+        21,
+        25
+      ]
+    ],
+    "circuit_edge_counts": [
+      4,
+      4,
+      6
+    ],
+    "gluon_edge": 10,
+    "hexagon_edges": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "top_edges": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ]
+  },
+  "selection_rule": "first native generated-order match: six-top hexagon, one central gluon, circuits [4,4,6], each box with g and H",
+  "threshold_admission": "ordinary CLI check remains required",
+  "version": 1
+}

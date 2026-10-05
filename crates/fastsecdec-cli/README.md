@@ -9,6 +9,25 @@ Inline `[parameters]` values remain exact Symbolica expressions. Derived model
 parameters and couplings use their analytic definitions at the selected point;
 cached values from another point are not reused. Explicit internal values in a
 native restriction card remain fixed unless overridden inline.
+Numeric TOML floats and numeric model/parameter-card components are converted
+to native rationals that preserve their supplied binary floating-point value
+exactly. For an exact decimal or rational value, use a Symbolica expression
+string such as `mass = "1725/10"` or `coupling = "1/10"`.
+
+Numerator-only external vectors, such as numerical gluon helicities, can be
+declared with `kinematics.auxiliary_momenta`. Supply their scalar products using
+the same native atoms as the graph numerator. Integer product labels retain the
+`P(index)` shorthand; strings are native Symbolica momentum expressions. When
+writing cards, use each vector atom's `to_canonical_string()` and normal TOML
+string escaping for both auxiliary names and product labels. Canonical spelling
+preserves Spenso's rank-one tensor metadata on cold import; a previously
+undeclared plain symbol does not carry that metadata.
+
+These vectors extend the native numerator scalar-product space, preserving the
+graph's propagators and routing. Their numerical pair products may be complex
+or Gram-degenerate; the Gaussian numerator algorithm does not invert that Gram
+matrix. Internal tensor algebra still uses the requested dimension. This input
+does not replace the graph's projector or generate a polarization sum.
 
 Graph input retains its original propagator family by default. To request the
 existing native single-term family preparation before parameterization, use the

@@ -971,3 +971,50 @@ before a straggler, full covariance, cancelled/failed-prefix exclusion,
 pending-work restoration and worker panic draining. Formatting and scoped
 all-target Clippy pass. The change responds to a measured batch barrier;
 whole-integral completion and speed remain separate runtime observations.
+
+## HEPKit helicity input extension
+
+The generated gg→HH example needs loop products with external polarization
+vectors outside the graph's momentum-routing basis. Public API and source review
+confirm that `Kinematics::with_scalar_product`, `IntegralFamily::new` and the
+existing native Symanzik/Gaussian source path already support the required
+formal vector labels and numerical, possibly degenerate, Gram data. No external
+Gram inverse or new tensor reduction is introduced. `GraphIntegral` now appends
+those vectors through native family construction; CLI cards transport canonical
+tagged Atom names and preserve the existing integer P(i) shorthand.
+
+The independent [input review](reviews/hepkit-auxiliary-vectors-independent.md)
+finds no actionable source issue. Two native tests compare real and genuinely
+complex rank-two Gaussian coefficients against HEPKit's `TensorReducer` through
+epsilon one, including degenerate Gram data, and check binding order and native
+label rejection. Four CLI input tests pass, including exact model overrides and
+native imaginary-number transport. The latter fixes an observed use of a plain
+namespace symbol `i` by constructing `Atom::i()` instead. Numerical coefficients
+now use native `Rational::try_from(f64)` to preserve supplied binary values in
+the native affine family's exact field. The broader affected input gate passes
+19 tests (two auxiliary, three example and fourteen existing input controls),
+with workspace all-target Clippy and formatting passing. A first test invocation
+omitted the documented serial-test flag and hit a native UFO symbol-registration
+race; its log remains alongside the passing standard serial run.
+
+The generated fixture selects eight eligible top/gluon double boxes from 192
+native diagrams, retaining the first, its factors and the exact requested
+physical point. The corrected export takes 1.098 seconds in this diagnostic.
+The following ordinary release CLI generation reaches its 600-second deadline
+without a sector artifact, with peak RSS 50,123,276 KiB. A subsequent stepwise
+native probe measures `simplify_algebra` at 0.184 seconds and `to_dots` at
+0.050 seconds; the whole tensor/input path finishes within 0.37 seconds. The
+remaining Gaussian `from_family` call reaches its separate 120-second bound,
+locating the bottleneck in parametrization rather than HEPKit contraction.
+Neither full numerical feasibility nor browser suitability is accepted. All
+failed export/import attempts remain
+under `output/diagnostics/gghh-native-*`; the checked-in fixture is the corrected
+third export, not either earlier failed numeric transport.
+
+GammaLoop's existing numerical external states are being extracted into shared
+FeynKit kinematics, covering scalars, massive/massless vectors and spinors with
+their existing adjoints and phases. Six focused native controls pass against the
+current FastSecDec dependency identity. Publishing this extraction additionally
+requires the latest upstream branch's GammaLoop/Python build, installed binding
+checks and generated stubs; those are in progress. The Python API stays in the
+HEPKit ecosystem, with no Python dependency in FastSecDec's production crates.

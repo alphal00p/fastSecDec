@@ -17,11 +17,24 @@ use fastsecdec::{
 use feynkit_model::ParameterNature;
 use symbolica::{
     atom::AtomView,
+    domains::rational::Rational,
     id::{Pattern, Replacement},
     parser::ParseSettings,
 };
 
-use crate::{CliResult, config::RunCard};
+use crate::{
+    CliResult,
+    config::{MomentumName, RunCard},
+};
+
+impl MomentumName {
+    fn atom(&self) -> CliResult<Atom> {
+        match self {
+            Self::External(index) => Ok(feynkit_graph::symbols::external_momentum().call(*index)),
+            Self::Expression(text) => expression(text),
+        }
+    }
+}
 
 pub struct LoadedInput {
     pub card: RunCard,
@@ -83,7 +96,9 @@ fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     match value {
         toml::Value::String(text) => expression(text),
         toml::Value::Integer(value) => Ok(Atom::num(*value)),
-        toml::Value::Float(value) if value.is_finite() => expression(&value.to_string()),
+        toml::Value::Float(value) if value.is_finite() => {
+            Ok(Atom::num(Rational::try_from(*value)?))
+        }
         _ => Err("parameter values must be Symbolica strings or finite numbers".into()),
     }
 }
@@ -101,7 +116,11 @@ fn model_values(model: &Model, restriction: &ParameterCard) -> CliResult<BTreeMa
         let value = if let Some(expression) = analytic {
             expression.clone()
         } else if let Some(value) = parameter.value {
-            expression(&format!("({})+({})*i", value.re, value.im))?
+            // Native affine family construction uses exact coefficient fields.
+            // Preserve the supplied binary values exactly; formatting a decimal
+            // and reparsing it creates a Float coefficient instead.
+            Atom::num(Rational::try_from(value.re)?)
+                + Atom::num(Rational::try_from(value.im)?) * Atom::i()
         } else if let Some(expression) = &parameter.expression {
             expression.clone()
         } else {
@@ -157,8 +176,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
             for product in &card.kinematics.products {
                 kinematics = kinematics.with_scalar_product(
-                    &feynkit_graph::symbols::external_momentum().call(product.left),
-                    &feynkit_graph::symbols::external_momentum().call(product.right),
+                    &product.left.atom()?,
+                    &product.right.atom()?,
                     bind(&expression(&product.value)?, &values),
                 )?;
             }
@@ -170,6 +189,14 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
                 .collect::<Result<BTreeMap<_, _>, _>>()?;
             let graph = GraphIntegral::from_dot(Arc::new(model), &graph_text, &kinematics)?
+                .with_auxiliary_external_momenta(
+                    &card
+                        .kinematics
+                        .auxiliary_momenta
+                        .iter()
+                        .map(|name| expression(name))
+                        .collect::<CliResult<Vec<_>>>()?,
+                )?
                 .with_powers(&powers)?
                 .with_measure_multiplier(expression(&card.integral.measure_multiplier)?)
                 .with_scalar_values(&values)?;
@@ -351,6 +378,102 @@ mod tests {
             bind(&expression("user_value_+untouched").unwrap(), &values),
             expression("2+untouched").unwrap()
         );
+    }
+
+    #[test]
+    fn numeric_model_parameters_keep_native_imaginary_coefficients() {
+        let mut json: serde_json::Value =
+            serde_json::from_str(include_str!("../../../examples/models/scalar.json")).unwrap();
+        json["parameters"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "name":"complex_external", "nature":"external", "parameter_type":"complex",
+            "value":[2.5,3.25], "expression":null,
+            }));
+        let model = Model::from_json(&serde_json::to_string(&json).unwrap()).unwrap();
+        let values = model_values(&model, &ParameterCard::new()).unwrap();
+        assert_eq!(
+            values[&symbol("UFO::complex_external").unwrap()],
+            Atom::num((5, 2)) + Atom::num((13, 4)) * Atom::i(),
+        );
+        assert_eq!(
+            value_expression(&toml::Value::Float(172.5)).unwrap(),
+            Atom::num((345, 2)),
+        );
+    }
+
+    #[test]
+    fn numerator_vectors_use_native_expression_labels_and_scalar_bindings() {
+        let directory = tempfile::tempdir().unwrap();
+        fs::write(
+            directory.path().join("model.json"),
+            include_str!("../../../examples/models/massless_phi3.json"),
+        )
+        .unwrap();
+        let model = Arc::new(
+            Model::from_json(include_str!("../../../examples/models/massless_phi3.json")).unwrap(),
+        );
+        let kin = Kinematics::in_dimension(&expression("D").unwrap()).unwrap();
+        let k = feynkit_graph::symbols::loop_momentum().call(0);
+        let e = Atom::var(spenso::vector_symbol!("helicity::e"));
+        let numerator = kin.scalar_product(&k, &e).unwrap().pow(2);
+        let diagram = feynkit_graph::FeynmanDiagram::from_dot(
+            model,
+            include_str!("../../../examples/graphs/bubble.dot"),
+        )
+        .unwrap()
+        .with_numerator(numerator)
+        .unwrap();
+        fs::write(
+            directory.path().join("graph.dot"),
+            diagram.to_dot().unwrap(),
+        )
+        .unwrap();
+        let card = r#"
+[input]
+graph = "graph.dot"
+model = "model.json"
+[kinematics]
+auxiliary_momenta = ["helicity::e"]
+products = [
+  {left=1, right=1, value="-1"},
+  {left=1, right="helicity::e", value="0"},
+  {left="helicity::e", right="helicity::e", value="norm"},
+]
+[parameters]
+norm = "-1"
+"#;
+        // Native canonical spelling retains the tensor/rank-one metadata in
+        // a fresh process, before any graph has registered the vector head.
+        let encoded = serde_json::to_string(&e.to_canonical_string()).unwrap();
+        let card = card.replace("\"helicity::e\"", &encoded);
+        let path = directory.path().join("input.toml");
+        fs::write(&path, &card).unwrap();
+        let loaded = load(&path).unwrap();
+        assert_eq!(loaded.loops, Some(1));
+        assert_eq!(loaded.propagators, 2);
+        assert!(
+            loaded
+                .independent_externals
+                .contains(&e.to_canonical_string())
+        );
+        let density = loaded.integrand.density();
+        assert!(!density.is_zero());
+        assert!(!density.contains(expression("norm").unwrap().as_view()));
+        assert!(
+            !density
+                .get_all_symbols(true)
+                .contains(&feynkit_graph::symbols::loop_momentum())
+        );
+
+        // The numerator must not silently lose an undeclared vector.
+        fs::write(
+            &path,
+            card.replace(&format!("auxiliary_momenta = [{encoded}]"), ""),
+        )
+        .unwrap();
+        assert!(load(&path).is_err());
     }
 
     #[test]

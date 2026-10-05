@@ -68,3 +68,11 @@ agrees with the earlier registry observations; no release change is required.
 The current native build includes the fifth independently documented correction
 for decoded evaluator-instruction validation. Frozen older measurements retain
 their original dependency identities.
+
+## Recheck before the browser evaluator feature split
+
+On 2026-10-05 at 16:25 UTC the published latest-documentation pages still report
+[Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest) and
+[SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). No published release change
+is required. The proposed browser feature reuses Symbolica's interpreter and
+supported numeric backends; native builds retain the existing O2 default.

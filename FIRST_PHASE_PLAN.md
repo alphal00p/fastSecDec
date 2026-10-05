@@ -659,6 +659,22 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: auxiliary helicity vectors now enter native `IntegralFamily` and
+  `Kinematics` through the graph adapter and CLI, retaining canonical tensor
+  labels and exact binary numerical values. Independent ecosystem review,
+  19 affected native input tests, four CLI input tests, formatting and workspace
+  all-target Clippy pass. The Rust gg→HH generator exports the requested
+  Feynman-gauge top/gluon double box, its raw native factors, numerical (+,+)
+  states and full provenance into `examples/gghh_double_box`. Corrected export
+  takes 1.098 seconds; ordinary CLI generation does not finish within 600 seconds
+  and peaks at 47.8 GiB, with no sector artifact or integral result. A separate
+  native diagnostic finishes tensor contraction/input within 0.37 seconds and
+  times out in Gaussian parametrization at 120 seconds. Retain the failures and
+  narrow that stage before another full attempt. The
+  notebook prerequisite remains unmet. Shared generic wavefunction publication
+  tests and the portable evaluator feature split continue separately; no native
+  performance acceptance or phase completion follows from this input milestone.
+
 - 2026-10-05: the saved on-shell artifact resumes successfully with eight bounded contexts, reaches 397,312 evaluations with zero failures and peaks at 9.03 GiB. It is intentionally stopped after 1,305.505 seconds for a scheduling handoff, not by its deadline; its checkpoint is retained. Observed heterogeneous batches permit at most 32.09% worker-time utilization in the audited prefix. The CLI now refills free workers through the existing native task/submission/checkpoint APIs, retaining the context bound and coordinator-owned accepted replay. **20 focused driver tests**, formatting and scoped all-target Clippy pass; cancellation, in-flight checkpoint recovery, full covariance and panic draining are covered. An initial overlapping test abort is traced to Symbolica's occupied permit; a separate test-only failed-attempt count is corrected, with both records retained. The next same-allocation continuation has one 7,200-second bound. Pathfinder's supported guarded projector route meanwhile generates a complete 968-sector bundle through order zero in 39.637 seconds. A harness Gamma-metadata assumption is corrected against its native external-prefactor convention, enabling numerical reuse without regeneration. Neither bundle generation nor partial native work closes full-vector agreement or representative parity.
 
 - 2026-10-05: the CLI now bounds QMC evaluator ownership to one active sector per worker and restores each sector's accepted native replay state on revisit. All **16 focused driver tests pass**, including full-vector/covariance equivalence with actual precision rescue, failed-prefix exclusion and eight-worker checkpoint continuation; formatting and scoped all-target Clippy pass. Native libraries and artifact/checkpoint formats are unchanged. The existing full on-shell artifact can therefore be resumed without repeating generation; its eight-worker, 1,800-second numerical continuation remains a separate measured capability gate. Pathfinder's cached attempt reaches its 1,800-second generation bound without producing a bundle or changing the 137 retained formula entries. Its processes are reaped and inputs verified; inspect the stall before another attempt. No infeasible pySecDec/FORM route is reopened.

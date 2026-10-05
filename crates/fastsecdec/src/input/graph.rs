@@ -57,6 +57,25 @@ impl GraphIntegral {
         Self::new(Arc::new(FeynmanDiagram::from_dot(model, dot)?), kinematics)
     }
 
+    /// Append external vectors occurring only in a numerator or projector.
+    ///
+    /// For example, helicity vectors supply additional `k.epsilon` scalar
+    /// products without changing the graph's propagators or momentum routing.
+    /// Declare their pair products in the input [`Kinematics`]. Native family
+    /// construction validates distinct formal momentum labels and forbids
+    /// assumptions on loop products. Numerical Gram data may be degenerate:
+    /// Gaussian numerator parameterization does not invert the external Gram
+    /// matrix. This does not extend the domain of separate Gram-inverting APIs.
+    pub fn with_auxiliary_external_momenta(mut self, momenta: &[Atom]) -> Result<Self> {
+        if momenta.is_empty() {
+            return Ok(self);
+        }
+        let mut external_momenta = self.family.external_momenta().to_vec();
+        external_momenta.extend_from_slice(momenta);
+        self.rebuild_family(external_momenta)?;
+        Ok(self)
+    }
+
     /// Replace selected propagator powers using the graph's stable edge IDs.
     pub fn with_powers(mut self, powers: &BTreeMap<EdgeId, u32>) -> Result<Self> {
         for (&edge, &power) in powers {
@@ -112,9 +131,15 @@ impl GraphIntegral {
         }
         super::validation::validate_scalar_bindings(&self.diagram, values)?;
         self.scalar_values = values.clone();
+        self.rebuild_family(self.family.external_momenta().to_vec())?;
+        self.measure_multiplier = self.bind(&self.measure_multiplier);
+        Ok(self)
+    }
+
+    fn rebuild_family(&mut self, external_momenta: Vec<Atom>) -> Result<()> {
         let mut kinematics = self.family.kinematics().clone();
-        for (i, p) in self.family.external_momenta().iter().enumerate() {
-            for q in &self.family.external_momenta()[i..] {
+        for (i, p) in external_momenta.iter().enumerate() {
+            for q in &external_momenta[i..] {
                 let product = kinematics
                     .scalar_product(p, q)
                     .map_err(feynkit_graph::IntegralFamilyError::from)?;
@@ -125,7 +150,7 @@ impl GraphIntegral {
         }
         self.family = IntegralFamily::new(
             self.family.loop_momenta().to_vec(),
-            self.family.external_momenta().to_vec(),
+            external_momenta,
             self.family
                 .denominators()
                 .iter()
@@ -133,8 +158,7 @@ impl GraphIntegral {
                 .collect(),
             &kinematics,
         )?;
-        self.measure_multiplier = self.bind(&self.measure_multiplier);
-        Ok(self)
+        Ok(())
     }
 
     fn bind(&self, expression: &Atom) -> Atom {
