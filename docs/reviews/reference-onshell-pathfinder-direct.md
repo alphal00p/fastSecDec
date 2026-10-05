@@ -355,5 +355,82 @@ source review accepted this correction. A fresh numeric-only continuation,
 `onshell-pathfinder-projector-numeric-attempt-1`, binds all 12,621 original bundle
 files and 13,632 total immutable inputs, then invokes ordinary strict integration
 with the unchanged 1,024×8 allocation, seed, precision and full-scope arguments.
-It is bounded at 1,200 seconds and 30 GiB on CPU 8. No generation is repeated,
-and final scientific comparison remains pending its complete numerical output.
+It was bounded at 1,200 seconds and 30 GiB on CPU 8, with no generation replay.
+
+Strict integration exited 1 in 4.547 seconds: `PSD0` required an unprepared
+numerator-epsilon dual shape. All 13,632 hashes, the complete original bundle and
+read caches remained unchanged. This is an existing prepared-artifact coverage
+limitation in the guarded projector fallback, not a normalization mismatch or a
+numerical comparison result. The missing shape and full error remain in the
+numeric attempt's stderr; no result was produced.
+
+Root then authorized one ordinary reference `run` command with the same guards,
+cached formulas, original full scope, precision and 1,024×8 allocation. The fresh
+`onshell-pathfinder-projector-run-attempt-1` output avoids the CLI's existing
+strict-bundle reuse branch. Its normal in-memory runtime may create the required
+native numerator and chain-rule evaluator artifacts through existing APIs.
+No strict-loader flag is changed internally, and no reference source is patched.
+The single 1,500-second/30-GiB bound includes setup and integration on CPU 8;
+overlap with native capability work remains explicitly non-benchmark evidence.
+All 1,000 immutable checks and the exact command delta were verified before
+launch. The attempt reached numerical integration but did not complete its
+correlated iteration within the bound.
+
+The existing quiet/JSON output does not report partial first-iteration work.
+`integrator.make_progress_bar` returns `None` for either output flag, and its
+progress updater consequently emits nothing. The native QMC loop updates that
+display after each complete sector/support group, but calls the result-writing
+callback only after every group has contributed to the full correlated
+iteration. No result file therefore does not identify the current sector or
+prove that no batches finished. The retained traceback establishes numerical
+projector evaluation with the normal precision policy; later native chain-rule
+cache writes establish additional lazy evaluator work, not a completed-sample
+count.
+
+If a further diagnostic is needed, the existing `update_progress_bar_timed`
+arguments already contain completed raw work and its target. An isolated entry
+wrapper can retain those values while calling the original function unchanged.
+Recording entry/return of the existing `_evaluate_qmc_batch` would additionally
+identify the current sector and batch size, including a batch interrupted before
+the next group update. Neither observation needs evaluator, estimator or
+precision changes. The frozen process was not modified.
+
+The watchdog returned 124 after 1,502.472 seconds and the process group was
+reaped. All 1,000 immutable hashes and both read-cache inventories passed. The
+native interrupt handler wrote a result explicitly marked `interrupted=true`:
+14 complete sector groups (IDs 0–13), 114,688 completed raw rows, and zero rows
+in the reported correlated aggregate, against a 7,929,856-row target. This
+partial result is not a full-integral estimate. Sampled watchdog RSS peaked at
+0.650 GiB. Ten additional native chain-rule formula records completed; their
+evaluator and expression sidecars remain bound by the final cache manifest.
+`terminal-slot-release.json` has SHA-256
+`64c9b3bb27dc939292691dd0111a837d8e7e2634600e5ee1542fea66c0a37b59`.
+
+The next authorized coarse attempt, `onshell-pathfinder-projector-coarse-attempt-1`,
+changes only the reference allocation to 16 points × 8 shifts, retaining all
+968 sectors, seven orders, the original input and normal precision policy. It
+uses the same ordinary non-strict `run`, a fresh output, 330 completed cache
+assets without locks, and the reviewed observation wrapper. Its 1,500-second /
+30-GiB CPU-8 bound includes setup and observer overhead. This is a coarse
+independent full-vector cross-check; neither uninformative error bars nor an
+incomplete aggregate can establish agreement. It is not a one-per-mille
+certificate or a matched performance baseline. Native capability keeps its
+original allocation. No complete result is yet claimed for this attempt.
+
+The coarse attempt also reached its deadline before the later user stop request:
+exit 124 after 1,504.552 seconds, with all owned processes reaped. All 1,240
+immutable hashes and both read-cache inventories remained unchanged. Its native
+progress records contain 63 completed groups (IDs 0–62), 8,064 raw rows and no
+complete correlated aggregate. Group 63 remained active; retained traces show
+successive lazy native chain-rule constructions, rather than one confirmed
+unchanging expression. The interrupted result is not an independent full-vector
+reference. Sampled maximum RSS was 3.137 GiB. Completed formula/evaluator assets
+remain preserved; no result or uncertainty was promoted. The terminal record
+is `onshell-pathfinder-projector-coarse-attempt-1/terminal-slot-release.json`,
+SHA-256 `9979c7703ae4182798d648af411a491603331800fd805ec2ec0735a1b549c5f7`.
+
+The user subsequently accepted completed FastSecDec generation of this on-shell
+integral as sufficient for phase A and directed attention to faster cases.
+Further on-shell integration, reference construction and performance attempts
+are therefore stopped. Full-integral numerical agreement remains unverified
+and deferred; the preserved partial records do not establish it.

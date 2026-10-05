@@ -22,7 +22,12 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
   Push `main` there after milestone checks. The user also authorized publishing
   the finished Numerica QMC feature branch as a PR against its main branch and
   requesting review from `benruijl`; run its readiness checks first. Other
-  reference repositories remain unpublished.
+  reference repositories remain unpublished except for the subsequently
+  authorized, tested shared external-state changes on GammaLoop's `feynkit`
+  branch and the HEPKit bridge PR in symbolica-community. Use authenticated
+  `ValentinHirschi` for all subsequent publishing and commit as
+  `ValentinHirschi <valentin.hirschi@gmail.com>`. Ask the user to authenticate if
+  the active GitHub account differs; never silently publish under another user.
 - Never track `DO_NOT_PUSH_FOR_REFERENCE_ONLY`, build artifacts, caches, or raw
   benchmark output. Keep dependency fixes small and evidence-based; preserve
   existing worktrees and unrelated host workloads.

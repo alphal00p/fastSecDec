@@ -16,9 +16,15 @@ work on that case are deferred. Preserve partial attempts without treating them
 as complete numerical results. The previous on-shell gates below remain a
 historical record, superseded by this decision and the corresponding amendment
 in `FIRST_PHASE_PLAN.md`. Remaining work concentrates on the faster existing
-representatives. The user has supplied an authorized license; a new eight-worker
-Pathfinder capability check will determine whether the previous license obstacle
-is resolved, without rewriting the retained failed measurements.
+representatives. The user supplied an authorized license, and the subsequent
+eight-worker Pathfinder capability check passes. Current paired triangle
+generation/integration and individual-latency comparisons are complete. The box
+also completes seven pairs and its latency diagnostics, with faster generation,
+integration and mean calls but a higher observed native maximum; tail parity
+remains unestablished. Other representatives remain open. The retained earlier
+license failures are unchanged. The newly authorized HEPKit marimo showcase has
+an explicit prerequisite: its generated gg→HH helicity double box must first be
+demonstrated as a native CLI example. See the amended plan for its scope.
 
 The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 101 Covered,
 81 Retired, zero Partial and zero Pending**. The double-box row
@@ -124,9 +130,11 @@ Run the plan's matched same-host O2 comparisons with equal worker counts,
 precision, transforms, rules, shift counts, orders and statistical targets.
 The completed native-only eight-physical-core triangle/box seven-seed campaign
 and [individual-sample latency diagnostic](native-sample-latency-results.md)
-remain evidence. The paired eight-core Pathfinder route hit an explicit
-concurrent-instance license limit; one-worker measurements and the new
-capability diagnostics do not close that comparison.
+remain evidence. The earlier paired eight-core Pathfinder route hit an explicit
+concurrent-instance license limit. The supplied license now permits its existing
+eight-worker route, and the current matched triangle measurements close that
+case's target/process comparison. Continue the remaining representatives with
+the same actual eight-core design; do not extrapolate earlier one-worker rows.
 
 Required performance evidence remains:
 
@@ -185,7 +193,7 @@ infeasible pySecDec results are not an additional completion requirement.
 | Original on-shell integral | Generation, publication of all 1,026 sectors/orders and separate-process inspection pass. The user accepts this capability for phase A and defers further numerical/reference/performance work. Retain actual checkpoints and interrupted observations as partial evidence; do not claim full-integral agreement or convergence. Deliver the validated generation steering without repeating the expensive run. |
 | Scientific uncertainty checks for the representative set | Reuse the [72 holdout rows](convergence-stage-a-independent.md): six families, three independent seeds, two work levels and two rules, all complete and no recorded comparison beyond the frozen investigation threshold. Do not repeat that matrix or automatically launch its earlier proposed larger matrix. Reuse the double-box [64-shift observation](direct-generation-performance.md) and [all-five-order checked comparison](remaining-reference-attempts.md), whose largest absolute pull is 1.26516. Off-shell scalar/rank-two, Issue 1 and hard-reference transports already close their documented normalization and value-comparison claims. Add bounded independent-seed/work checks only where these records leave a concrete representative uncertainty or accuracy question unresolved; retain every result and the original investigation criterion. |
 | Highest-order accuracy and representative performance parity | Keep the original small one-loop, double-box, numerator-heavy and hard-four-loop representative set. Use the required matched seven ordinary/three expensive paired observations to close missing parity claims, with accuracy and full-vector checks in the same records wherever possible. Existing [seven-pair one-loop measurements](first-paired-performance-independent.md) remain valid for their recorded boundaries; different precision/persistence policies prevent relabelling them as final matched acceptance. Reuse their attribution rather than repeat exploratory profiling. Stop each case once the agreed criterion passes. |
-| Eight-core target and latency reporting | Reuse the [fourteen native eight-core rows](eight-core-native-results.md) for their actual finite-part target crossings, and the accepted [individual-sample diagnostic](native-sample-latency-results.md) for its distinct timer boundary. Neither needs a new diagnostic merely for documentation. The reference eight-worker instance-limit failure still prevents a paired eight-core claim; repeating the same rejected configuration or extrapolating fewer workers would not close it. Record the remaining measured target/worker gaps explicitly and resolve only those needed by the plan. |
+| Eight-core target and latency reporting | The authorized license resolves the reference worker obstacle. Current seven-pair triangle generation/integration and independently reviewed [single-row latency](current-sample-latency-results.md) comparisons pass their measured criteria. Continue the remaining prescribed cases with matched eight-worker accuracy rows and the existing separate latency diagnostic; do not add a duplicate one-worker integration campaign or repeat closed triangle tuning. Preserve historical native observations and failed license attempts with their original boundaries. |
 | Final delivery review | Reconcile the completed scientific and performance records with the regression matrix, examples, public APIs, dependency separation and current tests. Reuse the accepted Linux/MSRV/PTY evidence. Label unavailable-platform execution as unverified, as the plan allows; it is not a reason to add speculative platform work without a host. |
 
 The existing low-work difficult-case vectors and reference errors do not yet

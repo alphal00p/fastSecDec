@@ -5,8 +5,9 @@ coverage. It reuses `output/probes/first_paired.sh` for alternating repetitions,
 `eight_core.sh` for separate generation/prepared integration and an accuracy
 ladder, and their existing process timer and pure-data result readers. No new
 benchmark framework, evaluator, reference port or parallel executor is needed.
-The current prepared on-shell correctness attempt has priority and is separate
-from this representative performance block.
+The user accepted completed on-shell generation for now and deferred its
+unfinished numerical/reference comparison. This block uses the five existing
+representatives below and adds no further on-shell work.
 
 ## Fixed representative scope
 
@@ -28,7 +29,8 @@ record it explicitly. In the absence of comparative evidence, retain the shipped
 The difficult on-shell capability uses that opt-in separately. Distinct valid
 sector partitions remain recorded rather than forced to agree.
 
-Use one worker on the same allowed physical CPU for both programs, alternating
+Generate with one worker on CPU 0 for both programs. Integrate and run the
+accuracy ladder with eight workers on CPUs 0–7 for both, alternating
 native/reference order by repetition. Native and Pathfinder both use their
 ordinary SymJIT O2 routes; the reference explicitly selects the already validated
 complex evaluator, its normal boundary-support correlated democratic QMC and
@@ -58,12 +60,16 @@ persistence or separate generation/loading medians.
 The fourteen [native eight-core target rows](eight-core-native-results.md) and
 accepted [individual-sample diagnostic](native-sample-latency-results.md) remain
 valid for their frozen versions. Do not repeat them merely to fill a table.
-Pathfinder's eight-worker processes hit the retained concurrent-instance license
-limit. Its eight-core comparison stays **unavailable**; neither scaling the
-one-worker result nor changing its executor/license is proposed. Missing larger
-native eight-core accuracy rows remain required measurements, distinct from the
-viable one-worker paired block. Whole-process one-worker ratios cannot close them
-or the individual-maximum comparison.
+Pathfinder's historical eight-worker processes hit its concurrent-instance
+license limit. The user subsequently supplied an authorized license, and the
+existing triangle bundle passed an eight-worker capability smoke: all three
+orders, both sectors, 32,768 rows and 16 shifts, with the existing residual check
+passing. The license value and private configuration path are never recorded.
+Evidence is `output/diagnostics/licensed-pathfinder-eight-worker-triangle-1/result.json`.
+Its 1.285-second process time is a capability observation, not a final benchmark.
+The final eight-worker paired accuracy rows now supply the required native
+eight-core targets as well; do not duplicate them with a separate complete
+one-worker campaign. Individual-sample maxima remain separate observations.
 
 A read-only inventory found complete Pathfinder strict bundles only at
 `output/benchmarks/eight-core-preparation-20261005/{triangle,box}.reference.bundle/`.
@@ -112,6 +118,20 @@ allocation, and start expensive rows at 1,024 points. Seeds are fixed before
 launch, paired by index and never selected by observed errors. Read the actual
 native design/reference metadata and total physical-kernel work; equal integer
 seeds do not imply identical cross-program random shifts.
+
+The existing sector-correlation policies also differ. Native democratic QMC
+uses a common stream and coordinate-prefix-stable replica shifts across sector
+dimensions; it shares local coordinate indices without a physical-axis
+remapping. Pathfinder shares raw lattices for an exact `(support_axes, dimension)`
+group and assigns separate randomizations to different groups. Both retain
+their resulting dependence when forming the aggregate: native `QmcEstimate`
+sums complete common-replica coefficient vectors and derives full covariance;
+Pathfinder sums same-index sector/group shift means before its per-coefficient
+statistics. These are valid, explicitly different sampling policies, not an
+identical-point assertion or a reason to retune either executor. The independent
+source audit checked native `integration/qmc.rs` and Numerica `qmc/work.rs`
+against Pathfinder `integrator.py:3121–3147`; the reference still supplies no
+joint Laurent covariance.
 
 The initial integration rows also provide the first accuracy observation. If
 highest-order estimated relative error is above one per mille, reuse the existing
@@ -241,3 +261,68 @@ The CLI is `43606467dc2146a3b7b4d2a04703182eac8c6419c8a56107f996aa0b5c36c9fa`;
 the build evidence records its accepted precommit overlay, byte correspondence
 with commit `a1f103d`, and unchanged native mathematical libraries. The original
 plan remains immutable. Neither plan has produced a paired scientific row.
+
+## Final refill-release handoff
+
+Plans 1 and 2 stay immutable and unexecuted. The next scheduled block should use
+the existing `qmc-refill-scheduling-2/release/fastsecdec` executable, SHA-256
+`b772570e0f5d7230182042839a9b7f8b21a8f3f26e66d551e63613451e99b644`.
+Its existing `release/build-result.json` records the accepted precommit build,
+exact correspondence of 172 compiled files with commit `8ecc406`, successful
+independent validation, and unchanged native library bytes. That existing
+record can be passed directly as the paired preparer's `BUILD_EVIDENCE`; no
+additional build or test campaign is needed to establish this identity.
+
+After the native capability and reference processes are reaped and the
+coordinator releases the scientific slot, use the existing `run.py prepare`
+once for fresh `output/benchmarks/minimal-paired-current-3`, with that executable,
+`native-named-prepared-fullgraph-4/process_timer`, and
+`minimal-paired-reader-build-2/native-observe`. The latter is the narrow
+eight-worker admission rebuild against the unchanged native libraries. These paths are under
+`output/diagnostics/`. Retain the reviewed five cards, normal Pathfinder default
+route, per-case limits and precision policies. The existing preparation performs
+its normal source/cache bindings; this handoff adds no separate hash campaign.
+
+Execute triangle `generate` then `ladder` first through the same frozen runner.
+Its ordinary output exercises the current public formats and provides the
+baseline for the already reviewed sample-latency callers. Then schedule the
+remaining four rows with their prescribed repetitions, stopping on retained
+process or scientific failures. The first ladder level supplies fixed-work
+timing; do not run a duplicate integration mode. The matched eight-worker
+accuracy rows also supply native eight-core targets. Individual API-latency
+observations use a separate small one-worker off/on diagnostic, retaining its
+comparison to the accepted ordinary row; this is not a duplicate one-worker
+paired campaign. The authorized license closed the earlier environment limit.
+No benchmark process or new plan freeze was started for this handoff.
+
+## First current triangle block
+
+Plan 3 was prepared and executed after the reviewed stage-specific worker
+change: one worker on CPU 0 for generation, eight workers on CPUs 0–7 for
+integration. Its plan SHA-256 is
+`b105dba6cb045f9dbe447551d0e176b9ad965e360843d33260eca07f682bb9c5`.
+All seven generation pairs and seven first-level numerical pairs completed.
+Median whole-process generation times were 0.012899 seconds native and
+0.909101 seconds Pathfinder; median numerical times were 0.261049 and
+1.231476 seconds respectively. Every pair met the reported one-per-mille
+highest-order error target at 8,192 points × 16 shifts, with matching-row
+reference residuals passing. These are isolated matched eight-worker numerical
+measurements, with both normal precision policies enabled.
+
+The first Pathfinder reader failed on per-sector diagnostic errors for an
+inactive Laurent row. Its native structural active-order metadata and replica
+counts establish that no estimate exists for that row; native prefactor error
+propagation turns its Infinity into per-sector NaN. The complete correlated
+aggregate is finite. A reviewed additive data-only correction retains those
+tagged diagnostics, still requires finite coefficients, finite nonnegative
+active raw-sector errors and finite complete aggregate errors, and corrects the
+native component spelling to `Imag`. The failed admission is retained. All
+successful scientific rows were reused without regeneration or resampling;
+`correction-1/correction.json` binds the correction and original records.
+
+Pathfinder's complete complex reference union passes. Native real-component
+comparisons pass; its real kernel ABI does not emit imaginary estimate rows, so
+those target rows remain explicitly `MissingEstimate` in the native comparison.
+No mean or covariance padding is used. The isolated individual-row diagnostics
+and remaining representative blocks are separate outcomes; these triangle
+medians alone are not a final five-case acceptance claim.

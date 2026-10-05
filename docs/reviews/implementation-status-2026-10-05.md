@@ -10,8 +10,71 @@ as sufficient for phase A and redirects work to simpler, faster-to-generate
 integrals. Generation, artifact publication and cold loading for that graph
 are complete. Its numerical/reference attempts remain partial, with no claim
 of full-integral agreement or convergence; further work on those is deferred.
-The user supplied an authorized Symbolica license for subsequent runs, so the
-previous eight-worker Pathfinder limitation is being rechecked.
+The user supplied an authorized Symbolica license for subsequent runs. The
+Pathfinder eight-worker triangle check now passes; its previous failed runs
+remain historical evidence.
+
+## Current matched triangle measurements
+
+The current-release triangle completes seven alternating generation and
+integration pairs. Generation uses one physical core; integration uses eight
+physical cores, N8192, R16, Kuo33002 and Korobov3. All fourteen integration
+processes meet the reported one-per-mille epsilon-zero target at the first
+tested allocation. This is not a claim about the minimum required work.
+
+| Triangle metric | FastSecDec | FastSecDecPathFinder |
+| --- | ---: | ---: |
+| Median whole generation/publication process | 0.012899 s | 0.909101 s |
+| Median eight-core integration/result process to observed target | 0.261049 s | 1.231476 s |
+| Weighted individual-call mean, separate one-core diagnostic | 5.927280 µs | 58.480256 µs |
+| Slowest sector's individual-call mean in that diagnostic | 7.694439 µs | 63.258586 µs |
+| Observed individual-call maximum in that diagnostic | 141.361 µs | 1,013.965 µs |
+
+The ordinary current reference uses its boundary-support grouping and optimized
+QMC request, with normal precision handling enabled in both programs. Every
+available real coefficient comparison passes. The native real vector retains
+its three components and 3×3 covariance; existing analytic and HEPKit master
+controls supply independent reality evidence. Its absent imaginary estimates
+are not padded or called a successful complex-union comparison.
+
+The single-row diagnostic includes each program's actual weighted evaluator API
+overhead and precision rescue. It excludes lattice/transform/reduction work and
+is not the reference's vectorized production throughput. Exact off/on controls
+and the retained failed-prefix test pass; details and independent reviews are
+in [the sample-latency record](current-sample-latency-results.md). Matched process
+records are under `output/benchmarks/minimal-paired-current-3/triangle/`.
+The first observer failure concerned structurally inactive per-sector nonfinite
+diagnostics and an imaginary-component label; a reviewed data-only correction
+retains those diagnostics and the original failure without rerunning successful
+scientific processes. No additional triangle tuning is scheduled. Other
+representatives remain in progress; the older tables below keep their original
+versions and timing boundaries.
+
+The box also completes seven independently reviewed pairs at the same allocation
+and target. Its separate individual-call diagnostic retains the slower native
+maximum; neither that observation nor the precision rescues inside it are trimmed.
+
+| Box metric | FastSecDec | FastSecDecPathFinder |
+| --- | ---: | ---: |
+| Median whole generation/publication process | 0.016190 s | 0.940588 s |
+| Median eight-core integration/result process to observed target | 0.380714 s | 1.468976 s |
+| Weighted individual-call mean, separate one-core diagnostic | 6.766568 µs | 69.559459 µs |
+| Slowest sector's individual-call mean in that diagnostic | 7.795175 µs | 79.896452 µs |
+| Observed individual-call maximum in that diagnostic | 4,037.015 µs | 1,583.796 µs |
+
+All fourteen integrations meet the reported epsilon-zero one-per-mille target
+at the first tested allocation and pass the available real reference comparison.
+The native maximum includes a 320-bit rescue; the recording does not separate
+arithmetic, lazy precision-cache work and interruptions. Tail parity is not
+established. The reference uses its supported target-file option after its
+unavailable OneLOop provider failed before sampling. The original failure and
+the reviewed equality of the stored target are retained. See the same paired
+and [latency records](current-sample-latency-results.md) for exact boundaries.
+
+The user has additionally authorized the HEPKit marimo bridge/showcase. Its new
+generated top/gluon double-box helicity example must first run through the native
+CLI at sqrt(s)=300 GeV before notebook inclusion. Preparation is in progress;
+neither a complete amplitude contribution nor browser feasibility is claimed.
 
 ## Plan coverage
 
