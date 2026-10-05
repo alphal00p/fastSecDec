@@ -1150,5 +1150,23 @@ An independent read-only audit also verified the patch hashes, emitted configs,
 locked owner graphs, backend separation and bootstrap/provenance boundaries;
 it found no delivery blocker within the tested Linux scope.
 CLI builds reject missing provenance instead of publishing an unknown identity.
-Community validation against the published FastSecDec Git revision remains a
-separate gate, as does upstream adoption of the documented dependency patches.
+Community validation against the published FastSecDec Git revision subsequently
+passes in [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+The fresh installed native wheel passes 39 tests with zero skips; independent
+review and postflight checks bind all 169 compiled source files and 38 delivered
+files. The preparation helper uses an isolated Cargo home for Maturin/Pyodide,
+and the actual portable PEP 517 metadata flow passes. This does not relabel the
+earlier actual Wasm/browser execution as a new build. Upstream adoption of the
+documented dependency patches remains open; unpatched optional-feature-off
+resolution still conflicts on the OneLOop SymJIT pin, as the draft explains.
+
+The [bounded double-box follow-up](reviews/double-box-lattice-followup.md) uses
+Numerica's existing published HKKN catalogue, ordinary native QMC stepping,
+saved-result validation and reference comparison. No lattice construction,
+variance formula or mathematical kernel was reimplemented. Independent review
+accepted the effective rule, complete common-shift coverage, full covariance and
+reference-only result transport. The prescribed 8,192- and 16,384-point
+observations reach 0.393 per mille finite-part relative standard error at the
+second level; both complete processes total 664.554 seconds. These observations
+do not establish Pathfinder parity or uncertainty calibration. This bounded
+lattice follow-up stops at that target; the production default remains unchanged.

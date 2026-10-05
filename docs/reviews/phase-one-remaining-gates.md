@@ -21,10 +21,22 @@ eight-worker Pathfinder capability check passes. Current paired triangle
 generation/integration and individual-latency comparisons are complete. The box
 also completes seven pairs and its latency diagnostics, with faster generation,
 integration and mean calls but a higher observed native maximum; tail parity
-remains unestablished. Other representatives remain open. The retained earlier
-license failures are unchanged. The newly authorized HEPKit marimo showcase has
-an explicit prerequisite: its generated gg→HH helicity double box must first be
-demonstrated as a native CLI example. See the amended plan for its scope.
+remains unestablished. The [double-box lattice follow-up](double-box-lattice-followup.md)
+now observes a native finite-part relative standard error of 0.393 per mille:
+437.039 seconds at its final eight-worker level, or 664.554 seconds across both
+tested HKKN levels. Its matching Pathfinder accuracy and remaining timing metrics
+are still open, as are the other representatives. The retained earlier
+license failures are unchanged. The HEPKit marimo extension's generated gg→HH
+helicity double box now passes its [native CLI prerequisite](gghh-native-feasibility.md):
+complete generation and full-vector integration at about 1.03% finite-part error.
+It remains a native example pending browser feasibility. The four smaller
+showcase inputs pass actual Pyodide bridge tests, and the triangle's real browser
+Run/Cancel/Resume workflow reaches its target. Community delivery is published in
+[draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18), with
+39 fresh installed-native tests and zero skips. The documented dependency
+patches remain necessary. See the [bridge review](hepkit-fastsecdec-bridge.md),
+[UI review](fastsecdec-showcase-ui.md) and
+[dependency-delivery review](dependency-delivery.md).
 
 The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 101 Covered,
 81 Retired, zero Partial and zero Pending**. The double-box row
@@ -215,7 +227,8 @@ correctly rejects `(1-x)^(-1+eps)` on the unit interval, including with
 `assume_no_threshold`. That assertion cannot resolve endpoint geometry. No
 shipped example has been identified as requiring this additional chart type;
 retain the limitation explicitly rather than silently broadening first-phase
-scope. General splitting/contour/GCAD, arbitrary complex masses, Python
-bindings and CBC construction remain deferred. Automatic family projection is
+scope. General splitting/contour/GCAD, arbitrary complex masses and CBC
+construction remain deferred. The subsequently authorized Python bindings are
+delivered in the HEPKit PR above. Automatic family projection is
 an optional optimization; native prepared-family APIs already preserve the
 original route and fallback. None of these is a newly imposed completion gate.

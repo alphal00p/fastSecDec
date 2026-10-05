@@ -8,6 +8,12 @@ scope, milestone gates, and original requirements are in
 [FIRST_PHASE_PLAN.md](FIRST_PHASE_PLAN.md). The standalone CLI is being developed
 alongside the library; the Python bridge and marimo showcase belong to HEPKit.
 
+The experimental native-input API and four-example notebook are available in
+[HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+Its build guide documents the required dependency patches and opt-in feature.
+Native wheel tests and actual Pyodide Run/Cancel/Resume checks pass; the PR remains
+a draft while the unpatched upstream dependency conflict is unresolved.
+
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside
 the checkout. The script never changes existing checkouts.

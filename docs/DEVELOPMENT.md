@@ -36,7 +36,7 @@ to the wrong workspace.
 
 The generated configs contain absolute paths for this checkout. Move neither the
 checkout nor the generated source directory without preparing a new config.
-Pass the appropriate config explicitly on every Cargo or maturin invocation:
+Pass the appropriate config explicitly on every Cargo invocation:
 
 | Consumer | Generated config |
 |---|---|
@@ -47,7 +47,11 @@ Pass the appropriate config explicitly on every Cargo or maturin invocation:
 The community config also patches FastSecDec to this checkout for development.
 Published community integration must pin the published FastSecDec revision and
 remove that local FastSecDec patch group to verify delivery from Git. Its build
-scripts forward the remaining generated dependency config to Cargo.
+helper installs the remaining config in a generated Cargo home, scoped to the
+build command, so both metadata discovery and compilation inherit it. Follow the
+community `examples/hep/FASTSECDEC_BUILD.md` recipe for maturin and Pyodide:
+[maturin 1.15's metadata argument builder](https://github.com/PyO3/maturin/blob/v1.15.0/src/cargo_options.rs#L155-L182)
+does not forward its `--config` option during metadata discovery.
 
 These consumer-specific overlays omit unused reference/Python patch groups and
 packages, keeping lockfile resolution stable. The checked-in manifests name
@@ -217,4 +221,9 @@ build checks use these freshly fetched owners. Earlier native/Pyodide wheels,
 notebook lifecycle runs and native ggHH results keep their original source and
 artifact identities; the path migration does not relabel them as freshly rebuilt
 runtime tests. See the [dependency-delivery review](reviews/dependency-delivery.md)
-for exact gates, launcher issues and the remaining community Git publication gate.
+for exact gates and launcher issues. The community Git publication gate now
+passes in [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18):
+39 fresh installed-native tests pass with zero skips. Its
+[bridge review](reviews/hepkit-fastsecdec-bridge.md) distinguishes the new public-Git
+native build from the earlier actual Wasm/browser checks and documents the
+remaining upstream dependency prerequisite.

@@ -88,10 +88,12 @@ weight enter exactly once; the diagnostic symmetry factor is not multiplied agai
 `generation.json` and `provenance.json` record selection and input construction.
 The full native model and numeric parameter card are included.
 
-To regenerate into a fresh directory, use the native model JSON as input:
+To regenerate into a fresh directory, prepare the dependency config as described
+in the [development guide](../../docs/DEVELOPMENT.md), then use the native model
+JSON as input:
 
 ```sh
-cargo run -p fastsecdec --example gghh_double_box -- path/to/SM.json output/gghh-input
+cargo --config output/dependencies/overlay-root.toml run --locked -p fastsecdec --example gghh_double_box -- path/to/SM.json output/gghh-input
 ```
 
 The Rust generator lives in `crates/fastsecdec/examples/gghh_double_box`. Native

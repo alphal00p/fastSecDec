@@ -1,8 +1,25 @@
 # HEPKit FastSecDec bridge boundary
 
-The Python API belongs in `symbolica-community`, alongside its existing HEPKit
-bridge. FastSecDec remains a Rust library. This records the reviewed implementation
-boundary; it does not claim that the bridge or notebook is already delivered.
+The Python API and four-example notebook are published in
+[draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18),
+commit `ab84c89959dd6abc4655b348617193a58860c6fe`, as `ValentinHirschi`.
+FastSecDec remains a Rust library. The branch starts from the merged shared
+external-state PR #17 and selects the explicit `experimental-fastsecdec` feature.
+
+A fresh native wheel built from published FastSecDec `be9c3d2` passes all
+39 focused tests with zero skips. Installed binary identity and all 169 compiled
+source bindings and 38 delivery-file bindings were verified. Earlier actual
+Pyodide 39-test and browser Run/Cancel/Resume evidence keeps its original build
+identity; the new portable PEP 517 metadata check is not another Wasm compilation.
+Evidence is in `output/diagnostics/bridge-public-git-1/{result,publication}.json`
+and the [notebook UI review](fastsecdec-showcase-ui.md).
+
+The PR remains draft because the unpatched OneLOop dependency pins SymJIT 2.26.0
+while FastSecDec uses 2.26.4. Cargo encounters this conflict even with the optional
+bridge feature disabled. The documented preparation helper fetches exact public
+owners and applies the existing minimal patches in a fresh directory. Its
+task-owned, isolated Cargo home supplies the configuration to Maturin and Pyodide
+without modifying global configuration or sharing mutable cache directories.
 
 ## Shared inputs and crate identities
 
@@ -25,16 +42,18 @@ relationship to native graph parametrization. Do not insert `D` into scalar
 bindings; the graph adapter correctly rejects replacing the tensor dimension
 there.
 
-FastSecDec and the developing community bridge now select the published
-`6c707c6b7` FeynKit lineage pinned by HEPKit PR #17. The full
-graph/model/kinematics/tensor/Linnet/Idenso/Spenso group shares that owner through
-the isolated `feynkit-fastsecdec-notebook` worktree. It retains only the existing
-five-line literal-symbol substitution fix. Community additionally redirects its
-PyO3 owner crates to that tree and resolves the same patched Symbolica/Graphica
-and Numerica QMC sources. Root, community and portable-consumer metadata each
-confirm unique selected owners; the native compile and installed runtime gates
-are separate checks. A compatible API in two different Cargo package identities
-is not enough to pass native objects between them.
+FastSecDec and the community bridge select the published `6c707c6b7` FeynKit
+lineage pinned by merged HEPKit PR #17. The full graph/model/kinematics/tensor/
+Linnet/Idenso/Spenso group shares that owner through the explicit dependency
+bootstrap. It retains only the existing five-line literal-symbol substitution
+fix. Community redirects its PyO3 owner crates to the same tree and resolves
+the same patched Symbolica/Graphica and Numerica QMC sources. Root, community and
+portable-consumer metadata confirm unique selected owners and exclusive
+FastSecDec backend selection. Cargo metadata can include a union of host and
+target dependency features; this source-owner check is not proof of target
+compilation. Native compilation and installed runtime gates pass separately.
+A compatible API in two different Cargo package identities is not enough to
+pass native objects between them.
 
 ## Generation and events
 
@@ -110,5 +129,6 @@ in the actual Pyodide wheel and measure event delivery and yielding.
 
 The default notebook cases remain the massive triangle, massless box, rank-two
 box numerator and coupled two-loop sunset numerator. The generated gg→HH diagram
-enters the notebook only after the ordinary native CLI produces a valid result
-and its measured cost establishes a suitable place in the walkthrough.
+passes the ordinary native CLI prerequisite and remains a separate native
+example. Its browser cost is unmeasured; the notebook does not present it as a
+validated portable calculation.

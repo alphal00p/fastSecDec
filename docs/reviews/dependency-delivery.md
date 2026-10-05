@@ -80,5 +80,11 @@ wheel, Pyodide tests, browser lifecycle and ggHH native execution remain immutab
 runtime evidence for their recorded builds; they are not relabelled as runs from
 these new manifest paths. Source equivalence plus fresh-owner delivery checks do
 not claim another numerical campaign or Wasm wheel rebuild. Community published
-Git resolution and its PR are a separate final delivery gate. Windows path
-handling is unverified; this delivery gate runs on Linux.
+Git resolution and its PR were a separate final delivery gate. That gate now
+passes: [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18)
+uses the published FastSecDec revision, with 39 fresh installed-native tests and
+zero skips. Its isolated Cargo-home preparation also passes the actual Pyodide
+PEP 517 metadata flow. See the [bridge review](hepkit-fastsecdec-bridge.md) for
+the remaining upstream dependency prerequisite and the separate earlier Wasm
+runtime evidence. Windows path handling is unverified; delivery checks run on
+Linux.

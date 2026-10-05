@@ -6,7 +6,8 @@ owner in `feynkit-kinematics`. The tested extraction is published on GammaLoop's
 [`6c707c6b77a437256eb1180da13d4d327b371d13`](https://github.com/alphal00p/gammaloop/commit/6c707c6b77a437256eb1180da13d4d327b371d13).
 The community dependency/stub update is
 [HEPKit PR #17](https://github.com/symbolica-dev/symbolica-community/pull/17),
-now ready for review after its complete installed-wheel checks passed. Both repositories
+merged on 2026-10-05 as `69509f1b8a386d22f2333a2182d4b1505cd804e3`
+after its complete installed-wheel checks passed. Both repositories
 were published as `ValentinHirschi <valentin.hirschi@gmail.com>`.
 
 ## Ownership and conventions

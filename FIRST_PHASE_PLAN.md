@@ -661,6 +661,30 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-05: the experimental native-input bridge and four-example marimo
+  notebook are published as draft HEPKit PR #18 at `ab84c89`, authored by
+  `ValentinHirschi`, on the merged external-state PR #17 base. A fresh installed
+  native wheel from public FastSecDec `be9c3d2` passes all 39 focused tests with
+  zero skips; source and installed-binary identities are verified. Actual
+  Pyodide PEP 517 metadata passes with the helper's isolated Cargo home. The
+  earlier actual Wasm tests and browser Run/Cancel/Resume evidence retain their
+  original build identities. The draft documents the unpatched OneLOop/SymJIT
+  resolution conflict, including when the optional feature is disabled, and
+  the required explicit source preparation. Native gg→HH feasibility is closed;
+  its browser cost and the remaining representative performance gates remain
+  open. See `docs/reviews/hepkit-fastsecdec-bridge.md`.
+
+- 2026-10-05: the bounded double-box follow-up reuses the existing kernels and
+  Numerica's published HKKN catalogue. Its prescribed 8,192- and 16,384-point
+  levels reduce finite-part relative standard error from 1.323 to 0.393 per mille;
+  the final eight-worker process takes 437.039 seconds and both full executions
+  total 664.554 seconds. All five independent reference comparisons pass, full
+  covariance is preserved and there are no evaluation failures. Independent
+  data audits accept both rows. This follow-up stops at the observed target;
+  production defaults stay unchanged. These are observations on the frozen
+  `8ecc406` build, not current-main timing medians or Pathfinder parity.
+  See `docs/reviews/double-box-lattice-followup.md`.
+
 - 2026-10-05: the gg→HH example now completes ordinary native CLI generation
   (61.285 seconds, thirty sectors) and an eight-worker full-vector allocation
   (8.781 seconds, finite-part relative standard error 1.0273%). Native Idenso
