@@ -9,8 +9,14 @@ use numerica::numerical_integration::qmc::QmcPartial;
 
 #[test]
 fn callback_observes_periodization_weight_applied_exactly_once() {
+    for periodization in [Periodization::Korobov3, Periodization::Korobov2] {
+        callback_weighting(periodization);
+    }
+}
+
+fn callback_weighting(periodization: Periodization) {
     let mut configuration = settings();
-    configuration.periodization = Periodization::Korobov3;
+    configuration.periodization = periodization;
     let mut session = QmcSession::democratic(problem(), configuration).unwrap();
     let mut nontrivial = false;
     for task in tasks(&mut session) {
@@ -38,8 +44,14 @@ fn callback_observes_periodization_weight_applied_exactly_once() {
 
 #[test]
 fn already_weighted_callback_is_accumulated_without_another_jacobian() {
+    for periodization in [Periodization::Korobov3, Periodization::Korobov2] {
+        already_weighted_callback(periodization);
+    }
+}
+
+fn already_weighted_callback(periodization: Periodization) {
     let mut configuration = settings();
-    configuration.periodization = Periodization::Korobov3;
+    configuration.periodization = periodization;
     let mut session = QmcSession::democratic(problem(), configuration).unwrap();
     let mut nontrivial = false;
     for task in tasks(&mut session) {
@@ -225,7 +237,19 @@ fn democratic_errors_wait_for_common_full_sector_coverage() {
 
 #[test]
 fn checkpoint_reissues_inflight_work_and_preserves_estimates() {
-    let mut session = QmcSession::democratic(problem(), settings()).unwrap();
+    for periodization in [
+        Periodization::None,
+        Periodization::Korobov3,
+        Periodization::Korobov2,
+    ] {
+        checkpoint_continuation(periodization);
+    }
+}
+
+fn checkpoint_continuation(periodization: Periodization) {
+    let mut configuration = settings();
+    configuration.periodization = periodization;
+    let mut session = QmcSession::democratic(problem(), configuration).unwrap();
     let work = tasks(&mut session);
     let returns: Vec<_> = work.into_iter().map(|t| evaluate(&session, t)).collect();
     for value in returns.iter().take(3) {
@@ -233,6 +257,7 @@ fn checkpoint_reissues_inflight_work_and_preserves_estimates() {
     }
     let bytes = session.checkpoint().unwrap();
     let mut restored = QmcSession::restore(&bytes, &problem()).unwrap();
+    assert_eq!(restored.design().settings.periodization, periodization);
     for task in tasks(&mut restored).into_iter().rev() {
         restored.submit(evaluate(&restored, task)).unwrap();
     }
@@ -244,6 +269,61 @@ fn checkpoint_reissues_inflight_work_and_preserves_estimates() {
     let mut other = problem();
     other.content_id.push_str("-different-numerator");
     assert!(QmcSession::restore(&bytes, &other).is_err());
+}
+
+#[test]
+fn korobov2_is_explicit_serialized_and_identity_bound() {
+    assert_eq!(Periodization::default(), Periodization::Korobov3);
+    assert_eq!(
+        QmcSettings::default().periodization,
+        Periodization::Korobov3
+    );
+    // Append the new variant: the existing binary enum discriminants stay fixed.
+    assert_eq!(Periodization::None as u8, 0);
+    assert_eq!(Periodization::Korobov3 as u8, 1);
+    assert_eq!(Periodization::Korobov2 as u8, 2);
+    for (chosen, other) in [
+        (Periodization::Korobov2, Periodization::Korobov3),
+        (Periodization::Korobov3, Periodization::Korobov2),
+    ] {
+        let mut configuration = settings();
+        configuration.periodization = chosen;
+        let encoded = serde_json::to_vec(&configuration).unwrap();
+        let decoded: QmcSettings = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(decoded, configuration);
+        let mut session = QmcSession::democratic(problem(), decoded).unwrap();
+        let task = session.next_work().unwrap().unwrap();
+        configuration.periodization = other;
+        let mut foreign = QmcSession::democratic(problem(), configuration).unwrap();
+        let foreign_task = foreign.next_work().unwrap().unwrap();
+        assert!(
+            session
+                .worker_context(task.sector_id())
+                .unwrap()
+                .evaluate(foreign_task.clone(), |_, _| -> Result<(), String> {
+                    panic!("mismatched transform must fail before callback execution")
+                })
+                .is_err()
+        );
+        assert!(session.submit(evaluate(&foreign, foreign_task)).is_err());
+        assert_eq!(session.snapshot().unwrap().completed_points, 0);
+        session.submit(evaluate(&session, task)).unwrap();
+        let mut state: serde_json::Value =
+            serde_json::from_slice(&session.checkpoint().unwrap()).unwrap();
+        state["settings"]["periodization"] = serde_json::to_value(other).unwrap();
+        assert!(QmcSession::restore(&serde_json::to_vec(&state).unwrap(), &problem()).is_err());
+        let label = if chosen == Periodization::Korobov2 {
+            "Korobov 2"
+        } else {
+            "Korobov 3"
+        };
+        assert_eq!(
+            session.design().to_string(),
+            format!(
+                "QMC design: supplied vector (2 components); {label}; seed 73; 2 sectors; points per shift 8; shifts 4"
+            )
+        );
+    }
 }
 
 #[test]

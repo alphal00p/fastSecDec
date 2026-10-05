@@ -19,6 +19,7 @@ impl fmt::Display for QmcDesign {
         let transform = match self.settings.periodization {
             Periodization::None => "no periodization",
             Periodization::Korobov3 => "Korobov 3",
+            Periodization::Korobov2 => "Korobov 2",
         };
         write!(f, "; {transform}; seed {}", self.settings.seed)?;
         let Some(min_points) = self.allocations.iter().map(|a| a.points).min() else {

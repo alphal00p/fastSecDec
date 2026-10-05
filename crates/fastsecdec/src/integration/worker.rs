@@ -1,6 +1,8 @@
 use std::{fmt::Display, time::Instant};
 
-use numerica::numerical_integration::qmc::{Korobov3, QmcPartial, QmcPlan, QmcWorkPackage};
+use numerica::numerical_integration::qmc::{
+    Korobov2, Korobov3, QmcPartial, QmcPlan, QmcWorkPackage,
+};
 use serde::{Deserialize, Serialize};
 
 use super::{IntegrationError, Periodization, Result};
@@ -130,6 +132,7 @@ impl QmcWorker {
             let weight = match self.periodization {
                 Periodization::None => 1.0,
                 Periodization::Korobov3 => Korobov3::transform_in_place(&mut self.point)?,
+                Periodization::Korobov2 => Korobov2::transform_in_place(&mut self.point)?,
             };
             self.values.fill(f64::NAN);
             evaluate(&self.point, weight, &mut self.values)

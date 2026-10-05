@@ -106,6 +106,17 @@ memory, complete Laurent coverage and integration convergence. Only then decide
 whether the example is suitable for the default browser walkthrough, an optional
 longer browser run, or native execution. Do not predeclare it browser-feasible.
 
+**Bounded gg→HH reference feasibility (2026-10-05):** Delegate a comparison with
+FastSecDecPathFinder and pySecDec for this exact diagram, scalar numerator,
+color/helicity projection, masses and physical point. Inspect each route before
+running it. Each implementation has a cumulative attempt budget of ten minutes
+and 15 GB of RAM across its owned process tree. Do not pursue completion when
+the route appears infeasible within those limits; terminate and reap owned work
+at a limit, preserving the stage, timing, memory and failure evidence. Report
+measured generation and integration costs and achieved uncertainty only when
+available. An incomplete reference supplies a feasibility bound, not a numerical
+result, extrapolated timing or new requirement to complete that reference.
+
 Latest user clarifications, verbatim:
 
 ```text
@@ -119,6 +130,10 @@ Basically use the HEPKit diagram generator to build that double-box contrib to g
 
 ```text
 Continue as planned, but before integrating this example in the notebook, make sure to verify that it is reasonably doable by running this example locally and natively within the fastSecDec package (encode it first as an entry in ./example which you run using the cli).
+```
+
+```text
+Can you delegate to subagent to see what kind of performance fastSecDecPathFinder and pySecDec themselves would have on this exact same double-box gg_hh example? (If it does not appear to be feasible within 10 min and 15 GB of RAM then do not try to complete this example within these two different implementations).
 ```
 
 ## 2. Architecture, ecosystem reuse, and inputs
@@ -660,6 +675,20 @@ And as I said, once you're feature complete within what's stated in the goal, an
 ```
 
 ## Implementation record
+
+- 2026-10-05: optional Korobov-2 is published in Numerica PR #8 at `bb996e4`
+  and exposed through native FastSecDec settings and CLI run cards. Numerica
+  owns all transform arithmetic; Korobov-3 and Monte Carlo defaults are
+  unchanged. Exact Rust 1.89 Numerica suites pass 243/246/223 tests. FastSecDec
+  passes 37 focused tests, workspace all-target Clippy, formatting and the
+  portable-host compile check. Independent source and bound-evidence reviews
+  accept the additive dispatch, weight application, checkpoint identity and
+  dependency pin; manifests and lockfiles are unchanged. No physical K2 timing
+  or convergence claim is made. The user additionally requested bounded
+  gg→HH Pathfinder/pySecDec feasibility checks, limited separately to ten
+  minutes and 15 GB; the governing instruction is recorded above. Native
+  notebook integration and those reference checks remain in progress.
+  See `docs/reviews/korobov2-integration.md`.
 
 - 2026-10-05: the fresh public-owner release passes strict scalar double-box
   generation/loading, with 102 kernels exactly equal to the retained native

@@ -3,6 +3,41 @@ use fastsecdec::generation::{CoefficientExpansionMethod, CoefficientExpansionOpt
 use fastsecdec::parametric::FamilyPreparationPolicy;
 
 #[test]
+fn periodization_reuses_native_variants_and_preserves_the_default() {
+    use super::IntegrationInput;
+    use fastsecdec::integration::Periodization;
+
+    assert_eq!(
+        IntegrationInput::default()
+            .qmc_settings()
+            .unwrap()
+            .periodization,
+        Periodization::Korobov3
+    );
+    for (name, expected) in [
+        ("none", Periodization::None),
+        ("korobov3", Periodization::Korobov3),
+        ("korobov2", Periodization::Korobov2),
+    ] {
+        let input: IntegrationInput = toml::from_str(&format!("periodization='{name}'")).unwrap();
+        assert_eq!(input.qmc_settings().unwrap().periodization, expected);
+        let restored: IntegrationInput =
+            serde_json::from_slice(&serde_json::to_vec(&input).unwrap()).unwrap();
+        assert_eq!(
+            restored.qmc_settings().unwrap(),
+            input.qmc_settings().unwrap()
+        );
+    }
+    for name in ["unknown", "Korobov2"] {
+        let input: IntegrationInput = toml::from_str(&format!("periodization='{name}'")).unwrap();
+        assert_eq!(
+            input.qmc_settings().unwrap_err().to_string(),
+            "periodization must be none, korobov2 or korobov3"
+        );
+    }
+}
+
+#[test]
 fn family_policy_uses_native_type_with_explicit_original_cli_default() {
     let historical: GenerationInput = toml::from_str("order=1").unwrap();
     assert_eq!(

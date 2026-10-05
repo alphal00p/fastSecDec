@@ -108,6 +108,7 @@ pub enum Periodization {
     None,
     #[default]
     Korobov3,
+    Korobov2,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

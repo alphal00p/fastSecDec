@@ -72,7 +72,7 @@ The pinned source identities are:
 |---|---|
 | `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `6c707c6b77a437256eb1180da13d4d327b371d13`, plus the literal-symbol substitution fix |
 | `symbolica` from `symbolica-dev/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, plus the seven reviewed patches below |
-| `numerica` from `ValentinHirschi/numerica` | QMC commit `e4638da22a17cfa931fa14c6829d3350b7a8de2b` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, periodization range checks, and explicit attributed published catalogues |
+| `numerica` from `ValentinHirschi/numerica` | QMC commit `bb996e415bee9ae2c143f97408675d3051c3c2aa` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, guarded Korobov2/Korobov3 periodization, and explicit attributed published catalogues |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
 | `oneloop` from `alphal00p/oneloopmaster` | Development-only scalar references at `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`, plus the SymJIT compatibility patch; default features disabled |
 | `one-loop-reduce` from `lcnbr/one-loop-reduce` | Development-only numerator references at `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |

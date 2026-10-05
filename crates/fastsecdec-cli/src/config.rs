@@ -185,7 +185,8 @@ impl IntegrationInput {
             periodization: match self.periodization.as_str() {
                 "none" => Periodization::None,
                 "korobov3" => Periodization::Korobov3,
-                _ => return Err("periodization must be none or korobov3".into()),
+                "korobov2" => Periodization::Korobov2,
+                _ => return Err("periodization must be none, korobov2 or korobov3".into()),
             },
             rule: if catalogue == PublishedLattice::Kuo33002 {
                 RuleSource::Kuo

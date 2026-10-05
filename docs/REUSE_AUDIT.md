@@ -53,6 +53,16 @@ prebuilt native numeric evaluator IR; workers do not construct or evaluate Atoms
 
 ## Recurring integration audits
 
+The [Korobov-2 review](reviews/korobov2-integration.md) accepts the additive
+Numerica transform and its thin FastSecDec dispatch. Public API, source/tests
+and an external Rust probe established the missing numerical operation;
+Numerica owns all map/Jacobian arithmetic. Independent source and final-evidence
+reviews accept the weighting, checkpoint identity, caller-owned execution and
+unique dependency owners. The existing Korobov-3 default remains unchanged.
+The new HEPKit gg→HH notebook bindings have a separate integration/reuse audit
+in progress; this numerical milestone does not certify that demo or K2 physical
+performance.
+
 An independent subagent reviews HEPKit integration and ecosystem reuse at each
 major subsystem milestone, before new dependency patches are accepted, and at
 final acceptance. The review covers native ownership and public interfaces,
