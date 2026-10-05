@@ -673,3 +673,12 @@ and supplies separate comparisons. No new uncertainty estimator, polynomial
 projection, prefactor convolution or result schema was introduced. The five
 focused reference tests pass; calibration and the highest-order accuracy gate
 remain explicitly unverified.
+
+The [sector-identity audit](reviews/sector-content-identity-independent.md)
+accepts an additive digest over native immutable evaluator bytes and the
+existing artifact/metadata transport. BLAKE3 owns hashing; Symbolica retains
+instruction serialization and canonical expression transport. The accessor
+introduces no new algebra, decoder, graph identity or persistence schema.
+Four focused tests, formatting and library Clippy pass. Parent artifact,
+checkpoint/result and replay identity contracts remain unchanged; no
+machine-code cache or mathematical-equivalence claim follows from the digest.

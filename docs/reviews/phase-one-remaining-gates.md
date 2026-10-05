@@ -64,18 +64,19 @@ physical integral requiring a duplicate numerical campaign.
    or supply a reviewed endpoint-chart extension; do not equate the
    `assume_no_threshold` assertion with resolution of endpoint geometry.
 
-3. **An additive sector content identity remains queued.** The plan says
+3. **The additive sector content identity API is now implemented.** The plan says
    content-based sector identities. Current generated kernels and
    `KernelResultManifest::from_kernels` use original zero-based slice IDs,
    qualified by the complete kernel content hash. Public integration callers
    may provide their own stable IDs. Selection/resume are safe and tested with
-   those current identities; there is no standalone per-sector content ID for
-   reuse across different parent artifacts. Root chose an additive derived
+   those current identities. A new standalone per-sector content ID supports
+   reuse across different parent artifacts. The additive derived
    accessor/hash over native IR, ordered layout, numerical policy and retained
    semantics, preserving all current indices and checkpoint meanings. The
-   [geometry/reuse proposal](geometry-reuse-scheduling-proposal.md) specifies
-   that queued contract without claiming CAS equivalence or changing existing
-   artifact bytes.
+   [implementation and independent review](sector-content-identity.md) pass
+   four focused tests, formatting and library Clippy. The digest does not claim
+   CAS equivalence or change existing artifact bytes; machine-code caching
+   would need additional architecture/backend identity.
 
 4. **The identified interactive presentation gaps are now addressed.** Plain/JSON status,
    numerical failures, real SIGINT, partial resume and scoped results have

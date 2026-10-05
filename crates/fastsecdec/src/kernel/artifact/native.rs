@@ -15,8 +15,8 @@ use symbolica::atom::AtomCore;
 
 // Native evaluator serde is not a stable cross-revision interchange format.
 // The local structural-validation patch preserves this upstream wire layout.
-const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
-const COMPILER: &str = "symjit-2.26.4:O2:direct:horner-iterations=0";
+pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
+pub(super) const COMPILER: &str = "symjit-2.26.4:O2:direct:horner-iterations=0";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

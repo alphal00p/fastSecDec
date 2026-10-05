@@ -41,6 +41,12 @@ fn integers(values: Vec<String>) -> Result<Vec<Integer>, KernelError> {
         .collect()
 }
 impl PortableChart {
+    pub(super) fn for_sector(chart: &ChartRecord) -> Self {
+        let mut selected = Self::from_native(chart);
+        selected.kernel_sector = Some(0);
+        selected
+    }
+
     pub(super) fn from_native(chart: &ChartRecord) -> Self {
         let coordinates = chart.coordinates();
         let geometry = chart.geometry();

@@ -2,6 +2,7 @@
 //! Symbolica owns native program decoding and structural validation.
 mod legacy;
 mod native;
+mod sector_identity;
 
 use super::{KernelError, KernelSet, PrecisionPolicy};
 use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};

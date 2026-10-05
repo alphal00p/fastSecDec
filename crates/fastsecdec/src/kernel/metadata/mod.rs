@@ -17,6 +17,20 @@ pub struct PortableMetadata {
     charts: Vec<chart::PortableChart>,
 }
 impl PortableMetadata {
+    /// Hash-boundary view of one kernel's retained semantics. Original chart
+    /// ordinals stay intact; the selected kernel has local ordinal zero.
+    pub(in crate::kernel) fn for_sector(value: &GenerationMetadata, index: usize) -> Self {
+        Self {
+            domain: domain::PortableAssessment::from_native(value.domain_assessment()),
+            charts: value
+                .charts()
+                .iter()
+                .filter(|chart| chart.kernel_sector() == Some(index))
+                .map(chart::PortableChart::for_sector)
+                .collect(),
+        }
+    }
+
     pub fn from_native(value: &GenerationMetadata) -> Self {
         Self {
             domain: domain::PortableAssessment::from_native(value.domain_assessment()),
