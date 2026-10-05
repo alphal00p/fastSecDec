@@ -181,7 +181,7 @@
   "numerical_integral_complete": false,
   "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
   "parametric_generation_complete": false,
-  "projected_numerator_is_raw": true,
+  "projected_numerator_is_raw": false,
   "selected_diagram": "FK018",
   "selected_diagram_id": "eb51e855105cae69514fd9dcdd4bbffe",
   "selection": {
@@ -220,5 +220,11 @@
   },
   "selection_rule": "first native generated-order match: six-top hexagon, one central gluon, circuits [4,4,6], each box with g and H",
   "threshold_admission": "ordinary CLI check remains required",
-  "version": 1
+  "version": 1,
+  "color_reduction": {
+    "convention": "native SU(3), T_F=1/2; unnormalized external delta_ab applied once",
+    "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
+    "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
+    "symbolic_to_explicit_exact_check": true
+  }
 }

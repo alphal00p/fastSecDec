@@ -120,7 +120,7 @@ executed source. The coordinator also visually reviewed the offset-history
 replay and accepted its presentation; final whole-notebook display acceptance
 will use the portable browser run.
 
-## Browser export and remaining gates
+## Browser export and portable execution
 
 The export helper accepts an explicit existing cp314/pyemscripten_2026_0 wheel,
 packages the four native DOT fixtures/model and Python helpers, and records an
@@ -130,9 +130,86 @@ and mounts the files before importing builders. It does not presume repository
 paths exist in a browser. No license key, raw numerical result or native build
 artifact is bundled by the notebook source.
 
-The actual Pyodide wheel/import, asset mounting and portable numerical UI gates
-remain pending. Export alone does not establish any of them. The four scientific
-builders and native bridge tests have separate ownership and evidence; this UI
-execution exercised the triangle only. The gg → HH example is intentionally
-absent until ordinary native feasibility is established. Native lifecycle acceptance is limited as stated above; final portable and
-post-polish display acceptance remain with the coordinator.
+The actual portable wheel is SHA-256
+`7dc6f4a6df3b3c8c667e5c978a159f41707ac53aabc66344a8715189fb295d34`
+(39,475,650 bytes), built with Pyodide **314.0.7**. The installed marimo 0.24.2
+frontend uses **314.0.0**; these versions were not silently equated or changed.
+The actual browser's recorded successful runtime requests identify 314.0.0.
+Exported wheel, archive and eight explicit asset files were verified, installed
+and mounted successfully. Native graph SVG rendering and submitted controls
+worked with no browser, console or network errors. No private license was
+injected into the notebook, wheel bundle or browser harness.
+
+Evidence is under `output/diagnostics/notebook-wasm-browser`. `bootstrap-1`
+records the import/form/render gate. `lifecycle-1` stopped before Run because a
+harness CSS selector did not match the rendered wrapper. The preserved
+attempt performed no integration; selecting the native SVG's own attribute
+fixed the harness. No notebook source or wheel changed. `lifecycle-2` then
+passed actual portable Run, Cancel, checkpoint download, Resume, completion and
+checkpoint download again, with one native SVG and zero browser/console/network
+errors. Only this second lifecycle attempt invoked scientific generation/QMC.
+
+The unchanged submitted triangle used m=1, s=−1, highest order +1,
+Kuo33002/Korobov3, N=1024, R=8, seed 20261005 and 1024-point packages. Cancel
+stopped at **3,072 / 16,384** points: sector zero had two accepted shifts and
+sector one had one. The native session correctly reported **no full-vector
+estimate**, waiting for coverage; no provisional zero or precision result was
+shown. Resume reached **16,384 points and 16/16 shifts**, with native stop
+`PlannedWorkComplete`, available uncertainty and actual backend
+`portable_interpreted`. Both the highest-order 0.1% target and native full-vector
+target were met. The complete displayed Laurent rows were −0.46312964 at order
+zero and 0.30202189 at order one, with standard errors 2.4721835e−9 and
+1.4880075e−9 respectively. The recorded highest-order history retains
+0.3020218928800966 ± 1.4880074505680763e−9. Diagnostics retain two rescues at
+256 bits, two conditioning/weighted checks and zero failures.
+
+Offline checkpoint validation proves equal configuration, problem, settings,
+allocations and lattice plans, and exact preservation of all accepted partials
+and their recorded costs: the two/one partials at Cancel are the prefixes of the
+eight/eight partials at completion. Replay identities, policies and verified
+flags are unchanged; their observed maxima can grow monotonically as resumed
+samples arrive. An initial validator incorrectly demanded unchanged maxima;
+that validator is preserved and the corrected check records the actual replay
+semantics. No scientific run was repeated for this offline correction.
+`lifecycle-2/validation.json` binds eighteen source/artifact/screenshot/checkpoint
+files. The five notebook/export sources are archived under `executed-source`.
+
+The browser gate took 17.9493 seconds overall, including 11.9601 seconds for
+runtime/package startup. Displayed generation time was 0.339 seconds; active
+caller integration wall time was 3.55 seconds, including refresh waits and
+excluding the Cancel-to-Resume pause. These are single capability observations,
+not matched performance measurements or a general responsiveness guarantee.
+Prepared, Cancelled and completed screenshots retain the compact generation
+summary, folded events, friendly labels and explicit portable backend. The full
+rendered text also retains the Laurent table and history below the completed
+screenshot's viewport. The browser was closed and reaped before releasing the
+scientific slot to the ggHH owner.
+
+The separate actual Pyodide 314.0.7 bridge run passed **39 tests, zero skips**
+(1.66 seconds reported by pytest). Its unchanged test sources establish this
+bounded coverage without another numerical campaign (test sources and log are
+bound in `notebook-wasm-browser/coverage-source/coverage.json`):
+
+| Example | Actual portable scientific coverage | Limit |
+| --- | --- | --- |
+| Massive triangle | Generation/compilation, full allocation, analytic finite coefficient, joint covariance, artifact/checkpoint round-trip, cancellation and errors; actual 314.0.0 browser lifecycle above | One default browser point |
+| Massless box | Generation/compilation through order +1 and one accepted 32-point package | No complete estimate or convergence claim |
+| Rank-two box numerator | Generation/compilation through order +1 and one accepted 32-point package | No complete estimate or convergence claim |
+| Coupled sunset | Generation/compilation through order +1 and one accepted 32-point package | No complete estimate or convergence claim |
+
+The bridge suite also verifies all four native input owners, numerator and
+normalization conventions, varied kinematics and invalid-control rejection.
+The broader baseline Pyodide smoke subsequently passed after its owner updated
+the test caller to the published evaluator signature and installed its explicit
+NumPy dependency; the wheel and notebook were unchanged. Bridge evidence remains
+under `output/diagnostics/bridge-wasm-1`.
+
+The coordinator independently verified all eighteen bindings, the exact two/one
+to eight/eight accepted checkpoint prefixes, equal configurations and complete
+coverage, and visually reviewed the completed compact dashboard. Portable
+lifecycle and this presentation are accepted within the stated scope; the
+independent record is `lifecycle-2/coordinator-review.json`.
+The gg → HH example has now passed its separate native generation/integration
+prerequisite, but remains outside the notebook pending actual Wasm feasibility. No notebook
+claim of four-example one-per-mille convergence or matched backend performance
+is made.

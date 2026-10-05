@@ -1115,3 +1115,18 @@ records an actual Chromium Run/Cancel/Resume/Complete workflow. The coordinator
 verified its eleven bound inputs/artifacts and the unchanged accepted checkpoint
 prefix. Those checks cover a native server; actual Pyodide execution and browser
 responsiveness remain pending.
+
+The ggHH input's native color closure now uses Idenso's existing explicit SU(N)
+invariant option, matching GammaLoop's evaluator preprocessing. API/source/test
+inspection and an actual generated-fixture Rust probe verify the exact
+symbolic-to-explicit conversion and `T_F = 1/2` normalization. The external
+color delta is consumed once; raw diagram data, couplings, graph topology,
+physical point and D-dimensional Dirac algebra are preserved. An independent
+read-only ecosystem review accepted the boundary. The
+[color-closure review](reviews/gghh-native-color-closure.md) records this example
+preparation fix. Its subsequent ordinary CLI generation and full-vector
+integration now complete; the [native feasibility review](reviews/gghh-native-feasibility.md)
+records the 61.285-second generation, 8.781-second eight-worker allocation,
+complete covariance and 1.0273% finite-part relative error. This closes the
+native example prerequisite without claiming browser feasibility, one-per-mil
+accuracy or an independent amplitude reference.

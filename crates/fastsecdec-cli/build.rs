@@ -7,7 +7,7 @@ fn main() {
     for (name, relative) in [
         (
             "FEYNKIT",
-            "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit",
+            "DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/feynkit-fastsecdec-notebook",
         ),
         (
             "SYMBOLICA",

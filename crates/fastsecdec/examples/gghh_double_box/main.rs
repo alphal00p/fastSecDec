@@ -5,6 +5,7 @@
 //! This is one diagram with an explicit color/helicity projection, not a
 //! gauge-invariant sum or a cross section.
 
+mod color;
 mod export;
 mod point;
 mod select;

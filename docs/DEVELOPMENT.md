@@ -62,6 +62,14 @@ identity reports are in `output/diagnostics/bridge-*-identities.json`. The
 isolated shared-wavefunction publication and HEPKit PR are recorded in the
 [shared-wavefunction review](reviews/shared-external-wavefunctions.md).
 
+The CLI's embedded FeynKit provenance follows this same checkout. An optimized
+build review caught and corrected its remaining reference to the older
+`worktrees/feynkit` path before running the ggHH example. The three existing
+provenance controls pass; `output/diagnostics/gghh-native-release-build-2` also
+compares the emitted dependency revisions with Cargo's actual compiled source
+owners. The first build is retained as build evidence and was not used for
+scientific execution.
+
 Browser evaluator construction also needs the additive native
 [`try_map_coeff_with_prec` patch](dependency-patches/symbolica-fallible-coefficient-map.md).
 Its ten focused controls pass. It preserves existing mapping behavior and adds

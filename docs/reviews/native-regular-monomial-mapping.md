@@ -104,3 +104,31 @@ the ordinary registry still performs the same native canonization and exact
 permutation verification. Explicit Rust 1.98.1 `rustfmt --check` passed for all
 five affected attribution files. No diagnostic file I/O is linked into the
 ordinary CLI.
+
+The optimized ordinary CLI follow-up completed all 30 mappings and coefficient
+expansions. It reached kernel construction with orders `[-1, 0]` and then
+reported the unsupported native color invariant `cas(2,coad(8))`. The process
+exited 1 and was reaped at 58.9922 seconds, below its unchanged 180-second bound,
+with peak RSS 274,076 KiB. Mapping took 38.8190 seconds, symmetry 9.9097 seconds
+and coefficient expansion 9.1159 seconds. All source/input/executable postchecks
+passed. This closes the observed mapping-capacity concern for this fixture;
+compiled generation and integration remain incomplete. No artifact was emitted
+and the conditional integration was not started. Evidence is
+`output/diagnostics/gghh-native-cli-generation-8`.
+
+Before that run, the CLI build's FeynKit provenance path was corrected to the
+actual Cargo dependency owner. The first release executable remains archived
+and was not used for science. The second executable's embedded revision and
+source state match the dependency manifests in Cargo's compiler output; the
+three existing dependency-provenance controls pass. Both libraries and CLI use
+the ordinary optimized release profile, while numerical kernels still default
+to portable SymJIT O2.
+
+After native color closure in the example exporter, the unchanged optimized
+CLI completed and saved all 30 kernels in 61.2853 seconds. A bounded ordinary
+integration then completed all 245,760 samples across eight shifts per sector
+in 8.7809 seconds on eight workers, retaining both orders and their full joint
+covariance. The finite coefficient's relative error is 1.0273%, so this proves
+native feasibility without a one-per-mil convergence claim. See the
+[native feasibility review](gghh-native-feasibility.md) for timing boundaries,
+precision rescues and preserved evidence.

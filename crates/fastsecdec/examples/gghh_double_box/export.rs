@@ -9,7 +9,7 @@ use idenso::representations::ColorAdjoint;
 use linnet::half_edge::involution::HedgePair;
 use numerica::domains::float::Complex;
 use spenso::structure::representation::{Minkowski, RepName};
-use symbolica::atom::AtomCore;
+use symbolica::atom::{Atom, AtomCore};
 
 use super::{
     Result,
@@ -76,7 +76,9 @@ pub fn projected(raw: &FeynmanDiagram) -> Result<FeynmanDiagram> {
     }
     let lorentz = Minkowski {}.new_rep(4);
     let color = ColorAdjoint {}.new_rep(8);
-    let mut projector = color.id(&ports[0].1, &ports[1].1);
+    let color_projector = color.id(&ports[0].1, &ports[1].1);
+    let numerator = super::color::contract(raw.numerator(), &color_projector)?;
+    let mut projector = Atom::one();
     for ((_, index), name) in ports.into_iter().zip(point::auxiliaries()) {
         projector *= lorentz.vector(name.as_view(), [index]);
     }
@@ -84,6 +86,7 @@ pub fn projected(raw: &FeynmanDiagram) -> Result<FeynmanDiagram> {
     // No extra symmetry factor, color average or spin average is introduced.
     Ok(raw
         .clone()
+        .with_numerator(numerator)?
         .with_projector(projector)
         .with_overall_factor(evaluate_overall_factor(raw.overall_factor().as_view())))
 }
@@ -120,7 +123,7 @@ pub fn fixture(
 ) -> Result<()> {
     let dot = projected.to_dot()?;
     let loaded = FeynmanDiagram::from_dot(projected.model_arc(), &dot)?;
-    if loaded.numerator() != raw.numerator()
+    if loaded.numerator() != projected.numerator()
         || loaded.projector() != projected.projector()
         || loaded.overall_factor() != projected.overall_factor()
         || loaded.numerator_prefactor() != raw.numerator_prefactor()
@@ -128,6 +131,10 @@ pub fn fixture(
         return Err("native DOT round-trip changed numerator/projection/weight".into());
     }
     std::fs::write(output.join("graph.dot"), dot)?;
+    std::fs::write(
+        output.join("color-projected-numerator.txt"),
+        projected.numerator().to_canonical_string(),
+    )?;
     let parameters = parameter_card(projected.model())?;
     let mut cli_model = projected.model().clone();
     cli_model.apply_parameter_card(&parameters)?;
@@ -168,7 +175,14 @@ pub fn fixture(
             "external_dimension": 4, "internal_dimension": "4-2*eps", "helicities": [1, 1],
             "color_projection": "unnormalized delta_ab; no color or spin average",
             "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
-            "projected_numerator_is_raw": true, "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
+            "projected_numerator_is_raw": false,
+            "color_reduction": {
+                "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
+                "convention": "native SU(3), T_F=1/2; unnormalized external delta_ab applied once",
+                "symbolic_to_explicit_exact_check": true,
+                "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
+            },
+            "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
             "gauge_invariant_sum": false, "threshold_admission": "ordinary CLI check remains required",
             "parametric_generation_complete": false, "numerical_integral_complete": false,
         }))?,
