@@ -2,7 +2,8 @@
 
 The ignored Rust source `output/probes/point_first_original_taylor.rs` is frozen
 at SHA256 `b408c3ddf190d9accb36ee67df66321c5e2ca05b48a5f04ce2778213c529223d`.
-It is source-reviewed and compiled, but has not been executed. It adapts the previously
+It is source-reviewed and compiled; the two bounded point-zero outcomes below
+are retained. It adapts the previously
 reviewed native point-first oracle to the original captured Taylor expression,
 without consuming any named-coefficient output or an unfinished IBP expression.
 
@@ -100,8 +101,24 @@ maximum four calls and all precision/bound checks are unchanged. HEP verified
 the two-line diff and all 22 frozen build hashes before launch.
 
 The fresh directory is
-`output/diagnostics/original-taylor-point-0-attempt-2`. Its result is pending;
-the earlier 180-second failure remains immutable. The remaining prescribed
-points may run only after a complete independently reviewed point-zero result,
-each with its own unchanged 600-second bound. Any failure stops the dependent
-chain, with no further automatic increase or algorithm change.
+`output/diagnostics/original-taylor-point-0-attempt-2`. It reached the fixed
+600-second deadline and was reaped after 600.315441 seconds, with exit status
+124 and peak resident memory 3,617,212 KiB. Literal binding took 9.798931
+seconds; relative width one took 18.718179 seconds and again returned leading
+order -6 and absolute remainder -5. The width-seven request did not return.
+Only the bound input and progress record exist: there is no full coefficient
+vector, final remainder or 512/1024-bit result. The timer records 179.977609
+user CPU seconds and 416.031285 system CPU seconds; these counters alone do
+not establish why the native request failed to complete.
+
+Every frozen input hash passed, and the timer's input, executable and build
+evidence checks remain unchanged. The earlier 180-second failure is immutable.
+Points one and two and the dependent comparison reader remain unlaunched.
+This second failure stops the conditional chain; no further deadline increase,
+alternative algorithm or candidate correctness claim follows from either
+attempt.
+
+HEP independently verified the failed outcome, all 33 postflight hashes and
+unchanged build/input flags in this attempt's `independent-review.json`.
+That review confirms the absence of an oracle result and preserves the held
+follow-on stages; it does not accept an incomplete vector.

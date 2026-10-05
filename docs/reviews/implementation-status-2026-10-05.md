@@ -114,8 +114,17 @@ minus six through zero and native remainder one. Its complete evaluator builds
 in a separate 43.313581-second process and retains 14.58 MB of native exact IR.
 Independent original-expression comparisons remain pending: the first oracle
 times out in native series at 180.167 seconds without a coefficient vector.
-A fresh unchanged-math point-zero attempt has a predeclared 600-second bound.
-No production strategy or whole-graph performance claim changes.
+A fresh unchanged-math point-zero attempt also times out, at 600.315 seconds,
+without returning the full series. Both are retained; later points and readers
+remain unstarted. Native factor extraction and high-precision automatic
+differentiation subsequently pass a disconnected small gate: six cases and
+forty signed coefficient rows agree with original-expression native Series at
+512/1024 bits. Relative-only tiny nonzero controls, complex output, negative
+requested maxima, nine typed rejections and a separate literal-zero control
+also pass independent review. The actual captured-expression adapter remains
+under development. Its analyticity/Taylor coverage has a distinct diagnostic
+format and cannot be reported as a native Series remainder. No production
+strategy or whole-graph performance claim changes.
 
 ## Small-case generation and eight-core accuracy
 
@@ -283,6 +292,16 @@ seconds, including 3.712188 seconds for native exact program construction and
 coefficients; it does not include their generation or certify their values.
 The three independent original-expression oracles and complete cold-reader
 comparisons are still required.
+
+The first original-expression point fails at both separately declared limits:
+180.167230 and 600.315441 seconds. Exact binding leaves a 22.69 MB Atom; native
+relative width one returns leading order minus six and remainder minus five,
+but the width-seven request never completes within either limit. The longer
+attempt peaks at 3,617,212 KiB; its inputs remain unchanged and the child is
+reaped. No complete oracle, subsequent point or reader is accepted. See the
+[original-oracle record](native-original-taylor-point-first-oracle.md). This
+failure limits validation of the candidate; it is not a timed production
+integration or a coefficient disagreement.
 
 ### Hard four-loop independent reference
 

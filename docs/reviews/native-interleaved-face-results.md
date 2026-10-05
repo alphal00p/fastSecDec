@@ -136,3 +136,13 @@ evidence only: actual coefficient correctness has not been established, and
 the production default remains unchanged. Any later, separately approved
 original-expression attempt must preserve this failure and record its own
 fresh bounds and evidence.
+
+The separately approved unchanged-algorithm point-zero attempt two also timed
+out, at 600.315440630 seconds with SIGINT and all inputs unchanged. Peak child
+RSS was 3,617,212 KiB; user/system CPU were 179.977609/416.031285 seconds. Its
+width-one result again reported leading minus six and absolute bound minus
+five; width seven did not complete. The independent audit rechecked all 33
+frozen files. Neither attempt yielded an oracle coefficient vector. Points one
+and two and the actual cold-reader chain remain unlaunched; there is no further
+same-algorithm deadline escalation. Disconnected exact factor/dual research is
+a separate small-control task, not acceptance of the actual candidate.

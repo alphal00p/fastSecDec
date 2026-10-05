@@ -137,3 +137,15 @@ all 22 frozen build checks pass independently before handoff. This longer
 diagnostic leaves the failed attempt intact and does not establish candidate
 correctness. Later points remain conditional on complete accepted oracle
 outcomes; cold comparisons still require all three complete records.
+
+That unchanged 600-second retry also times out. Independent inspection of
+`output/diagnostics/original-taylor-point-0-attempt-2` confirms exit 124, child
+SIGINT and a reaped process after 600.31544063 seconds, peak child RSS
+3,617,212 KiB. All 33 immutable hashes pass again. The first native call returns
+the same leading order −6 and remainder −5 in 18.718179114 seconds; width seven
+still has no completed result. No full coefficient vector exists, and the
+later points and all cold readers remain unlaunched. The retained
+`independent-review.json` explicitly rejects complete-oracle acceptance. This
+does not invalidate candidate construction, but it leaves coefficient agreement
+and production adoption unestablished. Source research into a different native
+oracle route must pass its own independent small controls first.

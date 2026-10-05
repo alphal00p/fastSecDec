@@ -784,6 +784,20 @@ The first original-expression point-zero oracle reached native leading order
 complete vector. Its inputs and failure are retained. A reviewed fresh retry
 changes only the process deadline to 600 seconds; the scientific source,
 binary, inputs, native Series operations and precision checks are unchanged.
+That retry also times out, after 600.32 seconds in the second native width-seven
+call, with all 33 input hashes intact and no full vector. Later points and cold
+readers remain held. A native dual/factor alternative is source research and
+disconnected small controls only, not an accepted replacement oracle.
+The [independent dual review](reviews/native-dual-original-oracle-independent.md)
+subsequently accepts six such controls with 40 full signed coefficients,
+independent native Series/dual agreement at 512/1024 bits, known polynomial
+normalization, tiny nonzero and complex guards, nine typed rejections and
+literal zero. All 19 frozen hashes pass. Symbolica owns factor collection,
+dual Taylor components, Gamma derivatives and MPFR evaluation; the caller owns
+the original-source pole bound and strict analytic input admission. An actual
+adapter must expose that coverage basis distinctly, never manufacture a native
+Series remainder field to satisfy an older reader. Actual-input certification
+and production adoption remain open.
 The [prospective production boundary review](reviews/native-named-production-boundaries.md)
 therefore remains an interface proposal, with admission, conditioning,
 resource/cancellation and public progress decisions explicit before adoption.
