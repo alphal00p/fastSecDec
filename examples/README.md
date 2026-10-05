@@ -98,6 +98,14 @@ report. Its decimal values are rounded, and its uncertainty has not been
 independently certified. The report used boundary support grouping; its historical
 timings are not a matched full-support performance benchmark for this project.
 
+`references/four_loop_hard.json` now supplies a separately checked full-orthant
+reference through order zero. It retains all four external coefficients and
+reported errors, including order minus three. The older native numerical vector
+starts at minus two and remains unchanged; a separate complete native generation
+proves zero through minus three. Its finite reference uncertainty is about
+0.57%, above the one-per-mille target. See the
+[reference notes](references/README.md) for the comparison and provenance rules.
+
 Full regression and performance acceptance remains tracked in
 [the regression matrix](../docs/REGRESSION_MATRIX.md) and
 [the benchmark protocol](../docs/BENCHMARK_PROTOCOL.md).

@@ -96,3 +96,28 @@ zero-through-minus-three proof does not pad that historical numerical vector.
 
 The finite-part relative error is about 0.57%, so this fixed-work observation
 does not meet one-per-mille precision or establish uncertainty calibration.
+
+## Native transport
+
+HEP independently accepted the complete physical tuple and source/normalization/
+uncertainty path. Its frozen audit SHA256 is
+`915c1e4604f63351ef0e9507614185f85ad60b1a836540839091ddd683feee95`.
+The native writer uses the existing `ReferenceResult`, encoder and comparison
+APIs; all eight provider mean/error bit patterns are asserted. The real-valued
+provider supplies no separate imaginary observation or cross-order covariance,
+so those fields remain null.
+
+`examples/references/four_loop_hard.json`, SHA256
+`328d55c9efc9760a24fb5ee03b9b2bccee5bf2aa99ecc2984b188f6e727ecd73`,
+retains all four reported statistical errors. The historical estimate and all
+nine covariance entries are unchanged. The comparison remains ineligible with
+`MissingEstimate` at -3; common-order diagnostic pulls are -1.628491, -1.401696
+and -1.256181. The independently accepted exact-zero certificate is attached
+separately and supplies no synthetic numerical row.
+
+The existing CLI reference transport target passed seven tests with two ignored
+recording/replay helpers (`output/hard-four-loop-reference-tests.log`). The new
+regression checks exact provider bits, source hashes, statistical zero-error
+classification, missing-order semantics, unchanged covariance and roundtrip.
+Focused Clippy and formatting checks passed. Final fixture transport review is
+recorded separately in the independent reference note.

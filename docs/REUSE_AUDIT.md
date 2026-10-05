@@ -775,5 +775,23 @@ Original resolution remains the default and no production route changes. The
 single captured representative now completes bounded generation in 54.88
 seconds with all seven orders from −6 through zero and 2,523 native alias bodies.
 All 101 input hashes pass independent postflight. This closes only that
-generation diagnostic: its native evaluator and independent original-expression
-full-order oracle agreement remain open, as does whole-graph completion.
+generation diagnostic. Its separate existing native evaluator/IR/backend path
+also completes with all seven orders and 14,579,188 encoded bytes; 5,202 frozen
+checks pass independently. Original-expression full-order oracle agreement and
+cold numerical comparisons remain open, as does whole-graph completion.
+The first original-expression point-zero oracle reached native leading order
+−6 but timed out during its width-seven call at 180.17 seconds, without a
+complete vector. Its inputs and failure are retained. A reviewed fresh retry
+changes only the process deadline to 600 seconds; the scientific source,
+binary, inputs, native Series operations and precision checks are unchanged.
+The [prospective production boundary review](reviews/native-named-production-boundaries.md)
+therefore remains an interface proposal, with admission, conditioning,
+resource/cancellation and public progress decisions explicit before adoption.
+
+The combined test-only interleaved milestone passes 336 workspace tests with
+zero failures and 23 explicit probes ignored across 60 summaries. Formatting
+and all-target Clippy pass. The initial dead test-wrapper lint is retained;
+its fix routes the original writer through the existing original wrapper and
+leaves candidate semantics unchanged. The separately executed small writer,
+cold reader and captured generation evidence above remain necessary beyond
+this ordinary workspace gate.

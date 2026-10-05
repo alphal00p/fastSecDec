@@ -50,15 +50,58 @@ binding in `independent-preflight.txt`. The executable SHA256 is
 `afeb1b18ad1e84046924952f6811d5e2282515cab608316607ba71de6dce1a5d`;
 the actual fixed Symbolica rlib SHA256 is
 `01601b6df1747703693fdbf78818f9bf2bb74f4e4b1a888a5971b678cc60b61a`.
-Runtime handoff remains pending. Root
-recommends the bounded named-generation stage first, then these independent
+The initial runtime handoff was conditional. Root
+required the bounded named-generation stage first, then these independent
 oracles if compact composition succeeds. Symbolica processes remain serialized;
 the current guarded external reference may overlap only after its unguarded
 generation child has exited and been reaped. All such overlap is diagnostic,
 with no matched performance claim.
 
-The subsequent named-generation attempt reached its unchanged 180-second bound
-without a complete coefficient vector. Its process was reaped. The prerequisite
-for running these oracle points is therefore absent; all three remain
-unexecuted, and the successful oracle build is retained without an automatic
-runtime retry or a scientific result claim.
+The initial named-generation attempt reached its unchanged 180-second bound
+without a complete coefficient vector. Its process was reaped, and the oracle
+points remained unexecuted at that stage.
+
+## First prescribed point after the interleaved program gate
+
+A later independently reviewed interleaved candidate completed generation and
+native program construction for all seven orders -6 through zero. After its
+outcome audit, the coordinator authorized the unchanged frozen oracle sources
+and build, starting with point zero. This oracle still reads only the original
+captured Taylor expression and its original identity proof, never the candidate
+coefficients or program.
+
+`output/diagnostics/original-taylor-point-0-attempt-1` reached its fixed
+180-second deadline and exited on SIGINT after 180.167230 seconds. Peak resident
+memory was 1,748,504 KiB, separately from the 30-GiB virtual-address cap. Its
+process was reaped and every frozen input hash still passes.
+
+Literal exact-coordinate binding took 9.716036 seconds and left a
+22,686,159-byte native Atom. The first native relative-width-one request
+completed in 18.492427 seconds, returning leading order -6 and absolute
+remainder -5. The second native request, width seven to cover through zero,
+had not returned when the deadline expired. Only the bound input Atom and
+partial progress exist; there is no complete coefficient vector, final
+remainder or 512/1024-bit oracle result.
+
+Points one and two and the dependent comparison reader were not launched.
+This failed oracle remains retained without a silent deadline extension or
+coefficient-correctness claim for the candidate program. Any next attempt needs
+a separately reviewed plan and fresh evidence directory.
+
+## Separately bounded unchanged point-zero retry
+
+The coordinator subsequently authorized a fresh point-zero attempt with a
+600-second limit and the same five-second grace, CPU8 and 30-GiB address-space
+cap. `output/probes/run_point_first_original_taylor_600.sh`, SHA256
+`2434d7655e2bfb14bb77d34299aa85d37ed98d2102bd1b0348e452612f10deaf`,
+differs from the old shell only in the declared timeout and timer argument.
+The executable, original expression, exact point, native series requests,
+maximum four calls and all precision/bound checks are unchanged. HEP verified
+the two-line diff and all 22 frozen build hashes before launch.
+
+The fresh directory is
+`output/diagnostics/original-taylor-point-0-attempt-2`. Its result is pending;
+the earlier 180-second failure remains immutable. The remaining prescribed
+points may run only after a complete independently reviewed point-zero result,
+each with its own unchanged 600-second bound. Any failure stops the dependent
+chain, with no further automatic increase or algorithm change.

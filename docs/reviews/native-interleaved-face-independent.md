@@ -103,3 +103,37 @@ representative completed within its bound; it is not a matched performance
 benchmark or full-graph completion. The unchanged native program stage and
 independent original-expression comparisons over the full order union remain
 required before accepting its numerical coefficients.
+
+The separately frozen program stage also passes. Independent preflight and
+postflight verify all 5,202 files under
+`output/diagnostics/native-named-actual-program-interleaved-1`, including every
+generated root and alias. The copied generation record and binary match the
+accepted generation stage exactly. Native program construction, encoding,
+decoding and the production backend complete with all seven orders in
+43.313581165 seconds, peak child RSS 1,337,068 KiB. The encoded native IR is
+14,579,188 bytes; native build and backend construction report 3.712187772 and
+27.017605677 seconds respectively. This proves construction/transport for the
+candidate representation, not coefficient agreement. The independent review
+record keeps that distinction explicit; the three original-expression oracles
+and cold full-order numerical comparisons remain open.
+
+The first independent original-expression oracle attempt at point zero did not
+complete. Under `output/diagnostics/original-taylor-point-0-attempt-1`, its process
+timed out and was reaped after 180.167230052 seconds with peak child RSS
+1,748,504 KiB. Independent postflight verifies all 33 immutable files. Exact
+point substitution produced a 22,686,159-byte expression; the first native
+relative-width-one call returned leading order −6 and remainder −5 in
+18.492427023 seconds. The second native call at width seven had not returned
+when the deadline expired. No complete oracle vector or reader result exists,
+and points one and two were held.
+
+A fresh point-zero attempt has been approved with the same frozen binary,
+scientific source, inputs, native width logic, 512/1024-bit checks, CPU8 and
+30 GiB address-space limit. The reviewed wrapper changes exactly two deadline
+values from 180 to 600 seconds and retains a five-second termination grace.
+Its SHA-256 is
+`2434d7655e2bfb14bb77d34299aa85d37ed98d2102bd1b0348e452612f10deaf`;
+all 22 frozen build checks pass independently before handoff. This longer
+diagnostic leaves the failed attempt intact and does not establish candidate
+correctness. Later points remain conditional on complete accepted oracle
+outcomes; cold comparisons still require all three complete records.

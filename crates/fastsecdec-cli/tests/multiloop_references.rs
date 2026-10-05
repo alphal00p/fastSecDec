@@ -669,3 +669,119 @@ fn saved_native_vectors_compare_with_all_six_independent_references() {
         println!("{name}: {comparison}");
     }
 }
+
+#[test]
+fn hard_orthant_reference_preserves_reported_zero_and_missing_native_order() {
+    use fastsecdec::reference::{
+        ComparisonContext, Compatibility, Independence, IneligibilityReason, UnavailablePull,
+    };
+    let reference = support::load_reference(repository(), "four_loop_hard");
+    assert!(matches!(
+        reference.validation,
+        ReferenceValidation::Checked { .. }
+    ));
+    assert_eq!(
+        reference
+            .coefficients
+            .iter()
+            .map(|c| c.key.order)
+            .collect::<Vec<_>>(),
+        [-3, -2, -1, 0]
+    );
+    let value_bits = [
+        0,
+        13_838_658_250_071_177_118,
+        13_848_756_176_037_023_360,
+        13_862_885_006_821_585_130,
+    ];
+    let error_bits = [
+        0,
+        4_576_763_468_005_019_371,
+        4_591_079_869_049_241_685,
+        4_605_908_752_028_019_518,
+    ];
+    for (i, row) in reference.coefficients.iter().enumerate() {
+        assert_eq!(row.key.component, CoefficientComponent::Real);
+        assert_eq!(row.value.to_bits(), value_bits[i]);
+        let ReferenceUncertainty::StandardError(error) = row.uncertainty else {
+            panic!("reported zero error must remain statistical, not Exact");
+        };
+        assert_eq!(error.to_bits(), error_bits[i]);
+    }
+    let attributes = &reference.provenance.attributes;
+    assert_eq!(attributes["reference_domain"], "positive_orthant");
+    assert_eq!(attributes["density"], "U^1*F^(eps-3)");
+    assert_eq!(attributes["dimension"], 9);
+    assert_eq!(attributes["measure"], "prod(dx)");
+    assert_eq!(attributes["constituent_prefactor"], "1");
+    assert_eq!(attributes["physical_tuple_index"], 2);
+    assert_eq!(attributes["geometric_sectors"], 2676);
+    assert_eq!(attributes["together"], true);
+    assert!(attributes["sector_filter"].is_null());
+    assert!(attributes["external_imaginary_values"].is_null());
+    assert!(attributes["external_imaginary_standard_errors"].is_null());
+    assert!(attributes["external_covariance"].is_null());
+    assert_eq!(attributes["actual_evaluations"], 1_063_808);
+    assert_eq!(attributes["scalar_summed_coefficient_calls"], 4);
+    assert_eq!(attributes["calibration_certified"], false);
+    assert_eq!(attributes["highest_order_target"], 0);
+    assert_eq!(attributes["highest_order_target_met"], false);
+    assert_eq!(attributes["native_estimate_padded"], false);
+    let certificate = &attributes["separate_lower_order_zero_certificate"];
+    assert_eq!(certificate["complete"], true);
+    assert_eq!(certificate["zero_through_order"], -3);
+    assert_eq!(certificate["expected_charts"], 2760);
+    assert_eq!(certificate["completed_native_laurent_extractions"], 699);
+    assert_eq!(certificate["exact_coefficients"], json!(["0"]));
+    assert_eq!(certificate["numerical_kernels"], 0);
+    assert_eq!(certificate["retained_estimate_modified"], false);
+    // The complete, unchanged historical observation has only three orders.
+    // The independent symbolic certificate must not silently pad its covariance.
+    let estimate = VectorEstimate {
+        orders: vec![-2, -1, 0],
+        components: vec![CoefficientComponent::Real; 3],
+        mean: vec![-4.067405136814634, -18.169409299577108, -162.1952374736587],
+        standard_error: vec![0.28758494646617144, 1.0692199476005346, 8.959016118757578],
+        covariance_of_mean: vec![
+            0.0827051014339507,
+            0.1844876701397855,
+            0.6094001846855066,
+            0.1844876701397855,
+            1.1432312963468898,
+            7.339009447423726,
+            0.6094001846855066,
+            7.339009447423726,
+            80.26396981615811,
+        ],
+        production_complete: true,
+    };
+    let original = estimate.clone();
+    let comparison = compare(&estimate,&reference,&ComparisonContext {
+        kernel_content_id: attributes["native_kernel_content_id"].as_str().unwrap().into(),
+        normalization: Compatibility::Confirmed {basis:"Audited identical explicit U/F density and full positive-orthant unit measure; ordinary physical tuple2, no graph Gamma.".into()},
+        kinematics: Compatibility::Confirmed {basis:"Frozen native input hashes verified above, same complete nine-variable polynomial density.".into()},
+        independence: Independence::Independent {basis:"External seed20261219 and native seed20261004; separate implementations/observations, no reused samples.".into()},
+    }).unwrap();
+    assert_eq!(estimate, original);
+    assert!(!comparison.eligibility.eligible);
+    assert_eq!(
+        comparison.eligibility.reasons,
+        vec![IneligibilityReason::MissingEstimate]
+    );
+    assert_eq!(comparison.rows.len(), 4);
+    assert_eq!(comparison.rows[0].key.order, -3);
+    assert!(comparison.rows[0].estimate.is_none());
+    assert!(matches!(
+        comparison.rows[0].pull,
+        Pull::Unavailable(UnavailablePull::MissingEstimate)
+    ));
+    assert!(
+        comparison.rows[1..]
+            .iter()
+            .all(|row| matches!(row.pull,Pull::Value(value) if value.abs()<5.0))
+    );
+    assert_eq!(
+        read_reference(&encode_reference(&reference).unwrap()).unwrap(),
+        reference
+    );
+}

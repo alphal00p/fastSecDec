@@ -3,7 +3,7 @@
 This review compares the governing sections of `FIRST_PHASE_PLAN.md` with
 `docs/REGRESSION_MATRIX.md`, current public source and tests. It does not turn
 historical plan progress entries into current requirements or claim a new test
-execution. The ongoing native-alias implementation and its full workspace gate
+execution. The accepted native-alias implementation and its full workspace gate
 are reviewed separately in
 [the production audit](native-template-alias-production-independent.md).
 
@@ -20,41 +20,49 @@ checkpoint capability concealed by those retirements.
 
 | Gate | Current evidence | Required next evidence |
 | --- | --- | --- |
-| On-shell triple box | All native inputs load; original/projected bounded generation attempts failed. Native template/alias controls and the source-bound production representative now pass every order at three independent oracle points with fresh/decoded weighted rescue. | Complete original-card generation and portable reload, all requested Laurent coefficients, then full-support numerical evaluation and independent integral-level evidence. A successful representative is not this gate. |
-| Off-shell scalar and rank-two triple boxes | Original and exact native projected families generate and integrate complete vectors. Denominator/numerator/normalization identities are checked. The scalar now has an independently audited complete reference with exact transport and separate original/projected native comparisons (maximum pulls 2.816/2.023). | Independent rank-two reference, then prespecified convergence/calibration for both. The scalar finite-part reference uncertainty is about 2.5%, above the one-per-mille target. |
-| Hard four-loop full orthant | Native full generation and all 699 kernels complete, with full `[-2,-1,0]` covariance and no evaluation failures. | Independent full-orthant coefficient reference and convergence. The reviewed F-only native fan retains the entire U factor and is not the historical single-sector diagnostic. |
+| On-shell triple box | All native inputs load. The original-card 1,800-second trial timed out at representative 80 without an artifact. The earlier source-bound production representative passes every order at three independent points. The later interleaved named candidate completes representative 80 and native IR construction, but its original-expression oracle and cold comparisons remain open. | Complete original-card generation and portable reload, all requested Laurent coefficients, then full-support numerical evaluation and independent integral-level evidence. Neither a successful representative nor evaluator construction closes this gate. |
+| Off-shell scalar and rank-two triple boxes | Original and exact native projected families generate and integrate complete vectors. Both now have independently audited complete references, exact provider-bit transport, and separate original/projected native comparisons. The [rank-two audit](projected-rank-two-reference-independent.md) retains numerator/Gamma normalization and maximum absolute pulls below 1.727. | Prespecified convergence/calibration for both. Scalar and rank-two finite-part reference uncertainties are about 2.5% and 1.67%, respectively, above the one-per-mille target. |
+| Hard four-loop full orthant | Native full generation and all 699 kernels complete with `[-2,-1,0]` covariance. The [independent reference audit](hard-four-loop-reference-phase-independent.md) now accepts all four provider orders `[-3,-2,-1,0]`; an independent native generation certificate proves zero through −3 with complete map coverage. | Convergence/calibration and the finite-part target: reference relative SE is about 0.569%. The old numerical estimate is unchanged; its full-union comparison retains MissingEstimate at −3 and is globally ineligible. The separate zero proof is not padding. |
 | Double box and Issue 1 | Both now have independent complete-vector references. Issue 1's ordinary `together=True` fixture addresses the earlier disteval cross-sector variance omission; the older fixture remains Unverified. | Difficult-case repeated-seed/error calibration and highest-requested-order accuracy. A Checked reference establishes its audited provider route, not universal calibration of either estimator. |
 | Six massive families and numerator controls | Six independent references and the 72-row holdout pass; one-loop masters/reduction and coupled-sunset analytic controls pass. | Prespecified higher-work/shift controls and final convergence/performance acceptance. No repeat of already passed small physics proofs is needed merely to fill a matrix cell. |
 
 The older [campaign schedule](remaining-scientific-campaigns.md) deliberately
 retains its original evidence chronology. Its double-box/Issue-1 table entries
 predate the newer checked references; use the subsequent reference reviews and
-fixtures for their current status. The exact graph/direct-UF double-box identity
+fixtures for their current status. Subsequent scalar, rank-two and hard-reference
+closures likewise supersede missing-reference entries in that historical
+schedule. The hard reference preserves the full orthant and U factor, not the
+historical single-sector diagnostic. The exact graph/direct-UF double-box identity
 already closes input equivalence; a separate parser path does not create a new
 physical integral requiring a duplicate numerical campaign.
 
 ## Concrete implementation and scope items outside the matrix
 
-1. **Parallel geometry scheduling remains a plan item.**
+1. **Geometry caching and caller-owned parallel scheduling are implemented.**
    The plan explicitly calls for geometry caching by domain/canonical support
-   and parallel independent charts/cones. `fastsecdec-sectors/src/decompose.rs`
-   iterates projective charts and candidate vertices serially;
-   `generation/mod.rs` invokes it once and subsequently processes maps and
-   representatives serially. `generation/support.rs` caches native source
-   polynomial supports only within that generation; pulling triangulation has
-   a local face cache. The subsequent independently reviewed
+   and parallel independent charts/cones. The original serial decomposition
+   API remains unchanged. `generation/support.rs` caches native source
+   polynomial supports within a generation; pulling triangulation retains its
+   native local face cache. The independently reviewed
    [cache core](geometry-cache-independent.md) adds bounded caller-owned reuse
    of complete decompositions, with all 28 sector tests passing. Generation
    entry-point adoption subsequently passes its independent audit and the
    combined 305-test workspace gate through `GenerationContext`. Parallel
    chart/cone work subsequently passes its 38-test sector gate, independent
    ten-test rerun and source audit, using the same native mathematics and
-   private caller-scheduled jobs. Its cache/context dispatch adoption remains
-   the next integration slice; main-library generation still invokes serial
-   geometry by default.
-   These are efficiency/interface deliverables, not missing values for an
-   admitted integral. Preserve caller-owned execution, deterministic merging,
-   cancellation and exact existing geometry ownership.
+   private caller-scheduled jobs. The subsequent
+   [cache/context dispatch adoption](parallel-generation-dispatch-independent.md)
+   passes 41 sector tests and eight context tests, including complete analytic
+   coefficient/map equivalence. The
+   [CLI adapter](cli-geometry-dispatch-independent.md) passes 49 CLI tests and
+   real terminal cancellation/resize/cleanup checks. It uses the application's
+   existing Rayon pool primitives; the library owns native plans, opaque
+   completions and deterministic admission, never an executor. Cache hits skip
+   dispatch while reassessing each integral's domain and mapping. Free/default
+   library generation and the one-worker CLI route remain serial. These close
+   the implementation/interface item; measured geometry speed and retained
+   memory remain separate performance work. Symbolic representatives are not
+   made parallel by this chart/cone adapter.
 
 2. **General no-threshold input is broader than the current endpoint admission.**
    `generation/domain.rs` safely rejects upper-cube zeros and unresolved
@@ -74,7 +82,7 @@ physical integral requiring a duplicate numerical campaign.
    qualified by the complete kernel content hash. Public integration callers
    may provide their own stable IDs. Selection/resume are safe and tested with
    those current identities. A new standalone per-sector content ID supports
-   reuse across different parent artifacts. The additive derived
+   reuse across different parent artifacts. It is an additive derived
    accessor/hash over native IR, ordered layout, numerical policy and retained
    semantics, preserving all current indices and checkpoint meanings. The
    [implementation and independent review](sector-content-identity.md) pass
@@ -113,9 +121,9 @@ sample-tail costs, seven/three paired repetitions and platform gates remain.
 The target is always the largest signed requested epsilon order; no substitution
 of a lower pole or extrapolation from fewer workers is valid.
 
-After the original on-shell capability gate, prioritize independent difficult
-references and prespecified convergence before broad tuning. Then resolve the
-explicit implementation/scope items above, finish matched performance and
+After the original on-shell capability gate, prioritize prespecified difficult
+case convergence/calibration before broad tuning; the reference vectors listed
+above are now present. Retain the explicit endpoint-scope limitation, finish matched performance and
 executed/qualified platform evidence, and perform the final native-reuse,
 dependency and CLI audit. Existing controlled failures and source/build
 identities must remain part of that record.
@@ -135,5 +143,10 @@ checkpoint and result path after review. The launch manifest must bind the
 wrapper, process timer, original card/DOT/model/parameter card and frozen release
 binary/build identity, with pre/post checks. Actual method, periodization,
 allocation and complete covariance are verified from native saved output;
-invocation flags alone are not completion evidence. No runtime was launched
-by this reviewer, and no whole-graph success is asserted here.
+invocation flags alone are not completion evidence. The subsequent frozen trial
+timed out after 1,805.689 seconds including termination grace; all 26 immutable
+postchecks passed and no artifact, inspection or integration result was produced.
+See [the retained attribution record](native-series-fullgraph-attribution.md).
+No whole-graph success is asserted here. The later test-only representative
+candidate and its still-open oracle gates are tracked in
+[the interleaved-face audit](native-interleaved-face-independent.md).

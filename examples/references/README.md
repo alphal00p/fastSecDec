@@ -38,11 +38,31 @@ one-per-mille relative uncertainty. Four logged `8311 × 32` allocations give
 work; this is not a complete-vector sample count. See the
 [independent audit](../../docs/reviews/projected-triple-reference-independent.md).
 
-`Checked` records the independent source, graph, normalization and transport
-review, followed by a bounded comparison of the complete native vector. It does
-not certify convergence or matched performance. The original external imaginary
-value and error are explicitly retained in provenance; both were zero for these
-Euclidean cases. Where the older reports do not expose actual lattice sizes or
+`triple_box_offshell_rank2.json` retains the same four orders and off-shell
+kinematics for the supplied rank-two numerator. Its physical tuple includes
+`Gamma(3+3*eps)` once. The separate original/projected comparisons retain their
+covariance and have maximum pulls below 1.727. The finite value is
+`0.6263784670955248 +/- 0.01044026507101012`, about 1.67% relative uncertainty.
+
+`four_loop_hard.json` covers the complete nine-dimensional positive orthant
+with density `U * F^(eps-3)` and unit prefactor. The ordinary provider sums all
+2,676 sectors before estimating each coefficient, retaining orders
+`[-3,-2,-1,0]`. Its finite coefficient is
+`-150.88953098736903 +/- 0.8585945824027943`, about 0.57% relative uncertainty.
+The historical native vector and its complete covariance still have three
+orders `[-2,-1,0]`: comparison reports `MissingEstimate` at minus three and
+remains globally ineligible. A separate native symbolic generation proves zero
+through minus three; it does not pad that numerical observation or change the
+provider's reported zero standard error into an exact classification. Common
+coefficient pulls are below 1.629. See the
+[independent audit](../../docs/reviews/hard-four-loop-reference-phase-independent.md).
+
+`Checked` records the independent source, input, normalization and transport
+review. Comparison eligibility additionally requires complete matching
+observations and explicit comparison evidence. The label does not certify
+convergence, calibration or matched performance. External imaginary values and
+errors are retained when supplied; unavailable observations stay null. Where
+the older reports do not expose actual lattice sizes or
 evaluation counts, those fields remain null.
 Requested `maxeval` is not presented as measured work.
 

@@ -43,6 +43,13 @@ and native transport checks. Its finite value is
 maximum original/projected comparison pulls 1.703/1.727. Both native covariance
 matrices remain unchanged and the observations are compared separately. Six
 focused reference tests pass; the fixture does not certify calibration or 1‰.
+The hard four-loop full-orthant reference is now also Checked, retaining all
+four provider orders. The three common native/reference coefficients have
+maximum pull 1.629. The old native vector/covariance remain unchanged and its
+comparison explicitly lacks order minus three; a separate complete native
+generation proves zero through that order. Seven focused reference tests pass,
+two probes ignored, with focused Clippy and formatting passing. This reference
+has about 0.57% finite-part uncertainty and does not certify calibration or 1‰.
 The historical matrix has 100 Covered, 81 intentionally Retired and one Partial
 row out of 182. This matrix does not replace complete difficult-example gates.
 
@@ -64,8 +71,7 @@ These focused gates initially followed the 330-test baseline and are now also
 included in the 336-test workspace gate above. No generation speedup is claimed.
 
 Still open: complete original on-shell triple-box generation and full-vector
-validation; the independent hard-orthant reference;
-difficult-case convergence and error calibration; matched performance and
+validation; difficult-case convergence and error calibration; matched performance and
 platform gates. Cache adoption and the identified CLI color/terminal gaps are
 now covered by the gates above. General
 affine upper-cube endpoint charts remain explicitly unsupported. Future Python
@@ -104,9 +110,12 @@ program controls also pass all 96 weighted-vector calls and 768 component
 checks across fresh, cloned, decoded and cold-reader kernels, with precision
 rescue up to 320 bits. The captured actual representative then generates in
 54.875504 seconds under the same 180-second limit, retaining all formal orders
-minus six through zero and native remainder one. Its evaluator and independent
-original-expression comparisons remain pending; no production strategy or
-whole-graph performance claim changes.
+minus six through zero and native remainder one. Its complete evaluator builds
+in a separate 43.313581-second process and retains 14.58 MB of native exact IR.
+Independent original-expression comparisons remain pending: the first oracle
+times out in native series at 180.167 seconds without a coefficient vector.
+A fresh unchanged-math point-zero attempt has a predeclared 600-second bound.
+No production strategy or whole-graph performance claim changes.
 
 ## Small-case generation and eight-core accuracy
 
@@ -266,6 +275,15 @@ experiment, not numerical correctness, complete on-shell generation or a matched
 speedup. See the [candidate results](native-interleaved-face-results.md) and
 [independent review](native-interleaved-face-independent.md).
 
+The separate actual native program stage also passes, retaining all seven
+orders in 14,579,188 bytes of validated exact IR. The process takes 43.313581
+seconds, including 3.712188 seconds for native exact program construction and
+27.017606 seconds for production backend construction, with peak RSS
+1,337,068 KiB. All 5,202 immutable checks pass. This compiles previously generated
+coefficients; it does not include their generation or certify their values.
+The three independent original-expression oracles and complete cold-reader
+comparisons are still required.
+
 ### Hard four-loop independent reference
 
 The external reference generated all 2,676 ordinary sectors in 243.998 seconds
@@ -279,14 +297,20 @@ An independently reviewed fresh numerical-only attempt reuses the exact
 compiled package, with the same caller, seed, full-sector sum, lattice and
 transform. It returns the complete physical tuple within its predeclared
 1,200-second limit, without regeneration or recompilation. All four external
-orders, including minus three, are retained; final transport/audit is pending.
+orders, including minus three, are retained. Independent source, normalization,
+original-tuple, exact-bit and versioned-transport audit passes. The checked
+fixture is `examples/references/four_loop_hard.json`, and seven focused reference
+tests pass with two explicit probes ignored. The
+finite coefficient is `-150.88953098736903 +/- 0.8585945824027943`, about 0.57%
+reported relative SE. This fixed-work reference does not reach 1‰.
 See the [continuation protocol](hard-four-loop-numeric-continuation.md).
 
 The old native result begins at order minus two and remains unchanged, including
 its full covariance. A separate native generation requested through minus three
 now proves exact zero there, with no numerical kernels, all 2,760 charts and
 699 representatives accounted for, and matching portable geometry. Its process
-takes 67.388 seconds, including 64.698 seconds for this lower-order generation;
-this is not a new finite-part performance measurement. The original comparison
+takes 67.388 seconds; its recorded generation/validation span is 65.187 seconds,
+with the native Complete event at 64.698 seconds. This is not a new finite-part
+performance measurement. The original comparison
 still explicitly reports the missing estimate; the symbolic zero proof is
 separate evidence. See the [omitted-order audit](hard-four-loop-lower-order-scope.md).

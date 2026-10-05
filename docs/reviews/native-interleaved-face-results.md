@@ -91,3 +91,48 @@ explicitly records `coefficient_correctness_verified:false`. Native program
 construction, three independent point-first original-expression oracles and
 cold-reader/weighted comparisons remain required. The original and traced
 180-second failures are preserved, and the production default is unchanged.
+
+## Actual native program construction
+
+The separate frozen program stage
+`output/diagnostics/native-named-actual-program-interleaved-1` passed with exit
+zero and no timeout in 43.313581165 seconds. All 5,202 frozen hashes passed
+before and after execution, binding every generated native root, handle, body
+and metadata record as well as the original inputs and compiled source.
+Peak child RSS was 1,337,068 KiB. Native exact program construction took
+3.712187772 seconds; production backend construction took 27.017605677 seconds.
+These stages reused the frozen coefficients and do not measure fresh graph
+or coefficient generation.
+
+The native exact IR is 14,579,188 bytes, with BLAKE3
+`f9ff07d37d3b82cb8c3b1aa234c4660ebe80088fd35ea36eb5b5fd2ea58d7362`.
+Native encoding/decoding and the production real backend retain all seven
+outputs, minus six through zero. This validates program construction, not
+coefficient correctness or numerical accuracy. The three independent original
+Taylor point-first oracles and the cold-reader exact/rounded-weighted comparisons
+remain open. The program stage launched no oracle automatically.
+
+## Independent original-expression oracle hits its first bound
+
+The independent original Taylor point-zero process in
+`output/diagnostics/original-taylor-point-0-attempt-1` timed out at its unchanged
+180-second bound, exiting on SIGINT and reaping after 180.167230052 seconds.
+Peak child RSS was 1,748,504 KiB; user/system CPU were 72.715646/106.158202
+seconds. The process report confirms its executable, build evidence and input
+hashes remained unchanged. This attempt used only the original captured
+epsilon-dependent Taylor expression, with exact rational coordinates bound
+before native series expansion; no named-candidate coefficient was an oracle
+input.
+
+Literal binding produced a 22,686,159-byte expression. The first native
+relative-width-one request completed and reported leading order minus six
+with absolute remainder bound minus five. The subsequent native width-seven
+request was still active at termination. No complete coefficient vector or
+`result.json` was produced. Points one and two were not launched, and the
+dependent cold-reader/weighted actual comparisons are held.
+
+The successful candidate generation and native program remain construction
+evidence only: actual coefficient correctness has not been established, and
+the production default remains unchanged. Any later, separately approved
+original-expression attempt must preserve this failure and record its own
+fresh bounds and evidence.

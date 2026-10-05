@@ -103,3 +103,74 @@ precedes that watched process and is not included in its timing. Native
 watchdogs are authoritative. The old 750-second record stays immutable and the
 new run must still return all physical orders minus three through zero before
 reference acceptance. Source approval establishes no guarantee of completion.
+
+## Completed physical reference and separate native zero certificate
+
+Attempt two returns the complete ordinary physical tuple at index two. Its
+numerical process exits zero after 1,101.467362 seconds within 1,200 seconds;
+the outer watched process exits zero after 1,105.096355 seconds within 1,250.
+The library reports 0.066577 seconds for loading and 1,100.355518 seconds for
+integration, including summed-integrand setup. The first QMC call begins at
+731.278 seconds. All four native calls report 8,311 points and 32 shifts, or
+265,952 scalar summed-sector coefficient evaluations each. The total 1,063,808
+uses that unit; it is neither a common full-vector point count nor multiplied
+by the 2,676 sector count. Auxiliary setup is excluded from that work count.
+
+Independent outcome verification rehashes all 43,518 package files / 692,292,862
+bytes, 35 current source/tool files and 53 immutable parent records. The copied
+package still equals its complete initial inventory. The native ordinary
+`together=True` path sums sectors before per-coefficient uncertainty estimation;
+the recorded library is real-valued, with no separately supplied imaginary or
+cross-order covariance. Unit prefactor is applied exactly once: raw tuple zero
+and physical tuple two agree, and tuple one is the explicit unit series. No
+graph Gamma factor or projective measure is introduced into the supplied
+`U*F^(eps-3)` positive-orthant density.
+
+All four original decimal value/error pairs match the converter's hexadecimal
+float values bit for bit. The transport audit retains exact `u64` bits and
+round-trip decimal numbers, including the explicit `-3` row `0 ± 0`:
+
+| Order | Provider mean | Provider standard error |
+| --- | ---: | ---: |
+| −3 | 0 | 0 |
+| −2 | −3.5988076591592764 | 0.0097315319413335457 |
+| −1 | −16.665500979650915 | 0.089032231393958952 |
+| 0 | −150.88953098736903 | 0.85859458240279429 |
+
+Finite relative standard error is 0.00569022, so the user's 1‰ target is not
+met. Source/normalization/uncertainty-route transport may be Checked while
+general statistical calibration remains unverified. The frozen outcome audit
+is `hard-four-loop-together-attempt-2/independent-review.json`, SHA-256
+`915c1e4604f63351ef0e9507614185f85ad60b1a836540839091ddd683feee95`.
+
+The old native numerical estimate contains only `[-2,-1,0]`. It is not padded,
+and the ordinary full-union reference comparison retains MissingEstimate at
+`-3`. A separate normal-library proof under
+`output/diagnostics/hard-lower-order-zero-attempt-1` regenerates the identical
+factorized density with highest order `-3`. It completes all 699 native
+subtraction/Laurent representatives and all 2,760 ordered charts, returns
+literal zero and no numerical kernels, and passes exact portable-metadata
+comparison after removing only kernel association. Successful native generation
+enforces its Laurent remainder contract; no test-only skip/capture hook is linked.
+Independent postflight hashes pass. This is explicit zero-through-`-3` evidence,
+not an inference from the provider's zero estimate. The process exits zero in
+67.388249 seconds; the initial failed feature-variant link is preserved and the
+successful build binds the correct normal-library dependency fingerprints.
+
+Native transport now passes independently. The encoder output is byte-identical
+to `examples/references/four_loop_hard.json` (SHA-256
+`328d55c9efc9760a24fb5ee03b9b2bccee5bf2aa99ecc2984b188f6e727ecd73`).
+The writer asserts all eight provider IEEE bit patterns before native encoding,
+preserves the complete old estimate and all nine covariance entries, and keeps
+the `-3` observation as statistical `StandardError(0)`, not `Exact`. Its
+full-union comparison is ineligible solely for MissingEstimate at `-3`;
+common-order diagnostic pulls are −1.62849, −1.40170 and −1.25618. The separate
+zero certificate is provenance evidence, never substituted into either vector.
+Imaginary observations and cross-order covariance remain unavailable.
+
+The focused reference target passes seven tests with two ignored recording
+probes. Its existing `support::load_reference` verifies every recorded native
+card/U/F source hash before comparison, so the new test reuses that validation
+rather than duplicating it. Independent writer-build hashes and fixture/output
+equality pass; `independent-transport-review.json` records the unchanged layout
+and covariance checks. Calibration and the 1‰ finite-part goal remain open.
