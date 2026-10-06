@@ -820,6 +820,18 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-06: the first hard-four-loop fixed-work pair completes both full
+  numerical vectors with all available reference checks passing. Fresh native
+  generation takes 12.976 seconds. Eight-worker integration takes 68.735 seconds
+  natively and 279.689 seconds in Pathfinder, using different published lattices
+  and sector partitions. Finite-part uncertainties are 65.225 and 53.177 per
+  mille: neither reaches the target. Native covariance and every Pathfinder
+  Laurent row remain intact; its six lower zero rows agree with the separate
+  whole-input certificate. The independently verified shared-shift covariance
+  motivates one existing adaptive-QMC trial with independent production shifts,
+  without changing kernels or the precision policy. See
+  `docs/reviews/hard-four-loop-pathfinder-capability.md`.
+
 - 2026-10-06: a native evaluator arithmetic-optimization probe is rejected at
   its strict physical comparison despite reducing operation counts by 24.1%.
   A separate public `optimize_stack()`-only candidate preserves all 7,752 tested

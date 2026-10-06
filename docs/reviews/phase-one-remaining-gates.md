@@ -346,9 +346,15 @@ Evidence: `output/diagnostics/remaining-pathfinder-rank2-active8-1` and
 four-loop Pathfinder route now completes within one 600-second/15-GB attempt:
 generation takes 524.117 seconds and strict bundle loading 2.747 seconds, with
 3,728 nine-dimensional sectors and all orders `[-8,...,0]`. All inputs remain
-unchanged and the owned process tree is reaped. This closes reference generation
-capability, while integration, highest-order accuracy and sample timing remain
-unmeasured. See the [bounded capability record](hard-four-loop-pathfinder-capability.md).
+unchanged and the owned process tree is reaped. A subsequent first fixed-work
+pair completes both numerical vectors with all available reference checks
+passing: native integration takes 68.735 seconds and Pathfinder 279.689 seconds.
+Their finite-part uncertainties remain 65.225 and 53.177 per mille, respectively.
+Native shared-shift covariance is independently reconstructed; all six lower
+Pathfinder rows agree with the separate exact-zero certificate. Different
+lattices/partitions and timing boundaries remain explicit. The highest-order
+target, repeated timings and individual sample latency remain open. See the
+[bounded capability and numerical record](hard-four-loop-pathfinder-capability.md).
 
 General affine endpoint charts remain unsupported: the public admission
 correctly rejects `(1-x)^(-1+eps)` on the unit interval, including with
