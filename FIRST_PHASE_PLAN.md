@@ -901,7 +901,14 @@ And as I said, once you're feature complete within what's stated in the goal, an
   the pilot is excluded from production statistics and sector streams are
   independent. Complete vectors/covariance and five independent reference checks
   pass, but the finite-part uncertainty is 1.035 per mil, narrowly missing the
-  one-per-mil target. This is not a parity result or a default change.
+  one-per-mil target. One subsequently authorized allocation changes only the
+  production budget to 400 worker seconds and reaches 0.989 per mil in 82.859
+  seconds, again including a fresh pilot and loading. Its complete vectors,
+  covariance and five references pass. Both attempts cost 156.157 integration
+  seconds plus 6.704 generation seconds; their estimates are not combined.
+  The successful row is below Pathfinder's retained 91.584-second row, but does
+  not establish timing medians or individual-sample parity. No further budget
+  ladder or default change follows.
 
 - 2026-10-06: a bounded same-exact-IR SymJIT indirect-translation probe is rejected
   before timing because a complete-vector comparison exceeds the unchanged

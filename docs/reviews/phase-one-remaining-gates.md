@@ -24,6 +24,16 @@ remains in the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
 
+The later existing adaptive-QMC lane supplies one faster scalar-double-box
+target-reaching observation: **82.859 seconds including a fresh pilot and
+loading, at 0.989 per mille**. Complete vectors, covariance and all five references
+pass. The earlier 320-worker-second allocation misses at 1.035 per mille in
+73.298 seconds; together the two integration attempts cost 156.157 seconds.
+The successful allocation uses a 400-worker-second production budget. It is
+below the retained Pathfinder 91.584-second observation, but repeated matched
+timings and per-sample/sector latency acceptance remain open. No accuracy crossing
+is interpolated and no previous result is replaced.
+
 **Latest user scope decision:** Successful generation of the original on-shell
 triple box is sufficient for phase A. Its full artifact and cold-load checks
 pass; further full-integral numerical agreement, convergence and performance
@@ -58,8 +68,9 @@ at prime 8,311 in 42.756 seconds, but its single larger prime-17,807 allocation
 reaches **0.362 per mille in 91.584 seconds** with all five reference checks
 passing. The same pre-fix revision's reduced all-sector sample timings retain a native mean gap:
 106.314 versus 74.846 microseconds (observed maxima 44.481 versus 52.645 ms).
-Those API boundaries and different lattices remain explicit. Scalar-double-box
-mean-latency and target-time parity are genuinely still open; no further
+Those API boundaries and different lattices remain explicit. The later adaptive
+observation above improves target time; scalar-double-box mean-latency and
+repeated-timing acceptance remain open. No further
 reference ladder is planned. Other representative comparisons remain open. The retained earlier
 license failures are unchanged. The HEPKit marimo extension's generated gg→HH
 helicity double box passes its [native CLI prerequisite](gghh-native-feasibility.md).

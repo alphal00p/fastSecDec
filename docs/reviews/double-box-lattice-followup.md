@@ -409,3 +409,59 @@ Independent retained-data review (`independent-review.json` in that directory)
 accepts the complete kernel identity, pilot/production separation, all vectors and
 covariances including their independent-sector sum, reference comparisons and
 cleanup. It confirms the reported accuracy target is not reached.
+
+### Explicit 400-worker-second follow-up
+
+After reviewing that miss, the coordinator authorized one deliberate follow-up
+changing only the existing production budget from 320 to 400 summed worker
+seconds. The same accepted executable, full Taylor kernel, physical input,
+N8192/Korobov2/HKKN rule, seed, four-shift pilot and strict precision policy remain
+fixed. Fresh ordinary generation and strict loading again prove the whole kernel
+payload identical before integration. No default changes or further budget ladder
+follow this allocation.
+
+| Observed adaptive attempt | Integration process including fresh pilot/loading | Finite reported relative error | Reaches 1‰ |
+|---|---:|---:|:---:|
+| Previous 320-worker-second production budget | 73.298 s | 1.035‰ | No |
+| Deliberate 400-worker-second production budget | **82.859 s** | **0.989‰** | Yes |
+
+The new finite coefficient is −14.850715518847167
+±0.014683866617109081. Its complete 3,342,336-point pilot freezes 2,719,744
+production points with 2–14 shifts per sector. All 102 sectors and 103 full
+covariance matrices are retained. The five independent reference checks pass
+(largest absolute pull 1.234034), as do the independent-stream comparisons with
+the retained democratic Taylor vector (largest absolute pull 0.852149).
+
+The 82.859-second interval includes all pilot, production and loading costs;
+native loading is 0.356 seconds. The native pilot/production worker totals are
+293.496/361.518 seconds. Fresh generation takes 2.884 process seconds, comprising
+2.497 seconds of native generation excluding O2 and 0.371 seconds of O2. Across
+all 6,062,080 evaluations there are 1,997,503 rescues, maximum precision 512 bits,
+and no failures. Mean worker cost over both phases is 108.051 microseconds per
+sample; production alone is 132.924, and its largest sector mean is 625.824
+microseconds. These broader worker intervals are not individual-call latency
+measurements, and no new individual-call maximum is claimed.
+
+Both adaptive attempts are charged: their integration-process walls sum to
+**156.157 seconds**, their generation-process walls to **6.704 seconds**, and all
+timed generation/read/integration/result-read stages to 163.622 seconds. They
+execute 11,673,600 points including both pilots. The repeated seed may share
+samples across attempts; their estimates are not combined or treated as
+independent. Within each attempt the native pilot is discarded from production
+statistics and production sectors have independent streams.
+
+This supplies one observed native target-reaching candidate. Its current wall
+time is below the retained Pathfinder target row's 91.584 seconds, while its
+reported uncertainty is larger (0.989‰ versus 0.362‰). This is not a median,
+matched-work parity certificate, uncertainty-coverage calibration or interpolated
+target crossing. The unsuccessful earlier allocation remains unchanged.
+
+Evidence is in
+`output/diagnostics/scalar-double-box-adaptive-budget400-1/assessment.json` and
+`cumulative-cost.json`, with all native results, snapshots, allocation/replay
+records and comparisons. All 33 frozen inputs, including the previous result,
+remain unchanged; the sole 300+5-second guarded attempt reaps every owned process.
+Independent retained-data review (`independent-review.json` in that directory)
+accepts the sole card change, complete kernel identity, coverage, vectors,
+covariance including its independent-sector sum, all reference comparisons and
+the separately charged cumulative costs. No data corrections were needed.
