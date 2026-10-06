@@ -171,7 +171,18 @@ fn native_codec_layout_and_exact_byte_exhaustion_are_enforced() {
         .unwrap();
     let text = String::from_utf8(bytes).unwrap();
     #[cfg(feature = "native")]
-    let policy = ("symjit-2.26.4:O2:direct", "symjit-2.26.4:O3:direct");
+    let policy_strings = (
+        format!(
+            "symjit-version-code={}:O2:direct",
+            fastsecdec::kernel::symjit_version_code()
+        ),
+        format!(
+            "symjit-version-code={}:O3:direct",
+            fastsecdec::kernel::symjit_version_code()
+        ),
+    );
+    #[cfg(feature = "native")]
+    let policy = (policy_strings.0.as_str(), policy_strings.1.as_str());
     #[cfg(feature = "portable")]
     let policy = ("symbolica-3.0.1:interpreter", "symbolica-3.0.1:unsupported");
     for (before, after) in [
@@ -209,6 +220,34 @@ fn native_codec_layout_and_exact_byte_exhaustion_are_enforced() {
             &text[end..]
         );
         assert!(KernelSet::from_bytes(&resign(changed, 3)).is_err());
+    }
+}
+
+#[cfg(feature = "native")]
+#[test]
+fn backend_version_is_recorded_and_legacy_ir_keeps_its_original_bytes() {
+    let version = fastsecdec::kernel::symjit_version_code();
+    let bytes = generated()
+        .to_kernel_bytes(PrecisionPolicy::default())
+        .unwrap();
+    let text = String::from_utf8(bytes.clone()).unwrap();
+    let policy = format!("symjit-version-code={version}:O2:direct:horner-iterations=0");
+    assert!(text.contains(&policy));
+    let loaded = KernelSet::from_bytes(&bytes).unwrap();
+    assert_eq!(loaded.to_bytes().unwrap(), bytes);
+
+    let legacy = resign(
+        text.replacen(&policy, "symjit-2.26.4:O2:direct:horner-iterations=0", 1),
+        3,
+    );
+    let restored = KernelSet::from_bytes(&legacy);
+    if version == 22604 {
+        let restored = restored.unwrap();
+        let saved: serde_json::Value = serde_json::from_slice(&legacy).unwrap();
+        assert_eq!(restored.content_id(), saved["content_id"].as_str().unwrap());
+        assert_eq!(restored.to_bytes().unwrap(), legacy);
+    } else {
+        assert!(restored.is_err());
     }
 }
 

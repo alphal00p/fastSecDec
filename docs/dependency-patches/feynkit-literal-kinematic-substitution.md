@@ -1,5 +1,12 @@
 # FeynKit graph propagator kinematics use literal replacement
 
+The fix and its native graph regression are now published on FeynKit's branch
+at `259df8790f27b8d3ef32778cd7195942691b4ef0`. The development bootstrap no longer
+applies a patch; the superseded patch file has been removed. Its original
+rationale follows.
+
+## Historical rationale and validation
+
 The native `FeynmanDiagram::propagator_family` bridge substituted the routed
 quadratic scalar product with Symbolica's implicit pattern conversion. A valid
 caller invariant ending in `_`, such as `native_invariant_`, was interpreted as

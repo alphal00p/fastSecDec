@@ -1,4 +1,4 @@
-use numerica::numerical_integration::qmc::QmcEstimate;
+use fastsecdec_qmc::QmcEstimate;
 use serde::{Deserialize, Serialize};
 
 use super::{IntegrationError, IntegrationProblem, Result, VectorEstimate};

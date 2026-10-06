@@ -22,6 +22,13 @@ of the richer workflow, not a dependency of this notebook.
    The existing Rust CLI logic has moved to the owning `feynkit-model`
    crate and exposed as `Model.scalar_bindings`, with CLI reuse and thin Python
    transport. No Python dependency resolver is added.
+   Here "exact" describes lossless rational transport of supplied binary64
+   values and analytic dependency substitution, not additional physical
+   precision. The native family's rational-polynomial preparation and the
+   current rational/algebraic domain certificate motivate this choice. It
+   cannot infer intended decimal values or restore relations between rounded
+   external inputs. Model scalar overrides remain Symbolica expressions;
+   rational-only values are not a general HEPKit API requirement.
 2. **Selecting the topology.** The short native ttg/ttH generator call produces
    120 diagrams in a 0.111-second local observation. A predicate on native edges
    and native connectedness selects eight double boxes, with the same first

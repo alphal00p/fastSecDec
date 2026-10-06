@@ -29,7 +29,7 @@ pub(crate) fn observed_estimate(
         ),
         Err(IntegrationError::Unavailable(_))
         | Err(IntegrationError::Qmc(
-            numerica::numerical_integration::qmc::QmcError::InsufficientShifts { .. },
+            fastsecdec_qmc::QmcError::InsufficientShifts { .. },
         )) => (
             None,
             if stage == IntegrationStage::Pilot {
@@ -138,7 +138,7 @@ mod tests {
     #[test]
     fn structural_errors_are_not_disguised_as_statistical_range_failures() {
         let structural = IntegrationError::Qmc(
-            numerica::numerical_integration::qmc::QmcError::OutputDimension {
+            fastsecdec_qmc::QmcError::OutputDimension {
                 expected: 2,
                 actual: 1,
             },
@@ -146,7 +146,7 @@ mod tests {
         assert!(matches!(
             observed_estimate(Err(structural), IntegrationStage::Production, false),
             Err(IntegrationError::Qmc(
-                numerica::numerical_integration::qmc::QmcError::OutputDimension { .. }
+                fastsecdec_qmc::QmcError::OutputDimension { .. }
             ))
         ));
         let observed = observed_estimate(

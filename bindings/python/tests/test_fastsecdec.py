@@ -12,7 +12,7 @@ from symbolica.community import hepkit as hep
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
 fs = getattr(hep, "fastsecdec", None)
-pytestmark = pytest.mark.skipif(fs is None, reason="requires experimental-fastsecdec wheel")
+pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel with FastSecDec")
 
 
 def test_periodization_settings_preserve_defaults_and_roundtrip_all_native_variants():

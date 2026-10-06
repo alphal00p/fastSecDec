@@ -1,0 +1,23 @@
+[package]
+name = "fastsecdec-qmc"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Caller-driven randomized lattice integration for FastSecDec"
+license = "MIT"
+readme = "README.md"
+
+[features]
+default = ["native"]
+native = ["numerica/integer-gmp", "numerica/float-mpfr"]
+portable = ["numerica/integer-malachite", "numerica/float-astro"]
+serde = ["dep:serde"]
+
+[dependencies]
+numerica.workspace = true
+rand = "0.9"
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json.workspace = true
+bincode.workspace = true

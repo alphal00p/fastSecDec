@@ -6,7 +6,7 @@ use crate::{
     integration::VectorEstimate,
     status::{IntegrationSnapshot, SectorSnapshot, UncertaintyStatus},
 };
-use numerica::numerical_integration::qmc::{QmcEstimate, ShiftEstimate};
+use fastsecdec_qmc::{QmcEstimate, ShiftEstimate};
 
 impl QmcSession {
     /// Complete same-shift totals across every stochastic sector, including
@@ -85,7 +85,7 @@ impl QmcSession {
             let complete_rows = self.common_shift_rows()?;
             let Some(anchor) = complete_rows.first() else {
                 return Err(
-                    numerica::numerical_integration::qmc::QmcError::InsufficientShifts {
+                    fastsecdec_qmc::QmcError::InsufficientShifts {
                         complete: 0,
                     }
                     .into(),
@@ -179,7 +179,7 @@ impl QmcSession {
             Ok(value) => Some(value),
             Err(IntegrationError::Unavailable(_))
             | Err(IntegrationError::Qmc(
-                numerica::numerical_integration::qmc::QmcError::InsufficientShifts { .. },
+                fastsecdec_qmc::QmcError::InsufficientShifts { .. },
             )) => None,
             Err(error) => return Err(error),
         };

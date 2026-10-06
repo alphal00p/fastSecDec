@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-cli"]
+members = ["crates/fastsecdec", "crates/fastsecdec-sectors", "crates/fastsecdec-qmc", "crates/fastsecdec-cli"]
 exclude = ["DO_NOT_PUSH_FOR_REFERENCE_ONLY", "output", "tests/portable-kernel", "bindings/python"]
 default-members = ["crates/fastsecdec-cli"]
 resolver = "3"
@@ -12,10 +12,11 @@ rust-version = "1.96"
 [workspace.dependencies]
 fastsecdec = { path = "crates/fastsecdec", default-features = false }
 fastsecdec-sectors = { path = "crates/fastsecdec-sectors", default-features = false }
+fastsecdec-qmc = { path = "crates/fastsecdec-qmc", default-features = false }
 symbolica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
-# Pin the published Rust library, not the reference checkout's C/Python cdylib.
-symjit = "=2.26.4"
+# Use the published Rust library with a compatible 2.x minimum, not its C/Python cdylib.
+symjit = "2.26.4"
 feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 feynkit-model = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }

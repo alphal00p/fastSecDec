@@ -54,8 +54,12 @@ available. HEPKit's object methods are optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
-to build and install the host wheel. The host's `experimental-fastsecdec` feature
-selects this crate by one exact FastSecDec Git revision. The historical metadata/MC pin,
+to build and install the host wheel. Promotion into the host's ordinary
+`community` feature is prepared locally, but remains unpublished while the
+[remaining Symbolica requirements](../../docs/reviews/regular-hepkit-build.md)
+are resolved. The public development PR still uses its experimental opt-in.
+Both configurations select one exact FastSecDec Git revision; core-only
+Symbolica builds remain separate. The historical metadata/MC pin,
 `a3d09e177196013326fd1532eb938f559be87401`, passes dependency bootstrap and locked
 native/portable ownership checks. Its actual portable wheel, built with the
 community host at `c9bacce12dd4fffd171aecfbc4f76a2a273d39e7`, passes the generic

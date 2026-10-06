@@ -54,7 +54,7 @@ fn checkpoint_preserves_catalogue_and_reissues_its_missing_work() {
     assert_eq!(restored.design(), session.design());
     assert_eq!(
         restored.worker_context(0).unwrap().plan().rule().source(),
-        numerica::numerical_integration::qmc::RuleSource::HkknAlpha3
+        fastsecdec_qmc::RuleSource::HkknAlpha3
     );
     while let Some(task) = restored.next_work().unwrap() {
         let result = worker
@@ -109,6 +109,6 @@ fn adaptive_allocations_cannot_exceed_the_selected_catalogue_transactionally() {
     assert_eq!(design.allocations[0].shifts, 2);
     assert_eq!(
         session.worker_context(0).unwrap().plan().rule().source(),
-        numerica::numerical_integration::qmc::RuleSource::HkknAlpha3
+        fastsecdec_qmc::RuleSource::HkknAlpha3
     );
 }

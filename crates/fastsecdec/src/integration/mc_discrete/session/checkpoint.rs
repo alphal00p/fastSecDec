@@ -99,7 +99,8 @@ impl HavanaDiscreteSession {
         session.training = session
             .grid
             .as_ref()
-            .map(DiscreteGrid::clone_without_samples);
+            .map(clone_without_samples)
+            .transpose()?;
         for record in stored.records {
             session.validate_record(&record)?;
             if session.records.insert(record.task.batch, record).is_some() {

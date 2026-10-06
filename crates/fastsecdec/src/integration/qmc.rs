@@ -4,7 +4,7 @@ mod results;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use numerica::numerical_integration::qmc::QmcAccumulator;
+use fastsecdec_qmc::QmcAccumulator;
 use serde::{Deserialize, Serialize};
 
 use crate::status::{IntegrationMethod, IntegrationStage};

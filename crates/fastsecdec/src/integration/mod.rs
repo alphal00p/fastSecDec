@@ -1,7 +1,8 @@
 //! Caller-driven integration of complete sector coefficient vectors.
 //!
 //! Scheduling and worker pools belong to the caller. Lattices, random shifts,
-//! partial statistics and grid adaptation reuse Numerica/Havana.
+//! and partial statistics come from FastSecDec's QMC crate; ordinary Monte Carlo
+//! grids and their adaptation reuse Numerica/Havana.
 mod adaptive;
 mod config;
 mod contributions;
@@ -18,7 +19,7 @@ pub use config::{
 };
 pub use contributions::{ContributionReport, ReplicaRelation, SectorContribution};
 pub use estimate::VectorEstimate;
-pub use numerica::numerical_integration::qmc::PublishedLattice;
+pub use fastsecdec_qmc::PublishedLattice;
 pub use observation::IntegrationObservation;
 pub use qmc::{ProductionAllocation, QmcDesign, QmcSession};
 pub use worker::{QmcReturn, QmcTask, QmcWorker};
@@ -43,7 +44,7 @@ pub enum IntegrationError {
     #[error("native numerical accumulation exceeded representable range")]
     NumericRange,
     #[error(transparent)]
-    Qmc(#[from] numerica::numerical_integration::qmc::QmcError),
+    Qmc(#[from] fastsecdec_qmc::QmcError),
     #[error("invalid integration checkpoint: {0}")]
     Checkpoint(#[from] serde_json::Error),
 }
@@ -54,8 +55,8 @@ impl IntegrationError {
             self,
             Self::NumericRange
                 | Self::Qmc(
-                    numerica::numerical_integration::qmc::QmcError::NumericOverflow
-                        | numerica::numerical_integration::qmc::QmcError::NonFiniteValue
+                    fastsecdec_qmc::QmcError::NumericOverflow
+                        | fastsecdec_qmc::QmcError::NonFiniteValue
                 )
         )
     }

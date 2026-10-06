@@ -6,7 +6,7 @@ use crate::{
     },
     status::{DiscreteSectorAllocation, IntegrationMethod, IntegrationSnapshot, SectorSnapshot},
 };
-use numerica::numerical_integration::qmc::QmcEstimate;
+use fastsecdec_qmc::QmcEstimate;
 impl HavanaDiscreteSession {
     pub fn estimate(&self) -> Result<VectorEstimate> {
         if self.stage == IntegrationStage::Pilot {

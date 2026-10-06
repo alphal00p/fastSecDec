@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use numerica::numerical_integration::qmc::{QmcPlan, Rank1Rule};
+use fastsecdec_qmc::{QmcPlan, Rank1Rule};
 use serde::{Deserialize, Serialize};
 
 use super::{CoefficientComponent, IntegrationError, PublishedLattice, Result};

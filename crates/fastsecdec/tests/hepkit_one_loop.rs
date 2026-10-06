@@ -170,13 +170,13 @@ fn native_master_jit_cache_round_trip_uses_current_backend_and_rejects_old_versi
                 assert!((actual.im - expected.im).abs() < 1e-12);
             }
         }
-        let current = b"symjit-2.26.4";
+        let current = b"oneloop-evaluator-v3:";
         let mut stale = bytes[1..].to_vec();
         let offset = stale
             .windows(current.len())
             .position(|window| window == current)
-            .expect("native portable cache must identify the selected SymJIT release");
-        stale[offset..offset + current.len()].copy_from_slice(b"symjit-2.26.0");
+            .expect("native cache must identify the Symbolica source-IR schema");
+        stale[offset..offset + current.len()].copy_from_slice(b"oneloop-evaluator-v0:");
         assert!(matches!(
             JitEvaluator::from_bytes(&stale),
             Err(error) if error.contains("incompatible evaluator cache")

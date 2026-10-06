@@ -5,7 +5,7 @@ use fastsecdec::{
     },
     status::{IntegrationStage, UncertaintyStatus},
 };
-use numerica::numerical_integration::qmc::QmcPartial;
+use fastsecdec_qmc::QmcPartial;
 
 #[test]
 fn callback_observes_periodization_weight_applied_exactly_once() {

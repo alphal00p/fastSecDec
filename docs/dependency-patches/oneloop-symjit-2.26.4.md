@@ -1,5 +1,16 @@
 # OneLOop test-provider compatibility with SymJIT 2.26.4
 
+The historical patch has been removed from delivery.
+[OneLOop PR #1](https://github.com/alphal00p/oneloopmaster/pull/1), at
+`b82fab7024d7f65a24571f26495afc5020c0582d`, merged into `main` at
+`27c3723434b7d99cf70ce612b0b8041d3f5c0e78`, instead declares the compatible
+minimum `symjit = "2.26.0"`. It identifies the stored Symbolica evaluator IR
+separately from the backend that recompiles it. FastSecDec likewise declares a
+compatible minimum, `2.26.4`, and records the linked backend's reported version.
+The account below records the earlier validated builds.
+
+## Historical rationale and validation
+
 The user requested the latest Symbolica and SymJIT releases for evaluator
 representation experiments. On 2026-10-04 the live crates.io index identified
 Symbolica 3.0.1 and SymJIT 2.26.4 as the latest non-yanked releases. FastSecDec's
@@ -11,7 +22,7 @@ contains that exact backend version. The independent HEPKit reviewer inspected
 the provider's API use and cache checks before the local change: the provider
 uses Symbolica's evaluator interfaces and has no direct `symjit::` calls.
 
-The [two-line patch](oneloop-symjit-2.26.4.patch) updates the manifest pin and
+The original two-line patch updated the manifest pin and
 cache header together. Updating only the manifest would mislabel cache
 compatibility. This changes no master formula or reduction algorithm. Existing
 comments about earlier backend defects remain historical evidence.

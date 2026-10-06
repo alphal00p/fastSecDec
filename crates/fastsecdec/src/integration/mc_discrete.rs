@@ -4,6 +4,7 @@
 //! native DiscreteGrid, then its ContinuousGrid. Production grids are frozen;
 //! pilot observations never enter production means or full-vector covariance.
 mod config;
+mod grid;
 mod session;
 mod worker;
 pub use config::HavanaDiscreteSettings;

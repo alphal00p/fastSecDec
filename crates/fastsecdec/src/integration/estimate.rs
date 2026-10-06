@@ -1,7 +1,5 @@
-use numerica::{
-    domains::float::{DoubleFloat, RealLike},
-    numerical_integration::qmc::QmcEstimate,
-};
+use fastsecdec_qmc::QmcEstimate;
+use numerica::domains::float::{DoubleFloat, RealLike};
 use serde::{Deserialize, Serialize};
 
 use super::{CoefficientComponent, IntegrationError, Result, Tolerance};

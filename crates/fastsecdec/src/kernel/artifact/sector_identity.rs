@@ -44,7 +44,7 @@ impl KernelSet {
         })?;
         let identity = SectorIdentity {
             program_codec: native::CODEC,
-            compiler_policy: native::COMPILER,
+            compiler_policy: native::compiler_policy(),
             parameters: parameter_names(&sector.parameters),
             program: &sector.program_bytes,
             orders: &self.orders,

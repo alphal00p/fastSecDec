@@ -356,7 +356,7 @@ def _(adapt_button, advance_session, allocation_controls, builders, cancel_butto
         if _validation:
             run_state.message = _validation
         elif sd is None:
-            run_state.message = "Install a wheel with the experimental FastSecDec API."
+            run_state.message = "Install a community wheel with the FastSecDec API."
         else:
             _configuration = dict(draft)
             _prepare = (lambda observer: gghh_builder.prepare(observer=observer)) if draft["example"] == "gghh" else (lambda observer: builders.prepare(_configuration))

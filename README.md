@@ -15,8 +15,8 @@ The [marimo showcase](examples/hepkit/README.md) uses native HEPKit inputs,
 separate Generate and Integrate actions, live status views and sector inspection.
 The scalar triangle is selected by default; the projected `g g -> H H`
 double box is an optional longer calculation in native and browser execution.
-Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
-feature and required dependency patches. The updated local native wheel passes
+Its [build guide](examples/hepkit/BUILD.md) documents the community build
+and required dependency patches. The updated local native wheel passes
 118 controls; the preceding published API milestone passed 95 in hosted native
 CI. The earlier `a3d09e` Wasm wheel passes generic
 smoke and all 58 collected portable controls. Actual triangle browser execution
@@ -37,6 +37,12 @@ The current Wasm wheel passes generic smoke and all 89 portable controls,
 including the new Model, progress and citation APIs. Native/editor and portable
 validation scope is recorded in
 the [notebook review](docs/reviews/gghh-single-notebook.md).
+
+Those wheel results precede the latest QMC relocation and dependency cleanup.
+QMC now lives in `crates/fastsecdec-qmc`, alongside ordinary registry Numerica
+for Havana MC. Focused Rust tests pass; no new wheel validation is implied.
+The [dependency review](docs/reviews/regular-hepkit-build.md) records the four
+remaining Symbolica changes and the pending regular HEPKit build promotion.
 
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside
@@ -96,9 +102,11 @@ FastSecDec, pySecDec and the geometric sector/subtraction method papers after
 native FastSecDec use. Saved kernels also register these citations when loaded.
 
 The workspace separates the public physics library (`fastsecdec`), exact sector
-geometry (`fastsecdec-sectors`), and command-line orchestration (`fastsecdec-cli`).
-The QMC library extension lives on a separate branch of Numerica. Reference
-checkouts and generated artifacts are deliberately excluded from this repository.
+geometry (`fastsecdec-sectors`), caller-driven lattice integration
+(`fastsecdec-qmc`), and command-line orchestration (`fastsecdec-cli`).
+QMC lives in this repository; Numerica supplies the numeric backends, RNG and
+ordinary Havana Monte Carlo. Reference checkouts and generated artifacts are
+deliberately excluded from this repository.
 
 Library callers can retain a `GenerationContext` for exact geometry reuse.
 The sector crate also exposes [caller-scheduled chart and cone jobs](docs/reviews/parallel-geometry-implementation.md),

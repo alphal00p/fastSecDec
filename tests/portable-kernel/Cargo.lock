@@ -658,6 +658,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "blake3",
+ "fastsecdec-qmc",
  "fastsecdec-sectors",
  "feynkit-graph",
  "feynkit-kinematics",
@@ -679,10 +680,20 @@ version = "0.0.0"
 dependencies = [
  "blake3",
  "fastsecdec",
+ "fastsecdec-qmc",
  "numerica",
  "serde_json",
  "symbolica",
  "tempfile",
+]
+
+[[package]]
+name = "fastsecdec-qmc"
+version = "0.1.0"
+dependencies = [
+ "numerica",
+ "rand 0.9.5",
+ "serde",
 ]
 
 [[package]]
@@ -1233,6 +1244,8 @@ dependencies = [
 [[package]]
 name = "numerica"
 version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "836accdb415b7667573bd12676e0b2eb4440e3f60b110038d96a9086f5651c15"
 dependencies = [
  "ahash",
  "astro-float",

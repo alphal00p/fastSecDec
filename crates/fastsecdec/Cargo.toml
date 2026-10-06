@@ -10,15 +10,17 @@ default = ["native"]
 native = [
     "symbolica/integer-gmp", "symbolica/float-mpfr", "symbolica/native_code_generation",
     "numerica/integer-gmp", "numerica/float-mpfr", "dep:symjit", "fastsecdec-sectors/native",
+    "fastsecdec-qmc/native",
 ]
 portable = [
     "symbolica/wasm", "numerica/integer-malachite", "numerica/float-astro",
-    "fastsecdec-sectors/portable", "feynkit-graph/wasm", "feynkit-kinematics/wasm",
+    "fastsecdec-sectors/portable", "fastsecdec-qmc/portable", "feynkit-graph/wasm", "feynkit-kinematics/wasm",
     "linnet/wasm", "idenso/wasm", "spenso/wasm",
 ]
 
 [dependencies]
 fastsecdec-sectors.workspace = true
+fastsecdec-qmc = { workspace = true, features = ["serde"] }
 symbolica.workspace = true
 numerica.workspace = true
 symjit = { workspace = true, optional = true }
@@ -39,7 +41,7 @@ tempfile.workspace = true
 feynkit-generator = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 feynkit-tensor.workspace = true
 # Same native scalar-master provider/revision as the HEPKit community bridge.
-oneloop = { git = "https://github.com/alphal00p/oneloopmaster", branch = "main", default-features = false }
+oneloop = { git = "https://github.com/alphal00p/oneloopmaster", rev = "27c3723434b7d99cf70ce612b0b8041d3f5c0e78", default-features = false }
 one-loop-reduce = { git = "https://github.com/lcnbr/one-loop-reduce", branch = "main", default-features = false }
 
 [[example]]

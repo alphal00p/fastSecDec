@@ -131,7 +131,7 @@ impl HavanaDiscreteWorker {
             ));
         }
         let started = Instant::now();
-        let mut grid = self.grid.clone_without_samples();
+        let mut grid = super::grid::clone_without_samples(&self.grid)?;
         let mut rng = MonteCarloRng::import(task.rng_state);
         let mut sample = Sample::new();
         let mut values = vec![f64::NAN; self.outputs];

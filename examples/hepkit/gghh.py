@@ -57,7 +57,7 @@ def _(mo):
     average and zero top/Higgs widths.
 
     Use **marimo's editor**. The expensive decomposition and integration cells
-    start disabled; enable and run the desired cell. A browser needs the experimental Pyodide community
+    start disabled; enable and run the desired cell. A browser needs the Pyodide community
     wheel; it uses one CPU and generation can take several minutes.
     """)
     return

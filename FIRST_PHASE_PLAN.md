@@ -1383,3 +1383,101 @@ performance gates.
   The tested shared Model/progress owner is published at FeynKit `7f3d6c79`;
   community retains only registration, citation aggregation and generated stubs.
   These API/notebook gates do not close the remaining phase-A performance gates.
+
+### Regular HEPKit integration and scalar representation (2026-10-06)
+
+User clarification, verbatim:
+
+> Once WASM works, there is no need for `#[cfg(feature = "experimental-fastsecdec")]`, it can be a regular feature. Why do the scalar bindings have to be made exact?
+
+Include FastSecDec in ordinary native and Wasm HEPKit/community builds, removing
+the dedicated experimental feature and opt-in build switches. Keep core-only
+Symbolica builds separate and community limited to linking, registration and
+stubs. Validate the default feature graphs and build workflows against the
+already tested native/portable implementation; do not repeat scientific runs
+for a feature-wiring change.
+
+Distinguish exact representation from physical precision. The current native
+family's rational-polynomial preparation and rational/algebraic domain checks
+motivate lossless binary64-to-rational transport. This adds no precision,
+recovers no intended decimal value, and cannot repair relations between
+independently rounded kinematics. It is not a universal requirement for all
+HEPKit scalars or numerator coefficients. Retain Symbolica expression overrides
+and analytic dependency resolution, without introducing another algebra system
+or silently changing the numerical point.
+
+Further user clarification, verbatim:
+
+> What is scripts/prepare_fastsecdec_dependencies.sh? There should be no dependencies
+
+Remove the special dependency-preparation requirement from regular HEPKit
+delivery. Keep the previously required ecosystem crates as ordinary Cargo
+dependencies; do not replace their functionality. Resolve the outstanding
+upstream compatibility fixes before deleting the bootstrap or publishing the
+default-feature promotion as a working normal build. The current
+[dependency audit](docs/reviews/regular-hepkit-build.md) records the actual
+remaining fixes and the distinction between patched-wheel validation and
+unpatched public-source readiness.
+
+Further implementation instructions, verbatim:
+
+> Can you move teh QMC logic to fastsecdec itself for now? What other Symbolica changes are needed? You are free to update HEPkit and oneloop, you can find the source in /common/dev/
+
+> Why are they pinning symjit versions? They should only define a minimum version
+
+These instructions supersede the earlier Numerica ownership requirement: move
+the existing tested QMC library into a dedicated FastSecDec crate, preserving
+worker-local point generation, caller-owned execution, estimators, checkpoints,
+catalogue attribution and ordinary Havana Monte Carlo behavior. Keep the earlier
+Numerica branch and PR available, without relying on its unpublished QMC APIs
+for normal builds. Audit remaining uses of its other local fixes separately.
+
+Update the authorized HEPKit and OneLOop sources directly as needed for normal
+Cargo integration. Declare minimum compatible SymJIT versions rather than exact
+dependency pins; retain reproducibility in lockfiles and record the actual
+resolved backend version in evaluator cache identities. Provide the six
+remaining Symbolica fixes as a concrete upstream review bundle; the
+literal-series-variable fix is already upstream. No Symbolica publication
+authorization is inferred from the HEPKit/OneLOop authorization.
+
+Further upstream review instructions, verbatim:
+
+> Why is IR validation needed? Did you generatw bad IR?
+
+> I am not sure if the constant arg fix is good: the resulting constant will not contain error tracking. What are you sing this for?
+
+> I have updated symbolica/community. Remove patches that are no longer needed.
+
+> The oneloopmaster fix is in main too now
+
+Compare each local correction with the updated owning repository and remove
+superseded patches from delivery. Preserve historical reproduction evidence
+without applying its fixes again. Evaluator decoding validation addresses
+deliberately malformed saved programs, not an observed faulty FastSecDec
+generator. Distinguish error propagation through the evaluator from a nominal
+error assigned after evaluating a fixed external constant: the latter does not
+account for cancellation or rounding inside an arbitrary callback. Keep the
+remaining constant-domain proposal qualified pending a suitable upstream
+numerical contract.
+
+
+- 2026-10-06: QMC ownership moves into the dedicated `fastsecdec-qmc` crate,
+  preserving old-owner serialized plans, point bits, partial estimates and
+  resumed covariance. Registry Numerica continues to supply numeric backends,
+  RNG and ordinary Havana MC; a private native-grid adapter covers its released
+  child-clone omission. Independent review, 37 native plus 37 portable-feature
+  host QMC tests, 43 focused core controls and strict QMC Clippy pass. SymJIT
+  compatible minima replace exact requirements; actual linked-version reporting
+  and CLI Git/registry provenance pass 46 focused tests and scoped strict
+  core/CLI Clippy. Leaf and community metadata retain single shared owners.
+  Three FeynKit tests, two OneLOop owner controls and the downstream one-loop
+  cache regression pass. OneLOop PR #1 is merged into `main` at `27c37234`.
+  The updated Symbolica `community` revision `473b4b8` incorporates the alias,
+  complex-product and literal-series corrections; those three patches and the
+  superseded FeynKit/OneLOop patches are removed. All 23 affected tests pass
+  against the updated source with four remaining Symbolica patches. The
+  fixed-argument constant fallback's missing callback-internal uncertainty is
+  explicitly documented; no general error-bound claim is made. The regular
+  community feature promotion remains locally prepared pending the outstanding
+  owner requirements. No new Python/Wasm wheel or performance result is claimed,
+  and phase A remains incomplete.

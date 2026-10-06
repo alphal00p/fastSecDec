@@ -7,7 +7,7 @@ use fastsecdec::{
     parametric::ParametricIntegrand,
 };
 use feynkit_graph::symbols;
-use numerica::numerical_integration::qmc::{Korobov3, QmcPlan, Rank1Rule};
+use fastsecdec_qmc::{Korobov3, QmcPlan, Rank1Rule};
 use std::{
     collections::BTreeMap,
     ops::ControlFlow,

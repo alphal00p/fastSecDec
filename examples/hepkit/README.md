@@ -16,7 +16,7 @@ execution controls. Sector inspection and streamed native results are included
 in the same file. Generation and compilation use HEPKit's automatic marimo
 progress presenter, also used by `generate_diagrams`. Pass `progress=None` for
 silence or a callable to receive every native generation snapshot.
-This new walkthrough requires the matching experimental wheel with
+This new walkthrough requires a matching community wheel with
 `Model.scalar_bindings` and automatic sector progress. The current wheels pass
 all 118 native and 89 portable controls; the actual generated graph, both
 integration methods and final bibliography cells have also been exercised
@@ -44,7 +44,7 @@ within the Python process, including previous notebook runs.
 ## Dashboard with several examples
 
 Run `fastsecdec_showcase.py` with marimo 0.24.2 and a community wheel containing
-FastSecDec's experimental bindings. Follow [BUILD.md](BUILD.md) to build the
+FastSecDec's bindings. Follow [BUILD.md](BUILD.md) to build the
 wheel from the same pinned FastSecDec checkout as this notebook.
 
 ```sh

@@ -1301,3 +1301,47 @@ defect for explicit zero-width overrides of a nonzero-width default model. The
 atomic constructor reuses the existing admission guards and native family
 specialization; 30 input/family/example and five CLI tests plus strict Clippy
 pass. Final installed-runtime checks remain in progress.
+
+## FastSecDec QMC ownership and ordinary dependency delivery
+
+The user's subsequent instruction relocates the tested QMC implementation from
+Numerica's feature branch to `crates/fastsecdec-qmc`. The new owner retains its
+catalogue data and licenses, caller-owned work scheduling, lattice/transform
+algorithms, full-vector covariance and checkpoint formats. It reuses public
+Numerica RNG state export to obtain the same seed words rather than introducing
+another generator. Frozen old-owner fixtures reproduce plan bytes, point bits,
+partial accumulators and resumed covariance. The original branch and PR remain
+historical evidence; production uses registry Numerica 3.0.1.
+
+Ordinary Havana remains in Numerica. Its released discrete-grid sample-free
+clone omits the returned child clone; a private FastSecDec adapter composes the
+existing grid operations for the one-level discrete/continuous shape used here.
+Unsupported shapes produce an error. There is no replacement integration grid,
+sampler, RNG, algebra or library-owned worker pool.
+
+Independent reviews and 37 native plus 37 portable-feature QMC tests pass, as do
+43 focused core QMC/MC controls and strict QMC Clippy. Portable-feature tests in
+this milestone ran on the host, not in a new Wasm wheel. Actual linked SymJIT
+version reporting, source provenance and artifact compatibility pass another
+46 focused tests and scoped strict core/CLI Clippy. SymJIT requirements are
+compatible minimums; lockfiles record resolution. CLI provenance uses the
+consumer workspace's resolved Git/registry identities, with source-root
+fingerprinting only for explicit local path overrides.
+
+The updated HEPKit literal-substitution owner passes three native regressions.
+OneLOop's public cache change stores evaluator IR and recompiles it; two owner
+controls and the updated FastSecDec one-loop cache regression pass. These
+dependency and compatibility checks introduce no new physics, convergence or
+performance claim. Upstream cleanup and ordinary-build readiness are tracked in
+the [dependency delivery review](reviews/regular-hepkit-build.md).
+
+The subsequent public-source cleanup removes five superseded dependency patches.
+Independent production-hunk/semantic review confirms the three Symbolica fixes
+in `473b4b8`; merged OneLOop `27c37234` has the tested PR's exact source tree.
+All 23 affected artifact, complex-kernel and Gamma regressions pass against the
+updated Symbolica base plus four remaining patches. There was no observed bad
+IR from generation: decoder regressions deliberately corrupt saved programs.
+The [constant-domain audit](reviews/fixed-constant-error-tracking.md) records
+that generic fallback conversion assigns nominal uncertainty without tracking
+callback-internal errors. This remains an upstream design issue rather than a
+new downstream numerical implementation.

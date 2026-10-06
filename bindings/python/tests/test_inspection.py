@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
 
 fs = getattr(hep, "fastsecdec", None)
-pytestmark = pytest.mark.skipif(fs is None, reason="requires experimental-fastsecdec wheel")
+pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel with FastSecDec")
 
 
 @pytest.fixture(scope="module")

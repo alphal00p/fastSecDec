@@ -14,7 +14,7 @@ nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
 packages = [package for package in metadata["packages"] if package["id"] in nodes]
 owners = {}
 for name in (
-    "fastsecdec", "fastsecdec-sectors", "fastsecdec-python", "symbolica", "graphica", "numerica",
+    "fastsecdec", "fastsecdec-sectors", "fastsecdec-qmc", "fastsecdec-python", "symbolica", "graphica", "numerica",
     "feynkit-graph", "feynkit-model", "feynkit-kinematics", "feynkit-tensor",
     "feynkit-py", "spynso3", "linnet", "idenso", "spenso", "pyo3",
 ):
@@ -27,6 +27,8 @@ leaf_features = nodes[owners["fastsecdec-python"]["id"]]["features"]
 assert set(leaf_features) & {"native", "portable"} == {backend}, leaf_features
 sector_features = nodes[owners["fastsecdec-sectors"]["id"]]["features"]
 assert set(sector_features) & {"native", "portable"} == {backend}, sector_features
+qmc_features = nodes[owners["fastsecdec-qmc"]["id"]]["features"]
+assert set(qmc_features) & {"native", "portable"} == {backend}, qmc_features
 numeric_features = set(nodes[owners["numerica"]["id"]]["features"])
 native_numeric = {"integer-gmp", "float-mpfr"}
 portable_numeric = {"integer-malachite", "float-astro"}
@@ -39,7 +41,7 @@ assert required <= numeric_features, numeric_features
 if not any(package["name"] == "symbolica_community" for package in packages):
     assert not forbidden & numeric_features, numeric_features
 if args.allow_local_fastsecdec:
-    for name in ("fastsecdec", "fastsecdec-sectors", "fastsecdec-python"):
+    for name in ("fastsecdec", "fastsecdec-sectors", "fastsecdec-qmc", "fastsecdec-python"):
         assert owners[name]["source"] is None, (name, owners[name]["source"])
     print(f"Unique native owners; {backend} backend; explicitly local FastSecDec development")
 else:
@@ -48,6 +50,6 @@ else:
     assert declared.startswith("git+https://github.com/alphal00p/fastSecDec?rev="), declared
     revision = declared.rsplit("=", 1)[1]
     assert len(revision) == 40 and all(character in "0123456789abcdef" for character in revision)
-    for name in ("fastsecdec", "fastsecdec-sectors", "fastsecdec-python"):
+    for name in ("fastsecdec", "fastsecdec-sectors", "fastsecdec-qmc", "fastsecdec-python"):
         assert owners[name]["source"] == declared + "#" + revision, owners[name]["source"]
     print(f"Unique native owners; {backend} backend; published FastSecDec {revision}")

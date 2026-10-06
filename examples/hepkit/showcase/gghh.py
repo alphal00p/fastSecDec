@@ -87,7 +87,7 @@ def prepare(*, observer=None, assets=ASSETS):
     """
     fs = hep.sector_decomposition
     if not hasattr(fs, "with_diagram_expressions"):
-        raise RuntimeError("Rebuild the experimental bridge with the ggHH expression-copy API")
+        raise RuntimeError("Rebuild the community wheel with the ggHH expression-copy API")
     origin = _assets(assets)
     assets = Path(assets)
     model = hep.Model(assets / "model.json")

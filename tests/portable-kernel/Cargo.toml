@@ -16,6 +16,7 @@ native = ["fastsecdec/native", "symbolica/integer-gmp", "symbolica/float-mpfr", 
 
 [dependencies]
 fastsecdec = { path = "../../crates/fastsecdec", default-features = false }
+fastsecdec-qmc = { path = "../../crates/fastsecdec-qmc", default-features = false }
 symbolica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 serde_json = { version = "1.0", features = ["float_roundtrip"] }

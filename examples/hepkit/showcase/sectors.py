@@ -9,7 +9,7 @@ def overview(mo, generated, kernels=None):
     if generated is None:
         return mo.md("Generate first to inspect the decomposition.")
     if not hasattr(generated, "sectors") or not hasattr(generated, "metadata"):
-        return mo.callout("This wheel lacks the native sector-inspection API. Install the updated experimental bindings.", kind="warn")
+        return mo.callout("This wheel lacks the native sector-inspection API. Install the updated community wheel.", kind="warn")
     charts = generated.metadata.charts
     statistics = getattr(kernels, "sector_statistics", ())
     chart_counts = Counter(chart.kernel_sector for chart in charts)

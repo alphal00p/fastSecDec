@@ -1,7 +1,10 @@
-# Build the experimental HEPKit bindings
+# Build the HEPKit bindings
 
-Symbolica-community builds the wheel and registers FastSecDec's optional Python
-module. FastSecDec owns the Rust/PyO3 implementation under `bindings/python`;
+Symbolica-community builds the wheel and registers FastSecDec. Promotion to a
+regular HEPKit module is prepared locally; ordinary public builds still await
+the remaining [Symbolica fixes](../../docs/reviews/regular-hepkit-build.md).
+The commands below describe that prepared feature branch. FastSecDec owns the
+Rust/PyO3 implementation under `bindings/python`;
 there is no separate FastSecDec wheel. The default numerical library and CLI
 remain Python-free.
 
@@ -27,7 +30,7 @@ export FASTSECDEC_DEPENDENCIES=/absolute/path/new-dependencies
 git -C "$SHOWCASE_CHECKOUT" rev-parse HEAD
 bash scripts/prepare_fastsecdec_dependencies.sh "$FASTSECDEC_DEPENDENCIES"
 CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
-  maturin develop --release --locked --features experimental-fastsecdec
+  maturin develop --release --locked
 bash "$FASTSECDEC_DEPENDENCIES/fastsecdec/bindings/python/scripts/test-native.sh" "$PWD"
 python -c 'from symbolica.community.hepkit.sector_decomposition import sector_decompose, HavanaDiscreteSettings, PreSubtractionMetadata'
 python -m marimo run "$SHOWCASE_CHECKOUT/examples/hepkit/fastsecdec_showcase.py"
@@ -40,9 +43,9 @@ home supplies the same configuration to metadata and compilation, with isolated
 caches and no global changes. Keep it available for subsequent builds. Maturin
 1.15 does not forward `--config` to its metadata command.
 
-The reviewed owner setup aligns the different SymJIT pins required by published
-OneLOop and FastSecDec. Disabling an optional feature does not remove Cargo's
-lockfile-resolution prerequisite. Native and portable backends are exclusive;
+OneLOop and FastSecDec now declare compatible SymJIT minimum versions. The
+temporary owner setup remains necessary for the outstanding Symbolica fixes;
+it is not the intended ordinary build workflow. Native and portable backends are exclusive;
 all shared HEPKit objects must retain one Rust owner. The pinned checkout's
 `bindings/python/scripts/check_dependencies.py` checks this metadata boundary.
 Use a release wheel for costly generation: native O2 kernels alone do not
@@ -61,7 +64,6 @@ must remain native. The host-target setting below leaves the Wasm linker alone.
 
 ```sh
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$(command -v cc)"
-export WASM_FASTSECDEC=1
 CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
   bash scripts/build_wasm_performance.sh /absolute/path/new-wasm-wheel
 export PYODIDE_DIST_DIR="$(pyodide config get dist_dir)"

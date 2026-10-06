@@ -1,6 +1,6 @@
 use std::{fmt::Display, time::Instant};
 
-use numerica::numerical_integration::qmc::{
+use fastsecdec_qmc::{
     Korobov2, Korobov3, QmcPartial, QmcPlan, QmcWorkPackage,
 };
 use serde::{Deserialize, Serialize};

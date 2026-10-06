@@ -1,5 +1,9 @@
 //! Native O2 or portable interpreted vector kernels. Worker ownership is explicit.
 mod artifact;
+#[cfg(feature = "native")]
+mod backend_version;
+#[cfg(feature = "native")]
+pub use backend_version::symjit_version_code;
 mod cancellation;
 mod compilation;
 mod complex;

@@ -20,6 +20,10 @@ pub struct Dependency {
 }
 
 pub fn dependencies() -> Vec<Dependency> {
+    let symjit = format!(
+        "native-version-code:{}",
+        fastsecdec::kernel::symjit_version_code()
+    );
     [
         (
             "feynkit",
@@ -36,7 +40,11 @@ pub fn dependencies() -> Vec<Dependency> {
             env!("FASTSECDEC_NUMERICA_REVISION"),
             env!("FASTSECDEC_NUMERICA_STATE"),
         ),
-        ("symjit", "2.26.4", "published Rust crate"),
+        (
+            "symjit",
+            symjit.as_str(),
+            "linked SymJIT Application::measure(version)",
+        ),
     ]
     .into_iter()
     .map(|(name, revision, source_state)| Dependency {
@@ -45,6 +53,27 @@ pub fn dependencies() -> Vec<Dependency> {
         source_state: source_state.into(),
     })
     .collect()
+}
+
+fn dependency_matches(recorded: &Dependency, current: &Dependency) -> bool {
+    recorded == current
+        // Old artifacts stored exact Symbolica IR, never SymJIT machine code.
+        // Keep their existing provenance/identity only for the same reported
+        // backend; all other dependency identities remain exact comparisons.
+        || (recorded.name == "symjit"
+            && current.name == "symjit"
+            && recorded.revision == "2.26.4"
+            && recorded.source_state == "published Rust crate"
+            && current.revision == "native-version-code:22604"
+            && current.source_state == "linked SymJIT Application::measure(version)")
+}
+
+fn dependencies_match(recorded: &[Dependency], current: &[Dependency]) -> bool {
+    recorded.len() == current.len()
+        && recorded
+            .iter()
+            .zip(current)
+            .all(|(old, new)| dependency_matches(old, new))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -219,7 +248,7 @@ impl Artifact {
         if artifact.content_id != artifact.identity()? {
             return Err("artifact complete content identity is invalid".into());
         }
-        if artifact.provenance.dependencies != dependencies() {
+        if !dependencies_match(&artifact.provenance.dependencies, &dependencies()) {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
         preflight(&artifact)?;
@@ -277,6 +306,44 @@ mod persistence_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn backend_provenance_reports_actual_code_and_only_accepts_same_legacy_backend() {
+        let current = dependencies();
+        let symjit = current
+            .iter()
+            .find(|dependency| dependency.name == "symjit")
+            .unwrap();
+        assert_eq!(
+            symjit.revision,
+            format!(
+                "native-version-code:{}",
+                fastsecdec::kernel::symjit_version_code()
+            )
+        );
+        assert!(dependencies_match(&current, &current));
+        let legacy = Dependency {
+            name: "symjit".into(),
+            revision: "2.26.4".into(),
+            source_state: "published Rust crate".into(),
+        };
+        let exact = Dependency {
+            name: "symjit".into(),
+            revision: "native-version-code:22604".into(),
+            source_state: "linked SymJIT Application::measure(version)".into(),
+        };
+        assert!(dependency_matches(&legacy, &exact));
+        let mut newer = exact.clone();
+        newer.revision = "native-version-code:22700".into();
+        assert!(!dependency_matches(&legacy, &newer));
+        newer = exact.clone();
+        newer.source_state = "unverified".into();
+        assert!(!dependency_matches(&legacy, &newer));
+        newer = exact;
+        newer.name = "another dependency".into();
+        assert!(!dependency_matches(&legacy, &newer));
+        assert!(!dependencies_match(&current[..current.len() - 1], &current));
+    }
 
     #[test]
     fn omitted_preparation_preserves_legacy_provenance_serialization() {

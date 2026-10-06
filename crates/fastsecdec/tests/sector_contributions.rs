@@ -7,7 +7,7 @@ use fastsecdec::{
     },
     status::{CoefficientComponent, IntegrationStage, UncertaintyStatus},
 };
-use numerica::numerical_integration::qmc::QmcPartial;
+use fastsecdec_qmc::QmcPartial;
 
 fn problem() -> IntegrationProblem {
     IntegrationProblem::new_with_components(

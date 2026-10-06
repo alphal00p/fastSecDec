@@ -1,5 +1,6 @@
 mod checkpoint;
 mod observation;
+use super::grid::clone_without_samples;
 use super::{
     HavanaDiscreteReturn, HavanaDiscreteSettings, HavanaDiscreteTask, HavanaDiscreteWorker,
 };
@@ -106,7 +107,7 @@ impl HavanaDiscreteSession {
     }
     fn install(&mut self) -> Result<()> {
         self.grid_id = self.identity()?;
-        self.training = self.grid.as_ref().map(DiscreteGrid::clone_without_samples);
+        self.training = self.grid.as_ref().map(clone_without_samples).transpose()?;
         let mut rng = MonteCarloRng::import(self.next_rng);
         self.seeds = (0..self.settings.batch.batches)
             .map(|_| {
@@ -160,7 +161,7 @@ impl HavanaDiscreteSession {
             }
         }
         self.grid_id = self.identity()?;
-        self.training = self.grid.as_ref().map(DiscreteGrid::clone_without_samples);
+        self.training = self.grid.as_ref().map(clone_without_samples).transpose()?;
         Ok(self)
     }
     pub fn is_complete(&self) -> bool {
@@ -187,15 +188,9 @@ impl HavanaDiscreteSession {
         Ok(HavanaDiscreteWorker {
             sector_ids: self.problem.sectors.iter().map(|s| s.id).collect(),
             grid_id: self.grid_id,
-            grid: self
-                .grid
-                .as_ref()
-                .ok_or_else(|| {
-                    IntegrationError::Unavailable(
-                        "exact-only problem has no sampling worker".into(),
-                    )
-                })?
-                .clone_without_samples(),
+            grid: clone_without_samples(self.grid.as_ref().ok_or_else(|| {
+                IntegrationError::Unavailable("exact-only problem has no sampling worker".into())
+            })?)?,
             points: self.settings.batch.points_per_batch,
             outputs: self.problem.orders.len(),
             training: self.stage == IntegrationStage::Pilot,
@@ -316,7 +311,7 @@ impl HavanaDiscreteSession {
                 "native adaptation produced an invalid sector probability".into(),
             ));
         }
-        Ok(grid.clone_without_samples())
+        clone_without_samples(&grid)
     }
     pub fn adapt_pilot(&mut self, discrete: f64, continuous: f64) -> Result<()> {
         let grid = self.trained(discrete, continuous)?;

@@ -3,7 +3,7 @@ use crate::{
     integration::{VectorEstimate, estimate::precise_sum},
     status::{IntegrationMethod, IntegrationSnapshot, SectorSnapshot, UncertaintyStatus},
 };
-use numerica::numerical_integration::qmc::QmcEstimate;
+use fastsecdec_qmc::QmcEstimate;
 
 impl HavanaSession {
     pub fn estimate(&self) -> Result<VectorEstimate> {
@@ -23,7 +23,7 @@ impl HavanaSession {
                     .map(|r| r.mean.clone())
                     .collect::<Vec<_>>();
                 QmcEstimate::from_shift_means(&means).map_err(|error| match error {
-                    numerica::numerical_integration::qmc::QmcError::InsufficientShifts {
+                    fastsecdec_qmc::QmcError::InsufficientShifts {
                         ..
                     } => IntegrationError::Unavailable(
                         "each Havana sector needs at least two complete independent batches".into(),
@@ -84,7 +84,7 @@ impl HavanaSession {
             Ok(value) => Some(value),
             Err(IntegrationError::Unavailable(_))
             | Err(IntegrationError::Qmc(
-                numerica::numerical_integration::qmc::QmcError::InsufficientShifts { .. },
+                fastsecdec_qmc::QmcError::InsufficientShifts { .. },
             )) => None,
             Err(error) => return Err(error),
         };

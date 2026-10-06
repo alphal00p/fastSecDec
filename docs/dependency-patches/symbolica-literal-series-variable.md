@@ -1,5 +1,13 @@
 # Literal expansion variables in native function Series
 
+Status (2026-10-06): upstream in Symbolica commit `6589d0c`, included in the
+selected public `community` revision `473b4b8dbc2f9bff8658a047196ba0877238bf9e`.
+The delivery patch and bootstrap application have been removed. The standalone
+[author-facing reproduction](../../mre/symbolica-literal-series-variable/README.md)
+retains its original patch as historical evidence; it is not applied to builds.
+
+## Historical rationale and validation
+
 The native generic-function Series fallback converted its expansion
 `Indeterminate` into a replacement pattern. For a valid symbol ending in `_`,
 that conversion creates a wildcard. Substituting the expansion point therefore

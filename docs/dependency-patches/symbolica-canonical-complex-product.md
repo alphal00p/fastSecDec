@@ -1,5 +1,11 @@
 # Canonical complex product parentheses
 
+Status (2026-10-06): the production correction is present in public Symbolica
+`community` commit `473b4b8dbc2f9bff8658a047196ba0877238bf9e`. The local patch and
+bootstrap application have been removed. The account below is historical.
+
+## Historical rationale and validation
+
 Symbolica's canonical printer treated only `AtomView::Add` as requiring
 parentheses inside a product. A complex `AtomView::Num` can itself print as a
 sum. Consequently `(2+3i)*x` was printed as `2+3i*x`, and importing that canonical

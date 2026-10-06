@@ -16,15 +16,18 @@ prompt, subsequent user requirements, and acceptance gates remain authoritative.
 - The root agent primarily coordinates. Delegate implementation, research,
   independent review, debugging, and performance tasks to subagents with explicit
   file ownership. Do not edit another active agent's files without coordination.
-- Keep FastSecDec on local `main` and commit validated milestones. Numerica QMC
-  belongs to its separate `codex/havana-qmc` branch. The user authorized pushing
+- Keep FastSecDec on local `main` and commit validated milestones. The user's
+  2026-10-06 clarification moves QMC into FastSecDec for now; retain the existing
+  Numerica branch and PR as history, while keeping ordinary Havana MC in
+  Numerica. The user authorized pushing
   validated FastSecDec milestones to `https://github.com/alphal00p/fastSecDec`.
   Push `main` there after milestone checks. The user also authorized publishing
   the finished Numerica QMC feature branch as a PR against its main branch and
   requesting review from `benruijl`; run its readiness checks first. Other
   reference repositories remain unpublished except for the subsequently
-  authorized, tested shared external-state changes on GammaLoop's `feynkit`
-  branch and the HEPKit bridge PR in symbolica-community. Use authenticated
+  authorized, tested changes on GammaLoop's `feynkit` branch, the HEPKit bridge
+  PR in symbolica-community, and the 2026-10-06 authorization to update HEPKit
+  and OneLOop sources in `/common/dev/`. Use authenticated
   `ValentinHirschi` for all subsequent publishing and commit as
   `ValentinHirschi <valentin.hirschi@gmail.com>`. Ask the user to authenticate if
   the active GitHub account differs; never silently publish under another user.

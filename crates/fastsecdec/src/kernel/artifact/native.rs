@@ -21,15 +21,36 @@ mod tests;
 #[cfg(feature = "native")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
 #[cfg(feature = "native")]
-pub(super) const COMPILER: &str = "symjit-2.26.4:O2:direct:horner-iterations=0";
+pub(super) fn compiler_policy() -> &'static str {
+    static POLICY: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        format!(
+            "symjit-version-code={}:O2:direct:horner-iterations=0",
+            crate::kernel::symjit_version_code()
+        )
+    });
+    POLICY.as_str()
+}
 
 #[cfg(feature = "native")]
+fn compiler_policy_matches(policy: &str, version_code: usize) -> bool {
+    policy
+        == format!("symjit-version-code={version_code}:O2:direct:horner-iterations=0")
+        // These artifacts contain exact Symbolica IR, recompiled on load.
+        // Preserve the historical spelling only for its actual linked backend;
+        // loaded bytes and content identities remain untouched.
+        || (version_code == 22604
+            && policy == "symjit-2.26.4:O2:direct:horner-iterations=0")
+}
+
+#[cfg(feature = "native")]
+// Historical v3 hash domain; compiler_policy binds the actual backend separately.
 const HASH_DOMAIN: &[u8] = b"fastsecdec-portable-kernel-v3:symbolica-3:symjit-2.26:f64";
 #[cfg(feature = "portable")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1:integer-malachite:float-astro";
 #[cfg(feature = "portable")]
-pub(super) const COMPILER: &str =
-    "symbolica-3.0.1:interpreter:integer-malachite:float-astro:horner-iterations=0";
+pub(super) fn compiler_policy() -> &'static str {
+    "symbolica-3.0.1:interpreter:integer-malachite:float-astro:horner-iterations=0"
+}
 #[cfg(feature = "portable")]
 const HASH_DOMAIN: &[u8] =
     b"fastsecdec-portable-kernel-v3:symbolica-3:interpreter:malachite:astro:f64";
@@ -125,7 +146,7 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
     encoded(&PayloadRef {
         version: 3,
         program_codec: CODEC,
-        compiler_policy: COMPILER,
+        compiler_policy: compiler_policy(),
         orders: &kernels.coefficient_orders,
         components: &kernels.components,
         exact: kernels
@@ -186,7 +207,7 @@ pub(super) fn generated(
     Ok(encoded(&Payload {
         version: 3,
         program_codec: CODEC.into(),
-        compiler_policy: COMPILER.into(),
+        compiler_policy: compiler_policy().into(),
         orders: value.orders().to_vec(),
         components: component_layout(value.orders().len(), complex),
         exact: value
@@ -204,9 +225,16 @@ pub(super) fn generated(
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     let artifact: Artifact = serde_json::from_slice(bytes)?;
     let payload = artifact.payload;
+    #[cfg(feature = "native")]
+    let supported_compiler = compiler_policy_matches(
+        &payload.compiler_policy,
+        crate::kernel::symjit_version_code(),
+    );
+    #[cfg(feature = "portable")]
+    let supported_compiler = payload.compiler_policy == compiler_policy();
     if payload.version != 3
         || payload.program_codec != CODEC
-        || payload.compiler_policy != COMPILER
+        || !supported_compiler
         || payload.metadata.is_none()
     {
         return Err(KernelError::Artifact(

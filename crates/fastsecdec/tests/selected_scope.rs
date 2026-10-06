@@ -4,7 +4,7 @@ use fastsecdec::{
     results::{ExactContributionPolicy, KernelResultManifest, ResultScope},
     status::CoefficientComponent,
 };
-use numerica::numerical_integration::qmc::QmcPartial;
+use fastsecdec_qmc::QmcPartial;
 
 fn manifest() -> KernelResultManifest {
     KernelResultManifest {

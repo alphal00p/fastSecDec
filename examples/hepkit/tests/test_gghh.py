@@ -15,7 +15,7 @@ from showcase import gghh
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "emscripten" or getattr(hep, "fastsecdec", None) is None,
-    reason="requires native experimental-fastsecdec wheel and ggHH inputs",
+    reason="requires native community FastSecDec bindings and ggHH inputs",
 )
 
 

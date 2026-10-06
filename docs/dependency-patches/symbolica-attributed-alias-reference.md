@@ -1,5 +1,12 @@
 # Attributed references retain registered aliases
 
+Status (2026-10-06): superseded by public Symbolica `community` commit
+`473b4b8dbc2f9bff8658a047196ba0877238bf9e`. Its existing-symbol reuse also retains
+callbacks and user data. The local patch and bootstrap application have been
+removed. The account below records the original reproduction and validation.
+
+## Historical rationale and validation
+
 Fresh-process loading of a Gamma-series artifact failed on canonical
 `symbolica::{}::γ`. Native state initializers already register that constant
 with the alias `symbolica::euler_gamma`. The attributed-symbol parser supplied
