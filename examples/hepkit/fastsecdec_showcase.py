@@ -210,8 +210,9 @@ def _(allocation_controls, integration_method, physics_controls, problem):
 
 
 @app.cell(hide_code=True)
-def _(browser_runtime, interrupt_isolated, mo, workflow):
+def _(mo, workflow):
     run_state = workflow.RunState(message="Choose the input, then Generate. No scientific work starts automatically.")
+    get_sampling_active, set_sampling_active = mo.state(False)
     generate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Generate", kind="success")
     integrate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Integrate", kind="success")
     new_integration_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="New integration")
@@ -219,10 +220,23 @@ def _(browser_runtime, interrupt_isolated, mo, workflow):
     resume_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Resume")
     adapt_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Adapt another pilot")
     freeze_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Freeze production", kind="success")
-    refresh = mo.ui.refresh(options=["250ms", "1s", "5s"], default_interval="250ms", label="Caller step / refresh")
+    return adapt_button, cancel_button, freeze_button, generate_button, get_sampling_active, integrate_button, new_integration_button, resume_button, run_state, set_sampling_active
+
+
+@app.cell(hide_code=True)
+def _(get_sampling_active, mo):
+    # The browser must have no automatic timer while synchronous generation runs.
+    # Recreate this widget only when sampling starts or stops, never per package.
+    refresh = mo.ui.refresh(options=["250ms", "1s", "5s"], default_interval="250ms", label="Caller step / refresh") if get_sampling_active() else None
+    return (refresh,)
+
+
+@app.cell(hide_code=True)
+def _(adapt_button, browser_runtime, cancel_button, freeze_button, generate_button, integrate_button, interrupt_isolated, mo, new_integration_button, refresh, resume_button):
     mo.vstack([
         mo.md("## 2 · Generate → inspect → integrate"),
-        mo.hstack([generate_button, integrate_button, cancel_button, resume_button, new_integration_button, refresh], justify="start", wrap=True),
+        mo.hstack([generate_button, integrate_button, cancel_button, resume_button, new_integration_button], justify="start", wrap=True),
+        refresh if refresh is not None else mo.md("Automatic stepping is off. Integrate or Resume starts it."),
         mo.accordion({"Havana pilot actions": mo.vstack([
             mo.md("Integrate starts a pilot. After its allocation completes, choose another adaptation epoch or freeze both grids and start production. Pilot statistics never enter the production estimate. These actions do nothing during an active allocation."),
             mo.hstack([adapt_button, freeze_button], justify="start", wrap=True),
@@ -238,15 +252,16 @@ def _(browser_runtime, interrupt_isolated, mo, workflow):
             ) if browser_runtime else mo.md(""),
         ])}),
     ])
-    return adapt_button, cancel_button, freeze_button, generate_button, integrate_button, new_integration_button, refresh, resume_button, run_state
+    return
 
 
 @app.cell(hide_code=True)
-def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_button, fs, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state):
+def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_button, fs, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state, set_sampling_active):
+    _was_active = run_state.active
     _actions = {"generate": generate_button.value, "integrate": integrate_button.value,
                 "cancel": cancel_button.value, "resume": resume_button.value,
                 "adapt": adapt_button.value, "freeze": freeze_button.value,
-                "new": new_integration_button.value, "tick": refresh.value}
+                "new": new_integration_button.value, "tick": refresh.value if refresh is not None else ""}
     _changed = {key for key, value in _actions.items() if value != run_state.seen[key]}
     run_state.seen.update(_actions)
     if "cancel" in _changed:
@@ -287,6 +302,8 @@ def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_
         run_state.pilot_action(freeze=True)
     elif "tick" in _changed:
         run_state.advance()
+    if run_state.active != _was_active:
+        set_sampling_active(run_state.active)
     _content = [mo.callout(run_state.message, kind="danger" if run_state.error else "info")]
     if run_state.error:
         _content.append(mo.md(f"`{run_state.error}`"))

@@ -83,12 +83,12 @@ component updates while the single worker is occupied. Shipped marimo source
 also gives worker RPCs a 20-second deadline; table/function requests share that
 transport. This is a real responsiveness limitation, not a smooth-run claim.
 
-The public **Caller step / refresh** dropdown already offers **off**. Selecting
-it before a long Generate stops the automatic timer; select 250ms or a slower
-interval again after ready, before Integrate/Resume. This is source-supported
-mitigation, not a tested guarantee that every UI request remains responsive.
-The convenient integration default remains unchanged; no widget refactor or
-extra scientific trial is introduced.
+The historical `a3d09e1` notebook used a persistent **Caller step / refresh**
+dropdown. Its **off** option provided a manual, source-supported mitigation
+before long Generate calls; responsiveness of other requests was not verified.
+The automatic refresh ownership follow-up below supersedes that guidance:
+the current notebook has no refresh widget while sampling is inactive. The
+historical compiled wheel and long ggHH observation remain unchanged.
 
 ## Evidence and boundaries
 
@@ -121,3 +121,32 @@ documented; synchronous native algebra can delay interruption. No private
 JavaScript interrupt bridge is introduced. These checks establish the observed
 runtime/lifecycle boundaries on this browser, not universal browser capacity,
 independent amplitude agreement or representative performance parity.
+
+### Automatic refresh ownership follow-up
+
+The notebook now creates its public `mo.ui.refresh` widget only while the
+caller-owned session is active. A separate `mo.state` flag changes only when
+sampling starts or stops; timer recreation preserves the existing buttons,
+generated owners and session. Generate, ready, paused, complete and failed states
+have no automatic refresh widget. Integrate, Resume and explicit pilot actions
+arm it. A stale inactive tick still reaches the existing no-op guard.
+
+Twenty-four focused lifecycle/presentation controls pass, including three tests
+executing the actual notebook dispatch cells, and `marimo check` passes. One
+small actual Wasm triangle lifecycle used the unchanged accepted `a3d09e1` /
+`c9bacce` wheel with the updated local notebook: no timer initially or in all 19
+observations during generation; explicit Integrate and Resume armed it; Cancel,
+completion and New integration removed it. The 3,072-point paused snapshot stayed
+unchanged, its complete checkpoint payload survived exactly in the final
+16,384-point allocation, and the same generated/kernel owners remained intact.
+No console, page or network errors occurred. The browser driver took 29.449 s;
+export, browser and cleanup took 45.582 s with all owned processes reaped.
+
+The first driver incorrectly required the custom widget host to have a CSS box.
+Its raw failed result is retained; the corrected check tests DOM attachment.
+Both attempts together took 92.877 s within the original 180+5 s allowance.
+Evidence is retained in `hepkit-refresh-ownership-1/` and
+`hepkit-refresh-ownership-2/assessment.json` under ignored diagnostics.
+This suppresses automatic refresh traffic during synchronous generation. It does
+not establish responsiveness of every table/download request, change the prior
+ggHH timeout outcome, or claim that the existing wheel contains a new core build.

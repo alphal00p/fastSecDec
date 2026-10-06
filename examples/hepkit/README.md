@@ -29,8 +29,10 @@ generate sectors, compile kernels, or start sampling.
    It does not materialize expanded coefficients.
    **Inspect weighted numerator** explicitly requests native tensor contraction;
    merely opening a collapsed panel does not perform it.
-4. Select **Integrate**. Only ready kernels can start a session. Each refresh
-   advances at most one native QMC package or global Havana batch. **Cancel** stops between steps and
+4. Select **Integrate**. Only ready kernels can start a session. This action
+   enables the refresh clock; each tick advances at most one native QMC package
+   or global Havana batch. The clock is absent during generation and while idle,
+   paused or complete. **Cancel** stops between steps and
    saves the accepted production checkpoint; **Resume** restores that coverage
    and its numerical replay state. Changing draft physics cannot replace the
    generated input or an active result. No allocation is enlarged automatically.
@@ -227,10 +229,11 @@ delay it. Cancel instead pauses between accepted packages; interrupted packages
 are excluded from accepted coverage, and Resume uses the saved checkpoint.
 Reloading the page discards unsaved in-memory work. Long synchronous gg → HH
 work can display marimo RPC timeout warnings even while native progress arrives.
-Before a long Generate, select **off** in **Caller step / refresh** to stop its
-automatic timer; restore 250ms or a slower interval after ready, before Integrate
-or Resume. This is source-supported guidance, not a tested guarantee that every
-UI request remains responsive. The current bounded outcome is recorded in the
+The notebook removes its automatic refresh widget while generation runs and
+whenever sampling is inactive. **Integrate**, **Resume**, and explicit pilot
+actions enable it; Cancel, completion and errors remove it again. This suppresses
+automatic refresh traffic, not every table or download request during a long
+synchronous call. The prior bounded gg→HH outcome remains recorded in the
 portable review; full browser convergence and prompt interruption are not claimed.
 
 ## Havana Monte Carlo

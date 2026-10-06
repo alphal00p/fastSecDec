@@ -873,6 +873,19 @@ And as I said, once you're feature complete within what's stated in the goal, an
   existing IBP strategy are the bounded next investigations. Other representative
   parity gaps remain open.
 
+- 2026-10-06: the notebook now owns an automatic refresh timer only during
+  active caller-driven integration. Public marimo state preserves the buttons,
+  generated objects and session while disabling timer traffic during generation,
+  pause, completion or failure. Twenty-four focused controls and marimo validation
+  pass. The actual Wasm triangle verifies timer absence throughout 19 generation
+  observations, explicit Integrate/Resume activation, and exact preservation of
+  a 3,072-point paused prefix through 16,384-point completion, with zero browser
+  errors. A corrected custom-element locator completes this lifecycle in 45.582
+  seconds; its earlier 47.295-second driver failure remains retained. The wheel
+  remains the separately identified accepted public build. This closes the
+  observed automatic-refresh issue, without claiming a new gg→HH browser run
+  or universal responsiveness during synchronous native calls.
+
 - 2026-10-06: retained generation explainability and discrete-sector Havana
   are implemented. Native source charts preserve mapped prefactors, exact affine
   epsilon powers and required endpoint Taylor counts before subtraction;
