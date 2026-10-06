@@ -886,6 +886,31 @@ And as I said, once you're feature complete within what's stated in the goal, an
   observed automatic-refresh issue, without claiming a new gg→HH browser run
   or universal responsiveness during synchronous native calls.
 
+- 2026-10-06: the original hard-four-loop Pathfinder input now passes generation
+  and strict bundle loading within one 600-second/15-GB attempt. The 528.820-second
+  supervised sequence retains 3,728 nine-dimensional sectors, all orders
+  `[-8,...,0]`, the full orthant and unchanged unit-prefactor density. Peak sampled
+  RSS is 1.18 GB; all inputs remain unchanged and all owned processes are reaped.
+  Independent review accepts this reference capability, without an integration
+  or matched-performance claim. Existing native results and their Laurent-range
+  qualifications remain unchanged.
+
+- 2026-10-06: one existing adaptive-QMC scalar-double-box allocation takes 73.298
+  seconds including its four-shift pilot, loading and production. Native
+  allocation uses the same N8192/Korobov2 kernels and 320 summed worker seconds;
+  the pilot is excluded from production statistics and sector streams are
+  independent. Complete vectors/covariance and five independent reference checks
+  pass, but the finite-part uncertainty is 1.035 per mil, narrowly missing the
+  one-per-mil target. This is not a parity result or a default change.
+
+- 2026-10-06: a bounded same-exact-IR SymJIT indirect-translation probe is rejected
+  before timing because a complete-vector comparison exceeds the unchanged
+  1e-12 relative gate at sector zero, point 37. A fresh public native weighted
+  context provides a 128-to-256-bit MPFR check at that point: the existing direct
+  result has 5.57e-13 relative error, while indirect has 3.48e-12. The direct
+  backend and accuracy policy remain unchanged. This is a one-point numerical
+  qualification, not a general backend defect or performance measurement.
+
 - 2026-10-06: retained generation explainability and discrete-sector Havana
   are implemented. Native source charts preserve mapped prefactors, exact affine
   epsilon powers and required endpoint Taylor counts before subtraction;

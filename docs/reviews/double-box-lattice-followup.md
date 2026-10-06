@@ -358,3 +358,54 @@ with all 32 bound inputs unchanged and every owned process reaped.
 Independent retained-data review (`independent-review.json` in that directory)
 accepts the copied-owner/build identity, unchanged physical geometry and policy,
 complete vector/covariance/reference checks and cleanup, with no data corrections.
+
+### One existing adaptive-QMC allocation
+
+The existing CLI adaptive lane was exercised once, using the accepted `e25ca59`
+executable and unchanged Taylor kernels, input, precision policy and HKKN/Korobov2
+lattice. An N8192 four-shift pilot covered all 102 sectors. The native allocator
+then froze production at the same N8192, with a 320 summed-worker-second budget
+and at least two shifts per sector. It chose 2–10 shifts, without lattice-size
+extrapolation or subsequent retuning. The full kernel payload equals the earlier
+Taylor artifact exactly; ordinary card/name provenance records the new steering.
+
+| Completed allocation | Integration process wall | Finite reported relative error | Reaches 1‰ |
+|---|---:|---:|:---:|
+| Corrected democratic Taylor, N8192/R16 | 152.996 s | 0.714‰ | Yes |
+| Native adaptive pilot plus frozen production | 73.298 s | 1.035‰ | **No** |
+| Retained Pathfinder K2, requested N16384/R16 | 91.584 s | 0.362‰ | Yes |
+
+The adaptive finite coefficient is −14.852717400745915
+±0.015375457111634922. Its 73.298-second process time includes the entire pilot,
+production and native loading (0.357 seconds). Separate pilot/production wall
+timers are unavailable. The native snapshots retain their respective worker
+totals, 293.527 and 285.554 seconds. Fresh ordinary generation took 3.821 process
+seconds; native generation excluding O2 took 3.431 seconds and O2 took 0.368.
+
+The pilot's 3,342,336 points are discarded from production statistics. Production
+contains 2,269,184 fresh points, with independently randomized sectors rather than
+the democratic run's shared shifts. All 102 sector estimates and 103 complete
+covariance matrices are retained. The native stream domains separate the pilot,
+production and prior democratic result; no previous covariance is recycled.
+All five independent reference checks pass (largest absolute pull 1.261333),
+and every coefficient agrees with retained Taylor within 1.010 combined reported
+standard errors under those independent streams.
+
+Across pilot and production there are 5,611,520 evaluations, 1,834,036 precision
+rescues, maximum precision 512 bits and no failures. Production alone has 780,092
+rescues. The lower total workload does not establish lower individual sample
+latency, and no individual-call maximum was measured. A four-shift pilot and
+two-shift minimum are modest uncertainty samples; this remains one reported
+uncertainty observation, not a coverage-calibration claim.
+
+This faster allocation narrowly misses the requested accuracy and therefore does
+not close convergence-time parity. This standalone allocation performs no
+automatic budget escalation, interpolated crossing or transform scan. Evidence is retained in
+`output/diagnostics/scalar-double-box-adaptive-fallback-1/assessment.json`, with
+the raw stage snapshots, all allocations, complete result/checkpoint, native
+reference comparisons and process postflight. All 25 frozen input bindings remain
+unchanged and every owned process is reaped within the sole 300+5-second bound.
+Independent retained-data review (`independent-review.json` in that directory)
+accepts the complete kernel identity, pilot/production separation, all vectors and
+covariances including their independent-sector sum, reference comparisons and
+cleanup. It confirms the reported accuracy target is not reached.

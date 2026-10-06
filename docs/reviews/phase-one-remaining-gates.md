@@ -322,8 +322,13 @@ all owned processes are reaped. These are capability diagnostics with concurrent
 build activity, not final timing comparisons or a proof of infeasibility.
 The partial projector cache is retained; further rank-two attempts are stopped.
 Evidence: `output/diagnostics/remaining-pathfinder-rank2-active8-1` and
-`remaining-pathfinder-rank2-active8-nosymmetry-1`. The prepared hard-four-loop
-reference route is separate and has not yet been launched.
+`remaining-pathfinder-rank2-active8-nosymmetry-1`. The separate original hard
+four-loop Pathfinder route now completes within one 600-second/15-GB attempt:
+generation takes 524.117 seconds and strict bundle loading 2.747 seconds, with
+3,728 nine-dimensional sectors and all orders `[-8,...,0]`. All inputs remain
+unchanged and the owned process tree is reaped. This closes reference generation
+capability, while integration, highest-order accuracy and sample timing remain
+unmeasured. See the [bounded capability record](hard-four-loop-pathfinder-capability.md).
 
 General affine endpoint charts remain unsupported: the public admission
 correctly rejects `(1-x)^(-1+eps)` on the unit interval, including with
