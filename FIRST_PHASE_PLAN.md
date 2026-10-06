@@ -820,6 +820,16 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-06: a native evaluator arithmetic-optimization probe is rejected at
+  its strict physical comparison despite reducing operation counts by 24.1%.
+  A separate public `optimize_stack()`-only candidate preserves all 7,752 tested
+  complete vectors and precision/replay decisions bit for bit, while reducing
+  aggregate temporary slots by 76.7% with unchanged arithmetic. Its independent
+  MPFR checks retain 60 identical existing ordinary-lane tolerance exceedances;
+  no blanket point-accuracy claim follows. No production change is made. One
+  bounded full-workload timing comparison remains before a storage decision.
+  See `docs/reviews/native-evaluator-storage-probes.md`.
+
 - 2026-10-06: cold native-program loading now conservatively recovers literal-zero
   output facts through Symbolica's public instruction export. Deferred constants,
   computed outputs, control flow and non-inlined bodies remain unproved. This
