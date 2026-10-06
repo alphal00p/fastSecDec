@@ -91,9 +91,10 @@ including chart/cone admission and final saved state, remains unthrottled.
 Generation failures keep their final error report and do not emit completion.
 Standalone diagnostic progress is unchanged.
 
-Worker evaluation/submission failures, replay acceptance and cancellation remain
-checked after every batch. Numerical-statistics range failures discovered by
-snapshot reduction are checked at the selected observation cadence and
+Worker evaluation/submission failures and replay acceptance remain checked at
+batch admission. Discrete MC also polls terminal input during active batches
+and checks cancellation before each point. Numerical-statistics range failures
+discovered by snapshot reduction are checked at the selected observation cadence and
 unconditionally at stage/final reduction; this can delay their detection by the
 chosen interval. They still retain accepted data, save the supported checkpoint
 and exit unsuccessfully. No unavailable estimate is replaced by a zero.
@@ -260,10 +261,24 @@ Rust library. Pilot statistics are excluded from production estimates.
 `--checkpoint PATH` selects the checkpoint and `--resume` restores it. Input and
 integration settings must match; the worker count may change. A completed
 checkpoint returns the existing result without repeating work. Ctrl-C, `q`, or
-Escape stops after the current worker batch and saves completed production
-work. QMC pilots can also be resumed. Havana MC pilots must be restarted because
+Escape requests cooperative cancellation and saves completed production work.
+Discrete MC stops unfinished batches at a point boundary; their partial values
+and replay state are excluded from the estimate and checkpoint. Resuming
+production reissues missing complete batches with their original RNG streams.
+QMC pilots can also be resumed. Havana MC pilots must be restarted because
 the upstream library does not expose its mutable pilot training state; the
 report marks this as `pilot_restart_required`.
+
+During a discrete MC batch, the dashboard shows per-worker in-flight point
+counts separately from accepted points. These observations keep changing even
+when no complete batch is available for a new estimate. `--status-json` exposes
+them as `in_flight_unaccepted`; plain progress also reports the active work.
+The first interrupt waits for the current native point or evaluator setup to
+return. A second Ctrl-C forces exit after restoring terminal settings, the
+normal screen and cursor; it cannot save additional work. Repeated SIGINT or
+SIGTERM also restores the terminal before forced exit on Unix. Normal returns,
+errors and the panic hook restore terminal state as well. An uncatchable
+SIGKILL cannot run cleanup; `reset` repairs an already affected shell.
 
 The selected catalogue and refinement round must agree with the native session
 inside a checkpoint. Missing historical `lattice` fields retain their original

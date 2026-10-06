@@ -1,5 +1,35 @@
 # Ecosystem reuse evidence
 
+## Discrete MC responsiveness and terminal ownership (2026-10-07)
+
+The CLI reuses its caller-owned Rayon pool and existing scoped QMC dispatch
+pattern to poll status and input while native Havana batches execute. Numerica
+still owns the discrete/continuous sampler, adaptation and RNG; FastSecDec's
+existing native session owns whole-batch statistics and full-vector covariance.
+Completed batches retain original admission order. Cancelled prefixes update
+only work diagnostics, not the accepted estimate, replay state or checkpoint.
+Native restore reissues missing reservations with identical task/RNG identity.
+There is no numerical-library worker pool or replacement integration algorithm.
+
+CLI-only atomics expose unfinished worker activity separately from accepted
+statistics. Terminal ownership composes Crossterm and signal-hook: signal
+callbacks use atomics, and a CLI-owned blocking signal iterator performs forced
+cleanup in ordinary Rust. Scoped drop and a panic hook restore owned terminal
+modes; the listener and signal registrations are released on normal return.
+
+The independent [numerical and API review](reviews/discrete-mc-responsiveness-review.md)
+and [dispatch review](reviews/discrete-mc-dispatch.md) record native checkpoint,
+RNG and full covariance controls. The existing complex-underflow safeguard
+conservatively rescues purely imaginary ggHH outputs when sampling weights
+exceed one. Public Symbolica APIs do not expose the required individual-output
+structural zero proof; neither numerical zero nor error-tracking zero is such a
+proof. No precision shortcut or duplicate phase-analysis helper was added.
+One-loop master/reduction owners and portable numerical backends are unchanged.
+Terminal probes and final release checks are recorded in the
+[terminal review](reviews/discrete-mc-terminal.md) and
+[acceptance record](reviews/discrete-mc-results.md). Permanent tests/gate migration
+and other examples remain deferred as requested.
+
 ## Artifact inspection and saved generation facts (2026-10-07)
 
 Artifact inspection reads the existing native `GenerationMetadata`,

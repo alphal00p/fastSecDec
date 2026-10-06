@@ -1,5 +1,18 @@
 # FastSecDec first-phase implementation plan
 
+## Discrete MC responsiveness follow-up (2026-10-07)
+
+Diagnose and fix the apparent hang of ggHH `integrate --method discrete_mc`
+with one or eight workers. Keep the caller-owned coordinator responsive during
+pilot and production batches, show live work without counting unfinished work
+as accepted statistical samples, and service keyboard/signal cancellation
+promptly. Preserve complete-batch estimator, covariance, RNG, adaptation,
+replay-state and checkpoint semantics; partial cancelled work must not become a
+numerical failure or accepted estimate. Investigate evaluator/precision costs
+without weakening numerical reliability. Restore terminal modes, cursor and
+normal screen on supported exit paths, including interrupt escalation. Other
+examples and the committed tests/gates migration remain deferred.
+
 ## Artifact inspection follow-up (2026-10-07)
 
 Replace the human artifact inspection dump with a compact, colored tabled

@@ -5,7 +5,7 @@ use super::super::{
     refinement::mc_points,
     report::{ExecutionOutcome, finish},
 };
-use super::{Context, evaluate_tracked, final_report, observe};
+use super::{Context, final_report, observe};
 use crate::CliResult;
 use fastsecdec::{
     integration::{
@@ -13,9 +13,9 @@ use fastsecdec::{
         mc_discrete::{HavanaDiscreteSession, HavanaDiscreteSettings, HavanaDiscreteWorker},
     },
     kernel::WeightedEvaluationContext,
-    status::{EvaluationDiagnostics, IntegrationStage},
+    status::IntegrationStage,
 };
-use rayon::prelude::*;
+mod wave;
 use std::{collections::BTreeMap, time::Instant};
 struct Slot {
     contexts: BTreeMap<u64, WeightedEvaluationContext>,
@@ -88,7 +88,8 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             || session.snapshot(),
             &mut failure,
         )?;
-        if failure.is_some() {
+        cancelled |= dashboard.cancelled();
+        if failure.is_some() || cancelled {
             break;
         }
         if slots.is_empty() && !problem.sectors.is_empty() {
@@ -106,6 +107,10 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             }
         }
         while !session.is_complete() {
+            cancelled |= dashboard.cancelled();
+            if cancelled {
+                break 'rounds;
+            }
             let tasks = (0..settings.workers)
                 .filter_map(|_| session.next_work())
                 .collect::<Vec<_>>();
@@ -117,44 +122,34 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                     context.merge_state(replay.state(*id as usize))?;
                 }
             }
-            let returns = pool.install(|| {
-                slots
-                    .par_iter_mut()
-                    .zip(tasks.into_par_iter())
-                    .map(|(slot, task)| {
-                        let mut local = EvaluationDiagnostics::default();
-                        let result =
-                            slot.worker
-                                .evaluate_weighted(task, |id, point, weight, output| {
-                                    if let std::collections::btree_map::Entry::Vacant(entry) =
-                                        slot.contexts.entry(id)
-                                    {
-                                        entry.insert(
-                                            replay
-                                                .context(kernels, id)
-                                                .map_err(|error| error.to_string())?,
-                                        );
-                                    }
-                                    evaluate_tracked(
-                                        slot.contexts.get_mut(&id).expect("native selected sector"),
-                                        point,
-                                        weight,
-                                        output,
-                                        &mut local,
-                                    )
-                                });
-                        let states = result.as_ref().ok().map(|_| {
-                            slot.contexts
-                                .iter()
-                                .map(|(id, context)| (*id as usize, context.state().clone()))
-                                .collect::<Vec<_>>()
-                        });
-                        (result, local, states)
-                    })
-                    .collect::<Vec<_>>()
-            });
-            for (result, local, states) in returns {
-                diagnostics.merge(&local)?;
+            let returns = wave::run(&pool, &mut slots, tasks, kernels, &replay, |activity| {
+                dashboard.integration_work(activity);
+                cancelled |= dashboard.cancelled();
+                observe(
+                    dashboard,
+                    &diagnostics,
+                    started,
+                    cancelled || failure.is_some(),
+                    || session.snapshot(),
+                    &mut failure,
+                )?;
+                Ok(cancelled || failure.is_some())
+            })?;
+            dashboard.integration_work(Vec::new());
+            for returned in returns {
+                let completed = match returned {
+                    Ok(completed) => completed,
+                    Err(error) => {
+                        failure
+                            .get_or_insert_with(|| format!("discrete MC worker panicked: {error}"));
+                        continue;
+                    }
+                };
+                diagnostics.merge(&completed.diagnostics)?;
+                if completed.aborted_prefix {
+                    continue;
+                }
+                let wave::Completed { result, states, .. } = completed;
                 let accepted = (|| -> CliResult<()> {
                     let value = result?;
                     let states = states.ok_or("successful global batch has no replay states")?;
