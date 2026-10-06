@@ -624,3 +624,84 @@ fn checkpoint_binds_native_catalogue_method_and_refinement_to_outer_settings() {
         );
     }
 }
+
+#[test]
+fn discrete_havana_cli_reports_global_allocation_and_resumes_with_new_worker_count() {
+    let (dir, artifact, kernels) = fixture();
+    let mut settings = settings("discrete_mc");
+    settings.max_rounds = 1;
+    settings.workers = 2;
+    settings.discrete_mc = Some(crate::config::DiscreteMcInput {
+        pilot_points: 128,
+        pilot_batches: 4,
+        pilot_iterations: 2,
+        bins: 4,
+        ..Default::default()
+    });
+    let checkpoint = dir.path().join("discrete.json");
+    let first = integrate(
+        &artifact,
+        &kernels,
+        &settings,
+        &checkpoint,
+        false,
+        &mut Dashboard::new(false, false).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        first.snapshot.method,
+        fastsecdec::status::IntegrationMethod::HavanaDiscreteMc
+    );
+    assert_eq!(first.snapshot.planned_points, 4096);
+    assert_eq!(first.snapshot.completed_points, 4096);
+    assert!(first.snapshot.sectors[0].planned_points.is_none());
+    assert_eq!(
+        first.snapshot.sectors[0]
+            .discrete_allocation
+            .as_ref()
+            .unwrap()
+            .probability,
+        1.0
+    );
+    let estimate = first.estimate.as_ref().unwrap();
+    assert!((estimate.mean[0] - 0.5).abs() < 6.0 * estimate.standard_error[0]);
+    assert!(first.qmc_design.is_none());
+    assert!(
+        restore_checkpoint(&checkpoint, &artifact, &settings)
+            .unwrap()
+            .replay
+            .state(0)
+            .verified()
+    );
+    settings.workers = 3;
+    let restored = integrate(
+        &artifact,
+        &kernels,
+        &settings,
+        &checkpoint,
+        true,
+        &mut Dashboard::new(false, false).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(first.estimate, restored.estimate);
+    assert_eq!(first.contributions, restored.contributions);
+    assert_eq!(
+        first.snapshot.evaluation_diagnostics,
+        restored.snapshot.evaluation_diagnostics
+    );
+    let saved = crate::results::assemble(&artifact, &kernels, &settings, &restored, None).unwrap();
+    let encoded = fastsecdec::results::encode_result(&saved).unwrap();
+    assert_eq!(fastsecdec::results::read_result(&encoded).unwrap(), saved);
+    let mut invalid = saved.clone();
+    invalid.contributions.sectors[0].progress.completed_points += 1;
+    assert!(invalid.validate().is_err());
+    let mut invalid = saved;
+    invalid.contributions.sectors[0].progress.planned_points = Some(4096);
+    assert!(invalid.validate().is_err());
+    assert!(
+        checkpoint::settings_identity(&IntegrationInput::default())
+            .unwrap()
+            .get("discrete_mc")
+            .is_none()
+    );
+}

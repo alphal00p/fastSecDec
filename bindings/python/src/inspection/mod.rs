@@ -3,7 +3,9 @@ mod coefficient;
 mod domain;
 mod geometry;
 mod metadata;
+mod pre_subtraction;
 mod sector;
+mod statistics;
 
 use std::sync::Arc;
 
@@ -14,6 +16,7 @@ use symbolica::{api::python::PythonExpression, atom::Atom};
 
 pub(crate) use metadata::PyGenerationMetadata;
 pub(crate) use sector::PyGeneratedSector;
+pub(crate) use statistics::PyEvaluatorStatistics;
 
 type Owner = Arc<GeneratedIntegral>;
 
@@ -51,5 +54,10 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<domain::PyFactorAssessment>()?;
     module.add_class::<geometry::PyCoordinateMap>()?;
     module.add_class::<geometry::PySectorMap>()?;
+    module.add_class::<pre_subtraction::PyPreSubtractionMetadata>()?;
+    module.add_class::<pre_subtraction::PyPreSubtractionTerm>()?;
+    module.add_class::<pre_subtraction::PyEndpointPower>()?;
+    module.add_class::<statistics::PyEvaluatorStatistics>()?;
+    module.add_class::<statistics::PyEvaluatorOperations>()?;
     Ok(())
 }

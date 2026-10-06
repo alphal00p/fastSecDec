@@ -51,3 +51,29 @@ The native artifact SHA-256 is
 `7daec10b85fdd596f33b8cdebf67abd623c36e06fbcbac8bcc49f611f6db989a`;
 the independent input SHA-256 is
 `998e08c5bc0c794e93f2c96ad7e4d73d6b3e560d711e6ca0ca9d3bd706a32101`.
+
+## Native numerator-inclusive endpoint powers
+
+A separate native diagnostic maps the complete original numerator, its factors
+and the Jacobian, then records `MappedTerm.powers` immediately before symmetry,
+endpoint subtraction or Laurent expansion. All 30 six-dimensional charts finish;
+the resulting 54 nonzero combined mapped terms contain 324 coordinate powers:
+270 are zero, 24 are `eps`, 24 are `1 + eps`, and six are `-eps`.
+Thus the largest integer `a` in `1/x^(a + n eps)` is **0**. No mapped coordinate
+has a negative integer exponent at epsilon zero. The factors `x^eps` and
+`x^-eps` correspond to `n = -1` and `n = 1`, respectively.
+
+This numerator-inclusive statement is distinct from the independent denominator
+geometry comparison above. The native numerator parameterization contains radial
+Gamma prefactors `Gamma(beta - order)`, with `beta = 3 + 2 eps` here; for example,
+order three gives `Gamma(2 eps)`. Such prefactors can supply the observed overall
+pole despite nonnegative integer endpoint powers. This explanation follows the
+native parameterization source, rather than a new prefactor decomposition.
+
+The diagnostic used an ignored source copy, retained all physical inputs and
+ran no subtraction, Laurent expansion, JIT compilation or integration. Its
+bounded build and mapping process both completed and were reaped; 277 frozen
+source/input/library hashes remained unchanged. Powers and the checked report
+are retained in `output/diagnostics/gghh-endpoint-powers-1/{powers.jsonl,assessment.json}`.
+The coordinator independently checked the capture boundary and complete power
+histogram. No production code changed for this diagnostic.

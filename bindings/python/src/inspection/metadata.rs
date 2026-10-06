@@ -4,6 +4,7 @@ use super::{
     Owner,
     domain::PyDomainAssessment,
     geometry::{PyCoordinateMap, PySectorMap},
+    pre_subtraction::PyPreSubtractionMetadata,
 };
 
 /// Retained domain and chart associations; no decomposition is repeated by inspection.
@@ -83,5 +84,13 @@ impl PyChart {
     #[getter]
     fn geometry(&self) -> PySectorMap {
         PySectorMap::chart(self.owner.clone(), self.index)
+    }
+    /// Source-chart endpoint powers before symmetry, multiplicity and subtraction.
+    /// None denotes an older artifact without this retained record.
+    #[getter]
+    fn pre_subtraction(&self) -> Option<PyPreSubtractionMetadata> {
+        self.owner.metadata().charts()[self.index]
+            .pre_subtraction()
+            .map(|_| PyPreSubtractionMetadata::new(self.owner.clone(), self.index))
     }
 }

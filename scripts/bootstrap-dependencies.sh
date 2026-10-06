@@ -37,7 +37,7 @@ fetch_exact() {
 }
 fetch_exact feynkit https://github.com/alphal00p/gammaloop 6c707c6b77a437256eb1180da13d4d327b371d13
 fetch_exact symbolica https://github.com/symbolica-dev/symbolica 98794d0d7337ba2b08e4c046dde584ad7fc1ce10
-fetch_exact numerica https://github.com/ValentinHirschi/numerica bb996e415bee9ae2c143f97408675d3051c3c2aa
+fetch_exact numerica https://github.com/ValentinHirschi/numerica f6ecdac8237a30adfcd1be5944a95c5160e474ce
 fetch_exact oneloop https://github.com/alphal00p/oneloopmaster a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a
 fetch_exact one-loop-reduce https://github.com/lcnbr/one-loop-reduce b53a70776a43bd14c6562c52a03bc4909568e473
 apply_patch() {

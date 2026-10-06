@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const wheelDir = process.argv[2];
@@ -24,6 +24,7 @@ pyodide.globals.set("bridge_wheel_uri", `emfs:/${wheels[0]}`);
 const tests = [
   "bindings/python/tests/test_fastsecdec.py",
   "bindings/python/tests/test_inspection.py",
+  "bindings/python/tests/test_mc.py",
   "examples/hepkit/tests/test_inputs.py",
 ];
 const fixtures = (await readdir(join(root, "examples/hepkit/fixtures/fastsecdec"))).sort();
@@ -58,7 +59,14 @@ assert sys.platform == "emscripten"
 import pytest
 started = time.perf_counter()
 class Report:
+    collected = 0
     passed = failed = skipped = 0
+    nodeids = []
+    files = []
+    def pytest_collection_finish(self, session):
+        self.collected = len(session.items)
+        self.nodeids = [item.nodeid for item in session.items]
+        self.files = sorted({item.path.name for item in session.items})
     def pytest_runtest_logreport(self, report):
         if report.when == "call":
             self.passed += report.passed
@@ -66,9 +74,12 @@ class Report:
             self.skipped += report.skipped
         elif report.failed:
             self.failed += 1
+        elif report.skipped:
+            self.skipped += 1
 report = Report()
 code = pytest.main(["-q", "-p", "no:cacheprovider", *bridge_test_paths.to_py()], plugins=[report])
-json.dumps({"exit_code": int(code), "passed": report.passed,
+json.dumps({"exit_code": int(code), "collected": report.collected,
+            "nodeids": report.nodeids, "files": report.files, "passed": report.passed,
             "failed": report.failed, "skipped": report.skipped,
             "seconds": time.perf_counter() - started,
             "python": sys.version, "platform": sys.platform})
@@ -78,5 +89,8 @@ report.wheel = wheels[0];
 report.wheel_sha256 = createHash("sha256").update(bytes).digest("hex");
 console.log(JSON.stringify(report, null, 2));
 assert.equal(report.exit_code, 0, "Installed Pyodide bridge gates failed");
-assert(report.passed >= 46, "Expected binding, inspection, input and shared wavefunction controls");
+assert.deepEqual(report.files, [...tests.map(path => basename(path)), "test_hep_wavefunctions.py"].sort());
+assert(report.collected > 0, "Expected maintained native binding controls");
+assert.equal(report.passed, report.collected, "Every collected control must pass");
+assert.equal(report.failed, 0);
 assert.equal(report.skipped, 0);

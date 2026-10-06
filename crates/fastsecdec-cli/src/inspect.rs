@@ -24,6 +24,7 @@ fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
         "content_id":artifact.content_id,"provenance":artifact.provenance,
         "orders":kernels.orders(),"sectors":kernels.sectors().len(),
         "dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
+        "evaluator_statistics":kernels.sectors().iter().map(|k|k.statistics()).collect::<Vec<_>>(),
         "exact_coefficients":kernels.exact_coefficients(),
         "generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds,
         "retained_metadata_available":kernels.generation_metadata().is_some()

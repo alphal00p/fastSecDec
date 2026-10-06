@@ -48,7 +48,10 @@ impl SavedIntegrationResult {
         )?;
         require(
             report.replica_relation
-                == if report.method == IntegrationMethod::DemocraticQmc {
+                == if matches!(
+                    report.method,
+                    IntegrationMethod::DemocraticQmc | IntegrationMethod::HavanaDiscreteMc
+                ) {
                     ReplicaRelation::SharedAcrossSectors
                 } else {
                     ReplicaRelation::IndependentAcrossSectors
@@ -92,6 +95,9 @@ impl SavedIntegrationResult {
                     "common replica count is incompatible with sector completion counts",
                 )?;
             }
+        }
+        if report.method == IntegrationMethod::HavanaDiscreteMc {
+            self.validate_discrete_allocation()?;
         }
         let complete = self.production_complete();
         validate_status(
@@ -179,7 +185,8 @@ impl SavedIntegrationResult {
     pub fn production_complete(&self) -> bool {
         self.contributions.stage == IntegrationStage::Production
             && self.contributions.sectors.iter().all(|row| {
-                row.progress.completed_points == row.progress.planned_points
+                (self.contributions.method == IntegrationMethod::HavanaDiscreteMc
+                    || Some(row.progress.completed_points) == row.progress.planned_points)
                     && row.used_replicas == row.progress.planned_replicas
             })
     }
@@ -194,33 +201,74 @@ impl SavedIntegrationResult {
 
     fn validate_row(&self, row: &SectorContribution) -> Result<()> {
         let p = &row.progress;
-        require(
-            p.planned_replicas > 0
-                && p.planned_points > 0
-                && p.planned_points.is_multiple_of(p.planned_replicas as u64),
-            "invalid equal-size replica allocation",
-        )?;
-        let points = p.planned_points / p.planned_replicas as u64;
-        require(
-            p.completed_points <= p.planned_points
-                && p.complete_replicas <= p.planned_replicas
-                && row.used_replicas <= p.complete_replicas
-                && p.complete_replicas as u64 * points <= p.completed_points,
-            "accepted or selected coverage exceeds allocation",
-        )?;
-        require(
-            row.used_points == row.used_replicas as u64 * points,
-            "selected point count differs from selected replicas",
-        )?;
-        require(
-            p.completed_points != p.planned_points || p.complete_replicas == p.planned_replicas,
-            "complete point coverage requires all replicas complete",
-        )?;
-        require(
-            p.completed_points
-                <= p.planned_points - (p.planned_replicas - p.complete_replicas) as u64,
-            "accepted points would necessarily complete more replicas",
-        )?;
+        if self.contributions.method == IntegrationMethod::HavanaDiscreteMc {
+            let allocation = p.discrete_allocation.as_ref().ok_or_else(|| {
+                ResultError::Invalid("discrete allocation metadata is missing".into())
+            })?;
+            require(
+                p.planned_points.is_none()
+                    && p.planned_replicas >= 2
+                    && allocation.points_per_batch >= 2
+                    && allocation.probability.is_finite()
+                    && allocation.probability > 0.0
+                    && allocation.probability <= 1.0,
+                "invalid stochastic sector allocation",
+            )?;
+            require(
+                p.complete_replicas <= p.planned_replicas
+                    && row.used_replicas
+                        == if self.contributions.stage == IntegrationStage::Pilot {
+                            0
+                        } else {
+                            p.complete_replicas
+                        },
+                "discrete batch coverage mismatch",
+            )?;
+            require(
+                row.used_points
+                    == if self.contributions.stage == IntegrationStage::Pilot {
+                        0
+                    } else {
+                        p.completed_points
+                    },
+                "discrete selected point count mismatch",
+            )?;
+        } else {
+            require(
+                p.discrete_allocation.is_none(),
+                "fixed-sector method cannot claim discrete allocation",
+            )?;
+            let planned_points = p
+                .planned_points
+                .ok_or_else(|| ResultError::Invalid("fixed-sector quota is missing".into()))?;
+            require(
+                p.planned_replicas > 0
+                    && planned_points > 0
+                    && planned_points.is_multiple_of(p.planned_replicas as u64),
+                "invalid equal-size replica allocation",
+            )?;
+            let points = planned_points / p.planned_replicas as u64;
+            require(
+                p.completed_points <= planned_points
+                    && p.complete_replicas <= p.planned_replicas
+                    && row.used_replicas <= p.complete_replicas
+                    && p.complete_replicas as u64 * points <= p.completed_points,
+                "accepted or selected coverage exceeds allocation",
+            )?;
+            require(
+                row.used_points == row.used_replicas as u64 * points,
+                "selected point count differs from selected replicas",
+            )?;
+            require(
+                p.completed_points != planned_points || p.complete_replicas == p.planned_replicas,
+                "complete point coverage requires all replicas complete",
+            )?;
+            require(
+                p.completed_points
+                    <= planned_points - (p.planned_replicas - p.complete_replicas) as u64,
+                "accepted points would necessarily complete more replicas",
+            )?;
+        }
         require(
             p.worker_seconds.is_finite() && p.worker_seconds >= 0.0,
             "invalid worker time",
@@ -243,7 +291,8 @@ impl SavedIntegrationResult {
                 row.used_replicas >= 2
                     && estimate.production_complete
                         == (row.used_replicas == p.planned_replicas
-                            && p.completed_points == p.planned_points),
+                            && (self.contributions.method == IntegrationMethod::HavanaDiscreteMc
+                                || Some(p.completed_points) == p.planned_points)),
                 "marginal estimate has inconsistent replica coverage",
             )?;
         } else if row.uncertainty == UncertaintyStatus::WaitingForCoverage {
@@ -255,9 +304,57 @@ impl SavedIntegrationResult {
         Ok(())
     }
 
+    fn validate_discrete_allocation(&self) -> Result<()> {
+        let rows = &self.contributions.sectors;
+        let Some(first) = rows.first() else {
+            return Ok(());
+        };
+        let batch = first
+            .progress
+            .discrete_allocation
+            .as_ref()
+            .unwrap()
+            .points_per_batch;
+        let expected = (first.progress.complete_replicas as u64)
+            .checked_mul(batch)
+            .ok_or_else(|| ResultError::Invalid("discrete coverage overflow".into()))?;
+        let counts = rows
+            .iter()
+            .try_fold(0u64, |sum, row| {
+                sum.checked_add(row.progress.completed_points)
+            })
+            .ok_or_else(|| ResultError::Invalid("discrete coverage sum overflow".into()))?;
+        let probabilities = rows
+            .iter()
+            .map(|r| r.progress.discrete_allocation.as_ref().unwrap().probability)
+            .sum::<f64>();
+        require(
+            counts == expected
+                && (probabilities - 1.0).abs() <= 16.0 * f64::EPSILON * rows.len() as f64,
+            "global discrete counts or probabilities are inconsistent",
+        )?;
+        require(
+            rows.iter().all(|row| {
+                row.progress.complete_replicas == first.progress.complete_replicas
+                    && row.progress.planned_replicas == first.progress.planned_replicas
+                    && row
+                        .progress
+                        .discrete_allocation
+                        .as_ref()
+                        .unwrap()
+                        .points_per_batch
+                        == batch
+            }),
+            "discrete sectors require the same complete global batches",
+        )
+    }
+
     fn validate_design(&self, design: &crate::integration::QmcDesign) -> Result<()> {
         require(
-            self.contributions.method != IntegrationMethod::HavanaMc,
+            !matches!(
+                self.contributions.method,
+                IntegrationMethod::HavanaMc | IntegrationMethod::HavanaDiscreteMc
+            ),
             "Havana results cannot claim a QMC design",
         )?;
         design.settings.validate()?;
@@ -281,7 +378,7 @@ impl SavedIntegrationResult {
                 allocation.shifts,
             )?;
             require(
-                allocation.points * allocation.shifts as u64 == p.planned_points
+                Some(allocation.points * allocation.shifts as u64) == p.planned_points
                     && allocation.shifts as usize == p.planned_replicas,
                 "QMC design differs from accepted coverage metadata",
             )?;

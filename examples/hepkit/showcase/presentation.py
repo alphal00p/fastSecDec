@@ -10,6 +10,14 @@ EXAMPLES = {
     "Coupled two-loop sunset": "sunset",
 }
 
+# User-selected allocations; these never run or change an existing native owner.
+QMC_PRESETS = {
+    "quick": {"points": 1024, "shifts": 8, "seed": 20261005,
+              "package_points": 1024, "rule": "kuo_33002", "periodization": "korobov3"},
+    "gghh_accuracy": {"points": 32768, "shifts": 16, "seed": 20261007,
+                      "package_points": 1024, "rule": "hkkn_alpha3", "periodization": "korobov3"},
+}
+
 def validate_configuration(value):
     if value is None:
         return None

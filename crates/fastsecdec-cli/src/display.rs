@@ -307,7 +307,7 @@ impl Dashboard {
                     Row::new(vec![
                         sector.id.to_string(),
                         sector.dimension.to_string(),
-                        format!("{} / {}", sector.completed_points, sector.planned_points),
+                        format!("{} / {}", sector.completed_points, sector.planned_points.map_or_else(|| "as allocated".into(), |points| points.to_string())),
                         format!("{} / {}", sector.complete_replicas, sector.planned_replicas),
                         format!("{:.2}", sector.worker_seconds),
                     ])
@@ -340,7 +340,7 @@ impl Dashboard {
                         snapshot.evaluation_diagnostics.as_ref().map_or(53, |d|d.max_precision_bits),
                         snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.weighted_checks),
                         snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.additional_replays),
-                        if snapshot.method == fastsecdec::status::IntegrationMethod::HavanaMc
+                        if matches!(snapshot.method, fastsecdec::status::IntegrationMethod::HavanaMc | fastsecdec::status::IntegrationMethod::HavanaDiscreteMc)
                             && snapshot.stage == fastsecdec::status::IntegrationStage::Pilot {
                             "; restart this MC pilot to continue"
                         } else {" and saves a checkpoint"}

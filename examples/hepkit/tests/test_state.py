@@ -140,3 +140,69 @@ def test_cancel_storage_failure_keeps_session_and_prior_checkpoint():
     state.resume()
     assert state.session is session and not state.active
     assert "older checkpoint" in state.message
+
+
+def test_accuracy_preset_stays_idle_until_integrate_and_binds_all_native_settings():
+    from showcase.presentation import QMC_PRESETS
+    fs, prepared, calls = backend()
+    received = []
+    fs.QmcSettings = lambda **settings: received.append(settings) or settings
+    state = RunState()
+    configuration = {"example": "gghh", "max_order": 0, **QMC_PRESETS["quick"]}
+    state.generate(fs, lambda observer: prepared, configuration)
+    accuracy = dict(QMC_PRESETS["gghh_accuracy"])
+    assert state.configuration["points"] == 1024
+    assert state.session is None and calls["step"] == 0
+    state.advance()
+    assert calls["step"] == 0
+    state.integrate(fs, accuracy)
+    assert received == [accuracy]
+    assert state.configuration["example"] == "gghh" and state.configuration["max_order"] == 0
+    assert calls == {"generate": 1, "compile": 1, "session": 1, "step": 0}
+
+
+def test_explicit_periodization_is_forwarded_without_replacing_generated_physics():
+    fs, prepared, calls = backend()
+    received = []
+    fs.QmcSettings = lambda **settings: received.append(settings) or settings
+    state = RunState()
+    state.generate(fs, lambda observer: prepared, CONFIG)
+    state.integrate(fs, {"periodization": "none", "rule": "hkkn_alpha3"})
+    assert received[0]["periodization"] == "none"
+    assert received[0]["rule"] == "hkkn_alpha3"
+    assert state.configuration["mass"] == 1
+    assert calls["generate"] == calls["compile"] == 1
+
+
+def test_new_integration_preserves_compiled_owners_and_prior_report_without_sampling():
+    import json
+    fs, prepared, calls = backend()
+    state = RunState()
+    state.generate(fs, lambda observer: prepared, CONFIG)
+    state.integrate(fs)
+    old_session = state.session
+    state.new_integration()
+    assert state.session is old_session and state.active  # Must cancel first.
+    state.cancel()
+    state.generated.orders = [0]
+    for key, value in dict(content_id="bound-kernel", backend="native_o2", orders=[0],
+                           components=["real"], sector_count=1).items():
+        setattr(state.kernels, key, value)
+    for key, value in dict(method="democratic_qmc", stage="production", completed_points=512,
+                           planned_points=8192, complete_sectors=0, worker_seconds=1.0,
+                           uncertainty="waiting_for_coverage", uncertainty_detail=None,
+                           stop_reason=None, stop_detail=None, sectors=[], evaluation_diagnostics=None).items():
+        setattr(state.snapshot, key, value)
+    owners = (state.prepared, state.generated, state.kernels)
+    state.new_integration()
+    assert (state.prepared, state.generated, state.kernels) == owners
+    assert state.session is None and state.snapshot is None and not state.active
+    previous = state.previous_report_bytes
+    assert json.loads(previous)["snapshot"]["completed_points"] == 512
+    assert state.previous_snapshot.completed_points == 512
+    state.advance()
+    assert calls == {"generate": 1, "compile": 1, "session": 1, "step": 0}
+    state.integrate(fs, {"points": 4096})
+    assert calls == {"generate": 1, "compile": 1, "session": 2, "step": 0}
+    assert state.previous_report_bytes == previous
+    assert state.configuration["mass"] == 1 and state.configuration["points"] == 4096

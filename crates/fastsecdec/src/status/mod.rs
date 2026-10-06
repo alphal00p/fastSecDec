@@ -37,6 +37,7 @@ pub enum IntegrationMethod {
     DemocraticQmc,
     AdaptiveQmc,
     HavanaMc,
+    HavanaDiscreteMc,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,11 +61,22 @@ pub enum UncertaintyStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct DiscreteSectorAllocation {
+    /// Frozen native probability for drawing this sector in a global batch.
+    pub probability: f64,
+    pub points_per_batch: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SectorSnapshot {
     pub id: u64,
     pub dimension: usize,
     pub completed_points: u64,
-    pub planned_points: u64,
+    /// Fixed sector quota, or `None` when global samples choose sectors randomly.
+    /// Historical serialized integer quotas continue to decode as `Some`.
+    pub planned_points: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discrete_allocation: Option<DiscreteSectorAllocation>,
     pub complete_replicas: usize,
     pub planned_replicas: usize,
     pub worker_seconds: f64,

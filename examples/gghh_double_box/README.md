@@ -69,9 +69,79 @@ standard error is 1.027%; this allocation stops at its work limit and does not
 establish one-per-mil accuracy. There are 32,550 numerical rescues, reaching
 256 bits, and no evaluation failures. These are native feasibility observations,
 without an independent amplitude reference or a matched performance comparison.
-Keep this as a native example for now; browser generation and integration costs
-have not been measured. See the
+The [HEPKit notebook](../hepkit/README.md) also offers this case as an optional
+longer browser run; browser completion and costs remain unmeasured. See the
 [native feasibility review](../../docs/reviews/gghh-native-feasibility.md).
+
+For the validated higher-statistics allocation, reuse the generated artifact:
+
+```sh
+fastsecdec integrate output/gghh_double_box.fsd.json --full-integral \
+  --method qmc --workers 8 --points 32768 --shifts 16 --seed 20261007 \
+  --lattice hkkn-alpha3 --relative-tolerance 0.001 \
+  --checkpoint output/gghh_double_box.permil.checkpoint.json \
+  --save-result output/gghh_double_box.permil.result.json
+```
+
+This retains the card's Korobov-3 transform and ordinary precision rescue.
+The measured allocation completes **15,728,640 evaluations in 377.530 seconds**
+on eight workers. The full Laurent vector, including both real components and
+all covariance entries, remains in the saved result:
+
+| Coefficient | Imaginary part | Standard error |
+|---|---:|---:|
+| `eps^-1` | 1.439027539 | 0.000136375 |
+| `eps^0` | -33.936949143 | 0.003180097 |
+
+The finite-part relative standard error is **0.00937%**, below the requested
+0.1%. Both nonzero components agree with the original coarse run within 0.65
+combined standard errors and with the intermediate independent-seed Kuo run
+within 0.97. This checks numerical consistency, not agreement with an
+independently computed amplitude. There are 2,053,614 rescues, at most 256 bits,
+and zero evaluation failures. These observations use the retained native build
+and artifact; they do not predict browser runtime. The smaller allocation above
+remains useful for exploring the example.
+
+The same generated kernels also support ordinary Havana sampling with adaptive
+discrete sector probabilities and continuous grids:
+
+```sh
+fastsecdec integrate output/gghh_double_box.fsd.json --full-integral \
+  --method discrete_mc --workers 8 --points 32768 --shifts 32 --seed 20261008 \
+  --relative-tolerance 0.001 \
+  --checkpoint output/gghh_double_box.mc.checkpoint.json \
+  --save-result output/gghh_double_box.mc.result.json
+```
+
+Here points and shifts mean **global points per batch** and **independent
+batches**. The default three pilot epochs use 98,304 samples, excluded from the
+1,048,576-sample production estimate. The completed run gives
+`eps^-1 = 1.437574727 i ± 0.000846799 i` and
+`eps^0 = -33.904619327 i ± 0.019561493 i`, retaining the full covariance.
+Finite-part relative standard error is **0.05770%**. Both coefficients agree
+with QMC within 1.70 combined standard errors. The eight-worker process took
+262.477 seconds including the pilot, with no evaluation failures. These are
+separate observed allocations, not a matched performance comparison. See the
+[sampling review](../../docs/reviews/havana-discrete-sector-sampling.md) for
+precision-rescue counts, checkpoint validation and reference qualifications.
+In the notebook, **New integration** retains the generated owners and previous
+report so the same kernels can be used for either method.
+
+The independent [sector geometry check](../../docs/reviews/gghh-sector-sanity.md)
+matches all 30 native maps to pySecDec's denominator decomposition. A native
+numerator-inclusive check before endpoint subtraction finds maximum denominator
+power `a = 0`: extracted coordinate factors are `1`, `x^eps`, `x^(1+eps)` and
+`x^(-eps)`. The Laurent pole is not an endpoint `1/x` power.
+
+Newly generated artifacts retain these facts directly: 30 charts, 54 mapped
+terms and 324 endpoint powers, with their native prefactors and variable maps.
+The notebook's selected-chart view exposes them before any integration. The
+fresh generation/reload check reproduces every exact evaluator program from the
+original artifact; only the optional inspection metadata changes. For this
+build, each shared two-output complex program contains 2,881–2,998 native
+evaluator operations and occupies 35,084–35,506 exact-program bytes. Its
+compressed SymJIT application occupies 42,261–43,322 bytes. These are recorded
+program statistics, not machine-code sizes or per-sample timing estimates.
 
 The earlier 600-second input timeout, rational-only domain rejection, first-sector
 support-expansion timeout (19.5 GiB peak RSS) and bounded diagnostic failures are

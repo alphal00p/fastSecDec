@@ -1222,3 +1222,19 @@ The bounded Pathfinder counterpart uses its own existing prime-table backend and
 retained bundle, without external package generation. Both reach the reported
 finite-part target; different rules, timing intervals and error semantics remain
 explicit, and performance parity is still open.
+
+- 2026-10-06: independent source/contract review accepts the retained endpoint/evaluator metadata and native discrete-sector Havana boundary. Source-chart powers reuse native endpoint admission; the CLI and immutable Python owner/index views expose those records without rebuilding maps or expanding the regular density. Actual program/operation/SymJIT application sizes retain their distinct meanings and legacy missing metadata remains explicit. The MC lane reuses Numerica DiscreteGrid/ContinuousGrid, jumped RNG streams and shared complete-batch covariance; weighted precision replay applies the full proposal weight once. Pilot training is excluded, production checkpoints bind native identities, and stochastic sector allocation exposes actual probabilities/counts rather than invented fixed quotas. Outer execution and parallelism remain caller-owned. The only dependency change is Numerica’s published recursive sample-free nested-grid clone fix (`f6ecdac`), with 249 native and 226 portable controls including documentation. Native metadata17, existing/new MC29, CLI41+33 (three explicit old heavy ignores), and binding all-target Clippy with stub generation pass their separate gates. The new installed native wheel/UI and actual portable target remain pending; no physical ggHH accuracy or performance claim follows. CLI MC caches can retain every visited sector per worker; Python pilot pause is in-memory, while persistent checkpoints require frozen production.
+
+The subsequent native milestone passes 419 workspace tests (25 explicit heavy
+ignores), 81 installed binding/frontend controls, 41 portable-backend host
+controls, formatting and strict all-target Clippy. The real native notebook
+exercises retained metadata and rendered formulas, QMC, same-kernel allocation
+replacement, and Havana pilot/production pause/resume. Fresh ggHH generation
+retains all 30 charts and 54 mapped terms with every exact evaluator program
+unchanged. Independent root review accepts the complete ordinary-Havana vector,
+covariance, production coverage and completed-checkpoint restoration; component
+agreement with QMC is within 1.70 combined standard errors. Both finite-part
+estimates meet one per mil. This uses existing native reference adapters and
+preserves their UnverifiedReference qualification, rather than claiming an
+independent analytic amplitude. Actual Wasm validation of the new interfaces
+and the bounded remaining representative parity claims are still open.

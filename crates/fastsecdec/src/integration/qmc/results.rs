@@ -163,7 +163,8 @@ impl QmcSession {
                     id: spec.id,
                     dimension: spec.dimension,
                     completed_points: run.accumulator.completed_points(),
-                    planned_points: run.accumulator.plan().total_points(),
+                    planned_points: Some(run.accumulator.plan().total_points()),
+                    discrete_allocation: None,
                     complete_replicas: run.accumulator.complete_shift_ids().len(),
                     planned_replicas: run.accumulator.plan().shift_count(),
                     worker_seconds: run.seconds()?,
@@ -195,7 +196,11 @@ impl QmcSession {
             method: self.method,
             stage: self.stage,
             completed_points: checked_count(sectors.iter().map(|s| s.completed_points))?,
-            planned_points: checked_count(sectors.iter().map(|s| s.planned_points))?,
+            planned_points: checked_count(
+                sectors
+                    .iter()
+                    .map(|s| s.planned_points.expect("fixed QMC quota")),
+            )?,
             complete_sectors: self
                 .runs
                 .iter()

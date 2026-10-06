@@ -1,3 +1,4 @@
+use super::allocation::PyDiscreteSectorAllocation;
 use super::diagnostics::PyEvaluationDiagnostics;
 use fastsecdec::{
     integration::VectorEstimate,
@@ -30,6 +31,7 @@ impl PyIntegrationSnapshot {
             IntegrationMethod::DemocraticQmc => "democratic_qmc",
             IntegrationMethod::AdaptiveQmc => "adaptive_qmc",
             IntegrationMethod::HavanaMc => "havana_mc",
+            IntegrationMethod::HavanaDiscreteMc => "havana_discrete_mc",
         }
     }
 
@@ -179,8 +181,17 @@ impl PySectorSnapshot {
     }
 
     #[getter]
-    fn planned_points(&self) -> u64 {
+    fn planned_points(&self) -> Option<u64> {
         self.inner.planned_points
+    }
+
+    /// Current native selection probability and global batch size; no fixed sector quota.
+    #[getter]
+    fn discrete_allocation(&self) -> Option<PyDiscreteSectorAllocation> {
+        self.inner
+            .discrete_allocation
+            .clone()
+            .map(|inner| PyDiscreteSectorAllocation { inner })
     }
 
     #[getter]
@@ -317,7 +328,8 @@ mod tests {
                     id: 17,
                     dimension: 2,
                     completed_points: 8,
-                    planned_points: 32,
+                    planned_points: Some(32),
+                    discrete_allocation: None,
                     complete_replicas: 0,
                     planned_replicas: 4,
                     worker_seconds: 0.25,

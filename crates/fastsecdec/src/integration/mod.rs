@@ -7,6 +7,7 @@ mod config;
 mod contributions;
 mod estimate;
 pub mod mc;
+pub mod mc_discrete;
 mod observation;
 mod qmc;
 mod worker;

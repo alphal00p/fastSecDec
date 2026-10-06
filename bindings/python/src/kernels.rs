@@ -8,6 +8,8 @@ use pyo3::{prelude::*, types::PyBytes};
 
 use super::{
     error,
+    inspection::PyEvaluatorStatistics,
+    mc::{PyHavanaDiscreteSession, PyHavanaDiscreteSettings},
     session::{PyQmcSession, PyQmcSettings},
     status::PyGenerationSnapshot,
 };
@@ -90,6 +92,17 @@ impl PyKernels {
     fn sector_count(&self) -> usize {
         self.inner.sectors().len()
     }
+    /// Actual complete-vector evaluator records, aligned with native kernel sectors.
+    #[getter]
+    fn sector_statistics(&self) -> Vec<PyEvaluatorStatistics> {
+        self.inner
+            .sectors()
+            .iter()
+            .map(|sector| PyEvaluatorStatistics {
+                inner: sector.statistics().clone(),
+            })
+            .collect()
+    }
     #[getter]
     fn exact_coefficients(&self) -> Vec<f64> {
         self.inner.exact_coefficients().to_vec()
@@ -123,5 +136,32 @@ impl PyKernels {
     /// Restore complete accepted packages and replay state against these exact kernels.
     fn restore(&self, py: Python<'_>, checkpoint: &Bound<'_, PyBytes>) -> PyResult<PyQmcSession> {
         PyQmcSession::restore_native(py, self.inner.clone(), checkpoint.as_bytes())
+    }
+
+    /// Native sector-importance Havana, with a caller-controlled pilot or frozen production.
+    #[pyo3(signature = (settings=None, *, pilot=false, sector_probabilities=None))]
+    fn mc_session(
+        &self,
+        py: Python<'_>,
+        settings: Option<&PyHavanaDiscreteSettings>,
+        pilot: bool,
+        sector_probabilities: Option<Vec<f64>>,
+    ) -> PyResult<PyHavanaDiscreteSession> {
+        PyHavanaDiscreteSession::new(
+            py,
+            self.inner.clone(),
+            settings.map(|s| s.inner.clone()).unwrap_or_default(),
+            pilot,
+            sector_probabilities.as_deref(),
+        )
+    }
+
+    /// Restore only a native frozen-production discrete Havana checkpoint.
+    fn restore_mc(
+        &self,
+        py: Python<'_>,
+        checkpoint: &Bound<'_, PyBytes>,
+    ) -> PyResult<PyHavanaDiscreteSession> {
+        PyHavanaDiscreteSession::restore_native(py, self.inner.clone(), checkpoint.as_bytes())
     }
 }

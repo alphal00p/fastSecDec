@@ -116,7 +116,8 @@ impl SectorKernel {
         }
         // Encode the untouched exact program, never a mapped/evaluated worker's
         // mutable stack. All numeric variants derive from this same native IR.
-        let program_bytes = program::encode(&exact)?.into();
+        let program_bytes: std::sync::Arc<[u8]> = program::encode(&exact)?.into();
+        let operations = exact.count_operations().into();
         let backend = if use_complex {
             Backend::Complex(complex::ComplexKernel::from_program(
                 exact,
@@ -143,12 +144,35 @@ impl SectorKernel {
                 check_output: vec![ErrorPropagatingFloat::new(0.0, 15.0); outputs],
             })
         };
+        #[cfg(feature = "native")]
+        let symjit_ir_bytes = Some(match &backend {
+            Backend::Real(kernel) => kernel.evaluator.as_bytes().len(),
+            Backend::Complex(kernel) => kernel.symjit_ir_bytes(),
+        });
+        #[cfg(feature = "portable")]
+        let symjit_ir_bytes = None;
+        let statistics = super::EvaluatorStatistics {
+            version: 1,
+            backend: if cfg!(feature = "native") {
+                "symjit_o2"
+            } else {
+                "symbolica_interpreter"
+            }
+            .into(),
+            arithmetic: if use_complex { "complex" } else { "real" }.into(),
+            inputs,
+            outputs,
+            exact_program_bytes: program_bytes.len(),
+            operations,
+            symjit_ir_bytes,
+        };
         Ok(Self {
             parameters,
             cancellation,
             precision: precision.clone(),
             exact_zero,
             program_bytes,
+            statistics,
             backend,
         })
     }

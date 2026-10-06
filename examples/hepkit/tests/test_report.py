@@ -41,3 +41,20 @@ def test_complex_signed_vector_roundtrips_without_reading_session():
     result = json.loads(report_bytes(state))
     assert result["snapshot"]["estimate"] is None
     assert result["snapshot"]["uncertainty"] == "waiting_for_coverage"
+
+
+def test_discrete_sector_probabilities_and_unknown_planned_points_are_native_values():
+    sector = SimpleNamespace(id=7, dimension=6, completed_points=317, planned_points=None,
+        complete_replicas=2, planned_replicas=8, worker_seconds=0.125,
+        discrete_allocation=SimpleNamespace(probability=0.3141592653589793, points_per_batch=256))
+    snapshot = SimpleNamespace(method="havana_discrete_mc", stage="pilot", completed_points=512,
+        planned_points=2048, complete_sectors=0, worker_seconds=0.125, uncertainty="pilot_only",
+        uncertainty_detail=None, stop_reason=None, stop_detail=None, estimate=None,
+        sectors=[sector], evaluation_diagnostics=None)
+    state = RunState(phase="pilot_ready", snapshot=snapshot, pilot_seconds=2.0)
+    result = json.loads(report_bytes(state))
+    row = result["snapshot"]["sectors"][0]
+    assert row["planned_points"] is None
+    assert row["discrete_allocation"] == {"probability": 0.3141592653589793, "points_per_batch": 256}
+    assert row["complete_replicas"] == 2
+    assert result["completed_pilot_active_seconds"] == 2.0

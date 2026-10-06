@@ -32,7 +32,14 @@ The original audit below remains unchanged as historical evidence.
 - **Evidence rebinding (P2):** the relocated release wheel passes 61 native
   API/input/inspection and notebook state/report controls. The new public-pin
   Wasm wheel passes generic smoke and all 50 portable controls. The actual
-  explicit browser lifecycle on the updated showcase remains pending. The stale
+  explicit browser triangle lifecycle on showcase `0cf08c6` is independently
+  accepted with the `539019a` core wheel: nine actual active-stat phase/count
+  states, no work on optional gg→HH selection, zero-session inspection,
+  cancel/pause/resume and all 16,384 points with exact accepted prefixes.
+  Generate took 3.152 seconds and the whole supervised session 63.294 seconds;
+  full-vector/covariance and the analytic triangle control passed, with all
+  owned processes reaped. Evidence is retained in
+  `output/diagnostics/hepkit-relocated-wasm-browser-2/run-1/`. The stale
   planned count of 46 is reconciled from frozen sources (18 API + 6 inspection +
   12 input + 14 wavefunction cases) and the retained 50-pass log, without rerun.
   Earlier pre-relocation Pyodide evidence is not reused as acceptance.
@@ -47,8 +54,27 @@ covariance entries agree within 1.39 × 10⁻¹⁷. These are implementation-con
 and interactive-capability checks, separate from the eight-worker CLI timings;
 they do not establish performance parity or an independent amplitude reference.
 The gg→HH finite-term relative standard error is 1.0273%, so its 0.1% target is
-not met. The optional browser gg→HH path reuses the same helper and input assets; its
+not met for that quick allocation; later native precision evidence is separate.
+The optional browser gg→HH path reuses the same helper and input assets; its
 actual preparation/completion and interruption remain unvalidated.
+
+The subsequent sector-explainability extension captures the original native
+mapped prefactor and epsilon powers before symmetry/subtraction. Selected
+detail presents exact rational constant/slope and native Taylor requirements,
+using bounded Symbolica LaTeX instead of rebuilding expressions. Actual shared
+evaluator operations, exact program bytes and compressed SymJIT application
+bytes replace alias counts as the overview's size measure. Older artifacts
+explicitly lack the optional record. Native metadata/artifact controls pass 17
+cases; portable-host metadata and MC/QMC controls pass 41 cases, and notebook
+state/report/presentation controls pass 21 cases. The rebuilt native wheel passes
+all 81 maintained controls. Its actual triangle UI completes metadata inspection, 16,384 QMC points, same-kernel New integration,
+2,048 pilot points with in-memory pause/resume, explicit production freeze and
+8,192 production points with exact checkpoint-prefix resume. Full vectors and
+covariances pass, with zero numerical failures and every process reaped in
+24.985 seconds. A subsequent CSS-only spacing change has separate four-control
+and labelled retained-data rendering evidence; it repeats no scientific work.
+The accepted older Wasm wheel does not establish portable delivery of these
+new APIs.
 
 Source-bound numerical/UI and independent reviews are retained under ignored
 `output/diagnostics/hepkit-notebook-relocation-1/{triangle-ui-3,gghh-ui-1}/`.

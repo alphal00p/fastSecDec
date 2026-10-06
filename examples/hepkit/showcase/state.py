@@ -22,14 +22,33 @@ class RunState:
     active_started: float | None = None
     active_seconds: float = 0.0
     preparation_seconds: float = 0.0
+    pilot_seconds: float = 0.0
     message: str = "Submit inputs, then select Generate. Integration starts separately."
     error: str | None = None
     checkpoint_warning: str | None = None
     checkpoint_bytes: bytes | None = None
+    previous_report_bytes: bytes | None = None
+    previous_snapshot: object = None
+    previous_configuration: dict | None = None
+    previous_phase: str | None = None
     inspected_sector: object = None
     numerator_view: object = None
     drawing: object = None
-    seen: dict = field(default_factory=lambda: {"generate": 0, "integrate": 0, "cancel": 0, "resume": 0, "inspect": 0, "numerator": 0, "tick": ""})
+    seen: dict = field(default_factory=lambda: {"generate": 0, "integrate": 0, "new": 0, "cancel": 0, "resume": 0, "adapt": 0, "freeze": 0, "inspect": 0, "numerator": 0, "tick": ""})
+
+    @property
+    def is_mc(self):
+        return self.configuration is not None and self.configuration.get("method", "qmc") == "havana_discrete_mc"
+
+    @property
+    def pilot(self):
+        return self.is_mc and self.session is not None and self.session.stage == "pilot"
+
+    def save_checkpoint(self):
+        if not getattr(self.session, "checkpoint_available", True):
+            self.checkpoint_bytes = None
+        else:
+            self.checkpoint_bytes = self.session.checkpoint()
 
     @property
     def integration_wall_seconds(self):
@@ -57,6 +76,7 @@ class RunState:
         self.history.clear()
         self.inspected_sector = self.numerator_view = self.drawing = None
         self.preparation_seconds = 0.0
+        self.pilot_seconds = 0.0
         self.checkpoint_bytes = None
         self.error = None
         self.checkpoint_warning = None
@@ -93,32 +113,76 @@ class RunState:
             self.message = "Generate and compile the input before integration."
             return
         if self.session is not None:
-            self.message = "This allocation already exists. Resume its saved checkpoint, or Generate to prepare a new run."
+            self.message = "This allocation already exists. Resume it, or choose New integration after stopping to reuse these kernels with different settings."
             return
         try:
             configuration = dict(self.configuration)
             if settings is not None:
-                allowed = {"points", "shifts", "seed", "package_points", "rule"}
+                allowed = {"method", "points", "shifts", "seed", "package_points", "rule", "periodization",
+                           "pilot_points", "pilot_batches", "points_per_batch", "batches", "bins",
+                           "minimum_probability_density", "maximum_sector_probability_ratio"}
                 if set(settings) - allowed:
                     raise ValueError("Integrate can change allocation settings only; Generate binds the physics input")
                 configuration.update(settings)
-            native_settings = fs.QmcSettings(
-                points=configuration["points"], shifts=configuration["shifts"],
-                seed=configuration["seed"], package_points=configuration["package_points"],
-                rule=configuration["rule"], periodization="korobov3",
-            )
-            self.session = self.kernels.session(native_settings)
-            self.snapshot = self.session.snapshot()
+            if configuration.get("method", "qmc") not in {"qmc", "havana_discrete_mc"}:
+                raise ValueError("Choose QMC or Havana discrete Monte Carlo")
+            inactive_keys = ({"points", "shifts", "package_points", "rule", "periodization"}
+                             if configuration.get("method", "qmc") == "havana_discrete_mc" else
+                             {"pilot_points", "pilot_batches", "points_per_batch", "batches", "bins",
+                              "minimum_probability_density", "maximum_sector_probability_ratio"})
+            for key in inactive_keys:
+                configuration.pop(key, None)
+            if configuration.get("method", "qmc") == "havana_discrete_mc":
+                native_settings = fs.HavanaDiscreteSettings(
+                    points_per_batch=configuration["pilot_points"], batches=configuration["pilot_batches"],
+                    **{key: configuration[key] for key in ("seed", "bins", "minimum_probability_density", "maximum_sector_probability_ratio")},
+                )
+                self.session = self.kernels.mc_session(native_settings, pilot=True)
+            else:
+                native_settings = fs.QmcSettings(
+                    points=configuration["points"], shifts=configuration["shifts"],
+                    seed=configuration["seed"], package_points=configuration["package_points"],
+                    rule=configuration["rule"], periodization=configuration.get("periodization", "korobov3"),
+                )
+                self.session = self.kernels.session(native_settings)
             self.configuration = configuration
+            self.snapshot = self.session.snapshot()
             self.active = not self.session.complete
             self.active_started = perf_counter() if self.active else None
-            self.phase = "integrating" if self.active else "complete"
+            self.phase = ("pilot" if self.pilot else "integrating") if self.active else ("pilot_ready" if self.pilot else "complete")
             self.error = None
-            self.message = "Integrating — one native package per refresh." if self.active else "The native allocation is exact and already complete."
+            self.message = ("Havana pilot — one global batch per refresh. Freeze production explicitly after training." if self.pilot else "Integrating — one native package per refresh.") if self.active else "The native allocation is exact and already complete."
             if not self.active:
-                self.checkpoint_bytes = self.session.checkpoint()
+                self.save_checkpoint()
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
+
+    def new_integration(self):
+        """Release only inactive sampling state; retain the generated native owners."""
+        if self.active:
+            self.message = "Cancel the active allocation before choosing New integration."
+            return
+        if self.kernels is None:
+            self.message = "Generate and compile an input first."
+            return
+        if self.session is not None:
+            try:
+                from .report import report_bytes
+                self.previous_report_bytes = report_bytes(self)
+                self.previous_snapshot = self.snapshot
+                self.previous_configuration = dict(self.configuration)
+                self.previous_phase = self.phase
+            except (Exception, KeyboardInterrupt) as error:
+                self.fail(error)
+                return
+        self.session = self.snapshot = None
+        self.history.clear()
+        self.checkpoint_bytes = None
+        self.error = self.checkpoint_warning = None
+        self.active_seconds = self.pilot_seconds = 0.0
+        self.active_started = None
+        self.phase = "ready"
+        self.message = "Same generated input and compiled kernels retained. Choose a method/allocation, then Integrate explicitly. The previous allocation report remains downloadable."
 
     def fail(self, error):
         failed_phase = self.phase
@@ -140,7 +204,7 @@ class RunState:
             except (Exception, KeyboardInterrupt) as secondary:
                 warnings.append(f"Snapshot capture failed: {type(secondary).__name__}: {secondary}")
             try:
-                self.checkpoint_bytes = self.session.checkpoint()
+                self.save_checkpoint()
             except (Exception, KeyboardInterrupt) as secondary:
                 warnings.append(f"Checkpoint capture failed: {type(secondary).__name__}: {secondary}")
             self.checkpoint_warning = " ".join(warnings) or None
@@ -151,21 +215,35 @@ class RunState:
         self.stop_clock()
         self.active = False
         try:
-            self.checkpoint_bytes = self.session.checkpoint()
+            self.save_checkpoint()
             self.snapshot = self.session.snapshot()
             self.phase = "paused"
-            self.message = "Cancelled by the caller between packages. Accepted coverage is saved."
+            self.message = "Pilot paused in memory; Resume continues this native session. Downloadable checkpoints become available after freezing production." if self.pilot else "Cancelled by the caller between packages. Accepted coverage is saved."
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
 
     def resume(self):
-        if self.active or self.kernels is None or self.checkpoint_bytes is None:
+        if self.active or self.kernels is None:
+            return
+        if self.pilot:
+            try:
+                self.snapshot = self.session.snapshot()
+                self.active = not self.session.complete
+                self.active_started = perf_counter() if self.active else None
+                self.phase = "pilot" if self.active else "pilot_ready"
+                self.error = None
+                self.message = "Resumed the retained native pilot in memory." if self.active else "Pilot complete. Adapt another pilot or freeze production explicitly."
+            except (Exception, KeyboardInterrupt) as error:
+                self.fail(error)
+            return
+        if self.checkpoint_bytes is None:
             return
         if self.checkpoint_warning:
             self.message = "Checkpoint capture failed. The native session is retained; an older checkpoint will not be resumed silently."
             return
         try:
-            self.session = self.kernels.restore(self.checkpoint_bytes)
+            restore = self.kernels.restore_mc if self.is_mc else self.kernels.restore
+            self.session = restore(self.checkpoint_bytes)
             self.snapshot = self.session.snapshot()
             self.active = not self.session.complete
             self.active_started = perf_counter() if self.active else None
@@ -175,20 +253,48 @@ class RunState:
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
 
+    def pilot_action(self, freeze=False):
+        """Explicit native adaptation/freeze; pilot estimates never enter production."""
+        if self.active or not self.pilot or not self.session.complete:
+            self.message = "Complete and stop a Havana pilot before adapting or freezing production."
+            return
+        try:
+            elapsed = self.integration_wall_seconds
+            if freeze:
+                self.snapshot = self.session.freeze_production(
+                    points_per_batch=self.configuration["points_per_batch"], batches=self.configuration["batches"],
+                )
+            else:
+                self.snapshot = self.session.adapt_pilot()
+            self.pilot_seconds += elapsed
+            self.history.clear()
+            self.checkpoint_bytes = None
+            self.active_seconds = 0.0
+            self.active = not self.session.complete
+            self.active_started = perf_counter() if self.active else None
+            self.phase = "pilot" if self.pilot else "integrating"
+            self.error = self.checkpoint_warning = None
+            self.message = "Another native pilot epoch started." if self.pilot else "Production grids frozen; pilot estimates discarded. Sampling one global batch per refresh."
+            if not self.active:
+                self.phase = "pilot_ready" if self.pilot else "complete"
+                self.save_checkpoint()
+        except (Exception, KeyboardInterrupt) as error:
+            self.fail(error)
+
     def advance(self):
         """Only an explicit Integrate or Resume action can arm these steps."""
         if not self.active:
             return
         try:
-            self.snapshot = self.session.step(max_packages=1)
+            self.snapshot = self.session.step(**({"max_batches": 1} if self.is_mc else {"max_packages": 1}))
             if self.snapshot.estimate is not None:
                 for row in highest_order_rows(self.snapshot.estimate):
                     self.history.append({"accepted points": self.snapshot.completed_points, **row})
             if self.session.complete:
                 self.stop_clock()
                 self.active = False
-                self.phase = "complete"
-                self.checkpoint_bytes = self.session.checkpoint()
-                self.message = "Planned allocation complete. Check the accuracy target separately."
+                self.phase = "pilot_ready" if self.pilot else "complete"
+                self.save_checkpoint()
+                self.message = "Pilot complete. Adapt another pilot or Freeze production explicitly; pilot values are not production estimates." if self.pilot else "Planned allocation complete. Check the accuracy target separately."
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)

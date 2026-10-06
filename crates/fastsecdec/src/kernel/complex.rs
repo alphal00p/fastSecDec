@@ -28,6 +28,10 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    #[cfg(feature = "native")]
+    pub(super) fn symjit_ir_bytes(&self) -> usize {
+        self.evaluator.as_bytes().len()
+    }
     #[cfg(test)]
     pub(super) fn new(
         parameters: &[symbolica::atom::Symbol],

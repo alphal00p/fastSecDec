@@ -127,6 +127,11 @@ def test_selected_views_outlive_all_parent_python_variables(prepared):
     coordinates, geometry = chart.coordinates, chart.geometry
     domain = metadata.domain
     factor = domain.factors[0]
+    mapped = chart.pre_subtraction
+    term = mapped.terms[0]
+    power = term.powers[0]
+    mapped_values = (mapped.regulator, term.prefactor, power.parameter,
+                     power.exponent, power.constant, power.slope, power.subtraction_count)
     retained = (coefficient.root, coefficient.aliases, coordinates.images,
                 coordinates.measure_jacobian, geometry.exponent_matrix,
                 factor.polynomial, factor.exponent, chart.kernel_sector, sector.dimension)
@@ -140,6 +145,8 @@ def test_selected_views_outlive_all_parent_python_variables(prepared):
     assert coefficient.root == retained[0] and coefficient.aliases == retained[1]
     assert coordinates.images == retained[2] and geometry.exponent_matrix == retained[4]
     assert factor.polynomial == retained[5]
+    assert (mapped.regulator, term.prefactor, power.parameter, power.exponent,
+            power.constant, power.slope, power.subtraction_count) == mapped_values
 
 
 def test_generated_complex_orders_are_distinct_from_compiled_components(prepared):
@@ -152,6 +159,30 @@ def test_generated_complex_orders_are_distinct_from_compiled_components(prepared
     kernels = value.compile()
     assert kernels.sector_count == value.sector_count
     assert kernels.orders == [0, 0] and kernels.components == ["real", "imag"]
+    statistics = kernels.sector_statistics
+    assert len(statistics) == kernels.sector_count
+    for sector, record in zip(value.sectors, statistics, strict=True):
+        assert record.version == 1
+        assert record.arithmetic == "complex"
+        assert record.inputs == sector.dimension
+        assert record.outputs == 1  # One complex shared output, two numerical components.
+        assert record.exact_program_bytes > 0
+        counts = record.operations
+        assert all(getattr(counts, name) >= 0 for name in
+                   ("additions", "multiplications", "inversions", "function_calls"))
+        if kernels.backend == "native_o2":
+            assert record.backend == "symjit_o2" and record.symjit_ir_bytes > 0
+        else:
+            assert record.backend == "symbolica_interpreter" and record.symjit_ir_bytes is None
+        with pytest.raises(AttributeError):
+            record.outputs = 2
+    loaded = fs.Kernels.from_bytes(kernels.to_bytes())
+    # Measured afresh on load; not a byte count fabricated from generated coefficients.
+    for before, after in zip(statistics, loaded.sector_statistics, strict=True):
+        for field in ("version", "backend", "arithmetic", "inputs", "outputs", "exact_program_bytes"):
+            assert getattr(before, field) == getattr(after, field)
+        for field in ("additions", "multiplications", "inversions", "function_calls"):
+            assert getattr(before.operations, field) == getattr(after.operations, field)
     # No integration session is created, even when compiled layout is inspected.
 
 
@@ -164,3 +195,31 @@ def test_truncated_charts_retain_none_without_inventing_per_chart_zeros(prepared
     assert all(chart.kernel_sector is None for chart in value.metadata.charts)
     assert value.exact_coefficients == [E("0")]
     assert all(not hasattr(chart, "exact_coefficients") for chart in value.metadata.charts)
+
+
+def test_mapped_endpoint_powers_are_exact_source_chart_views(generated):
+    for chart in generated.metadata.charts:
+        mapped = chart.pre_subtraction
+        assert mapped.version == 1 and isinstance(mapped.regulator, Expression)
+        assert mapped.terms
+        for term in mapped.terms:
+            assert isinstance(term.prefactor, Expression)
+            assert term.regular_expression_bytes > 0
+            assert [power.parameter for power in term.powers] == chart.coordinates.target_parameters
+            for power in term.powers:
+                assert isinstance(power.constant, Expression) and isinstance(power.slope, Expression)
+                assert power.exponent == power.constant + power.slope * mapped.regulator
+                assert power.subtraction_count >= 0
+                with pytest.raises(AttributeError):
+                    power.subtraction_count = 0
+            assert not hasattr(term, "regular_expression")
+
+
+def test_singular_box_retains_actual_endpoint_subtraction_requirements():
+    prepared = inputs.massless_box()
+    value = fs.Integral(**prepared.integral_arguments()).generate(-1)
+    powers = [power for chart in value.metadata.charts
+              for term in chart.pre_subtraction.terms for power in term.powers]
+    assert powers
+    assert any(power.constant == E("-1") and power.subtraction_count == 1 for power in powers)
+    assert any(power.slope != E("0") for power in powers)

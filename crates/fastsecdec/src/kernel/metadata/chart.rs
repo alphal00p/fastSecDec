@@ -3,6 +3,7 @@ use crate::generation::{ChartRecord, DomainAssessment, coordinates_from_parts};
 use fastsecdec_sectors::SectorMap;
 use serde::{Deserialize, Serialize};
 use symbolica::{atom::AtomCore, domains::integer::Integer};
+mod pre_subtraction;
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -17,6 +18,8 @@ pub(super) struct PortableChart {
     images: Vec<String>,
     measure_jacobian: String,
     geometry: PortableGeometry,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pre_subtraction: Option<pre_subtraction::PortablePreSubtraction>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -79,6 +82,9 @@ impl PortableChart {
                     .map(|row| strings(row))
                     .collect(),
             },
+            pre_subtraction: chart
+                .pre_subtraction()
+                .map(pre_subtraction::PortablePreSubtraction::from_native),
         }
     }
     pub(super) fn into_native(
@@ -150,6 +156,10 @@ impl PortableChart {
                 "retained coordinate images or measure differ from exact geometry",
             ));
         }
+        let pre_subtraction = self
+            .pre_subtraction
+            .map(|record| record.into_native(&source, &target))
+            .transpose()?;
         Ok(ChartRecord {
             source_index: index,
             representative: self.representative,
@@ -157,6 +167,7 @@ impl PortableChart {
             kernel_sector: self.kernel_sector,
             coordinates,
             geometry,
+            pre_subtraction,
         })
     }
 }

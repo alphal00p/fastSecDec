@@ -2,10 +2,12 @@
 
 //! Thin HEPKit ownership and caller-stepped execution boundary.
 mod error;
+mod execution;
 mod generation;
 mod input;
 mod inspection;
 mod kernels;
+mod mc;
 mod session;
 mod status;
 
@@ -19,6 +21,8 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<kernels::PyKernels>()?;
     module.add_class::<session::PyQmcSettings>()?;
     module.add_class::<session::PyQmcSession>()?;
+    module.add_class::<mc::PyHavanaDiscreteSettings>()?;
+    module.add_class::<mc::PyHavanaDiscreteSession>()?;
     error::register(&module)?;
     status::register(&module)?;
     inspection::register(&module)?;

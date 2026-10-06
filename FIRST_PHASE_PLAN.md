@@ -228,7 +228,30 @@ completed reference.
 Continue feature and notebook validation before further performance tuning.
 The original completion criteria and stopping rule remain in force.
 
+**Sector explainability extension:** Retain the mapped integrand structure
+before endpoint subtraction in the generated result and portable metadata.
+Expose each chart's variable substitution and Jacobian, epsilon-dependent
+endpoint powers and prefactor, the associated subtraction requirements, and
+the size of the actual evaluator input passed to SymJIT. Distinguish compact
+symbolic size, evaluator operation counts and compiled-code size where the
+backend provides them; do not label an alias count as expression size. Reuse
+Symbolica's native introspection and preserve factored expressions. The HEPKit
+objects and notebook must make these details available on demand for a chosen
+sector, chart and term, with bounded previews and no automatic expansion.
+Older artifacts must explicitly report unavailable metadata rather than infer
+it from their finite kernels. Complete this notebook extension before returning
+to the remaining goal work.
+
 Latest user requests, verbatim:
+
+```text
+Continue as planned, but I'd like this statement of yours:
+"""
+since the finite compiled kernels no longer show those original powers directly.
+"""
+To be changed, and have richer meta-data and information in the exploreable result of the fastSecDec generation, also having the viewer nicely exposing on demand for a given sector info like the change of variables, expression size compiled by SymJIT, epsilon-powered prefactor form that needs to be expanded into plus distributions, etc..
+Then continue as planned with the goal once the notebook is complemented as instructed above.
+```
 
 ```text
 Continue as planned, but yes include the gg>hh as runnable in the notebook. Even if keyboard interupt does not behave so well for now, keep it in (just make sure the scalar triangle comes first).
@@ -796,6 +819,29 @@ And as I said, once you're feature complete within what's stated in the goal, an
 ```
 
 ## Implementation record
+
+- 2026-10-06: retained generation explainability and discrete-sector Havana
+  are implemented. Native source charts preserve mapped prefactors, exact affine
+  epsilon powers and required endpoint Taylor counts before subtraction;
+  actual shared evaluator operation counts, exact-program bytes and serialized
+  SymJIT application sizes are exposed through Rust, CLI and thin HEPKit views.
+  Legacy metadata absence remains explicit. Fresh gg→HH generation/reload
+  retains all 30 charts, 54 terms and 324 powers, with maximum denominator
+  power zero and unchanged exact evaluator programs. Its HKKN QMC allocation
+  reaches 0.093706 per mil finite-part relative standard error; the new ordinary
+  Havana allocation reaches 0.576957 per mil and agrees within 1.70 combined
+  component standard errors. Full vectors/covariances and completed-checkpoint
+  restoration are retained. The native notebook passes explicit generation,
+  rich inspection, QMC cancellation/resumption, same-kernel New integration,
+  and Havana pilot/frozen-production cancellation/resumption. Tests pass:
+  419 workspace tests (25 explicit heavy ignores), 81 installed Python controls,
+  41 portable-backend host controls, formatting and strict all-target Clippy.
+  The final equivalent Option-guard cleanup also passes all five discrete-MC
+  controls. Numerica's essential one-line nested-grid clone fix is published
+  at `f6ecdac` on PR 8. Actual Wasm validation of the new APIs, final public
+  delivery and the previously bounded representative parity gaps remain open;
+  this milestone does not complete phase A. See the metadata and sampling
+  reviews in `docs/reviews/`.
 
 - 2026-10-05: the requested ownership correction is implemented locally.
   FastSecDec owns the isolated optional Rust/PyO3 crate, modular notebook,

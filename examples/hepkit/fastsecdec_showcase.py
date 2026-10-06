@@ -111,7 +111,6 @@ def _(mo, presentation):
 @app.cell(hide_code=True)
 def _(browser_runtime, mo, problem):
     physics_controls = None
-    allocation_controls = None
     if problem.value == "gghh":
         _input_panel = mo.vstack([
             mo.md(r"""### $gg\to HH$ · fixed physical point
@@ -120,16 +119,15 @@ One HEPKit-generated top double box with an internal gluon and $(+,+)$ helicitie
                 mo.stat(label="Energy √s", value="300 GeV"), mo.stat(label="Higgs mass", value="125 GeV"),
                 mo.stat(label="Top mass", value="172.5 GeV"), mo.stat(label="cos θ", value="4/5"),
             ], widths="equal", wrap=True),
-            mo.accordion({"Conventions and allocation": mo.md(r"""
+            mo.accordion({"Conventions": mo.md(r"""
             Native HEPKit algebra closes the unnormalized color projection $\delta_{ab}$;
             shared GammaLoop wavefunctions supply the incoming helicities. Internal
             algebra retains $D=4-2\epsilon$ and external states are four-dimensional.
             Feynman gauge, generated weights and couplings, no spin/color average.
 
             The ordinary domain guard remains active. Generate prepares through the
-            finite coefficient. Integrate uses 1,024 points × 8 shifts per sector,
-            Kuo 33002/Korobov-3, seed 20261005, in 1,024-point caller steps.
-            This fixed allocation need not meet the 0.1% target. Browser generation
+            finite coefficient. Choose integration settings separately below.
+            Completing an allocation need not meet the 0.1% target. Browser generation
             and interpreted integration can be substantially slower than native execution.
             """)}),
             mo.callout("Optional extended browser run: one CPU, with portable interpreted integration. Generate may take several minutes; completion and browser cost are not yet validated. No calculation begins until you select Generate.", kind="warn") if browser_runtime else mo.md(""),
@@ -142,29 +140,72 @@ One HEPKit-generated top double box with an internal gluon and $(+,+)$ helicitie
             _fields["t"] = mo.ui.number(value=-1.0, step=0.1, label="t < 0")
         _fields["max_order"] = mo.ui.dropdown({"Finite term · ε⁰": 0, "Through ε¹": 1}, value="Through ε¹", label="Highest requested order")
         physics_controls = mo.ui.batch(mo.Html('<div style="display:flex;gap:1.5rem;flex-wrap:wrap">' + ''.join('<div>{' + name + '}</div>' for name in _fields) + '</div>'), _fields)
-        allocation_controls = mo.ui.batch(mo.Html('''
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">
-        <div>{points}</div><div>{shifts}</div><div>{package_points}</div><div>{rule}</div><div>{seed}</div>
-        </div>'''), {
-            "points": mo.ui.dropdown({"1,024": 1024, "4,096": 4096, "16,384": 16384}, value="1,024", label="Points per sector and shift"),
-            "shifts": mo.ui.dropdown({"4": 4, "8": 8, "16": 16}, value="8", label="Independent shifts"),
-            "package_points": mo.ui.dropdown({"256": 256, "1,024": 1024}, value="1,024", label="Points per caller step"),
-            "rule": mo.ui.dropdown({"Kuo 33002": "kuo_33002", "Kuo 38005": "kuo_38005", "Kuo 39101": "kuo_39101", "HKKN α=3": "hkkn_alpha3"}, value="Kuo 33002", label="Published lattice"),
-            "seed": mo.ui.number(start=0, stop=2**32 - 1, step=1, value=20261005, label="Seed"),
-        })
-        _input_panel = mo.vstack([physics_controls, mo.accordion({"Integration settings · fixed allocation": allocation_controls}),
+        _input_panel = mo.vstack([physics_controls,
                    mo.md("Editing these controls does not change an existing generated input or result. Select Generate to bind new physics; select Integrate separately to start sampling.")])
     _input_panel
-    return allocation_controls, physics_controls
+    return (physics_controls,)
 
 
 @app.cell(hide_code=True)
-def _(allocation_controls, physics_controls, problem):
+def _(mo):
+    integration_method = mo.ui.dropdown({"Randomized lattice QMC": "qmc", "Havana Monte Carlo · sector importance": "havana_discrete_mc"}, value="Randomized lattice QMC", label="Integration method", allow_select_none=False)
+    integration_method
+    return (integration_method,)
+
+
+@app.cell(hide_code=True)
+def _(integration_method, mo, problem):
+    _presets = {"Quick exploration": "quick"}
     if problem.value == "gghh":
-        draft = {"example": "gghh", "max_order": 0, "points": 1024, "shifts": 8,
-                 "seed": 20261005, "package_points": 1024, "rule": "kuo_33002"}
+        _presets["Native gg→HH accuracy observation · 15.7M points"] = "gghh_accuracy"
+    allocation_preset = mo.ui.dropdown(_presets, value="Quick exploration", label="Integration preset", allow_select_none=False)
+    allocation_preset if integration_method.value == "qmc" else mo.md("Havana uses global batches with native sector and continuous-grid importance sampling. A completed pilot must be frozen explicitly before production.")
+    return (allocation_preset,)
+
+
+@app.cell(hide_code=True)
+def _(allocation_preset, browser_runtime, integration_method, mo, presentation):
+    _preset = presentation.QMC_PRESETS[allocation_preset.value]
+    _points = {f"{value:,}": value for value in (1024, 4096, 16384, 32768, 65536)}
+    _shifts = {str(value): value for value in (4, 8, 16, 32, 64)}
+    _rules = {"Kuo 33002": "kuo_33002", "Kuo 38005": "kuo_38005", "Kuo 39101": "kuo_39101", "HKKN α=3": "hkkn_alpha3"}
+    if integration_method.value == "qmc":
+        allocation_controls = mo.ui.batch(mo.Html('''
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">
+        <div>{points}</div><div>{shifts}</div><div>{package_points}</div><div>{rule}</div><div>{periodization}</div><div>{seed}</div>
+        </div>'''), {
+            "points": mo.ui.dropdown(_points, value=f"{_preset['points']:,}", label="Points per sector and shift"),
+            "shifts": mo.ui.dropdown(_shifts, value=str(_preset["shifts"]), label="Independent shifts"),
+            "package_points": mo.ui.dropdown({"256": 256, "1,024": 1024}, value="1,024", label="Points per caller step"),
+            "rule": mo.ui.dropdown(_rules, value=next(key for key, value in _rules.items() if value == _preset["rule"]), label="Published lattice"),
+            "periodization": mo.ui.dropdown({"Korobov-3": "korobov3", "Korobov-2": "korobov2", "None": "none"}, value="Korobov-3", label="Periodization"),
+            "seed": mo.ui.number(start=0, stop=2**32 - 1, step=1, value=_preset["seed"], label="Seed"),
+        })
     else:
-        draft = {"example": problem.value, **physics_controls.value, **allocation_controls.value}
+        _mc_fields = {
+            "pilot_points": mo.ui.dropdown({"256": 256, "1,024": 1024, "4,096": 4096}, value="1,024", label="Global pilot points per batch"),
+            "pilot_batches": mo.ui.number(start=2, stop=1024, step=1, value=4, label="Pilot batches per epoch"),
+            "points_per_batch": mo.ui.dropdown({"1,024": 1024, "4,096": 4096, "16,384": 16384, "32,768": 32768}, value="4,096", label="Global production points per batch"),
+            "batches": mo.ui.number(start=2, stop=65536, step=1, value=64, label="Production batches"),
+            "seed": mo.ui.number(start=0, stop=2**32-1, step=1, value=20261007, label="Seed"),
+            "bins": mo.ui.number(start=2, stop=256, step=1, value=32, label="Continuous bins per axis"),
+            "minimum_probability_density": mo.ui.number(start=0.0001, stop=1, step=0.01, value=0.01, label="Minimum continuous probability density"),
+            "maximum_sector_probability_ratio": mo.ui.number(start=1, stop=10000, step=1, value=100, label="Maximum sector probability ratio"),
+        }
+        allocation_controls = mo.ui.batch(mo.Html('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">' + ''.join('<div>{' + key + '}</div>' for key in _mc_fields) + '</div>'), _mc_fields)
+    _allocation_view = [mo.accordion({"Integration settings · edit the chosen allocation": allocation_controls})]
+    if integration_method.value == "qmc" and allocation_preset.value == "gghh_accuracy":
+        _allocation_view.append(mo.callout("This 15,728,640-point gg→HH allocation reached 0.00937% finite-term relative standard error in the native eight-worker CLI observation (377.530 s). That is an observed result, not guaranteed precision or a browser runtime. The notebook uses one caller worker; sampling starts only with Integrate.", kind="warn" if browser_runtime else "info"))
+    mo.vstack(_allocation_view)
+    return (allocation_controls,)
+
+
+@app.cell(hide_code=True)
+def _(allocation_controls, integration_method, physics_controls, problem):
+    if problem.value == "gghh":
+        draft = {"example": "gghh", "max_order": 0, "method": integration_method.value, **allocation_controls.value}
+    else:
+        draft = {"example": problem.value, "method": integration_method.value, **physics_controls.value, **allocation_controls.value}
     return (draft,)
 
 
@@ -173,15 +214,22 @@ def _(browser_runtime, interrupt_isolated, mo, workflow):
     run_state = workflow.RunState(message="Choose the input, then Generate. No scientific work starts automatically.")
     generate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Generate", kind="success")
     integrate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Integrate", kind="success")
+    new_integration_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="New integration")
     cancel_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Cancel", kind="danger")
-    resume_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Resume checkpoint")
+    resume_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Resume")
+    adapt_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Adapt another pilot")
+    freeze_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Freeze production", kind="success")
     refresh = mo.ui.refresh(options=["250ms", "1s", "5s"], default_interval="250ms", label="Caller step / refresh")
     mo.vstack([
         mo.md("## 2 · Generate → inspect → integrate"),
-        mo.hstack([generate_button, integrate_button, cancel_button, resume_button, refresh], justify="start", wrap=True),
-        mo.md("Generate includes native compilation and stops before sampling. Integrate starts a fixed allocation from ready kernels. Cancel saves accepted coverage; Resume restores it."),
+        mo.hstack([generate_button, integrate_button, cancel_button, resume_button, new_integration_button, refresh], justify="start", wrap=True),
+        mo.accordion({"Havana pilot actions": mo.vstack([
+            mo.md("Integrate starts a pilot. After its allocation completes, choose another adaptation epoch or freeze both grids and start production. Pilot statistics never enter the production estimate. These actions do nothing during an active allocation."),
+            mo.hstack([adapt_button, freeze_button], justify="start", wrap=True),
+        ])}),
+        mo.md("Generate includes native compilation and stops before sampling. Integrate starts the selected allocation from ready kernels. Cancel retains accepted coverage; Resume continues it. Havana pilots stay in memory until production is frozen."),
         mo.accordion({"Execution and cancellation": mo.vstack([
-            mo.md("Cancel pauses integration between packages and saves accepted coverage. In marimo's editor, Stop (interrupt) / Ctrl-I (Cmd-I on macOS) requests KeyboardInterrupt. Generation checks it at native callback boundaries; integration checks within packages every 256 points. Long algebra operations between checks can delay interruption. An interrupted package does not enter accepted coverage. Only explicit Integrate or Resume enables further packages; no allocation grows automatically."),
+            mo.md("Cancel pauses integration between QMC packages or global Havana batches. Production coverage can be saved; pilots retain the same native session in memory. In marimo's editor, Stop (interrupt) / Ctrl-I (Cmd-I on macOS) requests KeyboardInterrupt. Generation checks it at native callback boundaries; integration checks every 256 points. Long algebra operations between checks can delay interruption. An interrupted package or batch does not enter accepted coverage. Only explicit Integrate, Resume or pilot actions enable further work; no allocation grows automatically."),
             mo.callout(
                 "Browser interrupt is available in this isolated editor. Use Stop (interrupt) or Ctrl-I (Cmd-I on macOS); long native algebra calls may delay the response."
                 if interrupt_isolated and mo.app_meta().mode == "edit" else
@@ -190,13 +238,15 @@ def _(browser_runtime, interrupt_isolated, mo, workflow):
             ) if browser_runtime else mo.md(""),
         ])}),
     ])
-    return cancel_button, generate_button, integrate_button, refresh, resume_button, run_state
+    return adapt_button, cancel_button, freeze_button, generate_button, integrate_button, new_integration_button, refresh, resume_button, run_state
 
 
 @app.cell(hide_code=True)
-def _(builders, cancel_button, draft, fs, generate_button, generation, gghh_builder, integrate_button, integration, mo, presentation, refresh, resume_button, run_state):
+def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_button, fs, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state):
     _actions = {"generate": generate_button.value, "integrate": integrate_button.value,
-                "cancel": cancel_button.value, "resume": resume_button.value, "tick": refresh.value}
+                "cancel": cancel_button.value, "resume": resume_button.value,
+                "adapt": adapt_button.value, "freeze": freeze_button.value,
+                "new": new_integration_button.value, "tick": refresh.value}
     _changed = {key for key, value in _actions.items() if value != run_state.seen[key]}
     run_state.seen.update(_actions)
     if "cancel" in _changed:
@@ -220,15 +270,21 @@ def _(builders, cancel_button, draft, fs, generate_button, generation, gghh_buil
                     run_state.drawing = mo.Html(f'<div style="max-width:480px;margin:auto">{run_state.prepared.diagram.render()}</div>')
                 except Exception as _drawing_error:
                     run_state.drawing = mo.callout(f"Native graph rendering is unavailable: {_drawing_error}", kind="warn")
+    elif "new" in _changed:
+        run_state.new_integration()
     elif "integrate" in _changed:
-        # Draft physics never replaces generated provenance. The fixed ggHH
-        # allocation also stays independent of another currently edited input.
+        # Draft physics never replaces generated provenance. Only the matching
+        # case's explicit allocation controls are admitted at Integrate.
         _settings = None
-        if run_state.configuration is not None and run_state.configuration["example"] != "gghh" and draft["example"] == run_state.configuration["example"]:
-            _settings = {key: draft[key] for key in ("points", "shifts", "seed", "package_points", "rule")}
+        if run_state.configuration is not None and draft["example"] == run_state.configuration["example"]:
+            _settings = {"method": draft["method"], **allocation_controls.value}
         run_state.integrate(fs, _settings)
     elif "resume" in _changed:
         run_state.resume()
+    elif "adapt" in _changed:
+        run_state.pilot_action()
+    elif "freeze" in _changed:
+        run_state.pilot_action(freeze=True)
     elif "tick" in _changed:
         run_state.advance()
     _content = [mo.callout(run_state.message, kind="danger" if run_state.error else "info")]
@@ -239,7 +295,7 @@ def _(builders, cancel_button, draft, fs, generate_button, generation, gghh_buil
     if run_state.configuration is not None:
         _c = run_state.configuration
         _content.append(mo.md(f"**Generated input:** {_c['example']} · requested $\\epsilon^{{{_c['max_order']}}}$. Draft edits do not alter this native owner."))
-    _content.extend([generation.generation_view(mo, run_state), integration.result_view(mo, run_state)])
+    _content.extend([generation.generation_view(mo, run_state), integration.result_view(mo, run_state), integration.previous_result_view(mo, run_state)])
     mo.output.replace(mo.vstack(_content))
     run_revision = (run_state.phase, run_state.snapshot, len(run_state.events), run_state.generated)
     return (run_revision,)
@@ -251,7 +307,7 @@ def _(generation, mo, run_revision, run_state, sectors):
     mo.vstack([
         mo.md("## 3 · Native input and generated sectors"),
         generation.input_view(mo, run_state),
-        sectors.overview(mo, run_state.generated),
+        sectors.overview(mo, run_state.generated, run_state.kernels),
     ])
     return
 
@@ -262,14 +318,15 @@ def _(mo):
     coefficient_index = mo.ui.number(start=0, value=0, step=1, label="Coefficient index")
     alias_page = mo.ui.number(start=0, value=0, step=1, label="Alias page")
     chart_index = mo.ui.number(start=0, value=0, step=1, label="Chart index")
+    term_index = mo.ui.number(start=0, value=0, step=1, label="Mapped term index")
     inspect_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Inspect sector")
     numerator_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Inspect weighted numerator")
-    mo.vstack([mo.hstack([sector_index, coefficient_index, alias_page, chart_index], justify="start", wrap=True), mo.hstack([inspect_button, numerator_button], justify="start", wrap=True)])
-    return alias_page, chart_index, coefficient_index, inspect_button, numerator_button, sector_index
+    mo.vstack([mo.hstack([sector_index, coefficient_index, alias_page, chart_index, term_index], justify="start", wrap=True), mo.hstack([inspect_button, numerator_button], justify="start", wrap=True)])
+    return alias_page, chart_index, coefficient_index, inspect_button, numerator_button, sector_index, term_index
 
 
 @app.cell(hide_code=True)
-def _(alias_page, chart_index, coefficient_index, inspect_button, mo, numerator_button, run_revision, run_state, sector_index, sectors):
+def _(alias_page, chart_index, coefficient_index, inspect_button, mo, numerator_button, run_revision, run_state, sector_index, sectors, term_index):
     run_revision
     _actions = {"inspect": inspect_button.value, "numerator": numerator_button.value}
     _changed = {key for key, value in _actions.items() if value != run_state.seen[key]}
@@ -278,7 +335,7 @@ def _(alias_page, chart_index, coefficient_index, inspect_button, mo, numerator_
         try:
             if run_state.generated is None:
                 raise ValueError("Generate an input first")
-            run_state.inspected_sector = sectors.detail(mo, run_state.generated, int(sector_index.value), int(coefficient_index.value), int(alias_page.value), int(chart_index.value))
+            run_state.inspected_sector = sectors.detail(mo, run_state.generated, int(sector_index.value), int(coefficient_index.value), int(alias_page.value), int(chart_index.value), int(term_index.value), run_state.kernels)
         except Exception as _inspection_error:
             run_state.inspected_sector = mo.callout(f"Sector inspection failed: {_inspection_error}", kind="warn")
     elif "numerator" in _changed:
@@ -296,6 +353,8 @@ def _(alias_page, chart_index, coefficient_index, inspect_button, mo, numerator_
 def _(asset_description, mo, report, run_revision, run_state):
     run_revision
     _downloads = []
+    if run_state.previous_report_bytes is not None:
+        _downloads.append(mo.download(run_state.previous_report_bytes, filename="fastsecdec-previous-report.json", label="Download previous allocation report"))
     if run_state.configuration is not None and not run_state.active:
         _downloads.append(mo.download(lambda: report.report_bytes(run_state), filename="fastsecdec-report.json", label="Download run report"))
     if run_state.kernels is not None and not run_state.active:

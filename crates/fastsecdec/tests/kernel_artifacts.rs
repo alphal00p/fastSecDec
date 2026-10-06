@@ -10,6 +10,9 @@ use fastsecdec::{
 use std::ops::ControlFlow;
 use symbolica::{parse, symbol};
 
+#[path = "inspection_metadata/mod.rs"]
+mod inspection_metadata;
+
 fn generated() -> fastsecdec::generation::GeneratedIntegral {
     generate(
         &ParametricIntegrand::new(

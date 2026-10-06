@@ -19,17 +19,25 @@ generate sectors, compile kernels, or start sampling.
 2. Select **Generate**. HEPKit prepares the native input; FastSecDec generates
    sectors and compiles kernels. Typed native events supply phase progress,
    counts, timings and coefficient-expansion details. Generation stops with no
-   integration session and zero sampled QMC points.
+   integration session and zero sampled points.
 3. Inspect the diagram and all-sector overview. **Inspect sector** retrieves the
    selected native sector's compact coefficients, stored alias definitions,
-   coordinate maps and geometry. It does not materialize expanded coefficients.
+   coordinate maps and geometry. New generated records also retain the selected
+   chart/term's native prefactor, exact epsilon-dependent coordinate powers and
+   required Taylor subtraction counts. Maps and prefactors use bounded native
+   LaTeX previews; exact names remain available in the source disclosure.
+   It does not materialize expanded coefficients.
    **Inspect weighted numerator** explicitly requests native tensor contraction;
    merely opening a collapsed panel does not perform it.
 4. Select **Integrate**. Only ready kernels can start a session. Each refresh
-   advances at most one native package. **Cancel** stops between packages and
-   saves the accepted checkpoint; **Resume checkpoint** restores that coverage
+   advances at most one native QMC package or global Havana batch. **Cancel** stops between steps and
+   saves the accepted production checkpoint; **Resume** restores that coverage
    and its numerical replay state. Changing draft physics cannot replace the
    generated input or an active result. No allocation is enlarged automatically.
+   After stopping, **New integration** retains the generated input and compiled
+   kernels, saves the previous allocation's report, and clears only sampling
+   state. Choose another method/settings and select Integrate explicitly; there
+   is no need to regenerate gg→HH to compare QMC and Monte Carlo.
 5. Read the complete signed Laurent vector, real/imaginary covariance, per-sector
    coverage and highest-order history. Missing uncertainty remains missing.
    The selected-order target is 0.1% and requires complete production; completing
@@ -52,8 +60,15 @@ Generated coefficients are labelled by their native signed epsilon orders and
 may be complex. Compiled estimates can split these into additional real/imaginary
 rows. Coordinate maps describe the density pullback before endpoint subtraction.
 A chart with no numerical kernel may be exact, cancelled or truncated; this is
-not a separate zero classification. Stored alias counts are not a count of
-unique expression complexity.
+not a separate zero classification. The overview reports operation counts and
+exact program bytes from the actual shared complete-vector evaluator. Counts
+precede SymJIT's real/complex lowering and optimization; compressed SymJIT
+application bytes are not machine-code size. The portable interpreter has no
+SymJIT application. Stored alias counts remain available in coefficient detail.
+Pre-subtraction metadata records the original mapped prefactor and powers,
+before symmetry multiplicity. Its regular-body byte count does not retain the
+complete body or certify conditioning. Older artifacts explicitly lack the
+new optional record, while retaining their original bytes and identities.
 
 ## Optional gg → HH
 
@@ -75,8 +90,16 @@ stable ID and every physical serialized field. Only the cosmetic generated-order
 name differs: live FK015 versus audited FK018. Both are recorded. The assets
 contain no kernels, checkpoints or numerical integration results.
 
-Generate prepares through the finite coefficient. Integrate uses N = 1024,
-R = 8, Kuo 33002/Korobov-3, seed 20261005 and 1024-point packages. The massive
+Generate prepares through the finite coefficient. **Quick exploration** defaults
+to N = 1024, R = 8, Kuo 33002/Korobov-3, seed 20261005 and 1024-point packages.
+The optional **Native gg→HH accuracy observation** preset selects N = 32768,
+R = 16, HKKN α=3/Korobov-3 and seed 20261007: 15,728,640 points across 30 sectors.
+That native eight-worker CLI allocation reached 0.00937% finite-term relative
+standard error in 377.530 seconds. This is measured precision at the fixed point,
+not a guarantee for edited settings or a browser timing. Both presets expose
+editable points, shifts, rule, periodization, seed and caller package size.
+Selecting a preset starts no calculation; only Integrate binds the allocation.
+The massive
 triangle remains the default; gg → HH is an optional extended run in both native
 and browser notebooks. The browser uses one CPU and portable interpreted kernels;
 it may take substantially longer, and browser completion/cost remain unvalidated.
@@ -117,8 +140,11 @@ The triangle finite coefficient agrees with its analytic control to an absolute
 difference of 3.14 × 10⁻⁹. All four gg → HH means equal the retained native CLI
 means; all 16 covariance entries agree within 1.39 × 10⁻¹⁷ absolute difference.
 This checks implementation consistency, not an independent amplitude reference.
-The gg → HH finite coefficient still has **1.0273% relative standard error**:
-the fixed allocation completes, but its **0.1% target is not met**.
+The gg → HH finite coefficient in this quick allocation has **1.0273% relative
+standard error**: the fixed allocation completes, but its **0.1% target is not
+met**. A subsequent higher-statistics native CLI result is recorded separately
+in the [gg→HH example](../gghh_double_box/README.md); it does not change this
+historical notebook measurement or imply a browser runtime.
 
 Two earlier triangle driver failures are retained: an initial numeric-field
 locator failed before Generate, and a hidden duplicate alias label stopped the
@@ -134,14 +160,36 @@ histories remain expandable, without claiming symbolic exactness. The view also
 uses the native aggregate worker time and exposes native stop details when
 available. This replay performs no generation or integration.
 
+The rebuilt native metadata/Monte Carlo wheel subsequently passed all **81**
+maintained controls. One actual triangle UI session then generated and inspected
+maps, prefactors, endpoint powers and shared evaluator sizes, completed 16,384
+QMC points, and used **New integration** to keep the same kernels and prior
+report. Havana completed a 2,048-point pilot with in-memory Cancel/Resume, then
+an explicit freeze and 8,192 production points with checkpoint Cancel/Resume.
+Full vectors/covariances and exact accepted prefixes passed; all processes were
+reaped in 24.985 seconds. This is a small lifecycle check, not an accuracy or
+performance benchmark. The evidence is under
+`output/diagnostics/hepkit-rich-metadata-ui-1/run-1/`. A later CSS-only table
+spacing correction is verified by four presentation controls and clearly
+labelled saved-data screenshots, without repeating scientific work.
+
 ## Explicit browser export
 
 A native wheel cannot run in Pyodide. The exporter packages an existing tested
 cp314 Pyodide wheel, the four small inputs and the optional gg → HH helper/input
 assets. It does not build dependencies, run notebook cells or certify responsiveness.
 The current public-pin Wasm wheel passes the generic smoke test and all 50
-portable API/input/inspection/wavefunction controls. The explicit browser
-lifecycle on this updated showcase remains awaiting actual validation.
+portable API/input/inspection/wavefunction controls. Its actual scalar-triangle
+browser lifecycle on showcase revision `0cf08c6` is accepted: bootstrap took
+21.084 seconds and Generate reached ready in 3.152 seconds, with nine visible
+native phase/count states. Inspection, Cancel, an unchanged paused checkpoint
+and Resume completed all 16,384 points; the full result/covariance and analytic
+control passed. The whole supervised export/browser session took 63.294 seconds,
+peaked at 2.289 GB sampled process-tree RSS, and reaped all owned processes.
+Selecting optional gg→HH produced no scientific work. These are single observed
+UI timings, not performance benchmarks. They validate the published `539019a`
+core wheel and `0cf08c6` showcase; newer metadata/API additions need their own
+rebuilt wheel and do not inherit this binary's acceptance.
 
 ```sh
 python examples/hepkit/export.py \
@@ -171,6 +219,28 @@ delay it. Cancel instead pauses between accepted packages; interrupted packages
 are excluded from accepted coverage, and Resume uses the saved checkpoint.
 Reloading the page discards unsaved in-memory work. Browser gg → HH completion
 and prompt interruption are not yet claimed.
+
+## Havana Monte Carlo
+
+Select **Havana Monte Carlo · sector importance** to use the native nested
+discrete/continuous importance-sampling grid. Its point count is global:
+`points_per_batch × batches`, not a separate allocation for every sector.
+The controls expose pilot and production sizes, seed, continuous bins and
+probability safeguards. Lattice rules and Korobov periodization are QMC-only.
+
+**Integrate** starts the explicit pilot allocation and stops when it completes.
+Choose **Adapt another pilot** to train another epoch, or **Freeze production**
+to adapt/freeze both grids and start the configured production allocation.
+Pilot values are discarded from production statistics and history. The view
+reports actual selected points, native sector probabilities and global batch
+coverage without treating each sector's copy of a batch as independent data.
+
+**Cancel** during a pilot retains the same native session; **Resume** continues
+it in memory. There is deliberately no persistent pilot checkpoint. Downloads
+become available for frozen production, whose accepted prefix and replay state
+can be restored through the native codec. Reloading during a pilot loses its
+unsaved training state. These new controls require the updated binding wheel;
+older browser acceptance does not establish this new interface's runtime.
 
 Earlier portable evidence used a Pyodide 314.0.7 wheel in marimo 0.24.2's actual
 314.0.0 runtime: 39 bridge/input/wavefunction controls passed, along with the

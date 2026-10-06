@@ -29,8 +29,8 @@ pub(crate) use domain::check_factors;
 pub(crate) use mapping::coordinates_from_parts;
 
 pub use metadata::{
-    BranchPolicy, ChartRecord, CoordinateMap, DomainAssessment, FactorAssessment,
-    FactorCertificate, GenerationMetadata,
+    BranchPolicy, ChartRecord, CoordinateMap, DomainAssessment, EndpointPower, FactorAssessment,
+    FactorCertificate, GenerationMetadata, PreSubtractionMetadata, PreSubtractionTerm,
 };
 pub use types::{
     CoefficientExpansionMethod, CoefficientExpansionOptions, CoefficientExpansionStage,
@@ -204,6 +204,11 @@ fn generate_inner(
         let started = Instant::now();
         let coordinates = mapping::coordinates(input, &map, &parameters);
         let mapped = mapping::map_terms(input, &map, &coordinates, &mut source_supports)?;
+        let pre_subtraction = Some(PreSubtractionMetadata::capture(
+            &mapped,
+            input.regulator(),
+            options.max_subtractions_per_axis,
+        )?);
         emit(
             &mut progress,
             GenerationProgress::PhaseTiming {
@@ -254,6 +259,7 @@ fn generate_inner(
             kernel_sector: None,
             coordinates,
             geometry: map.as_ref().clone(),
+            pre_subtraction,
         });
         if matched.representative == index {
             representatives.insert(index, (map.into_owned(), parameters, mapped, 1usize));

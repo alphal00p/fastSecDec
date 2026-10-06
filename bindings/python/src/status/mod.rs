@@ -1,4 +1,5 @@
 //! Immutable views of native snapshots, with no reconstructed statistics.
+mod allocation;
 mod diagnostics;
 mod generation;
 mod integration;
@@ -16,5 +17,6 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<integration::PySectorSnapshot>()?;
     module.add_class::<integration::PyVectorEstimate>()?;
     module.add_class::<diagnostics::PyEvaluationDiagnostics>()?;
+    module.add_class::<allocation::PyDiscreteSectorAllocation>()?;
     Ok(())
 }

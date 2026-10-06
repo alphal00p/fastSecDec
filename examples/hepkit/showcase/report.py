@@ -18,6 +18,7 @@ def run_report(state):
         "error": state.error,
         "checkpoint_warning": state.checkpoint_warning,
         "preparation_seconds": state.preparation_seconds,
+        "completed_pilot_active_seconds": state.pilot_seconds,
         "integration_active_seconds": state.integration_wall_seconds,
         "time_semantics": "Caller active time includes refresh waits and excludes paused intervals; native worker time is separate.",
         "generation_events": [],
@@ -50,7 +51,12 @@ def run_report(state):
     if state.snapshot is not None:
         snapshot = state.snapshot
         row = _fields(snapshot, "method stage completed_points planned_points complete_sectors worker_seconds uncertainty uncertainty_detail stop_reason stop_detail")
-        row["sectors"] = [_fields(s, "id dimension completed_points planned_points complete_replicas planned_replicas worker_seconds") for s in snapshot.sectors]
+        row["sectors"] = []
+        for sector in snapshot.sectors:
+            sector_row = _fields(sector, "id dimension completed_points planned_points complete_replicas planned_replicas worker_seconds")
+            allocation = getattr(sector, "discrete_allocation", None)
+            sector_row["discrete_allocation"] = None if allocation is None else _fields(allocation, "probability points_per_batch")
+            row["sectors"].append(sector_row)
         estimate = snapshot.estimate
         row["estimate"] = None if estimate is None else _fields(estimate, "orders components mean standard_error covariance_of_mean production_complete")
         diagnostics = snapshot.evaluation_diagnostics

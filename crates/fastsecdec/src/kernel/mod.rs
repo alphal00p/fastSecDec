@@ -9,6 +9,8 @@ pub use metadata::PortableMetadata;
 mod precision;
 mod precision_cache;
 mod program;
+mod statistics;
+pub use statistics::{EvaluatorOperations, EvaluatorStatistics};
 mod weighted;
 
 #[cfg(all(test, feature = "native"))]
@@ -67,6 +69,7 @@ pub struct SectorKernel {
     parameters: Vec<Symbol>,
     exact_zero: Vec<bool>,
     program_bytes: std::sync::Arc<[u8]>,
+    statistics: EvaluatorStatistics,
     backend: Backend,
 }
 
@@ -91,6 +94,11 @@ struct RealKernel {
 }
 
 impl SectorKernel {
+    /// Facts recorded from the actual complete-vector evaluator construction.
+    /// Reading these records never constructs or executes an evaluator.
+    pub fn statistics(&self) -> &EvaluatorStatistics {
+        &self.statistics
+    }
     pub fn dimension(&self) -> usize {
         self.parameters.len()
     }
@@ -238,6 +246,7 @@ impl SectorKernel {
             parameters: self.parameters.clone(),
             exact_zero: self.exact_zero.clone(),
             program_bytes: self.program_bytes.clone(),
+            statistics: self.statistics.clone(),
             backend: match &self.backend {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {

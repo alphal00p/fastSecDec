@@ -2,17 +2,19 @@ use std::rc::Rc;
 
 use fastsecdec::{
     integration::{
-        IntegrationProblem, Periodization, PublishedLattice, QmcSession, QmcSettings, QmcWorker,
-        RuleSource,
+        Periodization, PublishedLattice, QmcSession, QmcSettings, QmcWorker, RuleSource,
     },
     kernel::{KernelSet, ReplayPolicy, ReplayState, WeightedEvaluationContext},
-    results::{KernelResultManifest, ResultScope},
     status::{EvaluationDiagnostics, IntegrationMethod, StoppingReason},
 };
 use pyo3::{prelude::*, types::PyBytes};
 use serde::{Deserialize, Serialize};
 
-use super::{error, status::PyIntegrationSnapshot};
+use super::{
+    error,
+    execution::{problem, replay_states},
+    status::PyIntegrationSnapshot,
+};
 
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
@@ -150,12 +152,6 @@ pub(crate) struct PyQmcSession {
     stop_reason: Option<StoppingReason>,
 }
 
-fn problem(py: Python<'_>, kernels: &KernelSet) -> PyResult<IntegrationProblem> {
-    KernelResultManifest::from_kernels(kernels)
-        .integration_problem(&ResultScope::FullIntegral, kernels.content_id())
-        .map_err(|e| error::native(py, "configuration", e))
-}
-
 impl PyQmcSession {
     pub(crate) fn new(
         py: Python<'_>,
@@ -165,10 +161,7 @@ impl PyQmcSession {
         let session = QmcSession::democratic(problem(py, &kernels)?, settings)
             .map_err(|e| error::native(py, "configuration", e))?;
         let policy = ReplayPolicy::default();
-        let replay = (0..kernels.sectors().len())
-            .map(|sector| kernels.replay_state(sector, policy.clone()))
-            .collect::<Result<_, _>>()
-            .map_err(|e| error::native(py, "configuration", e))?;
+        let replay = replay_states(py, &kernels, &policy)?;
         Ok(Self {
             kernels,
             session,

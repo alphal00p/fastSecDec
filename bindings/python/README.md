@@ -8,7 +8,8 @@ The numerical workspace and default CLI do not depend on Python or PyO3.
 The native API accepts the existing HEPKit `FeynmanDiagram` and `Kinematics`
 objects and Symbolica expressions. Generation and compilation emit native
 snapshots through caller-supplied observers. Integration uses caller-requested
-QMC packages with native replay, covariance and checkpoint validation. The
+QMC packages or native Havana global batches, with native replay, covariance and
+checkpoint validation. The
 binding introduces no graph, algebra or numerical integration implementation.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
@@ -19,7 +20,14 @@ locked owner checks and native source-equivalence checks. Its dedicated hosted
 CI also builds a native development-profile wheel and passes all 61 controls
 plus the host import check. The public-source portable wheel passes the host
 smoke and all 50 maintained API/input/inspection/wavefunction controls. The
-updated browser showcase and actual portable ggHH preparation remain pending.
+showcase at `0cf08c6c5d77081364195d587bffdd881fbd384c` also passes the actual
+browser triangle Generate, Inspect, Integrate, Cancel and Resume lifecycle.
+Actual portable ggHH preparation remains pending. These accepted historical
+gates do not cover the newer endpoint/statistics and discrete-MC APIs below.
+Those APIs pass 81 focused controls against the current optimized native wheel
+and an actual triangle notebook lifecycle covering metadata, QMC and Havana
+pilot/production pause and resume. Their current portable-target validation is
+still pending.
 Notebook/assets use a separately recorded showcase revision without
 changing the compiled binding revision; the build guide distinguishes those paths.
 Its default native backend selects SymJIT O2; the portable feature selects the existing interpreted
@@ -66,3 +74,28 @@ The public module/class names and native serialized representations remain
 stable across this ownership move. Compatibility still follows native content,
 precision and checkpoint identity validation; moving the wrappers does not
 override those checks.
+
+The current development API retains source-chart endpoint information at
+`generated.metadata.charts[i].pre_subtraction`: exact regulator, prefactors and
+affine endpoint powers, with the native number of required Taylor subtractions.
+These are facts before symmetry multiplicity and subtraction, not a prediction
+of surviving poles. An older artifact can lack the record. Expressions remain
+Symbolica objects; inspection does not expand the regular density.
+`kernels.sector_statistics` reports each complete shared evaluator's native
+program bytes and pre-SymJIT operation counts. `symjit_ir_bytes` measures the
+compressed compiled application, not machine code, and is absent for the
+portable interpreter. Complex evaluator outputs precede the real/imaginary
+component split.
+
+`kernels.mc_session(HavanaDiscreteSettings(...), pilot=True)` starts native
+sector and coordinate importance training. The caller advances bounded
+`step(max_batches=1)` calls and can pause by retaining the session object.
+After a complete pilot, `adapt_pilot()` starts another pilot epoch, or
+`freeze_production(points_per_batch=..., batches=...)` freezes both grids and
+starts independent production. Pilot observations never enter production
+estimates. `checkpoint_available` distinguishes in-memory pilot pause from
+persistent production checkpoints, restored with `kernels.restore_mc(bytes)`.
+Per-sector `planned_points` is `None` for this stochastic allocation;
+`discrete_allocation` contains the actual native selection probability and
+global batch size. The total planned budget remains an integer. The existing
+QMC `session`/`restore` methods and checkpoint format are unchanged.

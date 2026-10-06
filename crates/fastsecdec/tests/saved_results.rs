@@ -337,7 +337,7 @@ fn reading_large_unstarted_design_does_not_generate_billions_of_random_shifts() 
     design.allocations[0].points = 2;
     design.allocations[0].shifts = u32::MAX;
     let row = &mut result.contributions.sectors[0];
-    row.progress.planned_points = 2 * u32::MAX as u64;
+    row.progress.planned_points = Some(2 * u32::MAX as u64);
     row.progress.planned_replicas = u32::MAX as usize;
     row.progress.completed_points = 0;
     row.progress.complete_replicas = 0;

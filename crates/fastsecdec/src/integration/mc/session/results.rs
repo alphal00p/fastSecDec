@@ -69,7 +69,8 @@ impl HavanaSession {
                     dimension: spec.dimension,
                     completed_points: run.records.len() as u64
                         * self.settings.points_per_batch as u64,
-                    planned_points: self.settings.planned_points()?,
+                    planned_points: Some(self.settings.planned_points()?),
+                    discrete_allocation: None,
                     complete_replicas: run.records.len(),
                     planned_replicas: self.settings.batches as usize,
                     worker_seconds: precise_sum(run.records.values().map(|v| v.worker_seconds))?,
@@ -99,7 +100,12 @@ impl HavanaSession {
             method: IntegrationMethod::HavanaMc,
             stage: self.stage,
             completed_points: total(sectors.iter().map(|s| s.completed_points).collect())?,
-            planned_points: total(sectors.iter().map(|s| s.planned_points).collect())?,
+            planned_points: total(
+                sectors
+                    .iter()
+                    .map(|s| s.planned_points.expect("fixed Havana quota"))
+                    .collect(),
+            )?,
             complete_sectors: self
                 .runs
                 .iter()

@@ -67,7 +67,7 @@ impl SectorContribution {
                 &problem.components,
                 QmcEstimate::from_shift_means(means)?,
                 used_replicas == progress.planned_replicas
-                    && progress.completed_points == progress.planned_points,
+                    && Some(progress.completed_points) == progress.planned_points,
             ))
         };
         let uncertainty = if stage == IntegrationStage::Pilot {

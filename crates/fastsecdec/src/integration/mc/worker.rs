@@ -185,7 +185,7 @@ impl HavanaWorker {
     }
 }
 
-fn training_envelope(weighted: f64, weight: f64) -> Result<f64> {
+pub(crate) fn training_envelope(weighted: f64, weight: f64) -> Result<f64> {
     if weighted == 0.0 {
         return Ok(0.0);
     }

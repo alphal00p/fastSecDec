@@ -45,7 +45,7 @@ impl PyCompactCoefficient {
     #[getter]
     fn aliases(&self) -> Vec<(PythonExpression, PythonExpression)> {
         let mut pairs: Vec<_> = self.native().get_aliases().iter().collect();
-        pairs.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+        pairs.sort_unstable_by_key(|(left, _)| *left);
         pairs
             .into_iter()
             .map(|(alias, definition)| (expression(alias), expression(definition)))

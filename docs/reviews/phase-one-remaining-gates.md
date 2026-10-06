@@ -1,11 +1,15 @@
 # Phase-one remaining gates — current bounded completion work
 
-Source review, 2026-10-05. This reconciles the earlier remaining-gates audit with
+Source review, updated 2026-10-06. This reconciles the earlier remaining-gates audit with
 validated milestones through `59975b1` and the retained full-graph attempts.
 [FIRST_PHASE_PLAN.md](../../FIRST_PHASE_PLAN.md) remains authoritative; this
-document adds no requirement and claims no new test execution. The latest
-combined gate is **380 passed, zero failed, 23 ignored**, with workspace
-formatting and all-target Clippy passing. See the
+document adds no requirement. The latest workspace test gate is
+**419 passed, zero failed, 25 explicitly ignored heavy probes**. The rebuilt
+native HEPKit wheel passes **81 controls**, and the portable backend on a native
+host passes 41 focused controls. Formatting and strict all-target Clippy pass;
+the final equivalent Option-guard cleanup also passes all five discrete-MC
+controls. The earlier 380-test milestone's evidence
+remains in the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
 
@@ -30,16 +34,49 @@ The existing Pathfinder prime catalogue reaches 0.577 per mille in 275.506 secon
 These single, different-rule observations leave double-box performance parity
 unmet; other representative comparisons remain open. The retained earlier
 license failures are unchanged. The HEPKit marimo extension's generated gg→HH
-helicity double box now passes its [native CLI prerequisite](gghh-native-feasibility.md):
-complete generation and full-vector integration at about 1.03% finite-part error.
-It remains a native example pending browser feasibility. The four smaller
-showcase inputs pass actual Pyodide bridge tests, and the triangle's real browser
-Run/Cancel/Resume workflow reaches its target. Community delivery is published in
-[draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18), with
-39 fresh installed-native tests and zero skips. The documented dependency
-patches remain necessary. See the [bridge review](hepkit-fastsecdec-bridge.md),
+helicity double box passes its [native CLI prerequisite](gghh-native-feasibility.md).
+The subsequent complete 15,728,640-point HKKN-alpha3 QMC allocation reaches
+**0.00937%** finite-part relative standard error in 377.530 seconds on eight
+workers, closing the newly requested **0.1%** target. Its full vector agrees
+with both earlier independent-seed allocations within one combined standard
+error. No further QMC tuning is required for this example. The optional browser example is
+implemented and published in FastSecDec `0cf08c6`, with the scalar triangle
+selected first. Browser gg→HH completion remains unmeasured. Native triangle
+and gg→HH Generate/inspect/Integrate/Cancel/Resume workflows pass. The current
+compiled Wasm wheel passes generic smoke and **50 portable controls**; the
+updated actual browser triangle lifecycle also passes, including generation
+streaming, inspection before sampling, cancellation and exact checkpoint-prefix
+resumption. Selecting the optional gg→HH entry remains idle. Community delivery is
+published in [draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+Its heavy binding, tests and examples are owned by FastSecDec; community only
+links/registers/reexports them and supplies stubs. The documented dependency
+patches remain necessary. See the [relocation audit](hepkit-relocation-audit.md),
+[bridge review](hepkit-fastsecdec-bridge.md),
 [UI review](fastsecdec-showcase-ui.md) and
 [dependency-delivery review](dependency-delivery.md).
+
+The new ordinary-Havana lane now implements discrete importance sampling over
+sectors with Numerica's existing `DiscreteGrid` and continuous child grids.
+Its 29 native MC/QMC controls and 74 CLI controls pass; the thin HEPKit binding
+and actual notebook lifecycle pass too. The complete gg→HH MC allocation reaches
+0.577 per mil finite-part relative standard error and agrees with QMC within
+1.70 combined component standard errors, with full covariance retained. The
+completed checkpoint restores with one worker without adding samples. See the
+[native sampling review](havana-discrete-sector-sampling.md).
+
+The latest sector-exploration extension retains native prefactors and affine
+epsilon powers before endpoint subtraction, together with the variable maps,
+Jacobian and actual shared evaluator statistics. Seventeen native metadata and
+artifact controls pass. The selected-chart notebook panels pass actual native
+UI validation, including rendered math. Fresh gg→HH generation/reload retains
+all 30 charts and 54 mapped terms with unchanged exact evaluator programs.
+Actual Wasm validation of these new APIs remains pending and separate from
+the earlier accepted browser wheel. See the
+[metadata review](retained-generation-explainability.md).
+The requested basic denominator geometry check
+is closed: native pySecDec decomposition agrees with all 30 sector maps,
+Jacobians and factor valuations. See the [sector check](gghh-sector-sanity.md).
+No infeasible full reference generation is being repeated.
 
 The [regression matrix](../REGRESSION_MATRIX.md) retains **182 rows: 101 Covered,
 81 Retired, zero Partial and zero Pending**. The double-box row

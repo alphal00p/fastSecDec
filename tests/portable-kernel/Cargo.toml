@@ -51,6 +51,12 @@ path = "../../crates/fastsecdec/tests/weighted_replay.rs"
 [[test]]
 name = "runtime_qmc"
 path = "../../crates/fastsecdec/tests/runtime_qmc.rs"
+[[test]]
+name = "runtime_mc"
+path = "../../crates/fastsecdec/tests/runtime_mc.rs"
+[[test]]
+name = "runtime_mc_discrete"
+path = "../../crates/fastsecdec/tests/runtime_mc_discrete.rs"
 
 [profile.dev.package.symbolica]
 opt-level = 2

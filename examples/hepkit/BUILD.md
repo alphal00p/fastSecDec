@@ -5,13 +5,13 @@ module. FastSecDec owns the Rust/PyO3 implementation under `bindings/python`;
 there is no separate FastSecDec wheel. The default numerical library and CLI
 remain Python-free.
 
-The host currently pins compiled FastSecDec source at
-`539019a72622d0997e7ee2da8c21101234df228a` (community commit
-`d82eff433f187f818e22d811ef7e1654744447a3`). The showcase in **this checkout** is
-maintained separately: its Python helpers, notebook and assets can change
-without rebuilding unchanged Rust. Record this checkout's `git rev-parse HEAD` as the showcase revision alongside
-the wheel hash and compiled revisions in the export/release receipt. The dependency helper's older notebook is not the updated
-showcase with optional browser gg → HH.
+Use the community feature branch with a FastSecDec dependency pin that includes
+the endpoint inspection and `HavanaDiscreteSettings` APIs. The dependency helper
+fetches that exact pin. Keep the showcase in **this checkout** at the same
+FastSecDec revision, unless a separate receipt verifies a demo-only difference.
+Record its `git rev-parse HEAD` alongside the wheel hash and compiled revisions.
+The older `539019a` binding wheel does not contain these new APIs; its accepted
+demo-only pairing with `0cf08c6` remains historical evidence.
 
 ## Native wheel and notebook
 
@@ -28,6 +28,7 @@ bash scripts/prepare_fastsecdec_dependencies.sh "$FASTSECDEC_DEPENDENCIES"
 CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
   maturin develop --release --locked --features experimental-fastsecdec
 bash "$FASTSECDEC_DEPENDENCIES/fastsecdec/bindings/python/scripts/test-native.sh" "$PWD"
+python -c 'from symbolica.community.hepkit.fastsecdec import HavanaDiscreteSettings, PreSubtractionMetadata'
 python -m marimo run "$SHOWCASE_CHECKOUT/examples/hepkit/fastsecdec_showcase.py"
 ```
 
@@ -88,11 +89,16 @@ tests alongside the binding tests and preserve both source identities in reports
 Provide the Symbolica license through the private environment, never source or
 browser assets.
 
-The optimized native wheel passes 61 controls and both native notebook examples.
+The current optimized native wheel passes 81 controls and an actual triangle
+notebook lifecycle covering endpoint/evaluator inspection, QMC checkpoint
+resume, same-kernel method changes, and Havana pilot/production pause and resume.
+Its generated stubs are packaged without changing the tested extension bytes.
+Current public-pin and Wasm validation for these new APIs is pending publication.
+
+For the earlier `539019a` binding revision,
 [Dedicated hosted CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37391742450)
-also builds the public-pin development-profile wheel and passes 61 controls plus
-its import smoke. The public-source portable wheel now passes the host smoke and all 50 maintained
-API/input/inspection/wavefunction controls. Its host test explicitly allows the
-relocated crate's registration globals; the function export list is unchanged.
-The updated showcase browser and actual gg → HH portable preparation remain
+builds a development-profile wheel and passes 61 controls plus its import smoke.
+That public-source portable wheel passes the host smoke and all 50 maintained
+API/input/inspection/wavefunction controls, and the `0cf08c6` showcase passes the
+actual browser triangle lifecycle. Actual gg → HH portable preparation remains
 pending. These checks do not certify every browser or input.

@@ -135,6 +135,36 @@ pub struct IntegrationInput {
     pub production_seconds: f64,
     pub max_rounds: usize,
     pub replay: fastsecdec::kernel::ReplayPolicy,
+    /// Explicit steering for the global discrete-sector Havana lane only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discrete_mc: Option<DiscreteMcInput>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DiscreteMcInput {
+    pub pilot_points: usize,
+    pub pilot_batches: u32,
+    pub pilot_iterations: usize,
+    pub bins: usize,
+    pub minimum_probability_density: f64,
+    pub maximum_sector_probability_ratio: f64,
+    pub discrete_learning_rate: f64,
+    pub continuous_learning_rate: f64,
+}
+impl Default for DiscreteMcInput {
+    fn default() -> Self {
+        Self {
+            pilot_points: 4096,
+            pilot_batches: 8,
+            pilot_iterations: 3,
+            bins: 32,
+            minimum_probability_density: 0.01,
+            maximum_sector_probability_ratio: 100.0,
+            discrete_learning_rate: 0.5,
+            continuous_learning_rate: 0.5,
+        }
+    }
 }
 
 impl Default for IntegrationInput {
@@ -154,6 +184,7 @@ impl Default for IntegrationInput {
             production_seconds: 10.0,
             max_rounds: 1,
             replay: Default::default(),
+            discrete_mc: None,
         }
     }
 }

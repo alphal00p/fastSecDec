@@ -2,6 +2,8 @@
 //! endpoint subtraction; a compiled vector can also include boundary terms.
 use fastsecdec_sectors::{ParametricDomain, SectorMap};
 use symbolica::atom::{Atom, Symbol};
+mod pre_subtraction;
+pub use pre_subtraction::{EndpointPower, PreSubtractionMetadata, PreSubtractionTerm};
 
 /// Only the admitted real no-threshold branch is implemented. Complex scalar
 /// coefficients are permitted; singular-factor continuation is not implied.
@@ -121,6 +123,7 @@ pub struct ChartRecord {
     pub(crate) kernel_sector: Option<usize>,
     pub(crate) coordinates: CoordinateMap,
     pub(crate) geometry: SectorMap,
+    pub(crate) pre_subtraction: Option<PreSubtractionMetadata>,
 }
 impl ChartRecord {
     pub fn source_index(&self) -> usize {
@@ -145,6 +148,11 @@ impl ChartRecord {
     }
     pub fn geometry(&self) -> &SectorMap {
         &self.geometry
+    }
+    /// Original mapped terms before symmetry multiplicity, endpoint subtraction
+    /// or Laurent expansion. Older artifacts explicitly lack this record.
+    pub fn pre_subtraction(&self) -> Option<&PreSubtractionMetadata> {
+        self.pre_subtraction.as_ref()
     }
 }
 

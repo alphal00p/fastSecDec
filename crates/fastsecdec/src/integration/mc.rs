@@ -7,6 +7,7 @@
 mod config;
 mod session;
 mod worker;
+pub(crate) use worker::training_envelope;
 
 pub use config::HavanaSettings;
 pub use session::HavanaSession;

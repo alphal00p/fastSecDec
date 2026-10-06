@@ -72,7 +72,7 @@ The pinned source identities are:
 |---|---|
 | `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `6c707c6b77a437256eb1180da13d4d327b371d13`, plus the literal-symbol substitution fix |
 | `symbolica` from `symbolica-dev/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, plus the seven reviewed patches below |
-| `numerica` from `ValentinHirschi/numerica` | QMC commit `bb996e415bee9ae2c143f97408675d3051c3c2aa` on `codex/havana-qmc`; includes the reviewed numerical fixes, completed-package and shift-coverage access, guarded Korobov2/Korobov3 periodization, and explicit attributed published catalogues |
+| `numerica` from `ValentinHirschi/numerica` | Commit `f6ecdac8237a30adfcd1be5944a95c5160e474ce` on `codex/havana-qmc`; includes the reviewed QMC fixes, completed-package and shift-coverage access, guarded Korobov2/Korobov3 periodization, attributed published catalogues, and recursive sample-free cloning of nested Havana grids |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
 | `oneloop` from `alphal00p/oneloopmaster` | Development-only scalar references at `a42a60aa5fe0b3ba0a5b9bb37a17c8465c06ba5a`, plus the SymJIT compatibility patch; default features disabled |
 | `one-loop-reduce` from `lcnbr/one-loop-reduce` | Development-only numerator references at `b53a70776a43bd14c6562c52a03bc4909568e473`; default features disabled |
@@ -155,6 +155,11 @@ unavailable (HTTP 403); this supplementary check uses the latest documentation
 pages, rather than claiming a successful new registry-index query. The pins
 remained unchanged at that check; the two additive Symbolica APIs above were
 subsequently added for portable evaluation and factored polynomial reuse.
+
+A 2026-10-06 recheck of the same official crate documentation still reports
+[Symbolica 3.0.1](https://docs.rs/crate/symbolica/latest), published 2026-09-29,
+and [SymJIT 2.26.4](https://docs.rs/crate/symjit/latest). This is a documentation
+check, not a registry API query; no dependency pin changes follow.
 
 Standard checks as implementation lands:
 

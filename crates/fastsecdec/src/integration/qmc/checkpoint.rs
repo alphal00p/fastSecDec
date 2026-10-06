@@ -46,7 +46,10 @@ impl QmcSession {
         expected_problem.validate()?;
         if state.version != 1
             || &state.problem != expected_problem
-            || state.method == IntegrationMethod::HavanaMc
+            || matches!(
+                state.method,
+                IntegrationMethod::HavanaMc | IntegrationMethod::HavanaDiscreteMc
+            )
             || (state.method == IntegrationMethod::DemocraticQmc
                 && state.stage != IntegrationStage::Production)
         {

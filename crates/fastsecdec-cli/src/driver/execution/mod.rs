@@ -1,3 +1,4 @@
+mod discrete_mc;
 mod mc;
 mod qmc;
 use super::{
@@ -165,7 +166,10 @@ pub fn integrate(
     };
     match method.as_str() {
         "mc" | "adaptive_mc" => mc::run(context, &method),
+        "discrete_mc" => discrete_mc::run(context),
         "qmc" | "adaptive_qmc" => qmc::run(context, &method),
-        _ => Err("integration method must be qmc, adaptive_qmc, mc or adaptive_mc".into()),
+        _ => Err(
+            "integration method must be qmc, adaptive_qmc, mc, adaptive_mc or discrete_mc".into(),
+        ),
     }
 }

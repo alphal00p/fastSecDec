@@ -59,7 +59,11 @@ pub(crate) fn snapshot(
     let count = |planned: bool| {
         sectors.iter().try_fold(0u64, |sum, row| {
             sum.checked_add(if planned {
-                row.planned_points
+                row.planned_points.ok_or_else(|| {
+                    IntegrationError::Invalid(
+                        "fixed allocation observation requires sector quotas".into(),
+                    )
+                })?
             } else {
                 row.completed_points
             })
@@ -73,7 +77,7 @@ pub(crate) fn snapshot(
         planned_points: count(true)?,
         complete_sectors: sectors
             .iter()
-            .filter(|s| s.completed_points == s.planned_points)
+            .filter(|s| Some(s.completed_points) == s.planned_points)
             .count(),
         worker_seconds: estimate::precise_sum(sectors.iter().map(|s| s.worker_seconds))?,
         sectors,
