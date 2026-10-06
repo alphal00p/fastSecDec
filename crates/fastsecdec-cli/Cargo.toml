@@ -21,6 +21,7 @@ toml.workspace = true
 rayon.workspace = true
 ratatui = { version = "0.30.2", default-features = false, features = ["crossterm_0_29", "layout-cache"] }
 crossterm = "0.29"
+tabled = { version = "0.22", default-features = false, features = ["std"] }
 signal-hook = "0.3"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 blake3.workspace = true

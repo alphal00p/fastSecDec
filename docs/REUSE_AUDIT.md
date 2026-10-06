@@ -1,5 +1,22 @@
 # Ecosystem reuse evidence
 
+## Generation terminal summary and count availability (2026-10-07)
+
+The human generation summary uses typed native kernel metadata and measured
+`GenerationTimings`; it pairs each epsilon order with the native real/imaginary
+component tags. Static table layout reuses `tabled`, already present in the
+resolved ecosystem, through a CLI-only direct dependency. The existing stdout
+color policy remains authoritative. No numerical or graph owner changes.
+
+Live coefficient-count availability follows the existing typed phase events.
+Composition reports the subtraction-piece count at coverage, and coefficient
+requests/shared expressions become running counts during resolution. Earlier
+placeholder zeros are omitted; final measured zeros remain visible. Raw JSON
+fields and numerical events remain unchanged. The independent
+[presentation review](reviews/generation-summary-review.md) records public-API
+reuse, terminal-width/color controls and focused native-event probes. Other
+examples and the deferred tests/gates remain untouched.
+
 ## Deterministic generation and dashboard follow-up (2026-10-07)
 
 Complete-density assembly and Graphica canonicalization now run as independent

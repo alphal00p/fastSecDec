@@ -22,7 +22,12 @@ pub struct CoefficientExpansionSnapshot {
     /// Native relative width for the current attempt; zero has the same
     /// pre-attempt/fallback meaning. This is not an absolute Laurent cutoff.
     pub relative_width: i64,
-    /// Named-composition pieces in this attempt; zero for physical fallback.
+    /// Endpoint-composition pieces in this attempt, recorded at Coverage and
+    /// retained through Lowering/Complete. Earlier zeroes are placeholders;
+    /// physical fallback has no named-composition count.
     pub formal_pieces: usize,
+    /// Native counters in this attempt. Distinct requests and aliases are
+    /// running counts only at Lowering and final counts at Complete; earlier
+    /// zeroes do not mean those operations have completed with no work.
     pub requests: CoefficientRequestCounts,
 }

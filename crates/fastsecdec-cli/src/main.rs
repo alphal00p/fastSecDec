@@ -4,6 +4,7 @@ mod diagnostics;
 mod display;
 mod driver;
 mod generate;
+mod generation_report;
 mod input;
 mod inspect;
 mod reference;
@@ -401,8 +402,12 @@ fn run(cli: Cli) -> CliResult<()> {
                 reference.validate_identity(kernels.content_id())?;
             }
             drop(dashboard);
-            report(
-                &serde_json::json!({"artifact":artifact::relative_path(&output, std::path::Path::new("."))?,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings,"workers":geometry_workers.get()}),
+            generation_report::print(
+                &output,
+                &artifact,
+                &kernels,
+                geometry_workers.get(),
+                cli.plain,
                 render_json,
             )?;
         }

@@ -123,15 +123,38 @@ impl GenerationSnapshot {
                 } else if *attempt == 0 {
                     activity(*stage).into()
                 } else {
-                    format!(
-                        "{} · epsilon expansion pass {} (relative depth {}) · {} formal pieces · {} distinct requests · {} aliases",
+                    let mut detail = format!(
+                        "{} · epsilon expansion pass {} (relative depth {})",
                         activity(*stage),
                         attempt,
-                        relative_width,
-                        formal_pieces,
-                        requests.unique_requests,
-                        requests.aliases
-                    )
+                        relative_width
+                    );
+                    // Native composition reports its piece count at coverage.
+                    // Earlier zeroes are placeholders, including after a pass
+                    // reset; stages can move backwards while preparing work.
+                    if matches!(
+                        stage,
+                        CoefficientExpansionStage::Coverage
+                            | CoefficientExpansionStage::Lowering
+                            | CoefficientExpansionStage::Complete
+                    ) {
+                        detail.push_str(&format!(" · {formal_pieces} subtraction pieces"));
+                    }
+                    // Request/alias counts become meaningful only during
+                    // lowering. A reported zero there is a real running count,
+                    // and a completed zero must remain visible.
+                    match stage {
+                        CoefficientExpansionStage::Lowering => detail.push_str(&format!(
+                            " · {} coefficient requests resolved so far · {} shared expressions created so far",
+                            requests.unique_requests, requests.aliases
+                        )),
+                        CoefficientExpansionStage::Complete => detail.push_str(&format!(
+                            " · {} resolved coefficient requests · {} shared expressions",
+                            requests.unique_requests, requests.aliases
+                        )),
+                        _ => (),
+                    }
+                    detail
                 };
             }
             GenerationProgress::PhaseTiming { phase, seconds } => {

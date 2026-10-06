@@ -1,5 +1,15 @@
 # FastSecDec first-phase implementation plan
 
+## Generation summary presentation follow-up (2026-10-07)
+
+Replace the final human generation metadata dump with a properly aligned,
+colored terminal table, readable durations and explicit Laurent orders with
+their real/imaginary components. Preserve structured JSON output, portable
+paths, plain/no-color behavior and narrow-terminal readability. Live coefficient
+counters must distinguish unavailable counts from genuine zero counts, according
+to their computation stage. These are presentation changes; numerical generation,
+other examples and the deferred tests/gates remain unchanged.
+
 ## Generation scheduling and dashboard follow-up (2026-10-07)
 
 Parallelize the independent complete-density construction and graph

@@ -102,7 +102,7 @@ initialization so machine-readable stdout remains clean. Licensing is unchanged.
 
 Generation snapshots update after each compiled kernel and include cumulative
 stage timings. Final JSON and artifacts retain input, parametrization, domain
-checks, geometry, mapping, verified symmetry, subtraction, Laurent expansion,
+metadata, geometry, mapping, verified symmetry, subtraction, Laurent expansion,
 and compilation times. The opt-in named route uses one separate
 `coefficient_expansion_seconds` duration, including exact physical fallback;
 its work is not counted again under subtraction or Laurent expansion.
@@ -110,6 +110,16 @@ Generation total ends after preparing artifact metadata,
 before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
+
+The final human generation report presents aligned run facts, Laurent
+orders/components and stage timings. Durations use readable units and bounded
+precision; paths and identifiers wrap to the available terminal width. Colors
+follow the shared stdout terminal policy, including `--plain` and `NO_COLOR`.
+The JSON report retains its structured metadata and includes `components`
+aligned with `orders`. The `orders` array follows
+the scalar output layout: `[-1,-1,0,0]` for a complex result means real and
+imaginary components at epsilon^-1, then real and imaginary components at
+epsilon^0. The human table groups those into two explicitly labeled orders.
 
 The coefficient-expansion method is selected in the run card:
 
@@ -142,6 +152,20 @@ Coefficient-series snapshots include `coefficient_expansion`, with canonical
 requested/effective methods, the expansion pass, formal pieces and request/alias
 counts. Those counts reset on a new pass and do not count physical
 contributions. The dashboard shows `epsilon expansion pass N (relative depth W)`.
+Human counters are stage-aware. Subtraction-piece counts appear after the
+composition finishes; resolved coefficient requests and shared expressions
+appear during resolution, labeled as running counts, and become final counts
+on completion. Earlier placeholder zeros are hidden. A genuine zero remains
+visible once that count is available. These counters belong to the current
+sector and pass, rather than the aggregate worker workload.
+
+Subtraction pieces are intermediate endpoint terms before final grouping.
+Coefficient requests identify distinct coefficient functions, derivatives and
+boundary substitutions. Shared expressions are coordinate-dependent results
+given reusable names. Raw JSON retains `formal_pieces`, `unique_requests` and
+`aliases`: use the accompanying stage to distinguish unavailable placeholders
+from reported counts.
+
 JSON keeps the `attempt` and `relative_width` field names; zero denotes admission
 before a series pass or the exact full-expression fallback. The outer completed
 count advances only when a representative finishes. Runs directly selecting
