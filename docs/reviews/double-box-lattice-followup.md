@@ -202,3 +202,59 @@ Current evidence is in
 ordinary saved result/checkpoint, strict-reader output, complete stage timings,
 transport repair and unconditional postflight retained alongside it. The
 historical Korobov3 observations and failure prefixes have not been overwritten.
+
+Independent retained-data review accepts the current native Korobov2 result in
+`bounded-double-box-korobov2-3/independent-review.json`.
+
+A subsequent Pathfinder counterpart uses the same Korobov2 transform, requested
+8,192 points, sixteen shifts, seed20561302 and eight workers. Its ordinary prime
+catalogue selects 8,311 points with vector `[1,3068,1811,1128,1964,516]`:
+12,765,696 evaluations across all 96 groups. It completes in **42.756 seconds**,
+with finite coefficient −14.8603884244123 ±0.07521661845352776, or **5.062‰**.
+All five available reference checks pass, but this allocation does **not** reach
+1‰. Its faster elapsed time is not a time-to-target measurement, and no target
+time is extrapolated.
+
+The reference evaluator-plus-Python mean is 19.775 µs and its largest sector
+mean is 130.661 µs, still using the narrower bucket boundary above. It retains
+90.19% ordinary evaluations, 8.82% at 32 decimal digits, 0.78% at 100 digits and
+0.21% at 1,000 digits. No precision policy changes. The existing bundle's fused
+raw-coordinate kernels were prepared with Korobov3; the normal correlated route
+applies the requested Korobov2 map before dispatching its transformed-coordinate
+component evaluator, so those stored fused kernels are bypassed. Source and
+runtime request/group checks retain this qualification; no regeneration or
+reference-source patch occurs. Full returned real/imaginary vectors and all
+active shift counts are retained, without inventing unavailable reference
+covariance. Evidence is in
+`output/diagnostics/bounded-double-box-korobov2-reference-1/`; all processes are
+reaped and the original source, read caches and prepared bundle are unchanged.
+
+The one final larger Korobov2 reference allocation requests16,384 points and
+selects prime17,807, keeping every other setting fixed. It completes all
+27,351,552 evaluations in **91.584 seconds**, with finite coefficient
+−14.848140000889918 ±0.0053784378654040295, or **0.362‰** reported relative error.
+All five available reference checks pass (largest absolute pull1.261642). Its
+mean evaluator-plus-Python bucket is19.900µs and the largest sector mean is
+135.109µs; these narrower intervals still cannot replace the API-call
+measurements in [the sample-latency report](current-sample-latency-results.md).
+
+| Best completed Korobov2 target row | FastSecDec | Pathfinder |
+|---|---:|---:|
+| Actual points / shifts | 8,192 / 16 | 17,807 / 16 |
+| Complete integration/result process | 172.715 s | 91.584 s |
+| Finite reported relative error | 0.714‰ | 0.362‰ |
+| Accepted evaluations | 13,369,344 | 27,351,552 |
+
+This comparison leaves a real convergence-time gap: Pathfinder reaches a
+smaller reported uncertainty sooner in its completed row. The earlier slower
+Korobov3 reference is not selected as the final comparator. Different published
+rules and uncertainty propagation remain explicit, and neither row is a median
+or an uncertainty-calibration result. The final reference bracket, source and
+complete physical-vector admission are retained in
+`output/diagnostics/bounded-double-box-korobov2-reference-2/`; all processes are
+reaped and the frozen bundle/read caches remain unchanged. The reference ladder
+stops after this bounded bracket, with no extrapolation to further allocations.
+Independent review in the final counterpart directory (`independent-review.json`)
+accepts all 96 groups, complete vectors and available reference checks, verifies
+the 375 prepared-program bindings, and confirms that the native target-time gap
+remains open.

@@ -181,3 +181,62 @@ is needed for this corrected observed metric.
 Independent review in the same directory (`independent-review.json`) recomputes
 all sector/total statistics, checks every canonical task/batch and accepts the
 preserved full-vector equivalence and measurement boundaries.
+
+## Scalar double box: bounded Korobov2 observation
+
+The completed eight-worker Korobov2 convergence rows do not supply individual
+sample maxima. One smaller allocation therefore records every local sector
+using the same corrected timed-first observers, with ordinary precision enabled:
+native HKKN N1024/R8 and Pathfinder's default prime catalogue, requested1024
+and actual1123/R8, seed20561302. Both run serially on CPU0. No full 13-million-
+sample convergence stream is repeated on one core.
+
+| Scalar double-box API metric | FastSecDec | Pathfinder |
+| --- | ---: | ---: |
+| Local sectors | 102 | 96 |
+| Complete-vector sample calls | 835,584 | 862,464 |
+| Sample-weighted mean, µs | 106.313509 | 74.845563 |
+| Largest sector mean, µs | 643.381829 | 206.758458 |
+| Observed individual maximum, µs | 44,481.253 | 52,644.994 |
+
+The native observed maximum is lower, but the mean and largest sector mean
+remain higher. This is not performance parity. The API boundaries and complete
+physical-prefactor qualifications above remain applicable; neither diagnostic
+is vectorized production throughput. All per-sector statistics and maximum
+provenance are retained, with no assumed correspondence between sector IDs.
+The reduced allocation makes no convergence or uncertainty-calibration claim.
+
+The native callback sum is 88.833867 seconds. Removing just the largest recorded
+call from each of its 816 packages would remove 4.468506 seconds, or 5.03%, and
+leave a 101.064440 µs mean for the other 834,768 calls. This retained-data check
+shows that isolated package maxima do not dominate the measured total. It is
+not a measured warm-cache partition and does not alter the reported timings:
+the recorder has no per-call cache-state tag. No evaluator cache or precision
+policy was changed.
+
+Both complete off/on controls pass. Native comparisons retain all orders,
+covariance, shifts, replay and point/output digests, plus the rejected-prefix
+retry. Pathfinder keeps exact full physical vectors, reported errors, precision
+counts, all active shifts and every row-to-batch equality check. It runs its off
+control in a separate process; timed rows in the on process precede the ordinary
+batch checks. All native 102×1024×8 and reference 96×1123×8 calls are retained.
+
+The existing native helper binary and mathematical libraries are unchanged. A
+separate runtime invocation binding selects the current strict CLI reader for
+the newly admitted scalar artifact; it preserves the original build receipt
+and binary identity. The helper's inherited historical-reader description came
+from its earlier box use; the recorded current CLI/artifact hashes and successful
+strict admission are authoritative for this run. An initial malformed enum
+encoding failed before artifact loading or evaluation, was retained and charged
+three seconds against the native block; only one scientific allocation ran.
+Both providers finish within their 300+5-second blocks, with unchanged inputs
+and all owned processes reaped.
+
+Evidence and all per-sector metrics are in
+`output/diagnostics/double-box-korobov2-latency-2/assessment.json`; the input-only
+failed prefix remains in `double-box-korobov2-latency-1/`. The native and reference
+whole-block walls of 181.871 and 164.486 seconds include their differing controls
+and are not production timing ratios.
+Independent review (`double-box-korobov2-latency-2/independent-review.json`)
+recomputed the full sector/total metrics and accepted the native/PF controls,
+source/runtime bindings and remaining mean-latency gap.

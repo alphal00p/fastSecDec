@@ -8,7 +8,10 @@ document adds no requirement. The latest workspace test gate is
 native HEPKit wheel passes **81 controls**, and the portable backend on a native
 host passes 41 focused controls. Formatting and strict all-target Clippy pass;
 the final equivalent Option-guard cleanup also passes all five discrete-MC
-controls. The earlier 380-test milestone's evidence
+controls. The later conservative cold-load literal-zero fix passes 24 focused
+artifact/replay controls, formatting and scoped strict Clippy. It reuses
+Symbolica's native instructions and preserves artifact identity and accuracy
+policy; its physical performance effect is not yet measured. The earlier 380-test milestone's evidence
 remains in the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
@@ -42,9 +45,14 @@ The existing Pathfinder prime catalogue reaches 0.577 per mille in 275.506 secon
 The subsequent single native Korobov2 allocation reaches **0.714 per mille in
 172.715 seconds** on eight workers, with all five reference checks passing and
 zero evaluation failures. It reuses HKKN N8192/R16 and retains the full vector
-and covariance. This is a promising different-transform observation; a matching
-Pathfinder setting, paired acceptance and individual-sample measurements remain
-open. Other representative comparisons remain open. The retained earlier
+and covariance. The same-Korobov2 Pathfinder check reaches only 5.062 per mille
+at prime 8,311 in 42.756 seconds, but its single larger prime-17,807 allocation
+reaches **0.362 per mille in 91.584 seconds** with all five reference checks
+passing. Reduced all-sector sample timings also retain a native mean gap:
+106.314 versus 74.846 microseconds (observed maxima 44.481 versus 52.645 ms).
+Those API boundaries and different lattices remain explicit. Scalar-double-box
+mean-latency and target-time parity are genuinely still open; no further
+reference ladder is planned. Other representative comparisons remain open. The retained earlier
 license failures are unchanged. The HEPKit marimo extension's generated gg→HH
 helicity double box passes its [native CLI prerequisite](gghh-native-feasibility.md).
 The subsequent complete 15,728,640-point HKKN-alpha3 QMC allocation reaches

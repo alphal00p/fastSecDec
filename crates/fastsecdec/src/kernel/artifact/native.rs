@@ -12,6 +12,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use symbolica::atom::AtomCore;
 
+mod literal_zero;
 #[cfg(test)]
 mod tests;
 
@@ -251,11 +252,11 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         }
         programs.push(SectorProgram {
             parameters,
+            // Recover only facts proved by the decoded native instruction owner;
+            // no serialized claim or sampled numerical zero suppresses rescue.
+            exact_zero: literal_zero::outputs(&exact),
             exact,
             cancellation,
-            // No serialized fact can suppress a precision check. Native decoded
-            // programs use conservative facts unless their owner proves more.
-            exact_zero: vec![false; payload.orders.len()],
             real_coefficients: vec![false; payload.orders.len()],
         });
     }

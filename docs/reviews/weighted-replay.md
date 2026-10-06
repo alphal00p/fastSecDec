@@ -11,3 +11,30 @@ Replay state binds the artifact identity, sector, policy and complete vector lay
 Observation order influences whether the growth heuristic requests additional precision. Restoring the same ordered history preserves its decisions, but changing worker scheduling may change rounding within the precision policy. Bitwise invariance across different schedules is not promised. The statistical work-package identities and complete-shift covariance rules remain independent of this heuristic.
 
 Focused regressions cover first/growth checks, constant reuse, zero maxima and zero weights, invalid weights, explicit weighted overflow failure, full-vector real/complex underflow recovery after prior large maxima, representable weighted recovery of a `10^400` raw coefficient, worker-only numeric evaluation, and checkpoint identity/idempotence.
+
+## Literal zeros after loading native programs
+
+Cold version-three loading previously discarded every exact-zero output fact.
+An amplifying weight could consequently send a padded zero Laurent coefficient
+through MPFR as if it were an underflowed nonzero value. The loader now reads
+Symbolica's public `ExpressionEvaluator::export_instructions()` and accepts only
+an output with one direct `Assign(Out, Const)` writer whose exact rational real
+and imaginary parts are zero. Slots listed in `constant_functions` are excluded:
+their rational placeholders do not establish the registered function's value.
+Control flow, non-inlined bodies, arithmetic results, parameters and repeated
+output writes remain unproved. This is a native instruction fact, with no
+sampled-zero test, expression reconstruction or new simplifier.
+
+The immutable artifact bytes, content identity, schema and strict precision
+policy remain unchanged. Fresh and cold real/complex weighted controls retain
+the first-sample replay, avoid a second rescue caused solely by zero padding,
+and preserve MPFR recovery of genuine tiny nonzero coefficients after prior
+large maxima. This change makes no new performance or convergence claim.
+
+The focused native gate passes 24 controls (two artifact unit, fifteen artifact
+integration and seven weighted replay tests), formatting and scoped strict
+Clippy. Independent source and retained-test review passes. Evidence is retained
+under `output/diagnostics/cold-literal-zero-1/`; an initial invocation using a
+different Nix-default compiler was stopped before tests, then the accepted
+cached Rust toolchain completed the gate. No new browser or physical integration
+run is inferred from these controls.

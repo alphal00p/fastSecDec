@@ -12,6 +12,8 @@ use symbolica::{parse, symbol};
 
 #[path = "inspection_metadata/mod.rs"]
 mod inspection_metadata;
+#[path = "kernel_artifacts/literal_zero.rs"]
+mod literal_zero;
 
 fn generated() -> fastsecdec::generation::GeneratedIntegral {
     generate(

@@ -820,6 +820,16 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-06: cold native-program loading now conservatively recovers literal-zero
+  output facts through Symbolica's public instruction export. Deferred constants,
+  computed outputs, control flow and non-inlined bodies remain unproved. This
+  prevents zero padding from forcing unnecessary MPFR rescue without relaxing
+  precision checks; artifact bytes, IDs and schema remain unchanged. Twenty-four
+  focused native artifact/replay controls, formatting and scoped strict Clippy
+  pass, with independent source/test review. Real and complex tiny nonzero values
+  still receive weighted recovery. Physical runtime improvement remains to be
+  measured; the accepted earlier notebook wheels retain their own source pins.
+
 - 2026-10-06: the corrected full-stream box latency comparison includes lazy
   first-use work in both providers. All 393,216 complete-vector rows per provider
   pass retained scientific-equivalence checks. Native mean/observed maximum are
@@ -839,7 +849,16 @@ And as I said, once you're feature complete within what's stated in the goal, an
   failure performs no algebra or sampling and is preserved separately; its
   transport-only correction is charged to the same bounded attempt. The new
   timing is one different-transform observation against Pathfinder's retained
-  275.506-second Korobov3 result, not final paired parity. Other representative
+  275.506-second Korobov3 result, not final paired parity. The subsequent same-K2
+  reference reaches only 5.062 per mil at prime 8,311 in 42.756 seconds, then
+  reaches 0.362230 per mil at prime 17,807 in 91.584 seconds. Both complete their
+  five reference checks. Reduced all-sector sample timing gives native/reference
+  means 106.314/74.846 microseconds and observed maxima 44.481/52.645 milliseconds;
+  full off/on numerical controls and independent data reviews pass. The native
+  mean and time-to-target gaps remain real. No further reference ladder follows.
+  A source audit identifies native Taylor-conditioning costs and lost literal-zero
+  facts after cold loading; an exactness-preserving loader correction and the
+  existing IBP strategy are the bounded next investigations. Other representative
   parity gaps remain open.
 
 - 2026-10-06: retained generation explainability and discrete-sector Havana
