@@ -827,8 +827,20 @@ And as I said, once you're feature complete within what's stated in the goal, an
   precision checks; artifact bytes, IDs and schema remain unchanged. Twenty-four
   focused native artifact/replay controls, formatting and scoped strict Clippy
   pass, with independent source/test review. Real and complex tiny nonzero values
-  still receive weighted recovery. Physical runtime improvement remains to be
-  measured; the accepted earlier notebook wheels retain their own source pins.
+  still receive weighted recovery. A separately built and independently reviewed
+  repeat of the same complete scalar-double-box K2 allocation retains identical
+  kernel payloads and shift plans: elapsed time falls from 172.715 to 152.996
+  seconds, and rescues fall from 46.52% to 31.53%. All 103 vector/covariance
+  estimates differ only within retained roundoff bounds (maximum mean difference
+  1.25e-14), all five reference checks pass, and the 0.713577 per mil target remains
+  met. Seventy-one additional weighted replays remain enabled and recorded.
+  This is a single observed improvement, still slower than Pathfinder's
+  91.584-second target-reaching run. One subsequent trial of the existing IBP
+  strategy also passes all five reference checks and reaches 0.978 per mil, but
+  takes 164.945 seconds and nearly doubles serialized evaluator size. Taylor
+  remains the default; fewer rescues alone do not establish a speedup. No further
+  IBP tuning ladder is planned. The accepted earlier notebook wheels retain
+  their own source pins.
 
 - 2026-10-06: the corrected full-stream box latency comparison includes lazy
   first-use work in both providers. All 393,216 complete-vector rows per provider

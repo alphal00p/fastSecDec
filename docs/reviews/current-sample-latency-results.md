@@ -240,3 +240,11 @@ and are not production timing ratios.
 Independent review (`double-box-korobov2-latency-2/independent-review.json`)
 recomputed the full sector/total metrics and accepted the native/PF controls,
 source/runtime bindings and remaining mean-latency gap.
+
+The scalar individual-call row above predates the conservative cold-load
+literal-zero recovery at `e25ca59`. A subsequent identical native production
+allocation reduces worker-average time from 102.060 to 90.325 µs and integration
+wall from 172.715 to 152.996 s while preserving full results to roundoff, as recorded
+in [the lattice follow-up](double-box-lattice-followup.md). Its worker interval
+is broader than these individual API-call brackets. No new individual-call
+maximum or revised native/PF latency-parity claim is inferred from that repeat.

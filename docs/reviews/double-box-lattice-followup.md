@@ -258,3 +258,103 @@ Independent review in the final counterpart directory (`independent-review.json`
 accepts all 96 groups, complete vectors and available reference checks, verifies
 the 375 prepared-program bindings, and confirms that the native target-time gap
 remains open.
+
+### Same allocation after conservative literal-zero recovery
+
+At `e25ca59`, a narrow cold-load fix recovers only literal zero outputs proved by
+Symbolica's decoded native instructions. Deferred constants and computed zeros
+remain unproved; native precision and weighted-replay policy are unchanged. The
+current optimized CLI was built with the same Rust 1.98.1 release recipe and
+dependency owners, including Numerica `f6ecdac`. All 4,053 source/owner hashes were
+unchanged across the build, and the archived executable is retained in
+`output/diagnostics/cold-literal-zero-release-build-1/`.
+
+One fresh generation/read/integration sequence repeats exactly N8192/R16,
+seed 20561302 and eight workers. The **entire serialized kernel object and content
+ID equal the preceding native Korobov2 artifact**, including all metadata. Every
+lattice rule and random shift is identical. The full 103 total/sector estimates
+have maximum absolute differences of 1.24e−14 in means, 2.93e−15 in standard errors
+and 6.21e−17 in covariance entries. These are reported as roundoff differences,
+with raw deltas retained; cross-build bitwise equality is not required.
+
+| Same native Korobov2 allocation | Before fix | After fix |
+|---|---:|---:|
+| Integration/result process | 172.715 s | 152.996 s |
+| Finite reported relative error | 0.714‰ | 0.714‰ |
+| Precision rescues | 6,219,701 (46.522%) | 4,215,304 (31.530%) |
+| Mean native worker time per sample | 102.060 µs | 90.325 µs |
+| Additional weighted replays | 0 | 71 |
+
+All 13,369,344 evaluations complete without failure, with maximum precision 448 bits
+and 115 weighted checks. The additional weighted replays remain enabled and are
+included in the observed cost. All five independent reference checks pass
+(largest absolute pull 1.146912). Fresh generation takes 3.684 s excluding O2
+compilation, compilation 0.367 s, total 4.052 s; the generation process takes 4.073 s.
+These are single observations, and generation was not changed by the fix.
+
+The observed integration time falls by 11.4%, but remains above the accepted
+Pathfinder target row of 91.584 s at 0.362‰. The native result remains 0.714‰. This
+fix therefore closes a concrete unnecessary-rescue path without closing the
+remaining convergence-time gap. The worker timing includes point generation,
+transform, precision and accumulation; no new individual-sample maximum was
+measured.
+
+The complete evidence is in
+`output/diagnostics/cold-literal-zero-korobov2-1/assessment.json`, with full saved
+result/checkpoint, exact artifact admission, 103 covariance comparisons and
+unconditional postflight. The sole sequence completes within its 400 s total
+bound; all 25 bound inputs are unchanged and all owned processes are reaped.
+The previous result and all reference rows remain immutable.
+Independent retained-data review (`independent-review.json` in that directory)
+accepts the build/source binding, unchanged kernels and shifts, every numerical
+delta and covariance check, retained replays, reference results and cleanup.
+
+### One existing integration-by-parts strategy test
+
+A standalone ignored Rust caller tests the existing public
+`SubtractionStrategy::IntegrateByParts` at the same scalar input, normalization,
+Physical coefficients, Korobov2/HKKN N8192/R16, seed 20561302 and eight workers.
+It copies the current CLI input/config/artifact modules byte-for-byte and links
+against the accepted `e25ca59` release libraries; it adds no algebra, production
+CLI option or default change. Its bounded standalone build completes in 239.817s,
+with no workspace rebuild or shared-target writes.
+
+The domain, all chart geometry and all pre-subtraction metadata remain exactly
+equal to Taylor, including the mapped prefactors and powers. IBP produces a new
+program and content ID. Its integrated estimates and covariance are therefore
+validated as integrated results, without claiming pointwise equality to Taylor.
+
+| Same allocation and strict policy | Corrected Taylor | Existing IBP |
+|---|---:|---:|
+| Native generation excluding O2 compilation | 3.684 s | 8.211 s |
+| O2 compilation | 0.367 s | 0.737 s |
+| Integration/result process | 152.996 s | 164.945 s |
+| Finite reported relative error | 0.714‰ | 0.978‰ |
+| Precision rescue fraction | 31.530% | 15.646% |
+| Mean native worker time per sample | 90.325 µs | 97.241 µs |
+| Largest sector mean worker time per sample | 635.727 µs | 972.781 µs |
+| Serialized native program bytes, summed over sectors | 815,231 | 1,514,351 |
+
+The IBP finite coefficient is −14.869074365615216 ±0.014537520933120314.
+All 13,369,344 evaluations and all 103 covariance matrices are retained, with no
+failed samples. All five independent reference checks pass (largest absolute
+pull 1.142216). It retains 2,091,762 rescues, maximum precision 320 bits, 114
+weighted checks and 114 additional replays. Every Taylor/IBP integrated
+coefficient differs by less than 0.316 times the sum of the two reported standard
+errors. This descriptive comparison does not assume independence for estimates
+using common random shifts.
+
+Both allocations reach the requested reported uncertainty, but this IBP row is
+slower and less precise. Its lower rescue count does not imply a runtime win;
+its serialized evaluator programs are larger. The native default remains Taylor,
+and this single test does not select a new representation or launch a tuning
+ladder. Neither worker interval is a new individual-sample maximum measurement.
+
+Evidence is retained in
+`output/diagnostics/existing-ibp-korobov2-1/assessment.json`, with the fresh native
+artifact, full result/checkpoint, integrated comparison and unconditional
+postflight. The whole scientific sequence finishes within its 450+5s bound,
+with all 32 bound inputs unchanged and every owned process reaped.
+Independent retained-data review (`independent-review.json` in that directory)
+accepts the copied-owner/build identity, unchanged physical geometry and policy,
+complete vector/covariance/reference checks and cleanup, with no data corrections.

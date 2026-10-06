@@ -11,7 +11,15 @@ the final equivalent Option-guard cleanup also passes all five discrete-MC
 controls. The later conservative cold-load literal-zero fix passes 24 focused
 artifact/replay controls, formatting and scoped strict Clippy. It reuses
 Symbolica's native instructions and preserves artifact identity and accuracy
-policy; its physical performance effect is not yet measured. The earlier 380-test milestone's evidence
+policy. Its same-allocation scalar-double-box repeat reaches the unchanged
+0.714-per-mille target in 152.996 seconds, versus 172.715 before the fix; rescues
+fall from 46.52% to 31.53%. All five reference checks and 103 covariance/vector
+comparisons pass within retained roundoff bounds. This remains a single
+observation above the 91.584-second Pathfinder result. One subsequent trial of
+the existing IBP strategy passes the same five references and reaches 0.978 per
+mille, but takes 164.945 seconds with larger evaluator programs. Taylor remains
+the default; this trial does not close the performance gap. The earlier
+380-test milestone's evidence
 remains in the
 [current status and evidence](implementation-status-2026-10-05.md) and
 [independent public integration audit](native-named-request-interface-independent.md).
