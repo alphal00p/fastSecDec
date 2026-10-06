@@ -467,6 +467,7 @@ impl KernelSet {
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
             runtime_parameters,
+            runtime_mass_constraints: Vec::new(),
             exact_kernel,
             template_content_id: None,
             portable_artifact: None,

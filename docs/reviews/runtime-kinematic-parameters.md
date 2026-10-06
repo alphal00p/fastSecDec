@@ -3,8 +3,11 @@
 The ggHH run card now names fifteen external Gram entries with `symbol`.
 `point.toml` supplies their previous physical values at integration time through
 `--parameters`; repeated `--parameter NAME=VALUE` arguments override the file.
-Model masses and couplings remain generation inputs. Other examples and the
-committed tests are intentionally unchanged in this round.
+At that milestone, model masses and couplings remained generation inputs. The
+subsequent [runtime model revision](runtime-model-parameters-review.md)
+supersedes that restriction: contributing independent model inputs are now
+evaluator parameters, with analytic dependent couplings retained. Other examples
+and the committed tests remain intentionally unchanged.
 
 ## Existing owners reused
 

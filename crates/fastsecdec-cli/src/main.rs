@@ -63,6 +63,7 @@ enum Action {
     /// Generate portable O2 kernels from a native TOML run card.
     Generate {
         input: PathBuf,
+        /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
         /// Caller-owned workers for geometry, symbolic generation, and compilation.
@@ -72,6 +73,7 @@ enum Action {
     /// Generate and integrate a native TOML run card.
     Run {
         input: PathBuf,
+        /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
         /// Caller-owned generation workers; resumed artifacts need no generation.
@@ -130,6 +132,18 @@ enum Action {
         #[arg(long, value_delimiter = ',')]
         retry_scales: Vec<f64>,
     },
+}
+
+impl Action {
+    fn validate_generation_output(&self) -> CliResult<()> {
+        if let Self::Generate { input, output, .. } | Self::Run { input, output, .. } = self {
+            let output = output
+                .clone()
+                .unwrap_or_else(|| input::artifact_path(input));
+            artifact::paths(&output)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Args, Default)]
@@ -329,10 +343,13 @@ fn main() -> ExitCode {
         };
     }
     let cli = Cli::parse();
+    // Check the public artifact name before run-card/reference I/O, terminal
+    // setup or generation. In particular this also covers `run --resume`.
+    let preflight = cli.command.validate_generation_output();
     let json = cli.json;
     let color =
         terminal_policy::ColorPolicy::for_stream(cli.plain, std::io::stderr().is_terminal());
-    match run(cli) {
+    match preflight.and_then(|()| run(cli)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             if error.is::<ReportedFailure>() {

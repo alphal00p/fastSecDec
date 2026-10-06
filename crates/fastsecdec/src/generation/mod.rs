@@ -199,24 +199,22 @@ fn generate_inner(
         namespace += 1;
     };
     let mut maps = maps.into_iter();
-    let mut mapped_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
-        Some(
-            work::map_dispatched(
-                input,
-                options,
-                maps.by_ref().collect(),
-                &parameters,
-                &source_supports,
-                dispatch,
-                &mut progress,
-            )?
-            .into_iter(),
-        )
+    let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
+        let mapped = work::map_dispatched(
+            input,
+            options,
+            maps.by_ref().collect(),
+            &parameters,
+            &source_supports,
+            dispatch,
+            &mut progress,
+        )?;
+        Some(work::symmetry_dispatched(mapped, dispatch, &mut progress)?.into_iter())
     } else {
         None
     };
     for index in 0..total {
-        let chart = if let Some(charts) = &mut mapped_charts {
+        let prepared = if let Some(charts) = &mut prepared_charts {
             charts
                 .next()
                 .ok_or_else(|| GenerationError::Invariant("missing mapped chart".into()))?
@@ -231,15 +229,26 @@ fn generate_inner(
             let map = maps
                 .next()
                 .ok_or_else(|| GenerationError::Invariant("missing geometry map".into()))?;
-            work::map_chart(
+            let chart = work::map_chart(
                 input,
                 options,
                 map,
                 parameters.clone(),
                 &mut source_supports,
                 &mut progress,
-            )?
+            )?;
+            let started = Instant::now();
+            let prepared = work::prepare_symmetry(index, chart, total, &mut progress)?;
+            emit(
+                &mut progress,
+                GenerationProgress::PhaseTiming {
+                    phase: GenerationPhase::Symmetry,
+                    seconds: started.elapsed().as_secs_f64(),
+                },
+            )?;
+            prepared
         };
+        let work::PreparedChart { chart, symmetry } = prepared;
         let work::MappedChart {
             map,
             parameters,
@@ -256,33 +265,8 @@ fn generate_inner(
         )?;
         let started = Instant::now();
         #[cfg(test)]
-        {
-            symmetry::profile::chart(index);
-            symmetry::profile::trace(
-                "Assembly",
-                "begin",
-                serde_json::json!({"mapped_terms": mapped.len(), "parameters": parameters.len()}),
-            );
-        }
-        let density = mapped
-            .iter()
-            .map(|term| {
-                &term.prefactor
-                    * &term.regular
-                    * parameters
-                        .iter()
-                        .zip(&term.powers)
-                        .map(|(parameter, power)| Atom::var(*parameter).pow(power))
-                        .product::<Atom>()
-            })
-            .sum::<Atom>();
-        #[cfg(test)]
-        symmetry::profile::trace(
-            "Assembly",
-            "end",
-            serde_json::json!({"density_bytes": density.as_view().get_byte_size()}),
-        );
-        let matched = registry.register(index, &parameters, &density)?;
+        symmetry::profile::chart(index);
+        let matched = registry.register_prepared(index, symmetry)?;
         #[cfg(test)]
         symmetry::profile::trace(
             "Registration",

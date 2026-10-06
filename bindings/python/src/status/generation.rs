@@ -241,10 +241,7 @@ impl PyCoefficientExpansionSnapshot {
 }
 
 fn coefficient_method(method: CoefficientExpansionMethod) -> &'static str {
-    match method {
-        CoefficientExpansionMethod::Physical => "physical",
-        CoefficientExpansionMethod::NativeNamed => "native_named",
-    }
+    method.name()
 }
 
 /// Native representation counts, reset at each coefficient-series attempt.

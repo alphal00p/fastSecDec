@@ -19,11 +19,24 @@ pub struct GenerationOptions {
 
 /// Representation used during endpoint subtraction and Laurent expansion.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum CoefficientExpansionMethod {
+    /// Expand the complete subtracted expression in the regulator.
     #[default]
+    #[serde(rename = "full_expression", alias = "physical")]
     Physical,
+    /// Compose the Laurent vector from shared regular-coefficient series.
+    #[serde(rename = "coefficient_series", alias = "native_named")]
     NativeNamed,
+}
+
+impl CoefficientExpansionMethod {
+    /// Canonical user-facing configuration and status name.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Physical => "full_expression",
+            Self::NativeNamed => "coefficient_series",
+        }
+    }
 }
 
 /// Limits for the optional native named-coefficient route. `None` adds no cap;
@@ -93,6 +106,12 @@ pub enum GenerationProgress {
         sector: usize,
         total: usize,
     },
+    /// Per-chart preparation of a complete density and its native canonical graph.
+    SymmetryPreparation {
+        sector: usize,
+        total: usize,
+    },
+    /// Deterministic exact comparison and representative admission.
     Symmetry {
         completed: usize,
         total: usize,

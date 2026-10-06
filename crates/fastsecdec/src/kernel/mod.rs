@@ -10,7 +10,9 @@ pub use compilation::{CompilationCompletion, CompilationDispatch, CompilationJob
 mod complex;
 mod evaluator;
 mod metadata;
+mod model_constraints;
 pub use metadata::PortableMetadata;
+pub use model_constraints::RuntimeMassConstraint;
 mod precision;
 mod precision_cache;
 mod program;
@@ -298,6 +300,7 @@ impl SectorKernel {
 
 pub struct KernelSet {
     runtime_parameters: Vec<Symbol>,
+    runtime_mass_constraints: Vec<RuntimeMassConstraint>,
     exact_kernel: Option<SectorKernel>,
     template_content_id: Option<String>,
     portable_artifact: Option<Vec<u8>>,
@@ -355,6 +358,7 @@ impl KernelSet {
                 }
             })
             .collect::<Result<Vec<_>, _>>()?;
+        self.validate_runtime_masses_at(values)?;
         if self.runtime_parameters.is_empty() {
             return Ok(());
         }

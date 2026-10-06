@@ -1,4 +1,6 @@
 //! Terminal rendering consumes public status snapshots, never computation state.
+mod memory;
+
 use std::{
     io::{self, IsTerminal},
     sync::{
@@ -42,6 +44,7 @@ pub struct Dashboard {
     color: ColorPolicy,
     generation_workers: Option<crate::generate::dispatch::Progress>,
     generation_worker_offset: std::cell::Cell<usize>,
+    memory: memory::Monitor,
 }
 
 impl Dashboard {
@@ -92,6 +95,7 @@ impl Dashboard {
             color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
             generation_workers: None,
             generation_worker_offset: std::cell::Cell::new(0),
+            memory: memory::Monitor::new(),
         })
     }
 
@@ -104,6 +108,7 @@ impl Dashboard {
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
+        let memory = self.memory.sample();
         if self.json_status {
             let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
             let force = self.generation_boundary != Some(boundary);
@@ -123,12 +128,14 @@ impl Dashboard {
                 snapshot: &'a GenerationSnapshot,
                 #[serde(skip_serializing_if = "Option::is_none")]
                 workload: Option<&'a crate::generate::dispatch::Progress>,
+                memory: memory::Snapshot,
             }
             eprintln!(
                 "{}",
                 serde_json::to_string(&GenerationStatus {
                     snapshot,
-                    workload: self.generation_workers.as_ref()
+                    workload: self.generation_workers.as_ref(),
+                    memory,
                 })?
             );
             return Ok(());
@@ -141,13 +148,14 @@ impl Dashboard {
             }
             self.last_frame = Instant::now();
             terminal.draw(|frame| {
-                if frame.area().width < 72 || frame.area().height < 18 {
-                    compact(frame, "Generation", snapshot.to_string(), self.color);
+                if frame.area().width < 72 || frame.area().height < 22 {
+                    compact(frame, "Generation", format!("{}\n{}\n{snapshot}", memory.process_line(), memory.system_line()), self.color);
                     return;
                 }
                 let chunks = Layout::vertical([
                     Constraint::Length(3),
                     Constraint::Length(3),
+                    Constraint::Length(4),
                     Constraint::Length(4),
                     Constraint::Min(5),
                     Constraint::Length(1),
@@ -157,13 +165,9 @@ impl Dashboard {
                 let workload = self.generation_workers.as_ref();
                 let eta = workload.filter(|work| snapshot.total == Some(work.total) && snapshot.completed == work.completed)
                     .and_then(|work| work.eta_seconds())
-                    .or_else(|| {
-                        if snapshot.stage == fastsecdec::status::GenerationStage::Symmetry && snapshot.completed > 0 {
-                            snapshot.total.map(|total| snapshot.timings.symmetry_seconds * total.saturating_sub(snapshot.completed) as f64 / snapshot.completed as f64)
-                        } else { None }
-                    }).map_or_else(|| "estimating".into(), |seconds| format!("{seconds:.1} s"));
+                    .map_or_else(|| "unavailable".into(), |seconds| format!("{seconds:.1} s"));
                 frame.render_widget(
-                    Gauge::default().block(panel(&format!("{:?} · aggregate stage progress", snapshot.stage), self.color))
+                    Gauge::default().block(panel(&format!("{} · aggregate stage progress", snapshot.stage.label()), self.color))
                         .gauge_style(self.color.foreground(TEAL).add_modifier(Modifier::BOLD))
                         .ratio(ratio).label(if let Some(total) = snapshot.total {
                             format!("{:5.1}%  ·  {} / {} jobs  ·  elapsed {:.1} s  ·  stage ETA ≈ {}", ratio * 100.0, snapshot.completed, total, snapshot.elapsed_seconds, eta)
@@ -179,7 +183,11 @@ impl Dashboard {
                 ];
                 frame.render_widget(Table::new(rows, [Constraint::Length(9), Constraint::Percentage(40), Constraint::Length(8), Constraint::Length(8), Constraint::Length(9), Constraint::Min(10)])
                     .block(panel("Coordinator", self.color)).column_spacing(1), chunks[2]);
-                let visible_workers = chunks[3].height.saturating_sub(3) as usize;
+                frame.render_widget(Paragraph::new(vec![
+                    Line::styled(memory.process_line(), self.color.foreground(TEAL)),
+                    Line::styled(memory.system_line(), self.color.foreground(GOLD)),
+                ]).block(panel("Memory · entire process · sampled at most 2 Hz", self.color)), chunks[3]);
+                let visible_workers = chunks[4].height.saturating_sub(3) as usize;
                 let worker_offset = self.generation_worker_offset.get().min(cores.saturating_sub(visible_workers));
                 let rows = workload.into_iter().flat_map(|work| &work.workers).skip(worker_offset).take(visible_workers).map(|worker| {
                     let color = if worker.busy { TEAL } else if worker.completed > 0 { Color::Rgb(126, 163, 243) } else { Color::DarkGray };
@@ -194,14 +202,18 @@ impl Dashboard {
                 });
                 frame.render_widget(Table::new(rows, [Constraint::Length(5), Constraint::Length(10), Constraint::Length(6), Constraint::Length(9), Constraint::Length(9), Constraint::Min(20)])
                     .header(Row::new(["Core", "State", "Done", "Job time", "Busy time", "Native activity"]).style(self.color.foreground(GOLD).add_modifier(Modifier::BOLD)))
-                    .block(panel(&format!("Worker activity · cores {}–{} / {} · ↑/↓ scroll", (worker_offset + 1).min(cores), (worker_offset + visible_workers).min(cores), cores), self.color)).column_spacing(1), chunks[3]);
+                    .block(panel(&format!("Worker activity · cores {}–{} / {} · ↑/↓ scroll", (worker_offset + 1).min(cores), (worker_offset + visible_workers).min(cores), cores), self.color)).column_spacing(1), chunks[4]);
                 frame.render_widget(Paragraph::new("  q / Esc  cancel safely · ETA covers this stage; later work is discovered dynamically")
-                    .style(self.color.foreground(Color::Rgb(163, 143, 220))), chunks[4]);
+                    .style(self.color.foreground(Color::Rgb(163, 143, 220))), chunks[5]);
             })?;
         } else if self.last_log.elapsed() >= Duration::from_secs(1)
             || snapshot.stage == fastsecdec::status::GenerationStage::Complete
         {
-            eprintln!("{snapshot}");
+            eprintln!(
+                "{snapshot}\n  {} · {}",
+                memory.process_line(),
+                memory.system_line()
+            );
             self.last_log = Instant::now();
         }
         Ok(())

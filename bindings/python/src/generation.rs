@@ -32,9 +32,9 @@ impl PyIntegral {
     /// every GenerationSnapshot. Observer runs first; None/True continues,
     /// False from either callback cancels at a native event boundary. Original
     /// callback and KeyboardInterrupt exceptions propagate after UI cleanup.
-    #[pyo3(signature = (max_order=0, *, coefficient_expansion="physical", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
     #[pyo3(
-        text_signature = "($self, max_order=0, *, coefficient_expansion='physical', observer=None, progress='auto')"
+        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', observer=None, progress='auto')"
     )]
     pub(crate) fn generate(
         &self,
@@ -80,11 +80,11 @@ pub(crate) fn generate_native(
     parametrize: impl FnOnce() -> PyResult<ParametricIntegrand>,
 ) -> PyResult<PyGeneratedIntegral> {
     let method = match coefficient_expansion {
-        "physical" => CoefficientExpansionMethod::Physical,
-        "native_named" => CoefficientExpansionMethod::NativeNamed,
+        "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
+        "coefficient_series" | "native_named" => CoefficientExpansionMethod::NativeNamed,
         _ => {
             return Err(pyo3::exceptions::PyValueError::new_err(
-                "coefficient_expansion must be 'physical' or 'native_named'",
+                "coefficient_expansion must be 'full_expression' or 'coefficient_series'",
             ));
         }
     };
@@ -252,7 +252,7 @@ import typing
 import symbolica.community.hepkit.sector_decomposition
 
 class PyIntegral:
-    def generate(self, max_order: int = 0, *, coefficient_expansion: str = "physical",
+    def generate(self, max_order: int = 0, *, coefficient_expansion: str = "full_expression",
                  observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                  progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                  ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:

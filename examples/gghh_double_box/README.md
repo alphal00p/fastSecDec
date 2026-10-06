@@ -55,8 +55,27 @@ Values can be finite real numbers or native Symbolica expressions such as
 `"22500-3000*sqrt(11)"`. Every declared symbol requires a value, including zeros;
 unknown, missing, and nonfinite values are rejected. Runtime values are passed
 unchanged to each evaluator, its precision-rescue path, and folded exact offsets.
-They are included in checkpoint and numerical-result identity. Model masses and
-couplings in `parameters.json` remain fixed generation inputs.
+They are included in checkpoint and numerical-result identity.
+
+Model inputs are runtime parameters too. The native model resolves dependent
+masses and couplings analytically into their contributing independent inputs;
+only those used by this integral are retained, under names such as `model::MT`
+and `model::ymt`. `point.toml` includes their default values. Changing a mass,
+Yukawa input or coupling input uses the existing evaluator without regeneration.
+The card in `parameters.json` supplies metadata defaults, the strict source
+model identity and zero-width restrictions; its numerical defaults are not
+substituted into the generated evaluator. Complex independent inputs use
+`model::NAME_re` and `model::NAME_im`; dependent complex coupling phases remain
+native analytic expressions of real inputs.
+
+All internal widths must be explicitly zero. A generic named propagator mass
+must evaluate to a finite, real, nonzero value at integration time. Setting it
+to zero requires a separately generated massless specialization because the
+endpoint and Laurent structure can change. The model's literal `ZERO` remains
+exactly massless. For an intentional fixed specialization, set
+`model_parameters = "fixed"` in `[input]`, or fix selected native `UFO::NAME`
+values in the run card's `[parameters]`. This restriction does not certify
+thresholds or impose their signs.
 
 The output base `output/gghh_double_box.fsd` names two adjacent files:
 `.fsd.json` contains human-readable metadata and `.fsd.dat` contains native

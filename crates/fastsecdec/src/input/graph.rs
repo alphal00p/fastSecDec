@@ -40,8 +40,20 @@ impl GraphIntegral {
         kinematics: &Kinematics,
         values: &BTreeMap<Symbol, Atom>,
     ) -> Result<Self> {
+        Self::new_with_runtime_scalar_values(diagram, kinematics, values, &[])
+    }
+
+    /// Admit analytic masses expressed in declared real runtime inputs. The
+    /// caller must attach the matching RuntimeModelBindings mass constraints to
+    /// compiled kernels before binding a point; zero widths remain mandatory.
+    pub fn new_with_runtime_scalar_values(
+        diagram: Arc<FeynmanDiagram>,
+        kinematics: &Kinematics,
+        values: &BTreeMap<Symbol, Atom>,
+        runtime_parameters: &[Symbol],
+    ) -> Result<Self> {
         diagram.validate()?;
-        super::validation::validate_denominators(&diagram, values)?;
+        super::validation::validate_denominators(&diagram, values, runtime_parameters)?;
         let family = diagram.propagator_family(kinematics)?;
         let propagator_edges: Vec<_> = diagram
             .edges()

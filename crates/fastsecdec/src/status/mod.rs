@@ -169,7 +169,7 @@ pub struct GenerationSnapshot {
 
 impl fmt::Display for GenerationSnapshot {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}: {}", self.stage, self.completed)?;
+        write!(f, "{}: {}", self.stage, self.completed)?;
         if let Some(total) = self.total {
             write!(f, "/{total}")?;
         }

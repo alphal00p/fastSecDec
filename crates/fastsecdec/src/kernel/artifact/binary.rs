@@ -2,7 +2,7 @@
 use super::{native, validate_orders};
 use crate::{
     kernel::{
-        KernelError, KernelSet, PrecisionPolicy,
+        KernelError, KernelSet, PrecisionPolicy, RuntimeMassConstraint,
         cancellation::Cancellation,
         metadata::PortableMetadata,
         program::{self, SectorProgram},
@@ -16,7 +16,8 @@ use symbolica::{
 };
 
 pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
-pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x05";
+pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x06";
+const MAGIC_V5: &[u8] = b"FastSecDec\0binserde\x05";
 const CODEC: &str = "symbolica-3:context-binserde-atoms-v1:serde-binserde-evaluators-v1";
 #[derive(Encode, Decode)]
 struct Envelope {
@@ -35,10 +36,50 @@ struct Payload {
     components: Vec<CoefficientComponent>,
     exact: Vec<Atom>,
     runtime_parameters: Vec<Symbol>,
+    runtime_mass_constraints: Vec<MassConstraint>,
     #[bincode(with_serde)]
     precision: PrecisionPolicy,
     sectors: Vec<Sector>,
     metadata: Option<PortableMetadata>,
+}
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct MassConstraint {
+    name: String,
+    expression: Atom,
+}
+/// Version five predates runtime mass constraints. Keep its exact owned layout
+/// for previously validated templates; no decoder guesses missing fields.
+#[derive(Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV5 {
+    codec: String,
+    compiler_policy: String,
+    orders: Vec<i32>,
+    #[bincode(with_serde)]
+    components: Vec<CoefficientComponent>,
+    exact: Vec<Atom>,
+    runtime_parameters: Vec<Symbol>,
+    #[bincode(with_serde)]
+    precision: PrecisionPolicy,
+    sectors: Vec<Sector>,
+    metadata: Option<PortableMetadata>,
+}
+impl From<PayloadV5> for Payload {
+    fn from(value: PayloadV5) -> Self {
+        Self {
+            codec: value.codec,
+            compiler_policy: value.compiler_policy,
+            orders: value.orders,
+            components: value.components,
+            exact: value.exact,
+            runtime_parameters: value.runtime_parameters,
+            runtime_mass_constraints: Vec::new(),
+            precision: value.precision,
+            sectors: value.sectors,
+            metadata: value.metadata,
+        }
+    }
 }
 #[derive(Encode, Decode)]
 #[bincode(decode_context = "StateMap")]
@@ -54,15 +95,15 @@ struct Sector {
 fn failure(error: impl std::fmt::Display) -> KernelError {
     KernelError::Artifact(format!("native binserde cache: {error}"))
 }
-fn digest(state: &[u8], payload: &[u8]) -> blake3::Hash {
+fn digest(magic: &[u8], state: &[u8], payload: &[u8]) -> blake3::Hash {
     let mut hash = blake3::Hasher::new();
-    hash.update(MAGIC);
+    hash.update(magic);
     hash.update(&(state.len() as u64).to_le_bytes());
     hash.update(state);
     hash.update(payload);
     hash.finalize()
 }
-fn semantic_id(payload: &Payload) -> Result<String, KernelError> {
+fn semantic_id(payload: &Payload, legacy_v5: bool) -> Result<String, KernelError> {
     #[derive(serde::Serialize)]
     struct SemanticSector<'a> {
         parameters: Vec<String>,
@@ -78,6 +119,8 @@ fn semantic_id(payload: &Payload) -> Result<String, KernelError> {
         components: &'a [CoefficientComponent],
         exact: Vec<String>,
         runtime_parameters: Vec<String>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        runtime_mass_constraints: Vec<(&'a str, String)>,
         precision: &'a PrecisionPolicy,
         sectors: Vec<SemanticSector<'a>>,
         metadata: &'a Option<PortableMetadata>,
@@ -96,6 +139,16 @@ fn semantic_id(payload: &Payload) -> Result<String, KernelError> {
             .map(AtomCore::to_canonical_string)
             .collect(),
         runtime_parameters: super::parameter_names(&payload.runtime_parameters),
+        runtime_mass_constraints: payload
+            .runtime_mass_constraints
+            .iter()
+            .map(|constraint| {
+                (
+                    constraint.name.as_str(),
+                    constraint.expression.to_canonical_string(),
+                )
+            })
+            .collect(),
         precision: &payload.precision,
         sectors: payload
             .sectors
@@ -112,18 +165,25 @@ fn semantic_id(payload: &Payload) -> Result<String, KernelError> {
         metadata: &payload.metadata,
     };
     let mut hash = blake3::Hasher::new();
-    hash.update(b"fastsecdec-native-semantic-v5");
+    hash.update(if legacy_v5 {
+        b"fastsecdec-native-semantic-v5"
+    } else {
+        b"fastsecdec-native-semantic-v6"
+    });
     serde_json::to_writer(&mut hash, &semantic)?;
     Ok(hash.finalize().to_hex().to_string())
 }
 fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
-    let content_id = semantic_id(&payload)?;
+    let content_id = semantic_id(&payload, false)?;
     let mut symbols = Atom::Zero.get_all_symbols(true);
     let mut collect = |atom: &Atom| {
         symbols.extend(atom.get_all_symbols(true));
     };
     for atom in &payload.exact {
         collect(atom);
+    }
+    for constraint in &payload.runtime_mass_constraints {
+        collect(&constraint.expression);
     }
     if let Some(metadata) = &payload.metadata {
         metadata.visit_atoms(&mut collect);
@@ -138,7 +198,7 @@ fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
     let mut state = Vec::new();
     State::export_partial(&mut state, symbols).map_err(failure)?;
     let payload = bincode::encode_to_vec(payload, bincode::config::standard()).map_err(failure)?;
-    let digest = digest(&state, &payload);
+    let digest = digest(MAGIC, &state, &payload);
     let envelope = Envelope {
         content_id: content_id.clone(),
         digest: *digest.as_bytes(),
@@ -157,6 +217,14 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
         components: kernels.components.clone(),
         exact: kernels.exact_expressions.clone(),
         runtime_parameters: kernels.runtime_parameters.clone(),
+        runtime_mass_constraints: kernels
+            .runtime_mass_constraints
+            .iter()
+            .map(|constraint| MassConstraint {
+                name: constraint.name.clone(),
+                expression: constraint.expression.clone(),
+            })
+            .collect(),
         precision: kernels.precision.clone(),
         sectors: kernels
             .sectors
@@ -215,6 +283,7 @@ pub(super) fn generated(
         components: native::component_layout(value.orders().len(), complex),
         exact: value.exact_coefficients().to_vec(),
         runtime_parameters: Vec::new(),
+        runtime_mass_constraints: Vec::new(),
         precision,
         sectors,
         metadata: Some(PortableMetadata::from_native(value.metadata())),
@@ -222,15 +291,19 @@ pub(super) fn generated(
     .1)
 }
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
-    let wire = bytes
-        .strip_prefix(MAGIC)
-        .ok_or_else(|| failure("unsupported header"))?;
+    let (wire, magic, legacy_v5) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
+        (wire, MAGIC, false)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V5) {
+        (wire, MAGIC_V5, true)
+    } else {
+        return Err(failure("unsupported header"));
+    };
     let (envelope, used): (Envelope, usize) =
         bincode::decode_from_slice(wire, bincode::config::standard()).map_err(failure)?;
     if used != wire.len() {
         return Err(failure("trailing envelope bytes"));
     }
-    let id = digest(&envelope.state, &envelope.payload);
+    let id = digest(magic, &envelope.state, &envelope.payload);
     if id.as_bytes() != &envelope.digest {
         return Err(failure("content identity mismatch"));
     }
@@ -240,16 +313,26 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     if !state_source.is_empty() {
         return Err(failure("trailing symbol context bytes"));
     }
-    let (payload, used): (Payload, usize) = bincode::decode_from_slice_with_context(
-        &envelope.payload,
-        bincode::config::standard(),
-        context,
-    )
-    .map_err(failure)?;
+    let (payload, used): (Payload, usize) = if legacy_v5 {
+        let (payload, used): (PayloadV5, usize) = bincode::decode_from_slice_with_context(
+            &envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?;
+        (payload.into(), used)
+    } else {
+        bincode::decode_from_slice_with_context(
+            &envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?
+    };
     if used != envelope.payload.len() {
         return Err(failure("trailing payload bytes"));
     }
-    if semantic_id(&payload)? != envelope.content_id {
+    if semantic_id(&payload, legacy_v5)? != envelope.content_id {
         return Err(failure("semantic content identity mismatch"));
     }
     if payload.codec != CODEC || payload.compiler_policy != native::compiler_policy() {
@@ -329,6 +412,15 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         use_complex,
         payload.runtime_parameters,
     )?;
+    kernels.runtime_mass_constraints = payload
+        .runtime_mass_constraints
+        .into_iter()
+        .map(|constraint| RuntimeMassConstraint {
+            name: constraint.name,
+            expression: constraint.expression,
+        })
+        .collect();
+    kernels.validate_runtime_mass_constraints()?;
     kernels.content_id = envelope.content_id;
     kernels.portable_artifact = Some(bytes.to_vec());
     Ok(kernels)

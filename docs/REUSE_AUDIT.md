@@ -1,5 +1,62 @@
 # Ecosystem reuse evidence
 
+## Deterministic generation and dashboard follow-up (2026-10-07)
+
+Complete-density assembly and Graphica canonicalization now run as independent
+opaque jobs in the existing caller-owned generation dispatch. Admission orders
+results by original chart index and retains Symbolica's exact simultaneous
+substitution check before merging densities. Native and portable probes compare
+serial, one-worker, four-worker and reversed-completion execution, including
+asymmetric and opposite-sign numerators. The D05 scheduling-only comparison
+preserves the entire binary evaluator artifact byte for byte. No graph owner,
+canonicalizer, equality engine or numerical-reference implementation is added.
+See [parallel symmetry](reviews/parallel-symmetry.md) and the
+[independent review](reviews/generation-followup-review.md).
+
+CLI output-basename preflight reuses the artifact path validator before input
+loading. Dashboard RAM sampling uses `sysinfo`'s current-process RSS and native
+system memory counters on existing polls, with a sampled peak and explicit
+unavailable values. It adds no background thread, per-worker memory estimate or
+core dependency. See [preflight](reviews/generation-preflight.md) and
+[memory ownership and measurements](reviews/generation-memory.md).
+
+The public expansion names are `coefficient_series` and `full_expression`;
+legacy input aliases remain for the explicitly deferred example/test migration.
+The installed native toolchain supplies focused checks on this host, where
+`nix-shell` is unavailable. No deferred full-suite gate is claimed.
+
+## Runtime model inputs and readable native DOT (2026-10-07)
+
+`RuntimeModelBindings` composes HEPKit's `Model::scalar_bindings` and its native
+independent-parameter boundary. External and expressionless internal leaves
+become real evaluator inputs (ordered real/imaginary components for complex
+leaves). Dependent definitions remain native expressions; cached model values
+and card defaults do not replace those expressions. Only inputs used by the
+prepared integral or its mass constraints are retained, in stable name order.
+The native particle mass API distinguishes structural `ZERO` from a named mass
+whose numerical default happens to be zero. Width restrictions remain explicit.
+
+The missing operation was admission of declared symbolic real masses through
+FastSecDec's previously numerical-only boundary, with a finite real nonzero
+runtime-domain check. Symbolica evaluates these constraints; FastSecDec adds no
+dependency solver, evaluator, physical graph type or threshold certification.
+Constraints use the same context-aware Atom binserde and exported Symbolica
+state as the other artifact expressions, and contribute to semantic identity.
+Binary version six has an explicit version-five reader. See the
+[native model API and frontend review](reviews/runtime-model-parameters-review.md)
+and [independent runtime and DOT review](reviews/generation-dot-and-runtime-review.md).
+
+Linnet's structured DOT import, escaping and serializer produce graph attributes
+on separate lines. A complete native diagram JSON round trip verifies the
+presentation. HEPKit's stable DOT contract requires the global numerator to
+equal its local fragments, so removing the duplicate in `v0` is invalid; the
+original supplied source is preserved. Existing one-loop master and reduction
+providers remain unchanged; exact dependency checks, parameter variation and
+prior-template comparison are the appropriate local references for this work.
+The [final D05 acceptance record](reviews/generation-followup-results.md)
+includes byte-identical four/eight-worker generation, complete-vector coupling
+variation, artifact relocation and the bounded full-integral comparison.
+
 ## Supplied gg→HH s-channel diagram (2026-10-07)
 
 The example now targets the user's supplied `D05` graph: the two gluons attach

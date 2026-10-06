@@ -121,8 +121,9 @@ impl GenerationContext {
             Ok(result)
         }
     }
-    /// Dispatch geometry and independent mapping/coefficient work on a caller-owned executor.
-    /// Native symmetry registration and ordered final assembly remain serial.
+    /// Dispatch geometry, mapping, symmetry preparation and coefficient work
+    /// on a caller-owned executor. Exact symmetry admission and ordered final
+    /// assembly remain serial; native graph construction/canonization runs in jobs.
     /// Opaque completions are checked for call ownership and exact stage coverage.
     pub fn generate_with_all_dispatch(
         &mut self,

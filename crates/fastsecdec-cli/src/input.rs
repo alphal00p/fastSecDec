@@ -8,7 +8,7 @@ use std::{
 
 use fastsecdec::{
     Atom, AtomCore, EdgeId, Kinematics, Model, ParameterCard, Symbol,
-    input::GraphIntegral,
+    input::{GraphIntegral, RuntimeModelBindings},
     parametric::{
         FactorRole, FamilyPreparationPolicy, FamilyPreparationReport, ParametricDomain,
         ParametricIntegrand, ParametricTerm, PolynomialFactor,
@@ -40,6 +40,8 @@ pub struct LoadedInput {
     pub card: RunCard,
     pub integrand: ParametricIntegrand,
     pub runtime_parameters: Vec<Symbol>,
+    pub runtime_mass_constraints: Vec<fastsecdec::kernel::RuntimeMassConstraint>,
+    pub model_parameter_defaults: BTreeMap<String, f64>,
     pub label: String,
     pub loops: Option<usize>,
     pub propagators: usize,
@@ -119,7 +121,28 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             } else {
                 ParameterCard::new()
             };
-            let values = model.scalar_bindings(Some(&restriction), &values)?;
+            let graph_text = read(&base.join(&input.graph), &mut sources)?;
+            let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
+            let mut runtime_model = match input.model_parameters {
+                crate::config::ModelParameters::Runtime => Some(RuntimeModelBindings::new(
+                    &diagram,
+                    Some(&restriction),
+                    &values,
+                )?),
+                crate::config::ModelParameters::Fixed => None,
+            };
+            let values = match &runtime_model {
+                Some(runtime) => runtime.values().clone(),
+                None => diagram
+                    .model()
+                    .scalar_bindings(Some(&restriction), &values)?,
+            };
+            let model_symbols = runtime_model
+                .as_ref()
+                .map_or_else(Vec::new, RuntimeModelBindings::symbols);
+            if model_symbols.contains(&regulator) {
+                return Err("runtime model inputs must differ from the regulator".into());
+            }
             let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
             let mut runtime_parameters = Vec::new();
             for product in &card.kinematics.products {
@@ -127,7 +150,10 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                     (Some(value), None) => bind(&expression(value)?, &values),
                     (None, Some(name)) => {
                         let parameter = symbol(name)?;
-                        if parameter == regulator || values.contains_key(&parameter) {
+                        if parameter == regulator
+                            || values.contains_key(&parameter)
+                            || model_symbols.contains(&parameter)
+                        {
                             return Err(format!("runtime kinematic symbol {name} conflicts with a fixed scalar or regulator").into());
                         }
                         if !runtime_parameters.contains(&parameter) {
@@ -147,26 +173,28 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                     product_value,
                 )?;
             }
-            let graph_text = read(&base.join(&input.graph), &mut sources)?;
             let powers = card
                 .integral
                 .powers
                 .iter()
                 .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
                 .collect::<Result<BTreeMap<_, _>, _>>()?;
-            let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
-            let graph =
-                GraphIntegral::new_with_scalar_values(Arc::new(diagram), &kinematics, &values)?
-                    .with_auxiliary_external_momenta(
-                        &card
-                            .kinematics
-                            .auxiliary_momenta
-                            .iter()
-                            .map(|name| expression(name))
-                            .collect::<CliResult<Vec<_>>>()?,
-                    )?
-                    .with_powers(&powers)?
-                    .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
+            let graph = GraphIntegral::new_with_runtime_scalar_values(
+                Arc::new(diagram),
+                &kinematics,
+                &values,
+                &model_symbols,
+            )?
+            .with_auxiliary_external_momenta(
+                &card
+                    .kinematics
+                    .auxiliary_momenta
+                    .iter()
+                    .map(|name| expression(name))
+                    .collect::<CliResult<Vec<_>>>()?,
+            )?
+            .with_powers(&powers)?
+            .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
             let loops = Some(graph.diagram().loop_count());
             let propagators = graph.powers().len();
             let independent_externals = graph
@@ -213,10 +241,20 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 )?;
                 (integrand, Some(report))
             };
+            let (runtime_mass_constraints, model_parameter_defaults) =
+                if let Some(runtime) = &mut runtime_model {
+                    runtime.retain_used(&integrand);
+                    runtime_parameters.extend(runtime.symbols());
+                    (runtime.mass_constraints().to_vec(), runtime.defaults())
+                } else {
+                    (Vec::new(), BTreeMap::new())
+                };
             Ok(LoadedInput {
                 card,
                 integrand,
                 runtime_parameters,
+                runtime_mass_constraints,
+                model_parameter_defaults,
                 label: path
                     .file_stem()
                     .unwrap_or_default()
@@ -320,6 +358,8 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                     .to_string_lossy()
                     .into_owned(),
                 runtime_parameters: Vec::new(),
+                runtime_mass_constraints: Vec::new(),
+                model_parameter_defaults: BTreeMap::new(),
                 loops: None,
                 propagators,
                 sources,

@@ -15,6 +15,8 @@ struct SectorIdentity<'a> {
     compiler_policy: &'a str,
     parameters: Vec<String>,
     runtime_parameters: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    runtime_mass_constraints: Vec<(&'a str, String)>,
     program: &'a [u8],
     orders: &'a [i32],
     components: &'a [CoefficientComponent],
@@ -48,6 +50,16 @@ impl KernelSet {
             compiler_policy: native::compiler_policy(),
             parameters: parameter_names(&sector.parameters),
             runtime_parameters: parameter_names(&sector.runtime_parameters),
+            runtime_mass_constraints: self
+                .runtime_mass_constraints
+                .iter()
+                .map(|constraint| {
+                    (
+                        constraint.name.as_str(),
+                        symbolica::atom::AtomCore::to_canonical_string(&constraint.expression),
+                    )
+                })
+                .collect(),
             program: &sector.program_bytes,
             orders: &self.orders,
             components: &self.components,

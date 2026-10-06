@@ -6,6 +6,7 @@
 //! gauge-invariant sum or a cross section.
 
 mod color;
+mod dot;
 mod export;
 mod point;
 mod select;

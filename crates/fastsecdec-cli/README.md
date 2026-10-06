@@ -3,16 +3,30 @@
 The CLI reads native HEPKit DOT graphs, native model JSON and parameter cards,
 and TOML run cards. Paths inside a run card are relative to that card. External
 scalar products use the graph's native `P(index)` basis; `inspect` reports that
-basis. The shipped run cards in `examples/runs` provide complete inputs.
+basis. The ggHH example includes a runtime point file; migration of the older
+cards under `examples/runs` is deferred.
 
-Inline `[parameters]` values remain exact Symbolica expressions. Derived model
-parameters and couplings use their analytic definitions at the selected point;
-cached values from another point are not reused. Explicit internal values in a
-native restriction card remain fixed unless overridden inline.
-Numeric TOML floats and numeric model/parameter-card components are converted
-to native rationals that preserve their supplied binary floating-point value
-exactly. For an exact decimal or rational value, use a Symbolica expression
-string such as `mass = "1725/10"` or `coupling = "1/10"`.
+Graph inputs compile contributing independent model inputs as runtime evaluator
+parameters by default. Native HEPKit resolves dependent parameters and couplings
+into expressions in those inputs. The model card supplies human-readable defaults
+and zero-width restrictions; its cached numerical values do not freeze dependent
+expressions. Integration requires the declared values through `--parameters`
+or repeated `--parameter NAME=VALUE`. Inputs use `model::NAME`, with `_re` and
+`_im` components for complex leaves. Kinematic `symbol` declarations likewise
+require integration-time values; `value` declarations are fixed expressions.
+
+Inline `[parameters]` values request exact fixed specializations. Setting
+`model_parameters = "fixed"` in `[input]` instead specializes the complete model
+with its card and inline overrides. All internal widths must be zero. Generic
+runtime propagator masses must remain finite, real and nonzero; a zero-mass
+specialization requires regeneration because endpoint structure can change.
+These checks do not certify thresholds.
+
+Numeric fixed inputs use native rationals preserving their supplied binary
+floating-point value. For exact decimal or rational expressions, use strings
+such as `mass = "1725/10"`. Runtime point expressions are evaluated once to
+finite binary64 values and passed unchanged to evaluator and precision-rescue
+inputs; higher evaluator precision does not add physical input precision.
 
 Numerator-only external vectors, such as numerical gluon helicities, can be
 declared with `kinematics.auxiliary_momenta`. Supply their scalar products using
@@ -52,12 +66,10 @@ input. Omitting it, or setting `family_preparation = "Original"` in
 `[generation]`, preserves the original route and omits the report.
 
 ```sh
-fastsecdec inspect examples/runs/bubble.toml
-fastsecdec generate examples/runs/bubble.toml --output output/bubble.fsd.json
-fastsecdec integrate output/bubble.fsd.json --workers 2
-fastsecdec run examples/runs/analytic_endpoint.toml --workers 2
-fastsecdec benchmark output/bubble.fsd.json
-fastsecdec check-boundaries output/bubble.fsd.json
+fastsecdec inspect examples/gghh_double_box/run.toml
+fastsecdec generate examples/gghh_double_box/run.toml --output output/gghh_double_box.fsd
+fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+  --parameters examples/gghh_double_box/point.toml --workers 8
 ```
 
 `--plain` disables the live terminal dashboard and report/run-time error colors. Setting
@@ -99,34 +111,44 @@ before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
 
-Physical endpoint subtraction remains the default. To opt into native named
-coefficient expansion, add this nested run-card section:
+The coefficient-expansion method is selected in the run card:
 
 ```toml
 [generation.coefficient_expansion]
-method = "native_named"
+method = "coefficient_series"
 max_series_attempts = 12
 max_relative_width = 128
 max_unique_requests = 10000
 ```
 
-The three limits are optional caller caps, shown here as an example. They apply
-only to native named composition. The existing subtraction limits govern exact
-physical fallback when an unregulated endpoint needs the physical route's
-pruning decision. Failed series, resource limits and cancellation return errors;
-they do not trigger a different algorithm. Relative width is a native Series
-request, not an absolute Laurent cutoff. The unique-request cap counts distinct
-derivative/face tuples within one attempt, not intermediate memory or body size.
+`coefficient_series` expands and shares the regular coefficient functions,
+then composes the complete Laurent vector with the endpoint terms.
+`full_expression`, the default, subtracts endpoints in the complete expression
+before expanding it in epsilon. Both use native Symbolica operations. The older
+input names `native_named` and `physical` remain accepted aliases respectively;
+new configuration examples and status output use the descriptive names.
+The Python `coefficient_expansion` argument accepts these same names.
 
-Named snapshots include `coefficient_expansion`, with requested/effective
-methods, the current attempt, formal pieces and request/alias counts. Those
-counts reset on a new attempt and do not count physical contributions. An
-attempt and width of zero denote admission before native work or exact physical
-fallback. The outer completed count advances only when a representative finishes.
-Untouched physical runs omit this optional snapshot. Cancellation is checked on
-every callback even when status output is coalesced; a native symbolic call
-remains nonpreemptible. The CLI supplies options and presentation only; the
-library owns coefficient generation, aliases and numerical conditioning.
+The three limits are optional caller caps, shown here as an example. They apply
+only to `coefficient_series`. Existing subtraction limits govern the exact
+`full_expression` fallback when an unregulated endpoint needs its pruning
+decision. Failed series, resource limits and cancellation return errors; they do
+not trigger a different algorithm. Relative depth is measured from each native series' leading epsilon power,
+not an absolute Laurent cutoff for the final integral or a count of nonzero
+terms. The unique-request cap counts distinct
+derivative/face tuples within one pass, not intermediate memory or body size.
+
+Coefficient-series snapshots include `coefficient_expansion`, with canonical
+requested/effective methods, the expansion pass, formal pieces and request/alias
+counts. Those counts reset on a new pass and do not count physical
+contributions. The dashboard shows `epsilon expansion pass N (relative depth W)`.
+JSON keeps the `attempt` and `relative_width` field names; zero denotes admission
+before a series pass or the exact full-expression fallback. The outer completed
+count advances only when a representative finishes. Runs directly selecting
+`full_expression` omit this optional snapshot. Cancellation is checked on every
+callback even when status output is coalesced; an individual native symbolic
+call remains nonpreemptible. The CLI supplies options and presentation only;
+the library owns coefficient generation, aliases and numerical conditioning.
 
 This explicit opt-in is under validation. Accepted representative controls do
 not establish completion of every full graph or matched performance. Saved
@@ -148,15 +170,28 @@ case are deferred; successful generation does not establish those results.
 The [retained generation evidence](../../docs/reviews/native-named-fullgraph-results.md)
 records the completed stages and partial numerical attempts.
 
-`generate` and `run` accept `--geometry-workers N` (default `1`). Values above
-one use a CLI-owned pool for native chart and cone geometry jobs; symbolic
-mapping, subtraction and Laurent expansion keep their existing execution path.
-The coordinator retains terminal input and cancellation, joins launched jobs,
-and lets the native library validate and merge their results in canonical order.
-Progress distinguishes returned jobs awaiting admission from accepted geometry.
+`generate --workers N` and `run --generation-workers N` select the caller-owned
+generation pool (default: available logical cores). The earlier
+`--geometry-workers` spelling remains an alias. Independent geometry, mapped
+sectors, density/graph preparation, coefficient expansion and kernel compilation
+use this same bounded pool. The coordinator registers prepared sector densities
+in source order, confirming any candidate permutation with exact Symbolica
+substitution before merging. It retains terminal input and cancellation, joins
+launched jobs, and admits only complete native results.
+
+“Finding equivalent sectors” distinguishes parallel comparison preparation from
+the ordered exact-comparison step. Worker activity and the aggregate bar report
+actual current-stage jobs. Percentage and ETA apply to that stage; downstream
+work is discovered during generation. Elapsed time covers the whole run. Worker
+rows describe task activity rather than operating-system CPU utilization.
+The dashboard also samples whole-process RSS, its observed peak, and system
+used/total/available RAM. Samples refresh at most every 500 ms on existing
+dashboard polls; worker threads are included in process RSS. Unavailable
+counters are reported explicitly, and the sampled peak is not an OS lifetime
+high-water mark. JSON status includes the sample age and interval.
 This option is separate from integration `--workers` and does not change artifact
 or checkpoint identity. A resumed run loads its artifact without dispatching
-geometry. The CLI retains no geometry cache between commands; library callers
+generation. The CLI retains no geometry cache between commands; library callers
 can supply their own dispatcher and retain a `GenerationContext`.
 
 Integration methods are `qmc`, `adaptive_qmc`, `mc`, and `adaptive_mc`.

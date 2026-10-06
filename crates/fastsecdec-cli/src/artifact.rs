@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs::{self, File, OpenOptions},
     io::{BufReader, BufWriter, Write},
     path::{Path, PathBuf},
@@ -129,6 +130,9 @@ pub struct Provenance {
     /// Omission preserves historical/original artifact identities.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub family_preparation: Option<fastsecdec::parametric::FamilyPreparationReport>,
+    /// Suggested model point for humans; never automatically bound to kernels.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub model_parameter_defaults: BTreeMap<String, f64>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -151,7 +155,10 @@ pub struct Artifact {
     pub loading_seconds: f64,
 }
 
-/// The public path is a basename. Neither sibling stores a path to the other.
+/// Validate the public basename and derive its two sibling paths without I/O.
+/// Call before loading generation inputs or initializing workers and terminal
+/// state. Persistence uses this same validation; neither sibling stores a path
+/// to the other.
 pub fn paths(base: &Path) -> CliResult<(PathBuf, PathBuf)> {
     let name = base
         .file_name()
@@ -245,6 +252,10 @@ impl Artifact {
                 "sectors": kernels.sectors().len(),
                 "dimensions": kernels.sectors().iter().map(|s| s.dimension()).collect::<Vec<_>>(),
                 "runtime_parameters": kernels.runtime_parameters().iter().map(|p| p.get_name().to_owned()).collect::<Vec<_>>(),
+                "runtime_mass_constraints": kernels.runtime_mass_constraints().iter().map(|constraint| serde_json::json!({
+                    "name": constraint.name,
+                    "requirement": "finite real nonzero; zero-mass specialization requires regeneration",
+                })).collect::<Vec<_>>(),
                 "evaluator_statistics": kernels.sectors().iter().map(|s| s.statistics()).collect::<Vec<_>>(),
             }))?)?,
             data: kernels.to_bytes()?,

@@ -41,6 +41,60 @@ struct Representative {
     density: Atom,
 }
 
+/// Immutable per-chart work. Construction is independent of the registry and
+/// uses the same native Graphica canonical form as serial registration.
+pub(super) struct PreparedDensity {
+    parameters: Vec<Symbol>,
+    density: Atom,
+    canonical: CanonicalForm<Vertex, usize>,
+}
+
+pub(super) fn prepare_mapped(
+    source_index: usize,
+    parameters: &[Symbol],
+    mapped: &[super::mapping::MappedTerm],
+    mut poll: impl FnMut() -> Result<(), GenerationError>,
+) -> Result<PreparedDensity, GenerationError> {
+    poll()?;
+    #[cfg(test)]
+    {
+        profile::chart(source_index);
+        profile::trace(
+            "Assembly",
+            "begin",
+            serde_json::json!({"mapped_terms": mapped.len(), "parameters": parameters.len()}),
+        );
+    }
+    #[cfg(not(test))]
+    let _ = source_index;
+    let density = mapped
+        .iter()
+        .map(|term| {
+            &term.prefactor
+                * &term.regular
+                * parameters
+                    .iter()
+                    .zip(&term.powers)
+                    .map(|(parameter, power)| Atom::var(*parameter).pow(power))
+                    .product::<Atom>()
+        })
+        .sum::<Atom>();
+    #[cfg(test)]
+    profile::trace(
+        "Assembly",
+        "end",
+        serde_json::json!({"density_bytes": density.as_view().get_byte_size()}),
+    );
+    poll()?;
+    let canonical = incidence_graph(&density, parameters)?;
+    poll()?;
+    Ok(PreparedDensity {
+        parameters: parameters.to_vec(),
+        density,
+        canonical,
+    })
+}
+
 /// A verified source-coordinate permutation into an earlier representative.
 pub(super) struct SymmetryMatch {
     pub representative: usize,
@@ -57,13 +111,35 @@ pub(super) struct SymmetryRegistry {
 }
 
 impl SymmetryRegistry {
+    #[cfg(test)]
     pub fn register(
         &mut self,
         source_index: usize,
         parameters: &[Symbol],
         density: &Atom,
     ) -> Result<SymmetryMatch, GenerationError> {
-        let canonical = incidence_graph(density, parameters)?;
+        self.register_prepared(
+            source_index,
+            PreparedDensity {
+                parameters: parameters.to_vec(),
+                density: density.clone(),
+                canonical: incidence_graph(density, parameters)?,
+            },
+        )
+    }
+
+    /// Ordered admission owns representative selection and the exact native
+    /// substitution check. Preparing the graph never reserves a representative.
+    pub fn register_prepared(
+        &mut self,
+        source_index: usize,
+        prepared: PreparedDensity,
+    ) -> Result<SymmetryMatch, GenerationError> {
+        let PreparedDensity {
+            parameters,
+            density,
+            canonical,
+        } = prepared;
         let canonical_parameters = canonical.vertex_map[..parameters.len()].to_vec();
         let candidates = self.classes.entry(canonical.graph).or_default();
         #[cfg(test)]
@@ -95,8 +171,8 @@ impl SymmetryRegistry {
                 serde_json::json!({"representative": representative.source_index}),
             );
             let verified = verified_permutation(
-                density,
-                parameters,
+                &density,
+                &parameters,
                 &representative.density,
                 &representative.parameters,
                 &permutation,
@@ -116,9 +192,9 @@ impl SymmetryRegistry {
         }
         candidates.push(Representative {
             source_index,
-            parameters: parameters.to_vec(),
+            parameters: parameters.clone(),
             canonical_parameters,
-            density: density.clone(),
+            density,
         });
         Ok(SymmetryMatch {
             representative: source_index,

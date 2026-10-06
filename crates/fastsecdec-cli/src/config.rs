@@ -39,6 +39,17 @@ pub struct GraphInput {
     pub graph: PathBuf,
     pub model: PathBuf,
     pub parameter_card: Option<PathBuf>,
+    /// Runtime independent model inputs by default; fixed requests an explicit specialization.
+    #[serde(default)]
+    pub model_parameters: ModelParameters,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelParameters {
+    #[default]
+    Runtime,
+    Fixed,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]

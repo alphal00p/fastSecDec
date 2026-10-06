@@ -1,6 +1,12 @@
 //! Native serialization and the example's explicit external projection.
 
-use std::{fmt::Write, path::Path};
+use std::{collections::BTreeMap, fmt::Write, path::Path, sync::Arc};
+
+use fastsecdec::{
+    Kinematics,
+    input::{GraphIntegral, RuntimeModelBindings},
+    parametric::ParametricIntegrand,
+};
 
 use feynkit_generator::{GenerationOptions, GenerationReport, Process};
 use feynkit_graph::{ExternalState, FeynmanDiagram, expressions::evaluate_overall_factor, symbols};
@@ -9,7 +15,10 @@ use idenso::representations::ColorAdjoint;
 use linnet::half_edge::involution::HedgePair;
 use numerica::domains::float::Complex;
 use spenso::structure::representation::{Minkowski, RepName};
-use symbolica::atom::{Atom, AtomCore};
+use symbolica::{
+    atom::{Atom, AtomCore},
+    symbol,
+};
 
 use super::{
     Result,
@@ -122,7 +131,7 @@ pub fn fixture(
     selection: &Selection,
     elapsed: f64,
 ) -> Result<()> {
-    let dot = projected.to_dot()?;
+    let dot = super::dot::pretty(projected)?;
     let loaded = FeynmanDiagram::from_dot(projected.model_arc(), &dot)?;
     if loaded.to_json()? != projected.to_json()? {
         return Err("native DOT round-trip changed the projected diagram payload".into());
@@ -160,7 +169,13 @@ pub fn fixture(
     let mut runtime_point = String::from(
         "# Default physical point; supplied only at integration time.\n[parameters]\n",
     );
+    let mut kinematics = Kinematics::in_dimension(&Atom::var(symbol!("feynkit_graph::D")))?;
     for (product, name) in point.products.iter().zip(runtime_names) {
+        kinematics = kinematics.with_scalar_product(
+            &point::expression(&product.left)?,
+            &point::expression(&product.right)?,
+            Atom::var(symbol!(&format!("gghh::{name}"))),
+        )?;
         writeln!(
             card,
             "  {{ left = {}, right = {}, symbol = {} }},",
@@ -174,7 +189,35 @@ pub fn fixture(
             serde_json::to_string(&product.value)?
         )?;
     }
-    card.push_str("]\n\n[integral]\ndimension = \"4-2*eps\"\nregulator = \"eps\"\nmeasure_multiplier = \"1\"\n\n[generation]\norder = 0\n\n[generation.coefficient_expansion]\nmethod = \"native_named\"\n");
+    // Use the ordinary native contraction/parameterization to retain exactly
+    // the model leaves used by the compiled input, rather than maintaining a
+    // diagram-specific list of coupling dependencies here.
+    let mut runtime = RuntimeModelBindings::new(projected, Some(&parameters), &BTreeMap::new())?;
+    let graph = GraphIntegral::new_with_runtime_scalar_values(
+        Arc::new(projected.clone()),
+        &kinematics,
+        runtime.values(),
+        &runtime.symbols(),
+    )?
+    .with_auxiliary_external_momenta(&point::auxiliaries())?;
+    let (integrand, _) = ParametricIntegrand::from_graph_prepared(
+        &graph,
+        (0..graph.powers().len())
+            .map(|i| symbol!(&format!("fastsecdec::x{i}")))
+            .collect(),
+        symbol!("feynkit_graph::eps"),
+        Atom::num(4) - Atom::num(2) * Atom::var(symbol!("feynkit_graph::eps")),
+        Default::default(),
+    )?;
+    runtime.retain_used(&integrand);
+    for (name, value) in runtime.defaults() {
+        writeln!(
+            runtime_point,
+            "{} = {value:?}",
+            serde_json::to_string(&name)?
+        )?;
+    }
+    card.push_str("]\n\n[integral]\ndimension = \"4-2*eps\"\nregulator = \"eps\"\nmeasure_multiplier = \"1\"\n\n[generation]\norder = 0\n\n[generation.coefficient_expansion]\nmethod = \"coefficient_series\"\n");
     std::fs::write(output.join("run.toml"), card)?;
     std::fs::write(output.join("point.toml"), runtime_point)?;
     std::fs::write(
@@ -198,7 +241,8 @@ pub fn fixture(
                 "symbolic_to_explicit_exact_check": true,
                 "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
             },
-            "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
+            "couplings": "native analytic model definitions with independent runtime inputs; card supplies metadata defaults and zero-width restrictions",
+            "model_parameter_defaults": runtime.defaults(),
             "gauge_invariant_sum": false, "threshold_admission": "caller responsibility; generation performs no threshold certification",
             "parametric_generation_complete": false, "numerical_integral_complete": false,
         }))?,

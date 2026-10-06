@@ -6,7 +6,7 @@
     "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
     "symbolic_to_explicit_exact_check": true
   },
-  "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
+  "couplings": "native analytic model definitions with independent runtime inputs; card supplies metadata defaults and zero-width restrictions",
   "exact_native_generation_matches": [
     {
       "id": "a4655aa3f84bd42b000eaa16b9c54104",
@@ -175,7 +175,7 @@
   },
   "format": "native-generated-gghh-double-box",
   "gauge_invariant_sum": false,
-  "generation_seconds": 0.037505459,
+  "generation_seconds": 0.039166167,
   "helicities": [
     1,
     1
@@ -187,6 +187,14 @@
     42,
     74
   ],
+  "model_parameter_defaults": {
+    "model::Gf": 0.0000116639,
+    "model::MT": 172.5,
+    "model::MZ": 91.188,
+    "model::aEWM1": 132.507,
+    "model::aS": 0.118,
+    "model::ymt": 172.5
+  },
   "numerical_integral_complete": false,
   "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
   "parametric_generation_complete": false,

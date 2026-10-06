@@ -15,7 +15,7 @@ pub(super) fn observe_generation(
 ) -> ControlFlow<()> {
     let previous_stage = status.stage;
     status.observe_generation(max_order, progress);
-    if previous_stage != status.stage {
+    if previous_stage != status.stage || matches!(progress, GenerationProgress::Symmetry { .. }) {
         dashboard.generation_coordinator();
     }
     status.elapsed_seconds = started.elapsed().as_secs_f64();

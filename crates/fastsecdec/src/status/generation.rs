@@ -7,6 +7,29 @@ use crate::{
     kernel::CompilationProgress,
 };
 
+impl GenerationStage {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Input => "Reading input",
+            Self::Parametrization => "Preparing integral",
+            Self::Geometry => "Building sectors",
+            Self::Mapping => "Mapping sectors",
+            Self::Symmetry => "Finding equivalent sectors",
+            Self::Subtraction => "Subtracting endpoints",
+            Self::Expansion => "Expanding in epsilon",
+            Self::CoefficientExpansion => "Expanding coefficients",
+            Self::Compilation => "Compiling kernels",
+            Self::Complete => "Complete",
+        }
+    }
+}
+
+impl std::fmt::Display for GenerationStage {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.label())
+    }
+}
+
 impl GenerationSnapshot {
     /// Apply one native generation event without presentation or scheduling.
     ///
@@ -32,11 +55,17 @@ impl GenerationSnapshot {
                 status.total = Some(*total);
                 status.detail = "Substituting exact sector maps".into();
             }
+            GenerationProgress::SymmetryPreparation { sector, total } => {
+                status.stage = GenerationStage::Symmetry;
+                status.completed = *sector;
+                status.total = Some(*total);
+                status.detail = "Finding equivalent sectors · preparing comparison".into();
+            }
             GenerationProgress::Symmetry { completed, total } => {
                 status.stage = GenerationStage::Symmetry;
                 status.completed = *completed;
                 status.total = Some(*total);
-                status.detail = "Verifying complete density permutations on coordinator".into();
+                status.detail = "Finding equivalent sectors · exact comparison".into();
             }
             GenerationProgress::Subtraction {
                 sector,
@@ -90,10 +119,12 @@ impl GenerationSnapshot {
                     requests: *requests,
                 });
                 status.detail = if effective_method == CoefficientExpansionMethod::Physical {
-                    format!("{} · physical endpoint fallback", activity(*stage))
+                    format!("{} · full-expression endpoint fallback", activity(*stage))
+                } else if *attempt == 0 {
+                    activity(*stage).into()
                 } else {
                     format!(
-                        "{} · current attempt {} (width {}) · {} formal pieces · {} distinct requests · {} aliases",
+                        "{} · epsilon expansion pass {} (relative depth {}) · {} formal pieces · {} distinct requests · {} aliases",
                         activity(*stage),
                         attempt,
                         relative_width,
@@ -104,9 +135,10 @@ impl GenerationSnapshot {
                 };
             }
             GenerationProgress::PhaseTiming { phase, seconds } => {
-                if *phase == GenerationPhase::Symmetry {
+                if *phase == GenerationPhase::Symmetry && status.stage != GenerationStage::Symmetry
+                {
                     status.stage = GenerationStage::Symmetry;
-                    status.detail = "Verifying complete density permutations".into();
+                    status.detail = "Finding equivalent sectors".into();
                 }
                 let elapsed = match phase {
                     GenerationPhase::Domain => &mut status.timings.domain_seconds,
@@ -152,7 +184,7 @@ fn activity(stage: CoefficientExpansionStage) -> &'static str {
         CoefficientExpansionStage::Composition => "Combining Laurent coefficients",
         CoefficientExpansionStage::Coverage => "Checking Laurent coverage",
         CoefficientExpansionStage::Lowering => "Resolving coefficient requests",
-        CoefficientExpansionStage::PhysicalFallback => "Using physical endpoint subtraction",
+        CoefficientExpansionStage::PhysicalFallback => "Subtracting the full expression",
         CoefficientExpansionStage::Complete => "Coefficient expansion complete",
     }
 }

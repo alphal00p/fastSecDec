@@ -34,4 +34,4 @@ measure_multiplier = "1"
 order = 0
 
 [generation.coefficient_expansion]
-method = "native_named"
+method = "coefficient_series"

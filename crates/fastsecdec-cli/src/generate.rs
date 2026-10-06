@@ -37,6 +37,7 @@ pub fn generate_with_workers(
     reference: Option<&crate::reference::PreparedReference>,
     workers: usize,
 ) -> CliResult<(Artifact, KernelSet)> {
+    crate::artifact::paths(output)?;
     if workers == 0 {
         return Err("generation workers must be positive".into());
     }
@@ -145,21 +146,26 @@ pub fn generate_with_workers(
             };
         let mut symbolic_dispatch =
             |jobs: &mut dyn ExactSizeIterator<Item = generation::SymbolicJob>| {
-                let mut stage = GenerationStage::Mapping;
                 // The first job identifies the homogeneous native stage without
                 // pre-running or collecting its remaining lazy work.
                 let mut jobs = jobs.peekable();
-                if jobs
-                    .peek()
-                    .is_some_and(|job| job.id().stage == generation::SymbolicStage::Coefficients)
-                {
-                    stage = GenerationStage::CoefficientExpansion;
-                }
+                let stage = match jobs.peek().map(|job| job.id().stage) {
+                    Some(generation::SymbolicStage::Symmetry) => GenerationStage::Symmetry,
+                    Some(generation::SymbolicStage::Coefficients) => {
+                        GenerationStage::CoefficientExpansion
+                    }
+                    _ => GenerationStage::Mapping,
+                };
                 dispatch::run(
                     &pool,
                     &mut jobs,
                     &cancelled,
-                    |job| format!("{:?} · sector {}", job.id().stage, job.id().index),
+                    |job| match job.id().stage {
+                        generation::SymbolicStage::Symmetry => {
+                            format!("Finding equivalent sectors · sector {}", job.id().index)
+                        }
+                        stage => format!("{stage:?} · sector {}", job.id().index),
+                    },
                     |job, observe| {
                         let id = job.id();
                         job.run(|progress| {
@@ -193,6 +199,9 @@ pub fn generate_with_workers(
                                 .total
                                 .saturating_sub(progress.completed + progress.running())
                         );
+                        if stage == GenerationStage::Symmetry {
+                            status.detail = format!("Preparing comparisons · {}", status.detail);
+                        }
                         dashboard.generation_workers(progress);
                         publish_generation(dashboard, status, error)
                     },
@@ -268,7 +277,7 @@ pub fn generate_with_workers(
     if let Some(error) = display_error {
         return Err(error.into());
     }
-    let kernels = kernels?;
+    let kernels = kernels?.with_runtime_mass_constraints(loaded.runtime_mass_constraints)?;
     drop(generated);
     if let Some(reference) = reference.filter(|_| kernels.runtime_parameters().is_empty()) {
         reference.validate_identity(kernels.content_id())?;
@@ -292,6 +301,7 @@ pub fn generate_with_workers(
         max_order: options.max_order,
         integration: serde_json::to_value(loaded.card.integration)?,
         family_preparation: loaded.family_preparation,
+        model_parameter_defaults: loaded.model_parameter_defaults,
     };
     dashboard.generation_coordinator();
     status.completed = 0;

@@ -1,5 +1,30 @@
 # FastSecDec first-phase implementation plan
 
+## Generation scheduling and dashboard follow-up (2026-10-07)
+
+Parallelize the independent complete-density construction and graph
+canonicalization used to find equivalent sectors, retaining deterministic
+representative admission and exact native equality checks. The CLI remains
+the worker-pool owner. Reject invalid artifact output basenames before any
+input/reference loading or generation. Show aggregate process memory and
+system RAM on the generation dashboard, and replace opaque symmetry and
+series-attempt labels with clear descriptions. Existing tests/gate migration
+and other-example edits remain deferred.
+
+Use descriptive coefficient-expansion names (`coefficient_series` and
+`full_expression`), retaining old input aliases only for the deferred migration.
+Model parameters, including named propagator masses and independent coupling
+inputs, must remain evaluator parameters with values supplied at integration.
+Reuse the model's native analytic dependency resolution; metadata defaults must
+not specialize generated expressions. Preserve explicit eager generation and
+integration alongside the example's SymJIT O2 backend. Runtime binding must
+respect the structural mass domain used to generate sectors.
+
+Parallel completion order must not change coefficients, representative sectors,
+parameter ordering or evaluator identity. Format each graph-level DOT attribute
+on its own line through the native DOT machinery; omit redundant numerator text
+only if the complete native diagram contract and round trip remain valid.
+
 ## gg→HH diagram clarification (2026-10-07)
 
 The double-box example must use the user's supplied `D05` s-channel diagram:

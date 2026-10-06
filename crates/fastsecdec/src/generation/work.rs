@@ -3,7 +3,7 @@
 use super::{
     CoordinateMap, GenerationError, GenerationEvent, GenerationOptions, GenerationPhase,
     GenerationProgress, PreSubtractionMetadata, coefficients, context::emit, laurent, mapping,
-    support::SupportCache,
+    support::SupportCache, symmetry,
 };
 use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::SectorMap;
@@ -13,6 +13,7 @@ use symbolica::atom::Symbol;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SymbolicStage {
     Mapping,
+    Symmetry,
     Coefficients,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +45,10 @@ enum Work {
         parameters: Vec<Symbol>,
         supports: SupportCache,
     },
+    Symmetry {
+        chart: Box<MappedChart>,
+        total: usize,
+    },
     Coefficients {
         options: Arc<GenerationOptions>,
         regulator: Symbol,
@@ -57,6 +62,7 @@ enum Work {
 }
 enum Output {
     Mapping(MappedChart),
+    Symmetry(Box<PreparedChart>),
     Coefficients(ExpandedChart),
 }
 pub(super) struct MappedChart {
@@ -65,6 +71,10 @@ pub(super) struct MappedChart {
     pub coordinates: CoordinateMap,
     pub mapped: Vec<mapping::MappedTerm>,
     pub pre_subtraction: Option<PreSubtractionMetadata>,
+}
+pub(super) struct PreparedChart {
+    pub chart: MappedChart,
+    pub symmetry: symmetry::PreparedDensity,
 }
 type ExpandedChart = (usize, SectorMap, Vec<Symbol>, usize, coefficients::Output);
 type Representatives = BTreeMap<usize, (SectorMap, Vec<Symbol>, Vec<mapping::MappedTerm>, usize)>;
@@ -106,6 +116,10 @@ impl SymbolicJob {
                     &mut observe,
                 )
                 .map(Output::Mapping)
+            }
+            Work::Symmetry { chart, total } => {
+                prepare_symmetry(self.id.index, *chart, total, &mut observe)
+                    .map(|prepared| Output::Symmetry(Box::new(prepared)))
             }
             Work::Coefficients {
                 options,
@@ -269,6 +283,66 @@ pub(super) fn map_dispatched(
         .into_iter()
         .map(|output| match output {
             Output::Mapping(chart) => Ok(chart),
+            _ => Err(GenerationError::Invariant(
+                "wrong symbolic completion kind".into(),
+            )),
+        })
+        .collect()
+}
+
+pub(super) fn prepare_symmetry(
+    index: usize,
+    chart: MappedChart,
+    total: usize,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<PreparedChart, GenerationError> {
+    let symmetry = symmetry::prepare_mapped(index, &chart.parameters, &chart.mapped, || {
+        emit(
+            progress,
+            GenerationProgress::SymmetryPreparation {
+                sector: index,
+                total,
+            },
+        )
+    })?;
+    Ok(PreparedChart { chart, symmetry })
+}
+
+pub(super) fn symmetry_dispatched(
+    charts: Vec<MappedChart>,
+    dispatch: &mut SymbolicDispatch<'_>,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<Vec<PreparedChart>, GenerationError> {
+    let owner = Arc::new(());
+    let total = charts.len();
+    let mut jobs = charts
+        .into_iter()
+        .enumerate()
+        .map(|(index, chart)| SymbolicJob {
+            owner: Arc::clone(&owner),
+            id: SymbolicJobId {
+                stage: SymbolicStage::Symmetry,
+                index,
+            },
+            work: Work::Symmetry {
+                chart: Box::new(chart),
+                total,
+            },
+        });
+    let started = Instant::now();
+    let completed = dispatch(&mut jobs)?;
+    let completed = admit(&owner, SymbolicStage::Symmetry, total, completed)?;
+    emit(
+        progress,
+        GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::Symmetry,
+            seconds: started.elapsed().as_secs_f64(),
+        },
+    )?;
+    completed
+        .into_iter()
+        .map(|output| match output {
+            Output::Symmetry(chart) => Ok(*chart),
             _ => Err(GenerationError::Invariant(
                 "wrong symbolic completion kind".into(),
             )),
