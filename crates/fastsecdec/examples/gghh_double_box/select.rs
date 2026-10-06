@@ -9,6 +9,20 @@ use serde::Serialize;
 
 use super::Result;
 
+#[derive(Serialize)]
+pub struct GeneratedMatch {
+    pub index: usize,
+    pub name: String,
+    pub id: String,
+}
+
+#[derive(Serialize)]
+pub struct Selection {
+    pub source: super::source::Provenance,
+    pub channel_matches: Vec<(usize, Topology)>,
+    pub target_matches: Vec<GeneratedMatch>,
+}
+
 pub fn interactions(model: &Model) -> Result<Vec<VertexSelector>> {
     let mut allowed = Vec::new();
     let mut signatures = BTreeSet::new();
@@ -107,15 +121,14 @@ pub fn double_box(diagram: &FeynmanDiagram) -> Result<Option<Topology>> {
                 .map(|(_, pdg)| *pdg)
                 .collect::<Vec<_>>();
             legs.sort_unstable();
-            // Each side of the central gluon carries one g and one H.
-            if legs != [21, 25] {
-                return Ok(None);
-            }
             boxes.push(legs);
         }
     }
     top.sort_unstable();
-    if hexagon != top {
+    boxes.sort();
+    // The s-channel has both incoming gluons on one box and both Higgs legs
+    // on the other; canonical membership separately fixes the supplied D05.
+    if hexagon != top || boxes != [vec![21, 21], vec![25, 25]] {
         return Ok(None);
     }
     Ok(Some(Topology {

@@ -1,6 +1,6 @@
-//! Generate one genuine Standard-Model top/gluon double-box contribution.
+//! Export the supplied Standard-Model s-channel top/gluon double box.
 //!
-//! `cargo run -p fastsecdec --example gghh_double_box -- SM.json NEW_OUTPUT_DIR`
+//! `cargo run --release -p fastsecdec --example gghh_double_box -- SM.json NEW_OUTPUT_DIR`
 //! writes native input files; run the emitted card with the ordinary CLI.
 //! This is one diagram with an explicit color/helicity projection, not a
 //! gauge-invariant sum or a cross section.
@@ -9,6 +9,7 @@ mod color;
 mod export;
 mod point;
 mod select;
+mod source;
 
 use std::{path::PathBuf, sync::Arc, time::Instant};
 
@@ -26,9 +27,12 @@ fn main() -> Result<()> {
         return Err("supply exactly two arguments and a fresh output directory".into());
     }
     let model_bytes = std::fs::read_to_string(model_path)?;
-    let mut model = Model::from_json(&model_bytes)?;
-    model.apply_parameter_card(&export::parameter_card(&model)?)?;
-    let model = Arc::new(model);
+    let requested_model = Model::from_json(&model_bytes)?;
+    let (raw, source) = source::physical_diagram(&requested_model)?;
+    let model = raw.model_arc();
+    let topology =
+        select::double_box(&raw)?.ok_or("D05 is not the requested s-channel double box")?;
+    let target_key = raw.canonical_key()?;
     let allowed = select::interactions(&model)?;
     // PDG selectors avoid relying on a particular UFO's spelling of H or tbar.
     let process =
@@ -48,15 +52,24 @@ fn main() -> Result<()> {
     }
     generated.validate_groups()?;
     let mut matches = Vec::new();
+    let mut target_matches = Vec::new();
     for (index, diagram) in generated.diagrams.iter().enumerate() {
         if let Some(topology) = select::double_box(diagram)? {
             matches.push((index, topology));
+            if diagram.canonical_key()? == target_key {
+                target_matches.push(select::GeneratedMatch {
+                    index,
+                    name: diagram.name().to_owned(),
+                    id: diagram.id().to_string(),
+                });
+            }
         }
     }
-    let (selected, topology) = matches
-        .first()
-        .ok_or("no top-hexagon/gluon double box found")?;
-    let raw = &generated.diagrams[*selected];
+    if target_matches.is_empty() {
+        return Err(
+            "supplied D05 has no exact native colored-topology match in the generated set".into(),
+        );
+    }
     let elapsed = start.elapsed().as_secs_f64();
     std::fs::create_dir_all(&output)?;
     // Persist raw evidence before projection or any potentially expensive algebra.
@@ -64,20 +77,29 @@ fn main() -> Result<()> {
         &output,
         &model,
         &model_bytes,
-        raw,
+        &raw,
         &process,
         &options,
         &generated.report,
     )?;
-    let projected = export::projected(raw)?;
+    let projected = export::projected(&raw)?;
     let point = point::Point::new(&projected)?;
     export::fixture(
-        &output, raw, &projected, &point, topology, &matches, elapsed,
+        &output,
+        &raw,
+        &projected,
+        &point,
+        &topology,
+        &select::Selection {
+            source,
+            channel_matches: matches,
+            target_matches,
+        },
+        elapsed,
     )?;
     eprintln!(
-        "selected {}: {} matching / {} generated diagrams in {elapsed:.3}s",
+        "selected supplied {} with exact native generated membership / {} generated diagrams in {elapsed:.3}s",
         raw.name(),
-        matches.len(),
         generated.diagrams.len()
     );
     println!("Generated run.toml and point.toml in the requested output directory");

@@ -14,7 +14,7 @@ use symbolica::atom::{Atom, AtomCore};
 use super::{
     Result,
     point::{self, Point},
-    select::Topology,
+    select::{Selection, Topology},
 };
 
 pub fn raw(
@@ -26,6 +26,7 @@ pub fn raw(
     options: &GenerationOptions,
     report: &GenerationReport,
 ) -> Result<()> {
+    std::fs::write(output.join("source-diagram.dot"), super::source::DOT)?;
     std::fs::write(output.join("model.json"), model.to_json_pretty()?)?;
     std::fs::write(output.join("raw-diagram.json"), diagram.to_json()?)?;
     std::fs::write(output.join("raw-diagram.dot"), diagram.to_dot()?)?;
@@ -118,17 +119,13 @@ pub fn fixture(
     projected: &FeynmanDiagram,
     point: &Point,
     topology: &Topology,
-    matches: &[(usize, Topology)],
+    selection: &Selection,
     elapsed: f64,
 ) -> Result<()> {
     let dot = projected.to_dot()?;
     let loaded = FeynmanDiagram::from_dot(projected.model_arc(), &dot)?;
-    if loaded.numerator() != projected.numerator()
-        || loaded.projector() != projected.projector()
-        || loaded.overall_factor() != projected.overall_factor()
-        || loaded.numerator_prefactor() != raw.numerator_prefactor()
-    {
-        return Err("native DOT round-trip changed numerator/projection/weight".into());
+    if loaded.to_json()? != projected.to_json()? {
+        return Err("native DOT round-trip changed the projected diagram payload".into());
     }
     std::fs::write(output.join("graph.dot"), dot)?;
     std::fs::write(
@@ -183,10 +180,13 @@ pub fn fixture(
     std::fs::write(
         output.join("provenance.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
-            "format": "native-generated-gghh-double-box", "version": 1,
+            "format": "native-generated-gghh-double-box", "version": 2,
             "selected_diagram": raw.name(), "selected_diagram_id": raw.id().to_string(),
-            "selection": topology, "matching_generation_indices": matches.iter().map(|(i, _)| *i).collect::<Vec<_>>(),
-            "selection_rule": "first native generated-order match: six-top hexagon, one central gluon, circuits [4,4,6], each box with g and H",
+            "selection": topology,
+            "source": selection.source,
+            "matching_generation_indices": selection.channel_matches.iter().map(|(i, _)| *i).collect::<Vec<_>>(),
+            "exact_native_generation_matches": selection.target_matches,
+            "selection_rule": "supplied D05 with its labels, tensor numerator and routing; native canonical-key membership; six-top hexagon, central gluon, circuits [4,4,6], external boxes [g,g] and [H,H]",
             "generation_seconds": elapsed, "external_point": point,
             "external_dimension": 4, "internal_dimension": "4-2*eps", "helicities": [1, 1],
             "color_projection": "unnormalized delta_ab; no color or spin average",

@@ -1,5 +1,10 @@
 # Parameterized generation and portable artifacts (2026-10-06)
 
+The gg→HH measurements in this record use the earlier `FK018` mixed-leg channel.
+The subsequent [s-channel correction](gghh-s-channel-review.md) replaces the
+example with the user's `D05` diagram; this record remains evidence for the
+generation/runtime features, not numerical evidence for the corrected diagram.
+
 This revision follows the user's gg→HH CLI feedback. The older domain-admission
 requirements are superseded: generation and artifact loading do not test signs,
 faces or interior points to certify threshold absence. New metadata records

@@ -1,6 +1,19 @@
 {
   "color_projection": "unnormalized delta_ab; no color or spin average",
+  "color_reduction": {
+    "convention": "native SU(3), T_F=1/2; unnormalized external delta_ab applied once",
+    "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
+    "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
+    "symbolic_to_explicit_exact_check": true
+  },
   "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
+  "exact_native_generation_matches": [
+    {
+      "id": "a4655aa3f84bd42b000eaa16b9c54104",
+      "index": 42,
+      "name": "FK042"
+    }
+  ],
   "external_dimension": 4,
   "external_point": {
     "dependent_coordinates": [
@@ -162,36 +175,32 @@
   },
   "format": "native-generated-gghh-double-box",
   "gauge_invariant_sum": false,
-  "generation_seconds": 0.933834927,
+  "generation_seconds": 0.037505459,
   "helicities": [
     1,
     1
   ],
   "internal_dimension": "4-2*eps",
   "matching_generation_indices": [
-    18,
-    23,
-    49,
-    53,
-    58,
-    80,
-    84,
-    91
+    25,
+    29,
+    42,
+    74
   ],
   "numerical_integral_complete": false,
   "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
   "parametric_generation_complete": false,
   "projected_numerator_is_raw": false,
-  "selected_diagram": "FK018",
-  "selected_diagram_id": "eb51e855105cae69514fd9dcdd4bbffe",
+  "selected_diagram": "D05",
+  "selected_diagram_id": "a4655aa3f84bd42b000eaa16b9c54104",
   "selection": {
     "box_external_pdgs": [
       [
         21,
-        25
+        21
       ],
       [
-        21,
+        25,
         25
       ]
     ],
@@ -218,13 +227,16 @@
       9
     ]
   },
-  "selection_rule": "first native generated-order match: six-top hexagon, one central gluon, circuits [4,4,6], each box with g and H",
-  "threshold_admission": "ordinary CLI check remains required",
-  "version": 1,
-  "color_reduction": {
-    "convention": "native SU(3), T_F=1/2; unnormalized external delta_ab applied once",
-    "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
-    "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
-    "symbolic_to_explicit_exact_check": true
-  }
+  "selection_rule": "supplied D05 with its labels, tensor numerator and routing; native canonical-key membership; six-top hexagon, central gluon, circuits [4,4,6], external boxes [g,g] and [H,H]",
+  "source": {
+    "blake3": "2f6edc1b54f3eba2f228f7a62b8e9e0052c207f8ec804e877f5e8cba8479f0f2",
+    "model_adaptation": "native ParameterCard applied to the original SM; only model fingerprint and derived diagram ID change",
+    "native_payload_preserved": true,
+    "original_diagram_id": "06593c9910499e9c1a33f9f2ba3a1c5b",
+    "original_model_fingerprint": "834ba7b318f45413c0e10d1c4462c3c2598b92999c23dc366cafbd82a45a87d5",
+    "path": "source-diagram.dot",
+    "physical_model_fingerprint": "1408ea162eab3d6c6d4bd68bc0f01c97525464a8cf3ad93248d03ddf5b17e390"
+  },
+  "threshold_admission": "caller responsibility; generation performs no threshold certification",
+  "version": 2
 }

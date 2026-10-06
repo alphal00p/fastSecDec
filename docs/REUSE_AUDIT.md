@@ -1,5 +1,20 @@
 # Ecosystem reuse evidence
 
+## Supplied gg→HH s-channel diagram (2026-10-07)
+
+The example now targets the user's supplied `D05` graph: the two gluons attach
+to one box and the two Higgs legs to the other. Native HEPKit DOT import, model
+identity, diagram canonical keys and numerator construction remain the owners;
+Linnet provides circuit enumeration and structured DOT transport. The original
+model snapshot in the pinned GammaLoop source matches the supplied fingerprint
+and permits strict native import. The example retains its explicit mass/coupling
+card, color projection and helicities. No graph parser, canonicalizer, algebra
+or numerical-reference implementation is added. The earlier mixed-leg `FK018`
+measurements remain historical and do not validate this corrected input.
+
+The [independent s-channel review](reviews/gghh-s-channel-review.md) records
+the source/model compatibility checks and the final verification boundary.
+
 ## Parameterized CLI generation and binary artifacts (2026-10-06)
 
 Runtime scalar products use the existing HEPKit `Kinematics` and Symbolica

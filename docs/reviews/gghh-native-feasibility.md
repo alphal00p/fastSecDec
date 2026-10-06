@@ -1,5 +1,10 @@
 # Native ggHH single-diagram feasibility
 
+Historical evidence for the earlier `FK018` mixed-leg channel. On 2026-10-07
+the user corrected the example to the supplied `D05` s-channel diagram; the
+measurements and domain-admission behavior below describe the earlier input and
+build, not the current example. See [the s-channel review](gghh-s-channel-review.md).
+
 The ordinary CLI completes the genuine Standard-Model top/gluon double box at
 the documented sub-top-pair physical point, using the native color-closed input
 in `examples/gghh_double_box`. It saves and reloads a portable artifact, then

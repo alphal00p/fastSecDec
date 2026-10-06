@@ -1,5 +1,15 @@
 # FastSecDec first-phase implementation plan
 
+## gg→HH diagram clarification (2026-10-07)
+
+The double-box example must use the user's supplied `D05` s-channel diagram:
+both incoming gluons attach to one four-edge circuit and both outgoing Higgs
+legs attach to the other, sharing the internal gluon. Preserve the supplied
+labeled graph, fermion flow and momentum routing through native HEPKit objects.
+The previously selected `FK018` mixed-leg channel and its numerical evidence
+do not establish results for this corrected example. Other examples and the
+test/gate migration remain deferred.
+
 ## Current generation revision (2026-10-06)
 
 The latest user request supersedes earlier threshold-certification and artifact

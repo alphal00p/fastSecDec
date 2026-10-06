@@ -1,5 +1,10 @@
 # gg→HH sector geometry cross-check
 
+Historical evidence for the earlier `FK018` mixed-leg channel. The example now
+uses the user's `D05` s-channel diagram, selected on 2026-10-07. The comparisons
+below have not been rerun for that input and must not be attributed to it.
+See [the s-channel review](gghh-s-channel-review.md).
+
 The independent pySecDec denominator decomposition agrees with all **30 native
 FastSecDec charts**, up to permutation of target coordinates. This is a basic
 geometry check for the exact diagram and physical point already used by the

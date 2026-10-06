@@ -1,5 +1,4 @@
-# Default physical point: sqrt(s)=300, mH=125, cos(theta)=4/5, (+,+) helicities.
-# Values are supplied only at integration time; generation retains these symbols.
+# Default physical point; supplied only at integration time.
 [parameters]
 p0p0 = "0"
 p0p1 = "45000"
