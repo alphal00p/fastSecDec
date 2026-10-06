@@ -13,15 +13,18 @@ The numerical workspace and default CLI remain independent of Python.
 
 The [marimo showcase](examples/hepkit/README.md) uses native HEPKit inputs,
 separate Generate and Integrate actions, live status views and sector inspection.
-It includes four portable examples and a native-only projected `g g -> H H`
-double box. Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
+The scalar triangle is selected by default; the projected `g g -> H H`
+double box is an optional longer calculation in native and browser execution.
+Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
 feature and required dependency patches. The relocated native release wheel
 passes 61 API, inspection, input and notebook-state tests. Actual notebook
 generation/inspection and Integrate/Cancel/Resume workflows pass for the native
 triangle and `g g -> H H` examples. Generated stubs pass inventory and installed
-export checks. Public dependency delivery and the updated Pyodide interface are
-still under validation; earlier portable
-browser checks cover the archived interface.
+export checks. The published dependency builds in hosted native CI, with 61
+controls passing. The current public-source Wasm wheel passes its generic
+smoke test and all 50 portable API/input/inspection/wavefunction controls.
+The updated browser interaction and optional browser double box remain under
+validation; earlier browser checks cover the archived interface.
 
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside

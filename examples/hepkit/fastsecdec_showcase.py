@@ -43,8 +43,13 @@ async def _(mo):
     # Browser: explicitly fetch, verify and mount the exported assets before
     # importing builders. A browser filesystem is never assumed to contain them.
     notebook_location = mo.notebook_location()
-    if sys.platform == "emscripten":
+    browser_runtime = sys.platform == "emscripten"
+    interrupt_isolated = False
+    if browser_runtime:
         import micropip
+        from js import globalThis
+
+        interrupt_isolated = bool(globalThis.crossOriginIsolated)
         from pyodide.http import pyfetch
 
         _base = str(notebook_location).rstrip("/")
@@ -88,31 +93,28 @@ async def _(mo):
     sys.path.insert(0, str(asset_root))
     from showcase import inputs as builders
     from showcase import state as workflow, generation, integration, sectors, presentation, report
-    gghh_builder = None
-    if sys.platform != "emscripten":
-        from showcase import gghh as gghh_builder
+    from showcase import gghh as gghh_builder
     from symbolica.community import hepkit as hep
     fs = getattr(hep, "fastsecdec", None)
-    return asset_description, builders, fs, gghh_builder, workflow, generation, integration, sectors, presentation, report
+    return asset_description, browser_runtime, builders, fs, gghh_builder, interrupt_isolated, workflow, generation, integration, sectors, presentation, report
 
 
 @app.cell(hide_code=True)
-def _(gghh_builder, mo, presentation):
+def _(mo, presentation):
     _choices = dict(presentation.EXAMPLES)
-    if gghh_builder is not None:
-        _choices["gg → HH · native only"] = "gghh"
+    _choices["gg → HH · extended run"] = "gghh"
     problem = mo.ui.dropdown(_choices, value="Massive triangle", label="Integral", allow_select_none=False)
     mo.vstack([mo.md("## 1 · Choose the input"), problem])
     return (problem,)
 
 
 @app.cell(hide_code=True)
-def _(mo, problem):
+def _(browser_runtime, mo, problem):
     physics_controls = None
     allocation_controls = None
     if problem.value == "gghh":
         _input_panel = mo.vstack([
-            mo.md(r"""### $gg\to HH$ · fixed native point
+            mo.md(r"""### $gg\to HH$ · fixed physical point
 One HEPKit-generated top double box with an internal gluon and $(+,+)$ helicities. This single projected diagram is not the full gauge-invariant amplitude."""),
             mo.hstack([
                 mo.stat(label="Energy √s", value="300 GeV"), mo.stat(label="Higgs mass", value="125 GeV"),
@@ -127,8 +129,10 @@ One HEPKit-generated top double box with an internal gluon and $(+,+)$ helicitie
             The ordinary domain guard remains active. Generate prepares through the
             finite coefficient. Integrate uses 1,024 points × 8 shifts per sector,
             Kuo 33002/Korobov-3, seed 20261005, in 1,024-point caller steps.
-            This fixed allocation need not meet the 0.1% target. Browser cost remains unmeasured.
+            This fixed allocation need not meet the 0.1% target. Browser generation
+            and interpreted integration can be substantially slower than native execution.
             """)}),
+            mo.callout("Optional extended browser run: one CPU, with portable interpreted integration. Generate may take several minutes; completion and browser cost are not yet validated. No calculation begins until you select Generate.", kind="warn") if browser_runtime else mo.md(""),
         ])
     else:
         _fields = {"s": mo.ui.number(value=-1.0, step=0.1, label="s < 0")}
@@ -165,7 +169,7 @@ def _(allocation_controls, physics_controls, problem):
 
 
 @app.cell(hide_code=True)
-def _(mo, workflow):
+def _(browser_runtime, interrupt_isolated, mo, workflow):
     run_state = workflow.RunState(message="Choose the input, then Generate. No scientific work starts automatically.")
     generate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Generate", kind="success")
     integrate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Integrate", kind="success")
@@ -176,7 +180,15 @@ def _(mo, workflow):
         mo.md("## 2 · Generate → inspect → integrate"),
         mo.hstack([generate_button, integrate_button, cancel_button, resume_button, refresh], justify="start", wrap=True),
         mo.md("Generate includes native compilation and stops before sampling. Integrate starts a fixed allocation from ready kernels. Cancel saves accepted coverage; Resume restores it."),
-        mo.accordion({"Execution and cancellation": mo.md("Generation and compilation are synchronous. Native events update the view at callback boundaries; a long algebra operation may delay repaint or interruption. Use marimo's interrupt during those phases. Only an explicit Integrate or Resume action enables refresh-driven native packages; no allocation grows automatically.")}),
+        mo.accordion({"Execution and cancellation": mo.vstack([
+            mo.md("Cancel pauses integration between packages and saves accepted coverage. In marimo's editor, Stop (interrupt) / Ctrl-I (Cmd-I on macOS) requests KeyboardInterrupt. Generation checks it at native callback boundaries; integration checks within packages every 256 points. Long algebra operations between checks can delay interruption. An interrupted package does not enter accepted coverage. Only explicit Integrate or Resume enables further packages; no allocation grows automatically."),
+            mo.callout(
+                "Browser interrupt is available in this isolated editor. Use Stop (interrupt) or Ctrl-I (Cmd-I on macOS); long native algebra calls may delay the response."
+                if interrupt_isolated and mo.app_meta().mode == "edit" else
+                "This view or host has no active KeyboardInterrupt control. Cancel is processed between integration packages. For browser interruption, export with --mode edit and use the documented isolated server. Reloading the page discards unsaved in-memory work.",
+                kind="info" if interrupt_isolated and mo.app_meta().mode == "edit" else "warn",
+            ) if browser_runtime else mo.md(""),
+        ])}),
     ])
     return cancel_button, generate_button, integrate_button, refresh, resume_button, run_state
 
@@ -304,9 +316,9 @@ def _(asset_description, mo, report, run_revision, run_state):
         refresh waits; native worker time is separate. No responsiveness guarantee
         or prepared numerical output is supplied.
 
-        **Assets:** {asset_description}. gg → HH remains native-only; its browser
-        generation and integration costs have not been validated. See `README.md`
-        for source/build provenance and explicit browser asset mounting.
+        **Assets:** {asset_description}. gg → HH is an optional extended run;
+        browser completion and cost remain unvalidated. See `README.md` for
+        source/build provenance, explicit browser asset mounting and interruption.
         """)}),
     ])
     return

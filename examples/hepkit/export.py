@@ -24,6 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--wheel", type=Path, required=True, help="Community cp314 pyemscripten_2026_0 wasm32 wheel with FastSecDec")
     parser.add_argument("--output", type=Path, required=True, help="New export directory, served over HTTP")
+    parser.add_argument("--mode", choices=("run", "edit"), default="run", help="App view, or editor view with marimo interruption controls")
     args = parser.parse_args()
     wheel = args.wheel.resolve()
     if not wheel.is_file() or not wheel.name.endswith("-cp314-abi3-pyemscripten_2026_0_wasm32.whl"):
@@ -33,8 +34,9 @@ def main():
         parser.error("Use a new output directory; existing exports are preserved")
     here = Path(__file__).resolve().parent
     notebook = here / "fastsecdec_showcase.py"
-    files = [here / "showcase" / name for name in ("__init__.py", "inputs.py", "state.py", "presentation.py", "generation.py", "sectors.py", "integration.py", "report.py")]
+    files = [here / "showcase" / name for name in ("__init__.py", "inputs.py", "state.py", "presentation.py", "generation.py", "sectors.py", "integration.py", "report.py", "gghh.py")]
     files += [here / "fixtures/fastsecdec" / name for name in ("README.md", "scalar.json", "triangle.dot", "box.dot", "box_rank2_numerator.dot", "sunset_2loop_numerator.dot")]
+    files += [here / "fixtures/gghh" / name for name in ("README.md", "origin.json", "model.json", "parameters.json", "raw-diagram.json", "generation.json")]
     if not all(path.is_file() for path in files):
         parser.error("Missing required local example assets")
     with tempfile.TemporaryDirectory(prefix="fastsecdec-showcase-export-") as temporary:
@@ -57,7 +59,7 @@ def main():
             "validation": "Packaging only; browser runtime and scientific gates are separate.",
         }
         (public / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
-        subprocess.run([sys.executable, "-m", "marimo", "export", "html-wasm", str(stage / notebook.name), "--mode", "run", "--no-execute", "-o", str(output)], check=True)
+        subprocess.run([sys.executable, "-m", "marimo", "export", "html-wasm", str(stage / notebook.name), "--mode", args.mode, "--no-execute", "-o", str(output)], check=True)
         # Explicit copy also makes the mount layout independent of changes to
         # marimo's automatic public-directory discovery.
         shutil.copytree(stage / "public", output / "public", dirs_exist_ok=True)

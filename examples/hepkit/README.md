@@ -40,8 +40,10 @@ generate sectors, compile kernels, or start sampling.
    restart format: use the separate native kernel and checkpoint codecs to resume.
 
 Generation and compilation are synchronous. Native callbacks provide the live
-status boundary; a long operation can delay repaint or interruption. Use marimo's
-interrupt control during those phases. Integration active wall time includes
+status boundary; a long operation can delay repaint or interruption. Marimo's
+editor offers Stop (interrupt), also Ctrl-I or Cmd-I on macOS; run view has no
+interrupt control. Browser interruption additionally needs isolation headers
+(see below). Integration active wall time includes
 refresh waits and excludes caller-cancelled intervals. Native worker time is
 separate. A direct caller harness is not a measurement of interactive end-to-end
 latency.
@@ -53,9 +55,9 @@ A chart with no numerical kernel may be exact, cancelled or truncated; this is
 not a separate zero classification. Stored alias counts are not a count of
 unique expression complexity.
 
-## Native gg → HH
+## Optional gg → HH
 
-The native-only fifth choice regenerates one Standard Model top double box with
+The optional fifth choice regenerates one Standard Model top double box with
 an internal gluon. It fixes √s = 300 GeV, mH = 125 GeV, mt = 172.5 GeV,
 cos θ = 4/5 and incoming (+,+) helicities. It uses Feynman gauge, an unnormalized
 color projection δ_ab, generated weights/couplings and no spin/color average.
@@ -74,10 +76,12 @@ name differs: live FK015 versus audited FK018. Both are recorded. The assets
 contain no kernels, checkpoints or numerical integration results.
 
 Generate prepares through the finite coefficient. Integrate uses N = 1024,
-R = 8, Kuo 33002/Korobov-3, seed 20261005 and 1024-point packages. Pyodide cost
-has not been validated, so gg → HH is omitted from the Pyodide selector. Use a
-release wheel: native O2 describes the kernels, not the generation library's
-build profile. The earlier release CLI completed generation in 61.285 seconds
+R = 8, Kuo 33002/Korobov-3, seed 20261005 and 1024-point packages. The massive
+triangle remains the default; gg → HH is an optional extended run in both native
+and browser notebooks. The browser uses one CPU and portable interpreted kernels;
+it may take substantially longer, and browser completion/cost remain unvalidated.
+For native execution, use a release wheel: native O2 describes the kernels, not
+the generation library's build profile. The earlier release CLI completed generation in 61.285 seconds
 and an eight-worker allocation in 8.781 seconds, with about 1.03% finite-term
 relative standard error. Those are separate CLI feasibility measurements, not
 notebook timings or an independent amplitude reference.
@@ -133,21 +137,40 @@ available. This replay performs no generation or integration.
 ## Explicit browser export
 
 A native wheel cannot run in Pyodide. The exporter packages an existing tested
-cp314 Pyodide wheel and the four portable inputs; it does not build dependencies,
-run notebook cells or certify responsiveness.
+cp314 Pyodide wheel, the four small inputs and the optional gg → HH helper/input
+assets. It does not build dependencies, run notebook cells or certify responsiveness.
+The current public-pin Wasm wheel passes the generic smoke test and all 50
+portable API/input/inspection/wavefunction controls. The explicit browser
+lifecycle on this updated showcase remains awaiting actual validation.
 
 ```sh
 python examples/hepkit/export.py \
   --wheel /absolute/path/symbolica-3.0.0-cp314-abi3-pyemscripten_2026_0_wasm32.whl \
   --output /absolute/path/new-fastsecdec-site
-python -m http.server --directory /absolute/path/new-fastsecdec-site 8000
+python examples/hepkit/serve.py --directory /absolute/path/new-fastsecdec-site --port 8000
 ```
 
 The notebook fetches an explicit manifest, verifies the wheel/archive hashes and
 file list, then mounts the package and fixtures at `/fastsecdec-showcase` before
 importing them. No repository path is presumed to exist in the browser. The
-native-only ggHH helper/assets are excluded. Serve the whole output directory;
-marimo runtime assets may require internet access.
+gg → HH files contain model/card and diagram identity inputs, never generated
+kernels or numerical results. Serve the whole output directory; marimo runtime
+assets may require internet access.
+
+For the optional extended run, add `--mode edit` to the export command to expose
+marimo's Stop (interrupt) action and Ctrl-I / Cmd-I shortcut; code cells remain
+hidden initially. The local server sets the isolation headers needed by Pyodide.
+On another host, interruption requires HTTPS (or localhost),
+`Cross-Origin-Opener-Policy: same-origin` and
+`Cross-Origin-Embedder-Policy: credentialless`. The notebook reports when its
+view or hosting does not support interruption. No custom signal handler is used.
+
+KeyboardInterrupt is cooperative: generation checks at native event boundaries
+and integration checks every 256 points. Long color/tensor algebra calls may
+delay it. Cancel instead pauses between accepted packages; interrupted packages
+are excluded from accepted coverage, and Resume uses the saved checkpoint.
+Reloading the page discards unsaved in-memory work. Browser gg → HH completion
+and prompt interruption are not yet claimed.
 
 Earlier portable evidence used a Pyodide 314.0.7 wheel in marimo 0.24.2's actual
 314.0.0 runtime: 39 bridge/input/wavefunction controls passed, along with the

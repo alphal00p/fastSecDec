@@ -192,6 +192,55 @@ It is pushing fastsecdec code into community repo. It should only be registering
 So indeed, make sure that the community repo only ever contains the necessary python API glue, but all heavier implementation must remains in the fastsecdec repo directly, make sure to thoroughly review all the above instead of chasing more performance for now.
 ```
 
+### Resumed notebook and gg→HH validation requirements (2026-10-06)
+
+The scalar triangle stays first and selected by default. Include gg→HH as an
+optional longer browser calculation using the same HEPKit input helper and
+physical assets as native execution. Slow execution or imperfect keyboard
+interruption does not justify excluding it. Keep separate explicit Generate
+and Integrate actions, preserve accepted work on interruption where supported,
+and describe actual browser interruption limits without claiming immediate
+response during long native algebra calls.
+
+Increase the native gg→HH integration statistics until the epsilon-zero
+coefficient reaches a relative standard error of at most 0.001. Preserve the
+complete Laurent vector, real/imaginary components, covariance, precision
+diagnostics and reproducible settings. Reuse the accepted generated artifact.
+Expose meaningful integration settings through the notebook; a larger planned
+allocation alone is not proof of convergence.
+
+Also provide ordinary Havana Monte Carlo with discrete importance sampling
+over sectors, reusing Numerica/Havana's existing grids and accumulators rather
+than implementing another sampler or estimator. Demonstrate statistical
+compatibility with the QMC calculation at the identical physical point and
+normalization. Audit the actual sector-selection probabilities and weights;
+fixed round-robin per-sector Monte Carlo is not this requested capability.
+Keep the scientific implementation native and the HEPKit binding thin.
+
+Perform basic independent sector sanity checks against the existing partial
+pySecDec generation and its native decomposition tools. Compare scientifically
+meaningful geometry, factorization, singularity and multiplicity information;
+different valid decomposition algorithms need not produce identical sector
+numbers. Preserve the existing infeasible full-reference limits. Record any
+comparison that partial output cannot establish instead of inventing a
+completed reference.
+
+Continue feature and notebook validation before further performance tuning.
+The original completion criteria and stopping rule remain in force.
+
+Latest user requests, verbatim:
+
+```text
+Continue as planned, but yes include the gg>hh as runnable in the notebook. Even if keyboard interupt does not behave so well for now, keep it in (just make sure the scalar triangle comes first).
+```
+
+```text
+Continue as planned. (Also making sure to update the integration statistics for g g > h h double-box so that you get one per mil accuracy in the eps^0 coefficient).
+Also make sure there is also a havana non-qMC integration (with discrete importance sampling over the sectors then) and show that it is compatible with the earlier qMC run.
+Also do some basic sanity checks that at least the sector you identified there are in-line what what you'd expect from the pySecDec generation (even though it does not complete).
+Then continue the goal (without overemphasizing performance gains yet) until all is covered and you can consider the goal completed.
+```
+
 ## 2. Architecture, ecosystem reuse, and inputs
 
 Use a Cargo workspace with three crates:

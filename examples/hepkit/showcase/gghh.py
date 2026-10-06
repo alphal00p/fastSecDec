@@ -1,4 +1,4 @@
-"""Native-only gg -> HH input, rebuilt with HEPKit on every explicit run.
+"""gg -> HH input, rebuilt with HEPKit on every explicit Generate action.
 
 The archived raw diagram is an identity guard for the topology selected by the
 native Rust/Linnet example, never a substitute for diagram generation. See the
@@ -9,7 +9,6 @@ from dataclasses import dataclass
 import hashlib
 import json
 from pathlib import Path
-import sys
 
 from symbolica import E, S, Replacement
 from symbolica.community import hepkit as hep
@@ -115,8 +114,6 @@ def prepare(*, observer=None, assets=ASSETS):
     ``observer`` receives HEPKit's original typed GenerationProgress objects.
     All expensive preparation is explicit; importing this module does no work.
     """
-    if sys.platform == "emscripten":
-        raise RuntimeError("The advanced ggHH example is native-only; browser cost is unvalidated")
     fs = hep.fastsecdec
     if not hasattr(fs, "with_diagram_expressions"):
         raise RuntimeError("Rebuild the experimental bridge with the ggHH expression-copy API")

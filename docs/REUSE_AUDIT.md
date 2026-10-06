@@ -68,9 +68,21 @@ triangle and gg→HH notebooks preserve zero sampling through generation/inspect
 then complete explicit integration with native checkpoint-prefix preservation.
 Generated stubs preserve all previous members and expose the eight new inspection
 classes, with installed-export and Python 3.9 grammar checks passing. The public
-dependency pin and current portable runtime remain separate acceptance gates. See the
+dependency setup and hosted native development-wheel CI now pass; the optimized
+public-source Wasm wheel passes its generic smoke test and all 50 portable
+controls. The optional browser gg→HH entry reuses the same native HEPKit helper
+and physical assets. Updated browser interaction remains a separate gate. See the
 [notebook controls audit](reviews/hepkit-notebook-controls-audit.md) for the
 explicit Generate/Integrate and lazy-inspection requirements.
+
+The [gg→HH sector sanity check](reviews/gghh-sector-sanity.md) independently
+decomposes pySecDec's denominator polynomials and matches all 30 native chart
+maps up to target-coordinate permutations, including Jacobians and factor
+valuations. It does not repeat the infeasible full numerator reference or
+certify Laurent coefficients. The newly requested discrete-sector Havana mode
+is a separate implementation gap: current per-sector continuous grids are not
+discrete sector importance sampling, and Numerica's existing `DiscreteGrid`
+must own that extension.
 
 The [Korobov-2 review](reviews/korobov2-integration.md) accepts the additive
 Numerica transform and its thin FastSecDec dispatch. Public API, source/tests

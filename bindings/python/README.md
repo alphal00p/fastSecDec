@@ -13,10 +13,23 @@ binding introduces no graph, algebra or numerical integration implementation.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
 to build and install the host wheel. The host's `experimental-fastsecdec` feature
-selects this crate by one exact FastSecDec Git revision. Its default native
-backend selects SymJIT O2; the portable feature selects the existing interpreted
+selects this crate by one exact FastSecDec Git revision. The current public pin,
+`539019a72622d0997e7ee2da8c21101234df228a`, passes the actual dependency setup,
+locked owner checks and native source-equivalence checks. Its dedicated hosted
+CI also builds a native development-profile wheel and passes all 61 controls
+plus the host import check. The public-source portable wheel passes the host
+smoke and all 50 maintained API/input/inspection/wavefunction controls. The
+updated browser showcase and actual portable ggHH preparation remain pending.
+Notebook/assets use a separately recorded showcase revision without
+changing the compiled binding revision; the build guide distinguishes those paths.
+Its default native backend selects SymJIT O2; the portable feature selects the existing interpreted
 WASM backend. Native and portable features are mutually exclusive. The host
 owns PyO3's ABI and extension-module settings.
+
+On Linux x86_64, select an absolute native linker with
+`CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER` before invoking Pyodide, whose
+compiler wrappers redirect generic `cc` to Emscripten. The build guide shows
+the command; it preserves the separate Wasm target linker.
 
 For isolated Rust development, generate the exact owner overlay from the
 FastSecDec repository root, using a new destination under excluded `output/`
@@ -45,8 +58,9 @@ the actual WASM build/runtime is a separate gate.
 tests and the host's shared wavefunction controls against the installed wheel.
 `scripts/test-pyodide.mjs WHEEL_DIRECTORY COMMUNITY_CHECKOUT` runs the small
 binding/input/inspection controls in an actual Pyodide runtime selected by
-`PYODIDE_DIST_DIR`. The ggHH example is native-only. The corresponding community
-workflow invokes these files from its exact pinned FastSecDec checkout.
+`PYODIDE_DIST_DIR`. The maintained showcase also offers optional browser ggHH;
+its cost is separate from these small controls. The corresponding community
+workflow invokes its tests from the exact pinned binding checkout.
 
 The public module/class names and native serialized representations remain
 stable across this ownership move. Compatibility still follows native content,

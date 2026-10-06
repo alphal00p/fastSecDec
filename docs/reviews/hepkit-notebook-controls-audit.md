@@ -6,6 +6,58 @@ native triangle and gg→HH execution/inspection lifecycles are now accepted in 
 separate. The findings and source identities below are retained as the original
 requirements and evidence, rather than a description of the replacement.
 
+## Replacement status — 2026-10-06
+
+The native findings are closed by the relocated implementation in
+[`examples/hepkit`](../../examples/hepkit/README.md) and FastSecDec's isolated
+binding crate. Community retains registration, dependency linkage and stubs.
+The original audit below remains unchanged as historical evidence.
+
+- **Separate execution and native inspection (P1):** actual triangle and fixed
+  gg→HH notebook workflows retain generated objects, stop before session
+  creation, and expose all-sector statistics and selected compact coefficients,
+  aliases and source charts before Integrate. Input edits do not replace the
+  generated physics. Cancel/Resume preserves the exact accepted prefix and
+  complete Laurent-vector/covariance layout.
+- **Live presentation (P1):** actual native browser evidence captures changing
+  generation counts before ready, sector inspection and integration updates.
+  The gg→HH log contains 102 rendered count observations; its whole-page label
+  scan does not establish 102 distinct active phase transitions.
+- **Native status detail (P2):** the current view exposes optional `stop_detail`
+  and reads aggregate `snapshot.worker_seconds` directly. A separately labelled
+  retained-data replay verifies informative imaginary histories first and
+  expandable recorded-zero histories without implying symbolic exactness.
+  All 354 saved observations remain available; seven focused presentation
+  controls pass. This display follow-up performs no scientific calculation.
+- **Evidence rebinding (P2):** the relocated release wheel passes 61 native
+  API/input/inspection and notebook state/report controls. The new public-pin
+  Wasm wheel passes generic smoke and all 50 portable controls. The actual
+  explicit browser lifecycle on the updated showcase remains pending. The stale
+  planned count of 46 is reconciled from frozen sources (18 API + 6 inspection +
+  12 input + 14 wavefunction cases) and the retained 50-pass log, without rerun.
+  Earlier pre-relocation Pyodide evidence is not reused as acceptance.
+
+The actual one-caller native triangle session completed in 15.079 seconds and
+agrees with its analytic finite coefficient within 3.14 × 10⁻⁹. The one-caller
+native gg→HH session completed in 236.872 seconds: Generate took 122.489 seconds,
+active integration 89.326 seconds, and 245,760 points completed across 30 sectors
+after a retained 4,096-point cancelled prefix. Every owned process was reaped.
+All four means agree exactly with the retained native CLI result, and all 16
+covariance entries agree within 1.39 × 10⁻¹⁷. These are implementation-consistency
+and interactive-capability checks, separate from the eight-worker CLI timings;
+they do not establish performance parity or an independent amplitude reference.
+The gg→HH finite-term relative standard error is 1.0273%, so its 0.1% target is
+not met. The optional browser gg→HH path reuses the same helper and input assets; its
+actual preparation/completion and interruption remain unvalidated.
+
+Source-bound numerical/UI and independent reviews are retained under ignored
+`output/diagnostics/hepkit-notebook-relocation-1/{triangle-ui-3,gghh-ui-1}/`.
+The later presentation-only source/control/render review is retained separately
+under `output/diagnostics/hepkit-history-presentation-1/`. See the
+[relocation audit](hepkit-relocation-audit.md) for ownership and delivery evidence.
+
+## Original audit
+
 The audited implementation preserved native scientific ownership, but did not meet the newly requested separate execution stages or post-generation sector exploration. Two priority-one changes were required. This audit read source, existing reports and three retained screenshots, using standard-library file/hash checks only. It ran no notebook imports, builds or scientific code and made no implementation edits. The Korobov2 experiment remains parked.
 
 The audited source is the community notebook worktree at `DO_NOT_PUSH_FOR_REFERENCE_ONLY/worktrees/symbolica-community-notebook`.

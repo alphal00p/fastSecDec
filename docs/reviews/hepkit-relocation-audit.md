@@ -7,7 +7,8 @@ module. The follow-up below also accepts the relocated **native release wheel
 and 61 installed controls**, followed by the actual native triangle notebook
 lifecycle and the sole native ggHH notebook lifecycle. Generated stubs pass,
 and the presentation follow-up passes using retained ggHH data only. Public Git
-consumption and current Wasm execution remain separate gates.
+consumption, hosted native CI and the current Wasm wheel's portable controls
+subsequently pass, as recorded below. Updated browser interaction remains open.
 
 The reviewer read `AGENTS.md`, the governing ownership/notebook clarification in
 `FIRST_PHASE_PLAN.md`, the current FastSecDec files, and both the working-tree
@@ -348,3 +349,43 @@ The generated stub is the sole intentional source output. All 254, 259 and 262
 frozen input sets from the three attempts match, all owned sessions are absent,
 and the native wheel remains unchanged. Evidence is
 `hepkit-binding-relocation-1/independent-stub-result-review.json`.
+
+### Published source and portable-runtime acceptance, 2026-10-06
+
+FastSecDec `539019a72622d0997e7ee2da8c21101234df228a` and community
+`d82eff433f187f818e22d811ef7e1654744447a3` publish the reviewed ownership split.
+The thin setup fetches that exact FastSecDec revision, applies the reviewed
+shared-owner patches and resolves core, sectors and binding to the same Git
+source. Fresh source equivalence and unique-owner metadata checks pass.
+[Hosted CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37391742450)
+then actually builds and installs the public-source native development wheel;
+61 controls pass in 1.79 seconds, followed by the host import check. This is
+separate from the earlier local optimized release wheel and native UI timings.
+
+The public-source portable build also succeeds. A retained initial host-linker
+failure was corrected by selecting an absolute native-target linker before
+Pyodide wrapped generic `cc`; an actual native ELF/Wasm target probe verified
+the boundary. No Rust source or Wasm-target linker was changed. The corrected
+build took 2,436.859 seconds with 17,575,956,480 bytes peak sampled owned RSS,
+within its original deadline. Frozen sources remained unchanged and all owned
+processes were reaped. Wheel SHA-256 is
+`fcb82c9ed385ad5a598e2722322f1d21a86ad02386c8697c81f23c5da3196006`;
+embedded Wasm core SHA-256 is
+`54fdf1169fdd8f36c5968be269daa4ad773971a3e908d27a919e8e8a51eb68df`.
+
+Generic Pyodide smoke initially rejected 22 inventory-constructor globals from
+the newly linked binding crate. The independently reviewed host test adds only
+that anchored namespace, retains the exact function allowlist and rejects 110
+negative controls. The unchanged wheel then passes generic smoke. The focused
+suite passes **50 tests in 3.31 seconds**, with no failures or skips: 18 binding
+API, six inspection, 12 input and 14 shared wavefunction cases. An obsolete
+planned count of 46 initially rejected the report; independent enumeration of
+the frozen test sources reconciled the same successful run without a rerun or
+weaker test criterion. All failure prefixes and source/process checks remain.
+
+Evidence is `hepkit-public-leaf-1/hosted-ci-success-1`,
+`hepkit-relocated-wasm-1/host-link-correction-1` and
+`hepkit-relocated-portable-runtime-2`. The optional browser gg→HH demo is a
+subsequent Python/assets change; its showcase identity must be recorded apart
+from the compiled wheel revision. Neither these runtime controls nor a static
+export establish the updated notebook's browser lifecycle or gg→HH completion.
