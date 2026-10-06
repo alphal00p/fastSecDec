@@ -1,5 +1,12 @@
 # Minimal remaining Pathfinder comparison
 
+**Protocol history, not a fresh execution queue.** Subsequent triangle and box
+measurements, the completed scalar-double-box bundle and HKKN/Korobov2
+comparisons supersede the corresponding missing-bundle and initial-rule
+statements below. Reuse the [current remaining-gates ledger](phase-one-remaining-gates.md)
+and [double-box results](double-box-lattice-followup.md); do not repeat completed
+rows or restart stopped rank-two attempts from this earlier proposal.
+
 This is a source-only execution proposal after required capability and scientific
 coverage. It reuses `output/probes/first_paired.sh` for alternating repetitions,
 `eight_core.sh` for separate generation/prepared integration and an accuracy

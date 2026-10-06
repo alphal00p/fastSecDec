@@ -50,13 +50,13 @@ now observes a native finite-part relative standard error of 0.393 per mille:
 tested HKKN levels. Subsequent current-main validation reaches the same error in
 479.451 seconds using larger packages, with exactly equal results and covariance.
 The existing Pathfinder prime catalogue reaches 0.577 per mille in 275.506 seconds.
-The subsequent single native Korobov2 allocation reaches **0.714 per mille in
+The pre-literal-zero-fix native Korobov2 allocation reaches **0.714 per mille in
 172.715 seconds** on eight workers, with all five reference checks passing and
 zero evaluation failures. It reuses HKKN N8192/R16 and retains the full vector
 and covariance. The same-Korobov2 Pathfinder check reaches only 5.062 per mille
 at prime 8,311 in 42.756 seconds, but its single larger prime-17,807 allocation
 reaches **0.362 per mille in 91.584 seconds** with all five reference checks
-passing. Reduced all-sector sample timings also retain a native mean gap:
+passing. The same pre-fix revision's reduced all-sector sample timings retain a native mean gap:
 106.314 versus 74.846 microseconds (observed maxima 44.481 versus 52.645 ms).
 Those API boundaries and different lattices remain explicit. Scalar-double-box
 mean-latency and target-time parity are genuinely still open; no further
@@ -196,6 +196,11 @@ additional input coverage, not proof of numerical completion.
    for its bounded continuation.
 
 ## Remaining scientific and uncertainty gates
+
+The table retains the earlier family-level limitations. The bounded completion
+addendum below governs further work: reuse the 72 holdout rows and accepted
+reference comparisons, and do not interpret these entries as a new universal
+calibration campaign.
 
 | Family | Accepted evidence | Still required |
 | --- | --- | --- |

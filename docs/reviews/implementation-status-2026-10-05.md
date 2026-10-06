@@ -1,5 +1,15 @@
 # Implementation and measured performance, 2026-10-05
 
+**Historical snapshot.** Its pending-work statements and test counts describe
+the earlier revisions below. Current delivery has 81 native binding/notebook
+controls and 58 actual Wasm controls, with qualified browser lifecycle evidence
+in the [portable delivery review](hepkit-metadata-mc-portable.md). The native
+gg→HH QMC and ordinary-Havana accuracy checks are complete. The latest scalar
+double-box observation is 152.996 seconds at 0.714‰, versus Pathfinder's 91.584
+seconds at 0.362‰; see the [retained comparisons](double-box-lattice-followup.md)
+and [remaining gates](phase-one-remaining-gates.md). These later records do not
+change the historical timings or source identities below.
+
 This is a progress report against `FIRST_PHASE_PLAN.md`, not phase-one
 acceptance. The convergence target is the **largest signed requested epsilon
 power**: epsilon zero in the small cases below and epsilon two for Issue 1.
