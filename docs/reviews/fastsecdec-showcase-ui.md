@@ -1,5 +1,9 @@
 # FastSecDec marimo UI review and execution evidence
 
+This document retains the pre-relocation UI evidence. Current explicit
+Generate/inspect/Integrate controls, metadata and QMC/Havana browser acceptance
+are recorded in the [current portable review](hepkit-metadata-mc-portable.md).
+
 Scope: the local symbolica-community notebook worktree, specifically
 `examples/fastsecdec_showcase.py`, `examples/hep/fastsecdec_views.py`,
 `examples/hep/FASTSECDEC_SHOWCASE.md`, and

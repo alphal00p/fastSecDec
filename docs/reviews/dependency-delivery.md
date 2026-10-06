@@ -1,5 +1,10 @@
 # Reproducible dependency delivery
 
+This document retains the original bootstrap/delivery evidence. Substantive
+Python bindings now belong to FastSecDec; community links/registers them. The
+[current public metadata/MC delivery](hepkit-metadata-mc-portable.md) records
+`a3d09e`/`c9bacce` source ownership and actual native/Wasm runtime acceptance.
+
 This change replaces reference-worktree paths in the published FastSecDec
 manifests with public sources and a required, explicit dependency bootstrap.
 It changes source delivery and CLI provenance, not numerical algorithms or

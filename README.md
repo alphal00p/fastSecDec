@@ -16,15 +16,16 @@ separate Generate and Integrate actions, live status views and sector inspection
 The scalar triangle is selected by default; the projected `g g -> H H`
 double box is an optional longer calculation in native and browser execution.
 Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
-feature and required dependency patches. The relocated native release wheel
-passes 61 API, inspection, input and notebook-state tests. Actual notebook
-generation/inspection and Integrate/Cancel/Resume workflows pass for the native
-triangle and `g g -> H H` examples. Generated stubs pass inventory and installed
-export checks. The published dependency builds in hosted native CI, with 61
-controls passing. The current public-source Wasm wheel passes its generic
-smoke test and all 50 portable API/input/inspection/wavefunction controls.
-The updated browser interaction and optional browser double box remain under
-validation; earlier browser checks cover the archived interface.
+feature and required dependency patches. The current native wheel and hosted
+native CI each pass 81 controls; the published `a3d09e` Wasm wheel passes generic
+smoke and all 58 collected portable controls. Actual triangle browser execution
+covers native metadata/math inspection, QMC checkpoint resume and same-kernel
+Havana pilot/production pause and resume. The final supplemental screenshot
+failure is retained separately from the accepted numerical lifecycle.
+See the [current portable review](docs/reviews/hepkit-metadata-mc-portable.md)
+for the bounded optional double-box outcome, exact source identities and
+single-thread browser interaction limits. These checks do not establish
+browser convergence or representative performance parity.
 
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside

@@ -93,12 +93,19 @@ The current optimized native wheel passes 81 controls and an actual triangle
 notebook lifecycle covering endpoint/evaluator inspection, QMC checkpoint
 resume, same-kernel method changes, and Havana pilot/production pause and resume.
 Its generated stubs are packaged without changing the tested extension bytes.
-Current public-pin and Wasm validation for these new APIs is pending publication.
+The current public FastSecDec pin is `a3d09e177196013326fd1532eb938f559be87401`;
+community `c9bacce` builds the accepted optimized Wasm wheel. Generic smoke and
+all 58 actually collected portable controls pass. The workflow-only `b827`
+follow-up also passes [hosted native CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37406327401)
+with 81 controls. The actual triangle browser lifecycle passes its scientific
+checks; a final supplemental screenshot failure remains explicitly qualified.
+See the [current portable review](../../docs/reviews/hepkit-metadata-mc-portable.md)
+for exact wheel/runtime identities and the separate bounded gg→HH outcome.
 
 For the earlier `539019a` binding revision,
 [Dedicated hosted CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37391742450)
 builds a development-profile wheel and passes 61 controls plus its import smoke.
 That public-source portable wheel passes the host smoke and all 50 maintained
 API/input/inspection/wavefunction controls, and the `0cf08c6` showcase passes the
-actual browser triangle lifecycle. Actual gg → HH portable preparation remains
-pending. These checks do not certify every browser or input.
+actual browser triangle lifecycle. Those historical checks do not certify the
+new metadata/MC APIs, every browser, or the optional gg → HH calculation.

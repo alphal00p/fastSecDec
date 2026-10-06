@@ -1,7 +1,7 @@
 # Phase-one remaining gates — current bounded completion work
 
 Source review, updated 2026-10-06. This reconciles the earlier remaining-gates audit with
-validated milestones through `59975b1` and the retained full-graph attempts.
+validated milestones through `a3d09e1` and the retained full-graph attempts.
 [FIRST_PHASE_PLAN.md](../../FIRST_PHASE_PLAN.md) remains authoritative; this
 document adds no requirement. The latest workspace test gate is
 **419 passed, zero failed, 25 explicitly ignored heavy probes**. The rebuilt
@@ -24,8 +24,12 @@ representatives. The user supplied an authorized license, and the subsequent
 eight-worker Pathfinder capability check passes. Current paired triangle
 generation/integration and individual-latency comparisons are complete. The box
 also completes seven pairs and its latency diagnostics, with faster generation,
-integration and mean calls but a higher observed native maximum; tail parity
-remains unestablished. The [double-box lattice follow-up](double-box-lattice-followup.md)
+integration and mean calls but a higher observed native maximum. A subsequent
+three-point diagnostic confirms genuine native first-use precision preparation,
+and finds that the old Pathfinder recorder timed rows only after warming them
+with an ordinary batch. The original observations remain unchanged; a symmetric
+full-stream comparison is prepared, and tail parity remains unestablished.
+The [double-box lattice follow-up](double-box-lattice-followup.md)
 now observes a native finite-part relative standard error of 0.393 per mille:
 437.039 seconds at its final eight-worker level, or 664.554 seconds across both
 tested HKKN levels. Subsequent current-main validation reaches the same error in
@@ -41,10 +45,12 @@ workers, closing the newly requested **0.1%** target. Its full vector agrees
 with both earlier independent-seed allocations within one combined standard
 error. No further QMC tuning is required for this example. The optional browser example is
 implemented and published in FastSecDec `0cf08c6`, with the scalar triangle
-selected first. Browser gg→HH completion remains unmeasured. Native triangle
-and gg→HH Generate/inspect/Integrate/Cancel/Resume workflows pass. The current
-compiled Wasm wheel passes generic smoke and **50 portable controls**; the
-updated actual browser triangle lifecycle also passes, including generation
+selected first. The new browser gg→HH trial completes generation in 546.667
+seconds, then times out downloading its first report; browser integration and
+detailed inspection remain unverified. Native triangle
+and gg→HH Generate/inspect/Integrate/Cancel/Resume workflows pass. The earlier
+compiled Wasm wheel passes generic smoke and **50 portable controls**; its
+actual browser triangle lifecycle also passes, including generation
 streaming, inspection before sampling, cancellation and exact checkpoint-prefix
 resumption. Selecting the optional gg→HH entry remains idle. Community delivery is
 published in [draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
@@ -70,8 +76,20 @@ Jacobian and actual shared evaluator statistics. Seventeen native metadata and
 artifact controls pass. The selected-chart notebook panels pass actual native
 UI validation, including rendered math. Fresh gg→HH generation/reload retains
 all 30 charts and 54 mapped terms with unchanged exact evaluator programs.
-Actual Wasm validation of these new APIs remains pending and separate from
-the earlier accepted browser wheel. See the
+The new public Wasm wheel passes generic smoke and all 58 portable controls.
+The actual browser triangle completes metadata inspection, QMC and ordinary
+Havana with exact accepted-prefix checkpoint restoration; its full means and
+covariance equal the native notebook results. A final supplemental screenshot
+fails after those scientific/lifecycle assertions, so the raw harness status
+remains failed and an independent additive review qualifies the retained data.
+The corrected hosted native CI passes all 81 controls. The single bounded
+browser gg→HH trial reaches all 30 sectors and generation-ready in 546.667
+seconds. Its first report download then times out; no integration starts.
+Long native calls produce refresh-RPC timeouts despite visible streamed progress.
+The complete process tree is reaped after 596.001 seconds, with peak sampled
+RSS 3.86 GB and unchanged inputs/export. This establishes browser generation,
+not smooth long-call responsiveness or the gg→HH inspection/integration lifecycle.
+See the
 [metadata review](retained-generation-explainability.md).
 The requested basic denominator geometry check
 is closed: native pySecDec decomposition agrees with all 30 sector maps,
@@ -261,6 +279,22 @@ After the required claims pass, mark the goal complete and stop; threshold
 support and further optimization await the user's next instruction.
 
 ## Retained scope limitation
+
+The latest bounded off-shell rank-two Pathfinder checks preserve the equivalent
+eight-propagator family, including its two squared lines and exact numerator.
+The ordinary route times out after 602.843 seconds; a separate 62.764-second
+stack observation locates work in its optional sector-symmetry hashing. One
+further 600-second attempt disables only that optional squashing. It reaches
+all 1,182 unsquashed sectors and builds 134 endpoint-projector signatures in
+10.305 seconds, then times out during explicit formula/Taylor construction
+after 602.801 seconds (2.17 GB sampled peak owned RSS). No complete evaluator
+bundle, strict load or numerical result exists. Inputs remain unchanged and
+all owned processes are reaped. These are capability diagnostics with concurrent
+build activity, not final timing comparisons or a proof of infeasibility.
+The partial projector cache is retained; further rank-two attempts are stopped.
+Evidence: `output/diagnostics/remaining-pathfinder-rank2-active8-1` and
+`remaining-pathfinder-rank2-active8-nosymmetry-1`. The prepared hard-four-loop
+reference route is separate and has not yet been launched.
 
 General affine endpoint charts remain unsupported: the public admission
 correctly rejects `(1-x)^(-1+eps)` on the unit interval, including with

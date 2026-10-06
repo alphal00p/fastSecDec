@@ -71,7 +71,12 @@ classes, with installed-export and Python 3.9 grammar checks passing. The public
 dependency setup and hosted native development-wheel CI now pass; the optimized
 public-source Wasm wheel passes its generic smoke test and all 50 portable
 controls. The optional browser gg→HH entry reuses the same native HEPKit helper
-and physical assets. Updated browser interaction remains a separate gate. See the
+and physical assets. Those observations belong to the earlier `539019a` wheel.
+The [current public metadata/MC delivery](reviews/hepkit-metadata-mc-portable.md)
+passes native 81 / portable 58 controls and actual triangle native-math inspection,
+QMC resume and same-kernel Havana pilot/production semantics. Its final
+supplemental screenshot failure and bounded gg→HH interaction limits remain
+explicit; no repeated science or new mathematical owner is introduced. See the
 [notebook controls audit](reviews/hepkit-notebook-controls-audit.md) for the
 explicit Generate/Integrate and lazy-inspection requirements.
 
@@ -79,10 +84,11 @@ The [gg→HH sector sanity check](reviews/gghh-sector-sanity.md) independently
 decomposes pySecDec's denominator polynomials and matches all 30 native chart
 maps up to target-coordinate permutations, including Jacobians and factor
 valuations. It does not repeat the infeasible full numerator reference or
-certify Laurent coefficients. The newly requested discrete-sector Havana mode
-is a separate implementation gap: current per-sector continuous grids are not
-discrete sector importance sampling, and Numerica's existing `DiscreteGrid`
-must own that extension.
+certify Laurent coefficients. The implemented [discrete-sector Havana lane](reviews/havana-discrete-sector-sampling.md)
+uses Numerica's existing `DiscreteGrid` and continuous children, with independent
+native physics and current portable lifecycle acceptance. It preserves pilot/
+production separation, caller-owned scheduling and native complete-vector
+covariance; no separate sampler or estimator was introduced.
 
 The [Korobov-2 review](reviews/korobov2-integration.md) accepts the additive
 Numerica transform and its thin FastSecDec dispatch. Public API, source/tests
@@ -90,9 +96,9 @@ and an external Rust probe established the missing numerical operation;
 Numerica owns all map/Jacobian arithmetic. Independent source and final-evidence
 reviews accept the weighting, checkpoint identity, caller-owned execution and
 unique dependency owners. The existing Korobov-3 default remains unchanged.
-The new HEPKit gg→HH notebook bindings have a separate integration/reuse audit
-in progress; this numerical milestone does not certify that demo or K2 physical
-performance.
+The HEPKit notebook bindings have separate accepted native and current portable
+integration/reuse reviews. The K2 numerical milestone itself does not certify
+the demo or physical performance.
 
 An independent subagent reviews HEPKit integration and ecosystem reuse at each
 major subsystem milestone, before new dependency patches are accepted, and at

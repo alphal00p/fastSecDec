@@ -175,10 +175,18 @@ labelled saved-data screenshots, without repeating scientific work.
 
 ## Explicit browser export
 
+The current published `a3d09e` wheel passes generic smoke and all **58** collected
+portable controls. Its actual triangle browser run validates native metadata
+and rendered math, QMC checkpoint resume, and same-kernel Havana pilot/production
+pause and resume. All scientific actions and final downloads complete; a final
+supplemental screenshot failure is retained and independently qualified without
+rerunning science. The [current portable review](../../docs/reviews/hepkit-metadata-mc-portable.md)
+records the exact gg→HH bounded outcome and interaction limits.
+
 A native wheel cannot run in Pyodide. The exporter packages an existing tested
 cp314 Pyodide wheel, the four small inputs and the optional gg → HH helper/input
 assets. It does not build dependencies, run notebook cells or certify responsiveness.
-The current public-pin Wasm wheel passes the generic smoke test and all 50
+The earlier `539019a` Wasm wheel passed the generic smoke test and all 50
 portable API/input/inspection/wavefunction controls. Its actual scalar-triangle
 browser lifecycle on showcase revision `0cf08c6` is accepted: bootstrap took
 21.084 seconds and Generate reached ready in 3.152 seconds, with nine visible
@@ -217,8 +225,13 @@ KeyboardInterrupt is cooperative: generation checks at native event boundaries
 and integration checks every 256 points. Long color/tensor algebra calls may
 delay it. Cancel instead pauses between accepted packages; interrupted packages
 are excluded from accepted coverage, and Resume uses the saved checkpoint.
-Reloading the page discards unsaved in-memory work. Browser gg → HH completion
-and prompt interruption are not yet claimed.
+Reloading the page discards unsaved in-memory work. Long synchronous gg → HH
+work can display marimo RPC timeout warnings even while native progress arrives.
+Before a long Generate, select **off** in **Caller step / refresh** to stop its
+automatic timer; restore 250ms or a slower interval after ready, before Integrate
+or Resume. This is source-supported guidance, not a tested guarantee that every
+UI request remains responsive. The current bounded outcome is recorded in the
+portable review; full browser convergence and prompt interruption are not claimed.
 
 ## Havana Monte Carlo
 
@@ -240,7 +253,8 @@ it in memory. There is deliberately no persistent pilot checkpoint. Downloads
 become available for frozen production, whose accepted prefix and replay state
 can be restored through the native codec. Reloading during a pilot loses its
 unsaved training state. These new controls require the updated binding wheel;
-older browser acceptance does not establish this new interface's runtime.
+the current public wheel and actual triangle lifecycle validate this interface.
+Older wheels lack these APIs and cannot substitute for it.
 
 Earlier portable evidence used a Pyodide 314.0.7 wheel in marimo 0.24.2's actual
 314.0.0 runtime: 39 bridge/input/wavefunction controls passed, along with the

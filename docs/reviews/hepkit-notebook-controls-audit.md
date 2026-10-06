@@ -8,6 +8,13 @@ requirements and evidence, rather than a description of the replacement.
 
 ## Replacement status — 2026-10-06
 
+The subsequent [current metadata/MC portable gate](hepkit-metadata-mc-portable.md)
+passes all 58 collected tests and the actual triangle numerical lifecycle,
+including native LaTeX inspection and same-kernel QMC/Havana control. Its final
+supplemental screenshot failure remains recorded; independent retained-data
+review accepts the completed work without another scientific run. That review
+also records the sole bounded optional gg→HH outcome and RPC timeout limitation.
+
 The native findings are closed by the relocated implementation in
 [`examples/hepkit`](../../examples/hepkit/README.md) and FastSecDec's isolated
 binding crate. Community retains registration, dependency linkage and stubs.
@@ -30,7 +37,7 @@ The original audit below remains unchanged as historical evidence.
   All 354 saved observations remain available; seven focused presentation
   controls pass. This display follow-up performs no scientific calculation.
 - **Evidence rebinding (P2):** the relocated release wheel passes 61 native
-  API/input/inspection and notebook state/report controls. The new public-pin
+  API/input/inspection and notebook state/report controls. The earlier `539019a`
   Wasm wheel passes generic smoke and all 50 portable controls. The actual
   explicit browser triangle lifecycle on showcase `0cf08c6` is independently
   accepted with the `539019a` core wheel: nine actual active-stat phase/count

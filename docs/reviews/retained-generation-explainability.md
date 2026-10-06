@@ -62,9 +62,13 @@ metadata/size facts without sampling, QMC Cancel/Resume, same-kernel New
 integration and Havana pilot/frozen-production lifecycles, with exact accepted
 checkpoint prefixes and full vectors/covariances. All owned processes were
 reaped. Four focused controls and separately labelled retained-data rendering
-cover the subsequent CSS-only table spacing correction. Earlier portable browser
-evidence remains bound to the pre-extension Wasm wheel and does not validate
-these new APIs. Native UI evidence is retained under
+cover the subsequent CSS-only table spacing correction. The subsequent actual
+`a3d09e` Wasm wheel passes all 58 collected controls and renders these native metadata/formula/interpreter views in the real triangle
+browser lifecycle, before sampling. QMC and same-kernel Havana pilot/production
+checkpoint semantics pass there too. The [current portable review](hepkit-metadata-mc-portable.md)
+retains the final supplemental screenshot failure qualification and separate
+bounded gg→HH outcome. Earlier pre-extension browser evidence keeps its own
+source identity. Native UI evidence is retained under
 `output/diagnostics/hepkit-rich-metadata-ui-1/run-1/`, with the later display-only
 review under `output/diagnostics/hepkit-rich-metadata-presentation-1/`.
 

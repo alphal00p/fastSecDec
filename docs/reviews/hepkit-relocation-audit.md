@@ -1,5 +1,10 @@
 # HEPKit binding relocation audit
 
+The historical relocation records below retain their source identities. The
+[current metadata/MC portable review](hepkit-metadata-mc-portable.md) supersedes
+their open browser status with native 81 / portable 58 and actual triangle evidence,
+plus the explicitly bounded optional gg→HH outcome.
+
 Source review, 2026-10-05. The reviewed design satisfies the latest ownership
 requirement: FastSecDec owns its optional Rust/PyO3 library, notebook, helpers,
 fixtures and scientific controls; community hosts and registers the public

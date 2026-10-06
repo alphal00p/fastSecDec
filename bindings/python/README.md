@@ -15,24 +15,40 @@ binding introduces no graph, algebra or numerical integration implementation.
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
 to build and install the host wheel. The host's `experimental-fastsecdec` feature
 selects this crate by one exact FastSecDec Git revision. The current public pin,
-`539019a72622d0997e7ee2da8c21101234df228a`, passes the actual dependency setup,
-locked owner checks and native source-equivalence checks. Its dedicated hosted
-CI also builds a native development-profile wheel and passes all 61 controls
-plus the host import check. The public-source portable wheel passes the host
-smoke and all 50 maintained API/input/inspection/wavefunction controls. The
-showcase at `0cf08c6c5d77081364195d587bffdd881fbd384c` also passes the actual
-browser triangle Generate, Inspect, Integrate, Cancel and Resume lifecycle.
-Actual portable ggHH preparation remains pending. These accepted historical
-gates do not cover the newer endpoint/statistics and discrete-MC APIs below.
-Those APIs pass 81 focused controls against the current optimized native wheel
-and an actual triangle notebook lifecycle covering metadata, QMC and Havana
-pilot/production pause and resume. Their current portable-target validation is
-still pending.
-Notebook/assets use a separately recorded showcase revision without
-changing the compiled binding revision; the build guide distinguishes those paths.
-Its default native backend selects SymJIT O2; the portable feature selects the existing interpreted
-WASM backend. Native and portable features are mutually exclusive. The host
-owns PyO3's ABI and extension-module settings.
+`a3d09e177196013326fd1532eb938f559be87401`, passes dependency bootstrap and locked
+native/portable ownership checks. Its actual portable wheel, built with the
+community host at `c9bacce12dd4fffd171aecfbc4f76a2a273d39e7`, passes the generic
+Pyodide smoke test and all 58 collected controls from the five maintained
+binding, inspection, MC, input and shared-wavefunction modules. No tests failed
+or were skipped. The actual browser triangle completed metadata inspection,
+QMC checkpoint resume, and same-kernel MC pilot/production resume; its full means,
+errors and covariance match the native run. A final supplemental screenshot
+scroll failed after the complete reports/checkpoints were saved; that failure
+remains recorded. The sole optional browser ggHH attempt reached 30 compiled
+kernels in 546.67 seconds, with zero samples. Its report download timed out near
+the bounded deadline; no generated artifact, selected-sector inspection or
+numerical prefix was accepted. Repeated RPC timeout messages also exposed a
+responsiveness limitation during long synchronous generation. The complete
+attempt exited cleanly after 596.00 seconds; no retry or browser convergence
+claim follows.
+
+The optimized native wheel passes 81 controls and an actual triangle notebook
+lifecycle covering metadata, QMC, and Havana pilot/production pause and resume.
+Its later source qualifications (one test fixture, an equivalent Option guard,
+and presentation CSS) are recorded in the delivery reviews; the portable wheel
+includes the published final sources. Hosted native CI for community `b8279dd`
+builds the public-pin development-profile wheel and passes all 81 controls plus
+the host import check. That workflow installs the documented
+`marimo==0.24.2` presentation-test dependency.
+
+Earlier portable evidence at `539019a` covered 50 controls and a triangle
+browser lifecycle using showcase `0cf08c6`. It does not validate the newer
+endpoint/statistics or discrete-MC APIs. The build guide records compiled and
+showcase revisions separately when only notebook assets change.
+
+The default native backend selects SymJIT O2; the portable feature selects the
+existing interpreted WASM backend. Native and portable features are mutually
+exclusive. The host owns PyO3's ABI and extension-module settings.
 
 On Linux x86_64, select an absolute native linker with
 `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER` before invoking Pyodide, whose
@@ -75,7 +91,7 @@ stable across this ownership move. Compatibility still follows native content,
 precision and checkpoint identity validation; moving the wrappers does not
 override those checks.
 
-The current development API retains source-chart endpoint information at
+The API retains source-chart endpoint information at
 `generated.metadata.charts[i].pre_subtraction`: exact regulator, prefactors and
 affine endpoint powers, with the native number of required Taylor subtractions.
 These are facts before symmetry multiplicity and subtraction, not a prediction

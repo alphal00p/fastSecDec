@@ -1,5 +1,11 @@
 # HEPKit FastSecDec bridge boundary
 
+Current public `a3d09e` delivery passes native 81 and portable 58 controls, with
+actual triangle metadata/QMC/Havana browser acceptance. The [current portable
+review](hepkit-metadata-mc-portable.md) records exact identities, the final
+capture-only qualification and optional gg→HH limits. Earlier records below
+retain their original scope.
+
 **Latest ownership and notebook correction:** the local relocation now keeps
 the optional Rust/PyO3 library, notebook, helpers, fixtures and dedicated tests in
 FastSecDec. Community only links/registers the module and supplies public

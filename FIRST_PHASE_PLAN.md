@@ -827,7 +827,8 @@ And as I said, once you're feature complete within what's stated in the goal, an
   SymJIT application sizes are exposed through Rust, CLI and thin HEPKit views.
   Legacy metadata absence remains explicit. Fresh gg→HH generation/reload
   retains all 30 charts, 54 terms and 324 powers, with maximum denominator
-  power zero and unchanged exact evaluator programs. Its HKKN QMC allocation
+  power `a=0`, zero required endpoint Taylor coefficients, and unchanged exact
+  evaluator programs. Its HKKN QMC allocation
   reaches 0.093706 per mil finite-part relative standard error; the new ordinary
   Havana allocation reaches 0.576957 per mil and agrees within 1.70 combined
   component standard errors. Full vectors/covariances and completed-checkpoint
@@ -838,8 +839,24 @@ And as I said, once you're feature complete within what's stated in the goal, an
   41 portable-backend host controls, formatting and strict all-target Clippy.
   The final equivalent Option-guard cleanup also passes all five discrete-MC
   controls. Numerica's essential one-line nested-grid clone fix is published
-  at `f6ecdac` on PR 8. Actual Wasm validation of the new APIs, final public
-  delivery and the previously bounded representative parity gaps remain open;
+  at `f6ecdac` on PR 8. FastSecDec is published at `a3d09e1`; community PR 18
+  pins that implementation and its generated stubs at `c9bacce`. The subsequent
+  workflow-only `b8279dd` adds the notebook test dependency missing from hosted
+  CI, which now passes all 81 controls. The new public Wasm wheel passes its
+  generic smoke and all 58 portable controls. Its actual browser triangle
+  completes generation, retained-metadata inspection, QMC and ordinary Havana,
+  including exact accepted checkpoint-prefix resumption. Retained full means
+  and covariance agree exactly with the native notebook. The raw browser
+  harness remains failed solely at a supplemental screenshot after completed
+  scientific and lifecycle assertions; an additive independent review qualifies
+  those retained results without rewriting the failure. The sole bounded
+  browser gg→HH trial reaches generation-ready with all 30 sectors after
+  546.667 seconds. It then times out downloading its first report: no browser
+  inspection, integration or resumable prefix is validated. Long native calls
+  also produce marimo refresh-RPC timeouts, with streamed progress still visible.
+  All owned processes are reaped after 596.001 seconds; sampled peak RSS is
+  3.86 GB. The example remains selectable; the scalar triangle remains first.
+  Native gg→HH coverage is unchanged. Representative parity gaps remain open;
   this milestone does not complete phase A. See the metadata and sampling
   reviews in `docs/reviews/`.
 
