@@ -37,9 +37,22 @@ escalation followed this capability attempt.
 
 The reference decomposes combined U/F support, whereas the earlier native
 full-orthant result used 699 representatives of F-support charts and retained
-orders `[-2,-1,0]`. The different chart counts and Laurent ranges do not define a
-matched performance comparison. Existing native lower-order proofs likewise do
-not authorize changing this provider's bundle or padding numerical covariance.
+orders `[-2,-1,0]`. These are internal representation choices; equal chart counts
+or a nine-row native estimator are not required for end-to-end comparison through
+epsilon zero. The separate native certificate proves exact whole-input zero
+through order minus three. Below minus three, no representative contributes a
+nonzero coefficient; at minus three, any surviving terms are parameter-independent
+and their native exact sum is zero. It does not prove that each chart's minus-three
+constant is individually zero.
+
+A numerical comparison can retain the common three orders and their complete
+native covariance, and check the provider's lower rows against that separate
+exact-zero statement. Preserve both original artifacts and all provider rows;
+do not manufacture Monte Carlo observations or pad the historical covariance.
+The unmodified union-comparison API still reports `MissingEstimate` for absent
+numerical rows, which must not be mistaken for missing scientific scope once the
+certificate is considered. Current observations remain unmatched in revision and
+timing boundaries, and no Pathfinder integration has yet been measured.
 
 Retained evidence is under
 `output/diagnostics/remaining-pathfinder-hard-four-loop-1/`: `assessment.json`,

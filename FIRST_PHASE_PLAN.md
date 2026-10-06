@@ -893,7 +893,11 @@ And as I said, once you're feature complete within what's stated in the goal, an
   RSS is 1.18 GB; all inputs remain unchanged and all owned processes are reaped.
   Independent review accepts this reference capability, without an integration
   or matched-performance claim. Existing native results and their Laurent-range
-  qualifications remain unchanged.
+  qualifications remain unchanged. The independent scope review confirms that
+  a subsequent comparison may use the three common numerical orders and the
+  separate exact whole-input zero certificate through minus three. Equal chart
+  counts or a nine-row native estimator are not required; preserve the old
+  covariance and every provider row without numerical padding.
 
 - 2026-10-06: one existing adaptive-QMC scalar-double-box allocation takes 73.298
   seconds including its four-shift pilot, loading and production. Native

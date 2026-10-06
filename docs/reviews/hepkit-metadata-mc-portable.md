@@ -150,3 +150,12 @@ Evidence is retained in `hepkit-refresh-ownership-1/` and
 This suppresses automatic refresh traffic during synchronous generation. It does
 not establish responsiveness of every table/download request, change the prior
 ggHH timeout outcome, or claim that the existing wheel contains a new core build.
+
+The follow-up is published in FastSecDec `ef2861b` and linked by community
+`6836ca3` in the same draft PR. Only dependency/lock pins change on the community
+side; generated stubs are unchanged. Fresh locked native/portable owner checks
+pass, and the [dedicated native CI run](https://github.com/symbolica-dev/symbolica-community/actions/runs/37415210274)
+builds that exact source and passes host smoke plus all **84 controls**, with no
+failures, errors or skips. This is a development-profile native wheel, not a new
+optimized Wasm build or performance observation. The actual browser checks above
+retain their earlier compiled-core and updated notebook identities explicitly.
