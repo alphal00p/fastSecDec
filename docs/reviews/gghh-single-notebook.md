@@ -56,7 +56,7 @@ of the richer workflow, not a dependency of this notebook.
    required. Sessions live in separate cells, so rerunning only the integration
    cell resumes accepted work. Browser interruption can still be delayed inside
    long native operations.
-6. **Inspectability versus brevity.** A small native-event callback displays
+6. **Inspectability versus brevity.** The shared native HEPKit presenter displays
    generation status, and a caller-owned integration loop displays Laurent
    estimates. Sector tables and selected maps/prefactors/exponents read existing
    native owners. The short example does not recreate the full dashboard's
@@ -124,8 +124,12 @@ The bibliography cell returns eight native, deduplicated records, including
 FastSecDec, pySecDec, Kaneko–Ueda and Binoth–Heinrich, with HTML and BibTeX output.
 Evidence lives in `output/diagnostics/progress-citations-controls-2`,
 `gghh-single-notebook-native-2` and `gghh-single-notebook-native-3`; generation and
-continuation are explicitly separate runs. The final editor and fresh portable
-checks remain in progress.
+continuation are explicitly separate runs. The native editor additionally
+demonstrates live generation/compilation, all 30 sector choices, a selected
+chart's map/prefactor, reactive citations and the BibTeX download. Its Stop/resume
+workflow remains unverified: diagnostic selectors stopped before sampling,
+with no notebook exception. All owned processes were reaped and scientific
+statements remained unchanged. Fresh portable validation is still running.
 The earlier API milestone's 95 tests and UI acceptance do not validate the new
 Model method or this self-contained notebook. No new ggHH performance or browser
 convergence claim is made.
