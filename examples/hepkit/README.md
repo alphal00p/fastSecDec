@@ -17,10 +17,11 @@ in the same file. Generation and compilation use HEPKit's automatic marimo
 progress presenter, also used by `generate_diagrams`. Pass `progress=None` for
 silence or a callable to receive every native generation snapshot.
 This new walkthrough requires the matching experimental wheel with
-`Model.scalar_bindings` and automatic sector progress; its final editor and
-portable acceptance is in progress. The current native wheel passes all
-118 maintained controls; the actual generated graph, both integration methods
-and final bibliography cells have also been exercised locally.
+`Model.scalar_bindings` and automatic sector progress. The current wheels pass
+all 118 native and 89 portable controls; the actual generated graph, both
+integration methods and final bibliography cells have also been exercised
+locally. The native editor shows live generation, sector inspection and the
+bibliography; Stop/resume in this single-file notebook remains unverified.
 See the [challenge inventory](../../docs/reviews/gghh-single-notebook.md).
 
 For a browser export, add `--notebook gghh` to the existing
@@ -74,8 +75,8 @@ acquire power one. A family does not infer a graph weight, projector or measure
 convention. The diagram route retains those native graph expressions once.
 
 The canonical namespace, object methods and visible-call refactor require their
-matching new wheel. The current native wheel passes all 95 maintained controls;
-an actual triangle UI run validates the visible calls, inspection, and same-kernel
+matching wheel. That preceding API milestone passed all 95 native controls;
+an actual triangle UI run validated the visible calls, inspection, and same-kernel
 QMC/Havana pause/resume. See the [entry-point review](../../docs/reviews/hepkit-sector-entrypoints.md)
 for its scope. The versioned browser results below describe earlier sources and
 do not by themselves validate these API changes.

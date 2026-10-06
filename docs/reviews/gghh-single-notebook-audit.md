@@ -250,3 +250,21 @@ Original failures, screenshots, DOM, downloaded bibliography and the explicit
 partial-acceptance receipt are preserved in
 `output/diagnostics/gghh-single-notebook-editor-2/`. This evidence does not claim
 Wasm execution or a successful complete editor lifecycle.
+
+The subsequent fresh Wasm delivery passes its generic Pyodide smoke and all
+89 maintained portable tests across nine modules, with zero failures or skips.
+The build took 27 minutes 30 seconds; generic smoke took 22.50 seconds and the
+focused pytest run took 5.60 seconds. Fresh import leaves all four FastSecDec
+citation identifiers absent; the suite checks actual use and valid cold loading,
+as well as Model bindings and progress callbacks. No full gg→HH browser run was
+repeated. All stage processes were reaped and frozen compiled sources stayed
+unchanged.
+
+The first generic smoke consumed the current native `DiagramRender` as a string
+and failed. A test-only correction uses its public `to_svg()` method and native
+typed render settings. Independent review verifies all 29 assertions and import
+restrictions are preserved; the correction changes no production implementation
+and needs no wheel rebuild. The failed attempt remains in
+`output/diagnostics/sector-decomposition-portable-runtime-1/`; the passing receipt
+and exact source/artifact identities are in
+`output/diagnostics/sector-decomposition-portable-runtime-2/result.json`.

@@ -1375,7 +1375,11 @@ performance gates.
   Actual marimo generation/compilation, sector inspection, reactive citations
   and BibTeX download are observed. The new notebook's editor interruption/resume
   remains unverified after diagnostic selector failures; the existing dashboard's
-  prior lifecycle evidence is separate. Fresh portable validation is running.
+  prior lifecycle evidence is separate. The fresh Wasm wheel passes generic
+  smoke and all 89 maintained portable controls across nine modules, with zero
+  failures or skips. The initial generic rendering-fixture failure is retained;
+  its test-only adaptation to the existing native render API passes without a
+  wheel rebuild. These controls do not claim a new full gg→HH browser run.
   The tested shared Model/progress owner is published at FeynKit `7f3d6c79`;
   community retains only registration, citation aggregation and generated stubs.
   These API/notebook gates do not close the remaining phase-A performance gates.

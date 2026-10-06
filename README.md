@@ -33,7 +33,9 @@ The [standalone gg→HH notebook](examples/hepkit/gghh.py) builds its diagram fr
 `diagram.sector_decompose(progress="auto")`, and uses ordinary marimo editor
 controls for its expensive cells. Generation shares HEPKit's progress presenter;
 the final bibliography uses `get_citations()` and offers a BibTeX download.
-Its current native/editor and fresh portable validation status is recorded in
+The current Wasm wheel passes generic smoke and all 89 portable controls,
+including the new Model, progress and citation APIs. Native/editor and portable
+validation scope is recorded in
 the [notebook review](docs/reviews/gghh-single-notebook.md).
 
 Prepare the exact dependency sources and reviewed patches once. The output

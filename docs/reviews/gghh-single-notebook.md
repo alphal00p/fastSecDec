@@ -129,7 +129,16 @@ demonstrates live generation/compilation, all 30 sector choices, a selected
 chart's map/prefactor, reactive citations and the BibTeX download. Its Stop/resume
 workflow remains unverified: diagnostic selectors stopped before sampling,
 with no notebook exception. All owned processes were reaped and scientific
-statements remained unchanged. Fresh portable validation is still running.
+statements remained unchanged. The fresh Wasm wheel passes the generic Pyodide
+smoke and all 89 maintained portable controls across nine modules, with zero
+failures or skips. These include native Model transport, progress callbacks and
+fresh-import/use/cold-load citation tracking. The generic rendering fixture was
+updated to consume HEPKit's current `DiagramRender.to_svg()` and typed
+`RenderSettings`; its initial failure is retained, and no wheel rebuild was
+needed. All guarded processes were reaped and compiled sources stayed unchanged.
+This validates the portable API, not a new full gg→HH browser execution.
+Its source and artifact identities are recorded in
+`output/diagnostics/sector-decomposition-portable-runtime-2/result.json`.
 The earlier API milestone's 95 tests and UI acceptance do not validate the new
 Model method or this self-contained notebook. No new ggHH performance or browser
 convergence claim is made.
