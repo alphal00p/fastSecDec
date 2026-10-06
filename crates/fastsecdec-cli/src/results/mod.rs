@@ -22,19 +22,13 @@ pub fn check_destination(
     checkpoint: &Path,
     reference: Option<&crate::reference::PreparedReference>,
 ) -> CliResult<()> {
-    storage::protect_output(
-        path,
-        [artifact_path, checkpoint]
-            .into_iter()
-            .chain(
-                artifact
-                    .provenance
-                    .sources
-                    .iter()
-                    .map(|source| Path::new(&source.path)),
-            )
-            .chain(reference.map(|reference| reference.settings.path.as_path())),
-    )
+    let (metadata, data) = crate::artifact::paths(artifact_path)?;
+    let mut protected = vec![metadata, data, checkpoint.to_path_buf()];
+    protected.extend(artifact.source_paths());
+    if let Some(reference) = reference {
+        protected.push(reference.settings.path.clone());
+    }
+    storage::protect_output(path, protected.iter().map(|path| path.as_path()))
 }
 
 pub fn save(path: &Path, result: &fastsecdec::results::SavedIntegrationResult) -> CliResult<()> {

@@ -80,6 +80,6 @@ fn main() -> Result<()> {
         matches.len(),
         generated.diagrams.len()
     );
-    println!("{}", output.join("run.toml").display());
+    println!("Generated run.toml and point.toml in the requested output directory");
     Ok(())
 }

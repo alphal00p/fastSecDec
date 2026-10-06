@@ -33,28 +33,45 @@ symbolic-Casimir policy followed by the existing invariant conversion.
 From the repository root:
 
 ```sh
-fastsecdec generate examples/gghh_double_box/run.toml --output output/gghh_double_box.fsd.json
-fastsecdec inspect output/gghh_double_box.fsd.json
-fastsecdec integrate output/gghh_double_box.fsd.json --full-integral \
+./target/release/fastsecdec generate examples/gghh_double_box/run.toml --output output/gghh_double_box.fsd --workers 8
+fastsecdec inspect output/gghh_double_box.fsd
+fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+  --parameters examples/gghh_double_box/point.toml \
   --workers 8 --points 1024 --shifts 8 --seed 20261005 \
   --checkpoint output/gghh_double_box.checkpoint.json \
   --save-result output/gghh_double_box.result.json
 ```
 
-The card requests native named coefficient expansion and keeps the ordinary
-domain check enabled. The sub-top-pair energy is a choice of physical point,
-not a substitute for the check on this actual graph. Native input contraction and
-Gaussian parameterization now complete with all 179 terms and seven parameters.
-The ordinary CLI now certifies the actual F polynomial's algebraic coefficients
-through Symbolica's exact real embedding and completes native geometry with 30
-sectors. Native one-coordinate collection now preserves the factored regular
-numerators during mapping. The optimized ordinary CLI now generates and saves
-all 30 six-dimensional kernels, with orders `[-1, 0]`, in 61.285 seconds and
-264 MiB peak RSS. Native SymJIT O2 compilation accounts for 0.453 seconds of
-that total. The earlier unresolved `cas(2,coad(8))` is closed by the native
-color option above. No threshold assertion or change of physical point was used.
+The run card declares symbolic scalar products. Generation compiles these as
+ordered runtime inputs; `point.toml` supplies the numerical point when integrating.
+Use repeated `--parameter NAME=VALUE` options to override values in that file.
+Values can be finite real numbers or native Symbolica expressions such as
+`"22500-3000*sqrt(11)"`. Every declared symbol requires a value, including zeros;
+unknown, missing, and nonfinite values are rejected. Runtime values are passed
+unchanged to each evaluator, its precision-rescue path, and folded exact offsets.
+They are included in checkpoint and numerical-result identity. Model masses and
+couplings in `parameters.json` remain fixed generation inputs.
 
-The command above completes all 245,760 points and eight shifts per sector in
+The output base `output/gghh_double_box.fsd` names two adjacent files:
+`.fsd.json` contains human-readable metadata and `.fsd.dat` contains native
+binary programs and expressions. Move both files together. The base itself is
+not a file. Generation does not certify thresholds; the physical domain and
+absence of unsupported thresholds are the caller's responsibility.
+
+The local CLI uses SymJIT O2. The library's existing `portable` feature retains
+its eager Symbolica interpreter with the same runtime-parameter and caller-owned
+integration APIs; it needs no SymJIT. This is the route for subsequent Pyodide/
+marimo work. See the [runtime API review](../../docs/reviews/runtime-kinematic-parameters.md)
+for the concrete feature and API sequence; no new notebook run is claimed here.
+
+The measurements below are historical results from the earlier build with fixed
+kinematics. They do not measure or validate the new symbolic-parameter generation.
+That build contracted 179 native input terms, generated 30 six-dimensional
+kernels with orders `[-1, 0]`, and saved them in 61.285 seconds at 264 MiB peak
+RSS, including 0.453 seconds of SymJIT O2 compilation. The native color option
+above resolved the earlier `cas(2,coad(8))` input issue.
+
+The historical coarse allocation completed all 245,760 points and eight shifts per sector in
 8.781 seconds on eight workers, including 0.548 seconds of artifact loading.
 It gives the following coarse, correlated estimates in the stated loop measure:
 
@@ -73,10 +90,11 @@ The [HEPKit notebook](../hepkit/README.md) also offers this case as an optional
 longer browser run; browser completion and costs remain unmeasured. See the
 [native feasibility review](../../docs/reviews/gghh-native-feasibility.md).
 
-For the validated higher-statistics allocation, reuse the generated artifact:
+The higher-statistics allocation can be requested with:
 
 ```sh
-fastsecdec integrate output/gghh_double_box.fsd.json --full-integral \
+fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+  --parameters examples/gghh_double_box/point.toml \
   --method qmc --workers 8 --points 32768 --shifts 16 --seed 20261007 \
   --lattice hkkn-alpha3 --relative-tolerance 0.001 \
   --checkpoint output/gghh_double_box.permil.checkpoint.json \
@@ -106,7 +124,8 @@ The same generated kernels also support ordinary Havana sampling with adaptive
 discrete sector probabilities and continuous grids:
 
 ```sh
-fastsecdec integrate output/gghh_double_box.fsd.json --full-integral \
+fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+  --parameters examples/gghh_double_box/point.toml \
   --method discrete_mc --workers 8 --points 32768 --shifts 32 --seed 20261008 \
   --relative-tolerance 0.001 \
   --checkpoint output/gghh_double_box.mc.checkpoint.json \
@@ -133,7 +152,7 @@ numerator-inclusive check before endpoint subtraction finds maximum denominator
 power `a = 0`: extracted coordinate factors are `1`, `x^eps`, `x^(1+eps)` and
 `x^(-eps)`. The Laurent pole is not an endpoint `1/x` power.
 
-Newly generated artifacts retain these facts directly: 30 charts, 54 mapped
+The historical artifacts retained these facts directly: 30 charts, 54 mapped
 terms and 324 endpoint powers, with their native prefactors and variable maps.
 The notebook's selected-chart view exposes them before any integration. The
 fresh generation/reload check reproduces every exact evaluator program from the
@@ -158,12 +177,12 @@ weight enter exactly once; the diagnostic symmetry factor is not multiplied agai
 `generation.json` and `provenance.json` record selection and input construction.
 The full native model and numeric parameter card are included.
 
-To regenerate into a fresh directory, prepare the dependency config as described
-in the [development guide](../../docs/DEVELOPMENT.md), then use the native model
-JSON as input:
+To regenerate into a fresh directory, use the ordinary Cargo dependencies
+described in the [development guide](../../docs/DEVELOPMENT.md) and supply the
+native model JSON as input:
 
 ```sh
-cargo --config output/dependencies/overlay-root.toml run --locked -p fastsecdec --example gghh_double_box -- path/to/SM.json output/gghh-input
+cargo run --locked -p fastsecdec --example gghh_double_box -- path/to/SM.json output/gghh-input
 ```
 
 The Rust generator lives in `crates/fastsecdec/examples/gghh_double_box`. Native

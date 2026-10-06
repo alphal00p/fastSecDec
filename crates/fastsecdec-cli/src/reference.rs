@@ -73,7 +73,8 @@ pub fn prepare(
     if settings.path.as_os_str().is_empty() {
         return Err("reference path cannot be empty".into());
     }
-    settings.path = fs::canonicalize(&settings.path)?;
+    settings.path =
+        crate::artifact::relative_path(&fs::canonicalize(&settings.path)?, Path::new("."))?;
     let bytes = fs::read(&settings.path)?;
     let result = reference::read_reference(&bytes)?;
     let source = ReferenceSource {

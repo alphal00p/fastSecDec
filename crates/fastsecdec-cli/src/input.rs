@@ -39,6 +39,7 @@ impl MomentumName {
 pub struct LoadedInput {
     pub card: RunCard,
     pub integrand: ParametricIntegrand,
+    pub runtime_parameters: Vec<Symbol>,
     pub label: String,
     pub loops: Option<usize>,
     pub propagators: usize,
@@ -71,7 +72,7 @@ fn bind(expression: &Atom, values: &BTreeMap<Symbol, Atom>) -> Atom {
     }))
 }
 
-fn value_expression(value: &toml::Value) -> CliResult<Atom> {
+pub fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     match value {
         toml::Value::String(text) => expression(text),
         toml::Value::Integer(value) => Ok(Atom::num(*value)),
@@ -85,10 +86,13 @@ fn value_expression(value: &toml::Value) -> CliResult<Atom> {
 pub fn load(path: &Path) -> CliResult<LoadedInput> {
     let started = Instant::now();
     let mut sources = Vec::new();
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
     let read = |path: &Path, sources: &mut Vec<crate::artifact::SourceFile>| -> CliResult<String> {
         let text = fs::read_to_string(path)?;
         sources.push(crate::artifact::SourceFile {
-            path: fs::canonicalize(path)?.to_string_lossy().into_owned(),
+            path: crate::artifact::relative_path(path, base)?
+                .to_string_lossy()
+                .into_owned(),
             blake3: blake3::hash(text.as_bytes()).to_hex().to_string(),
             fingerprint: crate::artifact::SourceFingerprint::Bytes,
         });
@@ -117,11 +121,30 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             };
             let values = model.scalar_bindings(Some(&restriction), &values)?;
             let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
+            let mut runtime_parameters = Vec::new();
             for product in &card.kinematics.products {
+                let product_value = match (&product.value, &product.symbol) {
+                    (Some(value), None) => bind(&expression(value)?, &values),
+                    (None, Some(name)) => {
+                        let parameter = symbol(name)?;
+                        if parameter == regulator || values.contains_key(&parameter) {
+                            return Err(format!("runtime kinematic symbol {name} conflicts with a fixed scalar or regulator").into());
+                        }
+                        if !runtime_parameters.contains(&parameter) {
+                            runtime_parameters.push(parameter);
+                        }
+                        Atom::var(parameter)
+                    }
+                    _ => {
+                        return Err(
+                            "each kinematic product requires exactly one of symbol or value".into(),
+                        );
+                    }
+                };
                 kinematics = kinematics.with_scalar_product(
                     &product.left.atom()?,
                     &product.right.atom()?,
-                    bind(&expression(&product.value)?, &values),
+                    product_value,
                 )?;
             }
             let graph_text = read(&base.join(&input.graph), &mut sources)?;
@@ -167,6 +190,14 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             let parameters = (0..propagators)
                 .map(|i| symbol(&format!("fastsecdec::x{i}")))
                 .collect::<CliResult<Vec<_>>>()?;
+            if runtime_parameters
+                .iter()
+                .any(|parameter| parameters.contains(parameter))
+            {
+                return Err(
+                    "runtime kinematic symbols must differ from integration coordinates".into(),
+                );
+            }
             let input_seconds = started.elapsed().as_secs_f64();
             let parametrization_started = Instant::now();
             let policy = card.generation.family_preparation;
@@ -185,6 +216,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             Ok(LoadedInput {
                 card,
                 integrand,
+                runtime_parameters,
                 label: path
                     .file_stem()
                     .unwrap_or_default()
@@ -287,6 +319,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                     .unwrap_or_default()
                     .to_string_lossy()
                     .into_owned(),
+                runtime_parameters: Vec::new(),
                 loops: None,
                 propagators,
                 sources,
@@ -306,7 +339,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
 
 pub fn artifact_path(card: &Path) -> PathBuf {
     PathBuf::from("output").join(format!(
-        "{}.fsd.json",
+        "{}.fsd",
         card.file_stem().unwrap_or_default().to_string_lossy()
     ))
 }

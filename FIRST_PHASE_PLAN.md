@@ -1,5 +1,32 @@
 # FastSecDec first-phase implementation plan
 
+## Current generation revision (2026-10-06)
+
+The latest user request supersedes earlier threshold-certification and artifact
+format requirements for this revision:
+
+- Without an explicitly requested threshold regularization strategy, generation
+  performs no sign, face or interior threshold certification. Suitable numerical
+  kinematics are the caller's responsibility. Contour deformation and other
+  threshold regularization remain unsupported. Algebraic map invariants and
+  numerical failure reporting remain required.
+- Kinematic scalar products may declare runtime symbols. Compile them as native
+  evaluator inputs and supply their values at integration time, including exact
+  offsets, precision rescue and checkpoint identities.
+- Generation uses caller-owned parallel execution with per-worker activity and
+  aggregate elapsed time, progress and ETA in the colorful CLI dashboard.
+- Users name an artifact by a basename such as `output/gghh_double_box.fsd`.
+  Write human metadata to its `.json` sibling and expressions/evaluators to its
+  `.dat` sibling using native context-aware binary serialization. Load by the
+  same basename, with both siblings in the same directory.
+- Persist relative paths so artifacts can be relocated.
+- Preserve the eager Symbolica evaluator for both generation and runtime
+  integration, including the portable backend used by future Pyodide/marimo
+  execution. The local gg→HH example continues to use native SymJIT O2.
+- Update `examples/gghh_double_box` in this round. Other examples and the test/
+  gate migration are explicitly deferred to the user's later action. Existing
+  checks may be run for focused evidence, but do not claim the deferred gates.
+
 ## 1. Goal, governing decisions, and working method
 
 **Goal statement:** Build a modular Rust implementation of FastSecDec for scalar, no-threshold Feynman integrals, using native HEPKit inputs and existing ecosystem functionality. Reproduce the scientific content of all FastSecDecPathFinder examples and relevant tests, independently implement sector decomposition, extend Numerica/Havana with caller-driven lattice QMC, provide a polished standalone CLI, and demonstrate correctness and performance parity under matched SymJIT O2 benchmarks.

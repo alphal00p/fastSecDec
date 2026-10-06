@@ -32,6 +32,12 @@ impl GenerationSnapshot {
                 status.total = Some(*total);
                 status.detail = "Substituting exact sector maps".into();
             }
+            GenerationProgress::Symmetry { completed, total } => {
+                status.stage = GenerationStage::Symmetry;
+                status.completed = *completed;
+                status.total = Some(*total);
+                status.detail = "Verifying complete density permutations on coordinator".into();
+            }
             GenerationProgress::Subtraction {
                 sector,
                 total,

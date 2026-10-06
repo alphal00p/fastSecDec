@@ -65,8 +65,8 @@ enum Action {
         input: PathBuf,
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Caller-owned workers for exact chart/cone geometry only.
-        #[arg(long, default_value = "1")]
+        /// Caller-owned workers for geometry, symbolic generation, and compilation.
+        #[arg(long = "workers", visible_alias = "geometry-workers", default_value_t = default_generation_workers())]
         geometry_workers: std::num::NonZeroUsize,
     },
     /// Generate and integrate a native TOML run card.
@@ -74,8 +74,8 @@ enum Action {
         input: PathBuf,
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Caller-owned geometry workers; resumed artifacts need no generation.
-        #[arg(long, default_value = "1")]
+        /// Caller-owned generation workers; resumed artifacts need no generation.
+        #[arg(long = "generation-workers", visible_alias = "geometry-workers", default_value_t = default_generation_workers())]
         geometry_workers: std::num::NonZeroUsize,
         #[command(flatten)]
         integration: IntegrationArgs,
@@ -134,6 +134,12 @@ enum Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    /// TOML file with [parameters] containing this integration point.
+    #[arg(long)]
+    parameters: Option<PathBuf>,
+    /// Override one runtime scalar with NAME=VALUE; may be repeated.
+    #[arg(long = "parameter", value_name = "NAME=VALUE")]
+    parameter: Vec<String>,
     /// Clear a stored/card subset and integrate the complete parent integral.
     #[arg(long, conflicts_with_all = ["sectors", "exact_contributions"])]
     full_integral: bool,
@@ -174,6 +180,57 @@ struct IntegrationArgs {
 
 impl IntegrationArgs {
     fn apply(&self, settings: &mut IntegrationInput) -> CliResult<()> {
+        let mut parameter_values = std::collections::BTreeMap::new();
+        if let Some(path) = &self.parameters {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Point {
+                parameters: std::collections::BTreeMap<String, toml::Value>,
+            }
+            let point: Point = toml::from_str(&std::fs::read_to_string(path)?)?;
+            parameter_values = point.parameters;
+            settings.parameters.clear();
+        }
+        for value in &self.parameter {
+            let (name, value) = value
+                .split_once('=')
+                .ok_or("--parameter requires NAME=VALUE")?;
+            if name.trim().is_empty() {
+                return Err("--parameter requires a nonempty name".into());
+            }
+            parameter_values.insert(
+                name.trim().to_string(),
+                toml::Value::String(value.to_string()),
+            );
+        }
+        let mut supplied = std::collections::BTreeMap::new();
+        for (name, value) in parameter_values {
+            let symbol = input::symbol(&name)?;
+            if supplied
+                .insert(symbol, input::value_expression(&value)?)
+                .is_some()
+            {
+                return Err(format!("duplicate runtime parameter {name}").into());
+            }
+        }
+        let supplied = feynkit_model::resolve_scalar_bindings(supplied)?;
+        for (symbol, expression) in supplied {
+            let value = expression
+                .evaluate(&std::collections::HashMap::<fastsecdec::Atom, f64>::new())
+                .map_err(|error| {
+                    format!(
+                        "runtime parameter {} is not a real numeric expression: {error}",
+                        fastsecdec::Atom::var(symbol).to_canonical_string()
+                    )
+                })?;
+            if !value.is_finite() {
+                return Err("runtime parameter values must be finite".into());
+            }
+            settings
+                .parameters
+                .insert(fastsecdec::Atom::var(symbol).to_canonical_string(), value);
+        }
+
         if self.full_integral {
             settings.scope = fastsecdec::results::ResultScope::FullIntegral;
         }
@@ -225,6 +282,23 @@ impl IntegrationArgs {
         }
         Ok(())
     }
+}
+
+fn default_generation_workers() -> std::num::NonZeroUsize {
+    std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN)
+}
+
+fn bind_parameters(
+    kernels: &mut fastsecdec::kernel::KernelSet,
+    settings: &IntegrationInput,
+) -> CliResult<()> {
+    let values = settings
+        .parameters
+        .iter()
+        .map(|(name, value)| Ok((input::symbol(name)?, *value)))
+        .collect::<CliResult<std::collections::BTreeMap<_, _>>>()?;
+    kernels.bind_parameters(&values)?;
+    Ok(())
 }
 
 fn main() -> ExitCode {
@@ -304,12 +378,14 @@ fn run(cli: Cli) -> CliResult<()> {
                 reference.as_ref(),
                 geometry_workers.get(),
             )?;
-            if let Some(reference) = &reference {
+            if kernels.runtime_parameters().is_empty()
+                && let Some(reference) = &reference
+            {
                 reference.validate_identity(kernels.content_id())?;
             }
             drop(dashboard);
             report(
-                &serde_json::json!({"artifact":output,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings,"geometry_workers":geometry_workers.get()}),
+                &serde_json::json!({"artifact":artifact::relative_path(&output, std::path::Path::new("."))?,"content_id":artifact.content_id,"sectors":kernels.sectors().len(),"orders":kernels.orders(),"generation_timings":artifact.generation_timings,"workers":geometry_workers.get()}),
                 render_json,
             )?;
         }
@@ -322,13 +398,8 @@ fn run(cli: Cli) -> CliResult<()> {
             let reference = reference::from_card(&input, integration.reference.as_deref())?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
-            let (artifact, kernels) = if integration.resume {
-                artifact::Artifact::load_with_preflight(&output, |artifact| {
-                    if let Some(reference) = &reference {
-                        reference.validate_identity(artifact.kernel_content_id()?)?;
-                    }
-                    Ok(())
-                })?
+            let (artifact, mut kernels) = if integration.resume {
+                artifact::Artifact::load_with_preflight(&output, |_| Ok(()))?
             } else {
                 generate::generate_with_workers(
                     &input,
@@ -341,12 +412,13 @@ fn run(cli: Cli) -> CliResult<()> {
             if integration.resume {
                 artifact.verify_input_sources(&input)?;
             }
-            if let Some(reference) = &reference {
-                reference.validate_identity(kernels.content_id())?;
-            }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
             integration.apply(&mut settings)?;
+            bind_parameters(&mut kernels, &settings)?;
+            if let Some(reference) = &reference {
+                reference.validate_identity(kernels.content_id())?;
+            }
             settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
                 .canonical_scope(&settings.scope)?;
             let checkpoint = integration
@@ -389,22 +461,21 @@ fn run(cli: Cli) -> CliResult<()> {
             integration,
         } => {
             let mut reference = None;
-            let (artifact, kernels) = artifact::Artifact::load_with_preflight(&path, |artifact| {
-                reference = reference::prepare(
-                    artifact.reference.clone(),
-                    integration.reference.as_deref(),
-                )?;
-                if let Some(reference) = &reference {
-                    reference.validate_identity(artifact.kernel_content_id()?)?;
-                }
-                Ok(())
-            })?;
-            if let Some(reference) = &reference {
-                reference.validate_identity(kernels.content_id())?;
-            }
+            let (artifact, mut kernels) =
+                artifact::Artifact::load_with_preflight(&path, |artifact| {
+                    reference = reference::prepare(
+                        artifact.resolved_reference(),
+                        integration.reference.as_deref(),
+                    )?;
+                    Ok(())
+                })?;
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
             integration.apply(&mut settings)?;
+            bind_parameters(&mut kernels, &settings)?;
+            if let Some(reference) = &reference {
+                reference.validate_identity(kernels.content_id())?;
+            }
             settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
                 .canonical_scope(&settings.scope)?;
             let checkpoint = integration
@@ -450,7 +521,10 @@ fn run(cli: Cli) -> CliResult<()> {
             output,
         } => {
             results::export_reference(&path, &output, source)?;
-            report(&serde_json::json!({"reference":output}), render_json)?;
+            report(
+                &serde_json::json!({"reference":artifact::relative_path(&output, std::path::Path::new("."))?}),
+                render_json,
+            )?;
         }
         Action::Inspect { path, expressions } => {
             if path

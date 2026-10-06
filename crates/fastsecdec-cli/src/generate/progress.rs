@@ -13,7 +13,11 @@ pub(super) fn observe_generation(
     max_order: i32,
     progress: &GenerationProgress,
 ) -> ControlFlow<()> {
+    let previous_stage = status.stage;
     status.observe_generation(max_order, progress);
+    if previous_stage != status.stage {
+        dashboard.generation_coordinator();
+    }
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     publish_generation(dashboard, status, display_error)
 }

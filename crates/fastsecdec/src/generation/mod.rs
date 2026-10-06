@@ -25,8 +25,9 @@ mod subtraction;
 mod support;
 mod symmetry;
 mod types;
-pub(crate) use domain::check_factors;
+mod work;
 pub(crate) use mapping::coordinates_from_parts;
+pub use work::{SymbolicCompletion, SymbolicDispatch, SymbolicJob, SymbolicJobId, SymbolicStage};
 
 pub use metadata::{
     BranchPolicy, ChartRecord, CoordinateMap, DomainAssessment, EndpointPower, FactorAssessment,
@@ -104,6 +105,7 @@ pub fn generate(
         input,
         options,
         GeometrySource::Uncached,
+        None,
         |event| match event {
             GenerationEvent::Progress(status) => progress(status),
             GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
@@ -115,6 +117,7 @@ fn generate_inner(
     input: &ParametricIntegrand,
     options: &GenerationOptions,
     geometry_source: GeometrySource<'_, '_>,
+    mut symbolic_dispatch: Option<&mut SymbolicDispatch<'_>>,
     mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
     let started = Instant::now();
@@ -176,44 +179,79 @@ fn generate_inner(
     let mut registry = symmetry::SymmetryRegistry::default();
     let mut representatives = BTreeMap::new();
     let mut charts = Vec::new();
-    for (index, map) in decomposition
+    let maps = decomposition
         .iter_mut()
         .flat_map(Geometry::maps)
-        .enumerate()
-    {
-        emit(
-            &mut progress,
-            GenerationProgress::Factorization {
-                sector: index,
-                total,
-            },
-        )?;
-        let mut namespace = 0usize;
-        let parameters = loop {
-            let candidates = (0..map.dimension())
-                .map(|axis| symbol!(format!("fastsecdec::sector_{namespace}::t{axis}")))
-                .collect::<Vec<_>>();
-            if candidates
-                .iter()
-                .all(|symbol| !source_symbols.contains(symbol))
-            {
-                break candidates;
-            }
-            namespace += 1;
+        .map(|map| map.into_owned())
+        .collect::<Vec<_>>();
+    let mut namespace = 0usize;
+    let dimension = maps.first().map_or(0, |map| map.dimension());
+    let parameters = loop {
+        let candidates = (0..dimension)
+            .map(|axis| symbol!(format!("fastsecdec::sector_{namespace}::t{axis}")))
+            .collect::<Vec<_>>();
+        if candidates
+            .iter()
+            .all(|symbol| !source_symbols.contains(symbol))
+        {
+            break candidates;
+        }
+        namespace += 1;
+    };
+    let mut maps = maps.into_iter();
+    let mut mapped_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
+        Some(
+            work::map_dispatched(
+                input,
+                options,
+                maps.by_ref().collect(),
+                &parameters,
+                &source_supports,
+                dispatch,
+                &mut progress,
+            )?
+            .into_iter(),
+        )
+    } else {
+        None
+    };
+    for index in 0..total {
+        let chart = if let Some(charts) = &mut mapped_charts {
+            charts
+                .next()
+                .ok_or_else(|| GenerationError::Invariant("missing mapped chart".into()))?
+        } else {
+            emit(
+                &mut progress,
+                GenerationProgress::Factorization {
+                    sector: index,
+                    total,
+                },
+            )?;
+            let map = maps
+                .next()
+                .ok_or_else(|| GenerationError::Invariant("missing geometry map".into()))?;
+            work::map_chart(
+                input,
+                options,
+                map,
+                parameters.clone(),
+                &mut source_supports,
+                &mut progress,
+            )?
         };
-        let started = Instant::now();
-        let coordinates = mapping::coordinates(input, &map, &parameters);
-        let mapped = mapping::map_terms(input, &map, &coordinates, &mut source_supports)?;
-        let pre_subtraction = Some(PreSubtractionMetadata::capture(
-            &mapped,
-            input.regulator(),
-            options.max_subtractions_per_axis,
-        )?);
+        let work::MappedChart {
+            map,
+            parameters,
+            coordinates,
+            mapped,
+            pre_subtraction,
+        } = chart;
         emit(
             &mut progress,
-            GenerationProgress::PhaseTiming {
-                phase: GenerationPhase::Mapping,
-                seconds: started.elapsed().as_secs_f64(),
+            GenerationProgress::Symmetry {
+                completed: index,
+                total,
             },
         )?;
         let started = Instant::now();
@@ -258,11 +296,11 @@ fn generate_inner(
             representative_permutation: matched.permutation.clone(),
             kernel_sector: None,
             coordinates,
-            geometry: map.as_ref().clone(),
+            geometry: map.clone(),
             pre_subtraction,
         });
         if matched.representative == index {
-            representatives.insert(index, (map.into_owned(), parameters, mapped, 1usize));
+            representatives.insert(index, (map, parameters, mapped, 1usize));
         } else {
             let representative = representatives
                 .get_mut(&matched.representative)
@@ -278,34 +316,63 @@ fn generate_inner(
                 seconds: started.elapsed().as_secs_f64(),
             },
         )?;
+        emit(
+            &mut progress,
+            GenerationProgress::Symmetry {
+                completed: index + 1,
+                total,
+            },
+        )?;
     }
     let total = representatives.len();
     let mut kernel_indices = BTreeMap::new();
-    for (index, (representative_index, (map, parameters, mapped, multiplicity))) in
-        representatives.into_iter().enumerate()
-    {
-        #[cfg(test)]
-        {
-            laurent::profiling::context(index, representative_index, multiplicity);
-            laurent::profiling::before_subtraction(
-                &mapped,
-                &parameters,
-                input.regulator(),
-                options.max_order,
-            )?;
-        }
-        let output = coefficients::expand(
-            mapped,
-            coefficients::Representative {
-                parameters: &parameters,
-                regulator: input.regulator(),
-                index,
-                total,
-            },
+    let expanded = if let Some(dispatch) = symbolic_dispatch {
+        work::expand_dispatched(
+            representatives,
+            input.regulator(),
             options,
-            &mut templates,
+            dispatch,
             &mut progress,
-        )?;
+        )?
+    } else {
+        let mut expanded = Vec::with_capacity(total);
+        for (index, (representative_index, (map, parameters, mapped, multiplicity))) in
+            representatives.into_iter().enumerate()
+        {
+            #[cfg(test)]
+            {
+                laurent::profiling::context(index, representative_index, multiplicity);
+                laurent::profiling::before_subtraction(
+                    &mapped,
+                    &parameters,
+                    input.regulator(),
+                    options.max_order,
+                )?;
+            }
+            let output = coefficients::expand(
+                mapped,
+                coefficients::Representative {
+                    parameters: &parameters,
+                    regulator: input.regulator(),
+                    index,
+                    total,
+                },
+                options,
+                &mut templates,
+                &mut progress,
+            )?;
+            emit(
+                &mut progress,
+                GenerationProgress::PhaseTiming {
+                    phase: output.phase,
+                    seconds: output.phase_started.elapsed().as_secs_f64(),
+                },
+            )?;
+            expanded.push((representative_index, map, parameters, multiplicity, output));
+        }
+        expanded
+    };
+    for (representative_index, map, parameters, multiplicity, output) in expanded {
         let coefficients = output
             .coefficients
             .into_iter()
@@ -316,13 +383,6 @@ fn generate_inner(
                 )
             })
             .collect::<BTreeMap<_, _>>();
-        emit(
-            &mut progress,
-            GenerationProgress::PhaseTiming {
-                phase: output.phase,
-                seconds: output.phase_started.elapsed().as_secs_f64(),
-            },
-        )?;
         let conditioning = output.conditioning;
         if let Some(order) = coefficients.keys().next() {
             minimum = minimum.min(*order);

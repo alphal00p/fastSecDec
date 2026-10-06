@@ -6,8 +6,33 @@ use super::KernelError;
 use crate::generation::GenerationMetadata;
 use serde::{Deserialize, Serialize};
 use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
+use symbolica::state::StateMap;
 
-#[derive(Serialize, Deserialize)]
+/// JSON inspection stays readable while binary caches retain native Atom bytes.
+#[derive(Clone, bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
+struct StoredAtom(Atom);
+impl Serialize for StoredAtom {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0.to_canonical_string())
+    }
+}
+impl<'de> Deserialize<'de> for StoredAtom {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        super::artifact::atom(text)
+            .map(Self)
+            .map_err(serde::de::Error::custom)
+    }
+}
+impl From<&Atom> for StoredAtom {
+    fn from(atom: &Atom) -> Self {
+        Self(atom.clone())
+    }
+}
+
+#[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
 #[serde(deny_unknown_fields)]
 /// The same canonical semantic record used in portable kernel artifacts.
 /// This is a transport/presentation value; native computation continues to use
@@ -17,6 +42,13 @@ pub struct PortableMetadata {
     charts: Vec<chart::PortableChart>,
 }
 impl PortableMetadata {
+    pub(in crate::kernel) fn visit_atoms(&self, visit: &mut impl FnMut(&Atom)) {
+        self.domain.visit_atoms(visit);
+        for chart in &self.charts {
+            chart.visit_atoms(visit);
+        }
+    }
+
     /// Hash-boundary view of one kernel's retained semantics. Original chart
     /// ordinals stay intact; the selected kernel has local ordinal zero.
     pub(in crate::kernel) fn for_sector(value: &GenerationMetadata, index: usize) -> Self {
@@ -92,14 +124,14 @@ impl PortableMetadata {
 fn invalid(message: &str) -> KernelError {
     KernelError::Artifact(message.into())
 }
-fn atom(text: String) -> Result<Atom, KernelError> {
-    super::artifact::atom(text)
+fn atom(value: StoredAtom) -> Result<Atom, KernelError> {
+    Ok(value.0)
 }
 fn symbols(values: Vec<String>) -> Result<Vec<Symbol>, KernelError> {
     let symbols = values
         .into_iter()
         .map(|text| {
-            let value = atom(text)?;
+            let value = super::artifact::atom(text)?;
             match value.as_view() {
                 AtomView::Var(variable) => Ok(variable.get_symbol()),
                 _ => Err(invalid("metadata parameter is not a symbol")),

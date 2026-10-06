@@ -2,7 +2,7 @@
 use crate::kernel::program::ExactProgram;
 use symbolica::evaluate::{Instruction, Slot};
 
-pub(super) fn outputs(program: &ExactProgram) -> Vec<bool> {
+pub(in crate::kernel) fn outputs(program: &ExactProgram) -> Vec<bool> {
     let exported = program.export_instructions();
     let mut zeros = vec![false; exported.output_count];
     // Calls to non-inlined bodies may have their own output layout. This narrow

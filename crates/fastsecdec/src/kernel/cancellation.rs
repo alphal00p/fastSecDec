@@ -7,6 +7,7 @@ use super::KernelError;
 
 #[derive(Clone)]
 pub(super) struct Cancellation {
+    dimension: usize,
     degree: usize,
     terms: Option<Vec<Vec<usize>>>,
     dominant_terms: Vec<Vec<usize>>,
@@ -52,6 +53,7 @@ impl Cancellation {
             }
         });
         Ok(Self {
+            dimension,
             degree,
             terms,
             dominant_terms,
@@ -66,6 +68,7 @@ impl Cancellation {
     }
 
     pub fn lost_bits(&self, point: &[f64]) -> f64 {
+        let point = &point[..self.dimension];
         if self.terms.is_some() {
             self.dominant_terms
                 .iter()

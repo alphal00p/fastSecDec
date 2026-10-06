@@ -50,8 +50,8 @@ impl GenerationContext {
 
     /// Generate using the same native stages as [`super::generate`].
     ///
-    /// Every call reassesses its own domain before consulting the cache and
-    /// checks mapped residuals afterward. A `GeometryReuse` event reports native
+    /// Every call records its domain before consulting the cache and checks
+    /// mapped algebraic invariants afterward. A `GeometryReuse` event reports native
     /// geometry maps before symmetry merging. Empty inputs skip geometry.
     /// Cancellation at native geometry completion prevents cache insertion;
     /// cancellation at the subsequent reuse event or a later stage may leave a
@@ -66,13 +66,14 @@ impl GenerationContext {
             input,
             options,
             GeometrySource::Cached(&mut self.geometry),
+            None,
             progress,
         )
     }
 
     /// Generate with caller-owned chart/cone workers and complete geometry reuse.
     ///
-    /// Domain/support admission and the full subsequent symbolic pipeline stay
+    /// Support admission and the full subsequent symbolic pipeline stay
     /// native and per-integral. On a cache miss the native cache dispatches both
     /// lazy work stages, validates opaque completions and merges canonically.
     /// Hits and empty integrands invoke no dispatcher. The caller owns its pool,
@@ -105,6 +106,45 @@ impl GenerationContext {
                 dispatch,
                 cancelled: &cancelled,
             },
+            None,
+            |event| {
+                if cancelled() {
+                    ControlFlow::Break(())
+                } else {
+                    progress(event)
+                }
+            },
+        )?;
+        if cancelled() {
+            Err(GenerationError::Cancelled)
+        } else {
+            Ok(result)
+        }
+    }
+    /// Dispatch geometry and independent mapping/coefficient work on a caller-owned executor.
+    /// Native symmetry registration and ordered final assembly remain serial.
+    /// Opaque completions are checked for call ownership and exact stage coverage.
+    pub fn generate_with_all_dispatch(
+        &mut self,
+        input: &ParametricIntegrand,
+        options: &GenerationOptions,
+        geometry_dispatch: &mut GeometryDispatch<'_>,
+        symbolic_dispatch: &mut super::SymbolicDispatch<'_>,
+        cancelled: impl Fn() -> bool,
+        mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+    ) -> Result<GeneratedIntegral, GenerationError> {
+        if cancelled() {
+            return Err(GenerationError::Cancelled);
+        }
+        let result = super::generate_inner(
+            input,
+            options,
+            GeometrySource::Dispatched {
+                cache: &mut self.geometry,
+                dispatch: geometry_dispatch,
+                cancelled: &cancelled,
+            },
+            Some(symbolic_dispatch),
             |event| {
                 if cancelled() {
                     ControlFlow::Break(())

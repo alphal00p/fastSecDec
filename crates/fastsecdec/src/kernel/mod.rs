@@ -6,6 +6,7 @@ mod backend_version;
 pub use backend_version::symjit_version_code;
 mod cancellation;
 mod compilation;
+pub use compilation::{CompilationCompletion, CompilationDispatch, CompilationJob};
 mod complex;
 mod evaluator;
 mod metadata;
@@ -34,6 +35,10 @@ pub use weighted::{ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationCo
 pub enum KernelError {
     #[error("kernel compilation cancelled")]
     Cancelled,
+    #[error("invalid runtime parameters: {0}")]
+    Parameters(String),
+    #[error("runtime parameters must be bound before evaluation")]
+    UnboundParameters,
     #[error("invalid kernel artifact: {0}")]
     Artifact(String),
     #[error("invalid precision rescue policy")]
@@ -71,12 +76,16 @@ pub struct SectorKernel {
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
     parameters: Vec<Symbol>,
+    runtime_parameters: Vec<Symbol>,
+    parameters_bound: bool,
+    input: Vec<f64>,
     exact_zero: Vec<bool>,
     program_bytes: std::sync::Arc<[u8]>,
     statistics: EvaluatorStatistics,
     backend: Backend,
 }
 
+#[cfg(feature = "native")]
 struct SectorExpressions {
     parameters: Vec<Symbol>,
     coefficients: Vec<Atom>,
@@ -151,6 +160,11 @@ impl SectorKernel {
         {
             return Err(KernelError::InvalidPoint);
         }
+        if !self.parameters_bound {
+            return Err(KernelError::UnboundParameters);
+        }
+        self.input[..point.len()].copy_from_slice(point);
+        let point = self.input.as_slice();
         let backend = match &mut self.backend {
             Backend::Complex(kernel) => return kernel.evaluate_scaled(point, output, weight),
             Backend::Real(kernel) => kernel,
@@ -228,6 +242,17 @@ impl SectorKernel {
         weight: f64,
         minimum_bits: u32,
     ) -> Result<PrecisionReport, KernelError> {
+        if !self.parameters_bound {
+            return Err(KernelError::UnboundParameters);
+        }
+        if point.len() != self.dimension() {
+            return Err(KernelError::Dimension {
+                expected: self.dimension(),
+                actual: point.len(),
+            });
+        }
+        self.input[..point.len()].copy_from_slice(point);
+        let point = self.input.as_slice();
         let mut policy = self.precision.clone();
         policy.initial_bits = policy.initial_bits.max(minimum_bits);
         match &mut self.backend {
@@ -250,6 +275,9 @@ impl SectorKernel {
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
             parameters: self.parameters.clone(),
+            runtime_parameters: self.runtime_parameters.clone(),
+            parameters_bound: self.parameters_bound,
+            input: self.input.clone(),
             exact_zero: self.exact_zero.clone(),
             program_bytes: self.program_bytes.clone(),
             statistics: self.statistics.clone(),
@@ -269,6 +297,9 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    runtime_parameters: Vec<Symbol>,
+    exact_kernel: Option<SectorKernel>,
+    template_content_id: Option<String>,
     portable_artifact: Option<Vec<u8>>,
     metadata: Option<crate::generation::GenerationMetadata>,
     coefficient_orders: Vec<i32>,
@@ -282,6 +313,76 @@ pub struct KernelSet {
 }
 
 impl KernelSet {
+    /// Ordered real scalar inputs appended after integration coordinates in the native evaluator.
+    pub fn runtime_parameters(&self) -> &[Symbol] {
+        &self.runtime_parameters
+    }
+
+    /// Immutable compiled-template identity, independent of the bound physical point.
+    pub fn template_content_id(&self) -> &str {
+        self.template_content_id
+            .as_deref()
+            .unwrap_or(&self.content_id)
+    }
+
+    pub fn parameters_bound(&self) -> bool {
+        self.runtime_parameters.is_empty() || self.template_content_id.is_some()
+    }
+
+    /// Bind the complete physical point once before creating caller-owned workers.
+    /// Rebinding leaves the compiled program untouched and derives a distinct numerical identity.
+    pub fn bind_parameters(
+        &mut self,
+        values: &std::collections::BTreeMap<Symbol, f64>,
+    ) -> Result<(), KernelError> {
+        for symbol in values.keys() {
+            if !self.runtime_parameters.contains(symbol) {
+                return Err(KernelError::Parameters(format!(
+                    "unknown parameter {}",
+                    Atom::var(*symbol).to_canonical_string()
+                )));
+            }
+        }
+        let ordered = self
+            .runtime_parameters
+            .iter()
+            .map(|symbol| {
+                let name = Atom::var(*symbol).to_canonical_string();
+                match values.get(symbol) {
+                    Some(value) if value.is_finite() => Ok(*value),
+                    Some(_) => Err(KernelError::Parameters(format!("{name} must be finite"))),
+                    None => Err(KernelError::Parameters(format!("missing value for {name}"))),
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if self.runtime_parameters.is_empty() {
+            return Ok(());
+        }
+        let exact_kernel = self.exact_kernel.as_mut().ok_or_else(|| {
+            KernelError::Artifact("missing parameterized exact-offset evaluator".into())
+        })?;
+        exact_kernel.input.copy_from_slice(&ordered);
+        exact_kernel.parameters_bound = true;
+        let mut exact_coefficients = vec![0.0; exact_kernel.output_count()];
+        exact_kernel.evaluate(&[], &mut exact_coefficients)?;
+        for sector in &mut self.sectors {
+            let dimension = sector.dimension();
+            sector.input[dimension..].copy_from_slice(&ordered);
+            sector.parameters_bound = true;
+        }
+        self.exact_coefficients = exact_coefficients;
+        let original_id = self
+            .template_content_id
+            .get_or_insert_with(|| self.content_id.clone());
+        let mut hash = blake3::Hasher::new();
+        hash.update(b"fastsecdec-runtime-parameter-point-v1");
+        hash.update(original_id.as_bytes());
+        for value in ordered {
+            hash.update(&value.to_bits().to_le_bytes());
+        }
+        self.content_id = hash.finalize().to_hex().to_string();
+        Ok(())
+    }
     /// Legacy version-one artifacts have no retained generation metadata.
     pub fn generation_metadata(&self) -> Option<&crate::generation::GenerationMetadata> {
         self.metadata.as_ref()

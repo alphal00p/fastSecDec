@@ -26,12 +26,18 @@ impl fmt::Display for MetadataView<'_> {
             domain.domain(),
             domain.branch_policy()
         )?;
-        writeln!(
-            f,
-            "Caller assertion: {}; certificates rely on assertion: {}",
-            domain.caller_asserted(),
-            domain.relies_on_assertion()
-        )?;
+        if domain.branch_policy() == super::BranchPolicy::UserResponsible {
+            writeln!(
+                f,
+                "Threshold regularity: caller responsibility; no certification performed."
+            )?;
+        } else {
+            writeln!(
+                f,
+                "Historical caller assertion: {}",
+                domain.caller_asserted()
+            )?;
+        }
         for factor in domain.factors() {
             write!(
                 f,

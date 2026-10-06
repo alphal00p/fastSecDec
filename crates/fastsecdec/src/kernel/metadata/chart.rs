@@ -1,11 +1,13 @@
-use super::{KernelError, atom, invalid, symbol_strings, symbols};
+use super::{KernelError, StoredAtom, atom, invalid, symbol_strings, symbols};
 use crate::generation::{ChartRecord, DomainAssessment, coordinates_from_parts};
 use fastsecdec_sectors::SectorMap;
 use serde::{Deserialize, Serialize};
-use symbolica::{atom::AtomCore, domains::integer::Integer};
+use symbolica::domains::integer::Integer;
+use symbolica::state::StateMap;
 mod pre_subtraction;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
 #[serde(deny_unknown_fields)]
 pub(super) struct PortableChart {
     source_index: usize,
@@ -15,13 +17,14 @@ pub(super) struct PortableChart {
     source_parameters: Vec<String>,
     target_parameters: Vec<String>,
     source_domain: super::domain::PortableDomain,
-    images: Vec<String>,
-    measure_jacobian: String,
+    images: Vec<StoredAtom>,
+    measure_jacobian: StoredAtom,
     geometry: PortableGeometry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pre_subtraction: Option<pre_subtraction::PortablePreSubtraction>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
 #[serde(deny_unknown_fields)]
 struct PortableGeometry {
     fixed_parameter: Option<usize>,
@@ -44,6 +47,16 @@ fn integers(values: Vec<String>) -> Result<Vec<Integer>, KernelError> {
         .collect()
 }
 impl PortableChart {
+    pub(super) fn visit_atoms(&self, visit: &mut impl FnMut(&symbolica::atom::Atom)) {
+        for image in &self.images {
+            visit(&image.0);
+        }
+        visit(&self.measure_jacobian.0);
+        if let Some(value) = &self.pre_subtraction {
+            value.visit_atoms(visit);
+        }
+    }
+
     pub(super) fn for_sector(chart: &ChartRecord) -> Self {
         let mut selected = Self::from_native(chart);
         selected.kernel_sector = Some(0);
@@ -61,12 +74,8 @@ impl PortableChart {
             source_parameters: symbol_strings(coordinates.source_parameters()),
             target_parameters: symbol_strings(coordinates.target_parameters()),
             source_domain: super::domain::PortableDomain::from_native(coordinates.source_domain()),
-            images: coordinates
-                .images()
-                .iter()
-                .map(AtomCore::to_canonical_string)
-                .collect(),
-            measure_jacobian: coordinates.measure_jacobian().to_canonical_string(),
+            images: coordinates.images().iter().map(StoredAtom::from).collect(),
+            measure_jacobian: coordinates.measure_jacobian().into(),
             geometry: PortableGeometry {
                 fixed_parameter: geometry.fixed_parameter,
                 exponent_matrix: geometry

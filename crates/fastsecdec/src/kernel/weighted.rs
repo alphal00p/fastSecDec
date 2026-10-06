@@ -192,6 +192,9 @@ impl KernelSet {
         policy: ReplayPolicy,
     ) -> Result<ReplayState, KernelError> {
         policy.validate()?;
+        if !self.parameters_bound() {
+            return Err(KernelError::UnboundParameters);
+        }
         let kernel = self
             .sectors
             .get(sector)

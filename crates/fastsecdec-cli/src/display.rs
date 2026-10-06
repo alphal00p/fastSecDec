@@ -40,6 +40,8 @@ pub struct Dashboard {
     generation_cadence: crate::status_policy::StatusCadence,
     generation_boundary: Option<crate::status_policy::GenerationBoundary>,
     color: ColorPolicy,
+    generation_workers: Option<crate::generate::dispatch::Progress>,
+    generation_worker_offset: std::cell::Cell<usize>,
 }
 
 impl Dashboard {
@@ -88,7 +90,17 @@ impl Dashboard {
             generation_cadence: crate::status_policy::StatusCadence::new(interval),
             generation_boundary: None,
             color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
+            generation_workers: None,
+            generation_worker_offset: std::cell::Cell::new(0),
         })
+    }
+
+    pub(crate) fn generation_workers(&mut self, progress: &crate::generate::dispatch::Progress) {
+        self.generation_workers = Some(progress.clone());
+    }
+
+    pub(crate) fn generation_coordinator(&mut self) {
+        self.generation_workers = None;
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
@@ -105,7 +117,20 @@ impl Dashboard {
             {
                 return Ok(());
             }
-            eprintln!("{}", serde_json::to_string(snapshot)?);
+            #[derive(serde::Serialize)]
+            struct GenerationStatus<'a> {
+                #[serde(flatten)]
+                snapshot: &'a GenerationSnapshot,
+                #[serde(skip_serializing_if = "Option::is_none")]
+                workload: Option<&'a crate::generate::dispatch::Progress>,
+            }
+            eprintln!(
+                "{}",
+                serde_json::to_string(&GenerationStatus {
+                    snapshot,
+                    workload: self.generation_workers.as_ref()
+                })?
+            );
             return Ok(());
         }
         if let Some(terminal) = &mut self.terminal {
@@ -122,68 +147,56 @@ impl Dashboard {
                 }
                 let chunks = Layout::vertical([
                     Constraint::Length(3),
-                    Constraint::Length(5),
                     Constraint::Length(3),
-                    Constraint::Min(3),
+                    Constraint::Length(4),
+                    Constraint::Min(5),
                     Constraint::Length(1),
-                ])
-                .split(frame.area());
+                ]).split(frame.area());
                 frame.render_widget(title("Generation", self.color), chunks[0]);
-                let rows = [
-                    Row::new(vec![
-                        "Stage".into(),
-                        format!("{:?}", snapshot.stage),
-                        "Sectors".into(),
-                        snapshot.sectors.to_string(),
-                    ]),
-                    Row::new(vec![
-                        "Elapsed".into(),
-                        format!("{:.2} s", snapshot.elapsed_seconds),
-                        "Kernels".into(),
-                        snapshot.kernels.to_string(),
-                    ]),
-                ];
+                let ratio = snapshot.total.filter(|n| *n > 0).map_or(0.0, |n| (snapshot.completed as f64 / n as f64).min(1.0));
+                let workload = self.generation_workers.as_ref();
+                let eta = workload.filter(|work| snapshot.total == Some(work.total) && snapshot.completed == work.completed)
+                    .and_then(|work| work.eta_seconds())
+                    .or_else(|| {
+                        if snapshot.stage == fastsecdec::status::GenerationStage::Symmetry && snapshot.completed > 0 {
+                            snapshot.total.map(|total| snapshot.timings.symmetry_seconds * total.saturating_sub(snapshot.completed) as f64 / snapshot.completed as f64)
+                        } else { None }
+                    }).map_or_else(|| "estimating".into(), |seconds| format!("{seconds:.1} s"));
                 frame.render_widget(
-                    Table::new(
-                        rows,
-                        [
-                            Constraint::Length(12),
-                            Constraint::Percentage(40),
-                            Constraint::Length(12),
-                            Constraint::Min(8),
-                        ],
-                    )
-                    .block(panel("Progress", self.color))
-                    .column_spacing(2),
+                    Gauge::default().block(panel(&format!("{:?} · aggregate stage progress", snapshot.stage), self.color))
+                        .gauge_style(self.color.foreground(TEAL).add_modifier(Modifier::BOLD))
+                        .ratio(ratio).label(if let Some(total) = snapshot.total {
+                            format!("{:5.1}%  ·  {} / {} jobs  ·  elapsed {:.1} s  ·  stage ETA ≈ {}", ratio * 100.0, snapshot.completed, total, snapshot.elapsed_seconds, eta)
+                        } else { format!("Coordinator in progress  ·  elapsed {:.1} s  ·  ETA unavailable", snapshot.elapsed_seconds) }),
                     chunks[1],
                 );
-                let ratio = snapshot
-                    .total
-                    .filter(|n| *n > 0)
-                    .map_or(0.0, |n| (snapshot.completed as f64 / n as f64).min(1.0));
-                let label = snapshot.total.map_or_else(
-                    || format!("{} completed", snapshot.completed),
-                    |n| format!("{} / {}", snapshot.completed, n),
-                );
-                frame.render_widget(
-                    Gauge::default()
-                        .block(panel("Current stage", self.color))
-                        .gauge_style(self.color.foreground(TEAL))
-                        .ratio(ratio)
-                        .label(label),
-                    chunks[2],
-                );
-                frame.render_widget(
-                    Paragraph::new(snapshot.detail.clone())
-                        .block(panel("Activity", self.color))
-                        .wrap(ratatui::widgets::Wrap { trim: true }),
-                    chunks[3],
-                );
-                frame.render_widget(
-                    Paragraph::new("  q / Esc  cancel safely")
-                        .style(self.color.foreground(Color::DarkGray)),
-                    chunks[4],
-                );
+                let running = workload.map_or(0, |work| work.running());
+                let cores = workload.map_or(0, |work| work.workers.len());
+                let rows = [
+                    Row::new(vec!["Sectors".into(), snapshot.sectors.to_string(), "Kernels".into(), snapshot.kernels.to_string(), "Workers".into(), format!("{running} / {cores} busy")])
+                        .style(self.color.foreground(GOLD)),
+                    Row::new(vec!["Activity".into(), snapshot.detail.clone(), String::new(), String::new(), String::new(), String::new()]),
+                ];
+                frame.render_widget(Table::new(rows, [Constraint::Length(9), Constraint::Percentage(40), Constraint::Length(8), Constraint::Length(8), Constraint::Length(9), Constraint::Min(10)])
+                    .block(panel("Coordinator", self.color)).column_spacing(1), chunks[2]);
+                let visible_workers = chunks[3].height.saturating_sub(3) as usize;
+                let worker_offset = self.generation_worker_offset.get().min(cores.saturating_sub(visible_workers));
+                let rows = workload.into_iter().flat_map(|work| &work.workers).skip(worker_offset).take(visible_workers).map(|worker| {
+                    let color = if worker.busy { TEAL } else if worker.completed > 0 { Color::Rgb(126, 163, 243) } else { Color::DarkGray };
+                    Row::new(vec![
+                        format!("{:02}", worker.index + 1),
+                        if worker.busy { "● running".into() } else { "○ idle".into() },
+                        worker.completed.to_string(),
+                        format!("{:.1} s", worker.active_seconds),
+                        format!("{:.1} s", worker.busy_seconds + worker.active_seconds),
+                        worker.activity.clone(),
+                    ]).style(self.color.foreground(color))
+                });
+                frame.render_widget(Table::new(rows, [Constraint::Length(5), Constraint::Length(10), Constraint::Length(6), Constraint::Length(9), Constraint::Length(9), Constraint::Min(20)])
+                    .header(Row::new(["Core", "State", "Done", "Job time", "Busy time", "Native activity"]).style(self.color.foreground(GOLD).add_modifier(Modifier::BOLD)))
+                    .block(panel(&format!("Worker activity · cores {}–{} / {} · ↑/↓ scroll", (worker_offset + 1).min(cores), (worker_offset + visible_workers).min(cores), cores), self.color)).column_spacing(1), chunks[3]);
+                frame.render_widget(Paragraph::new("  q / Esc  cancel safely · ETA covers this stage; later work is discovered dynamically")
+                    .style(self.color.foreground(Color::Rgb(163, 143, 220))), chunks[4]);
             })?;
         } else if self.last_log.elapsed() >= Duration::from_secs(1)
             || snapshot.stage == fastsecdec::status::GenerationStage::Complete
@@ -367,9 +380,31 @@ impl Dashboard {
         if self.interrupt.flag.load(Ordering::Relaxed) {
             return true;
         }
-        let pressed = self.terminal.is_some()
-            && event::poll(Duration::ZERO).unwrap_or(false)
-            && matches!(event::read(),Ok(Event::Key(key)) if matches!(key.code,KeyCode::Esc|KeyCode::Char('q')|KeyCode::Char('c')));
+        let pressed = if self.terminal.is_some() && event::poll(Duration::ZERO).unwrap_or(false) {
+            match event::read() {
+                Ok(Event::Key(key)) => match key.code {
+                    KeyCode::Up | KeyCode::PageUp => {
+                        self.generation_worker_offset
+                            .set(self.generation_worker_offset.get().saturating_sub(1));
+                        false
+                    }
+                    KeyCode::Down | KeyCode::PageDown => {
+                        let maximum = self
+                            .generation_workers
+                            .as_ref()
+                            .map_or(0, |work| work.workers.len().saturating_sub(1));
+                        self.generation_worker_offset
+                            .set((self.generation_worker_offset.get() + 1).min(maximum));
+                        false
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('c') => true,
+                    _ => false,
+                },
+                _ => false,
+            }
+        } else {
+            false
+        };
         if pressed {
             self.request_cancel();
         }
@@ -422,7 +457,7 @@ fn panel(title: &str, color: ColorPolicy) -> Block<'_> {
         .title(title)
         .borders(Borders::ALL)
         .border_type(ratatui::widgets::BorderType::Rounded)
-        .border_style(color.foreground(Color::DarkGray))
+        .border_style(color.foreground(Color::Rgb(80, 125, 169)))
 }
 fn title(stage: &str, color: ColorPolicy) -> Paragraph<'_> {
     Paragraph::new(Line::from(vec![

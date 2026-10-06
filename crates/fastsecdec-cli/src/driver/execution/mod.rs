@@ -109,8 +109,14 @@ pub(super) fn problem(
     scope: &fastsecdec::results::ResultScope,
 ) -> CliResult<IntegrationProblem> {
     Ok(
-        fastsecdec::results::KernelResultManifest::from_kernels(kernels)
-            .integration_problem(scope, artifact.content_id.clone())?,
+        fastsecdec::results::KernelResultManifest::from_kernels(kernels).integration_problem(
+            scope,
+            if kernels.runtime_parameters().is_empty() {
+                artifact.content_id.clone()
+            } else {
+                format!("{}:{}", artifact.content_id, kernels.content_id())
+            },
+        )?,
     )
 }
 

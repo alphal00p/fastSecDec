@@ -1,5 +1,28 @@
 # Ecosystem reuse evidence
 
+## Parameterized CLI generation and binary artifacts (2026-10-06)
+
+Runtime scalar products use the existing HEPKit `Kinematics` and Symbolica
+ordered evaluator inputs. The same native evaluator owns exact offsets,
+ordinary samples and multiprecision rescue. Native and portable eager backends
+remain available. No new graph, algebra, sampler or estimator is introduced.
+
+Artifacts reuse Symbolica's native Atom binserde with exported state and
+context-aware decoding, following GammaLoop's `HasStateMap` pattern. Evaluator
+programs use the existing owner serde/bincode adapter because a focused probe
+and gg→HH cold reload exposed sign loss in Numerica 3.0.1's native GMP encoding
+of large negative integers; no new numerical codec or dependency patch is added.
+Scientific identity is separate from state-dependent binary integrity.
+Generation dispatch composes the existing geometry, mapping and Laurent owners;
+the CLI owns threads and presentation. One-loop masters and reduction remain
+the existing independent numerical-reference owners, unchanged by this work.
+
+See the [revision record](reviews/gghh-generation-revision.md) and the independent
+[runtime review](reviews/generation-runtime-review.md),
+[artifact review](reviews/generation-artifact-review.md), and
+[parallel review](reviews/generation-parallel-review.md). Other examples and the
+test/gate migration are deferred by explicit user instruction.
+
 ## Native notebook progress and citations (2026-10-06)
 
 The public `generate_diagrams(progress="auto")` behavior, its Rust source and an

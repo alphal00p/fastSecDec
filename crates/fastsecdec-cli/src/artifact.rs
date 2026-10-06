@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File, OpenOptions},
     io::{BufReader, BufWriter, Write},
-    path::Path,
+    path::{Path, PathBuf},
     time::Instant,
 };
 
@@ -136,30 +136,119 @@ pub struct Artifact {
     format_version: u32,
     pub content_id: String,
     pub provenance: Provenance,
-    // Keep the native JSON envelope verbatim: program byte arrays must never
-    // become a second tree of per-byte JSON values on the current path.
+    pub kernel_content_id: String,
+    /// Human-readable kernel layout; executable expressions live in the sibling data file.
     kernel: Box<RawValue>,
     #[serde(skip)]
-    kernel_content_id: String,
-    /// Observations are intentionally excluded from the scientific content hash.
+    data: Vec<u8>,
+    #[serde(skip)]
+    source_root: PathBuf,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_timings: Option<GenerationTimings>,
-    /// Comparison steering is observational and excluded from scientific identity.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<crate::config::ReferenceInput>,
     #[serde(skip)]
     pub loading_seconds: f64,
 }
 
+/// The public path is a basename. Neither sibling stores a path to the other.
+pub fn paths(base: &Path) -> CliResult<(PathBuf, PathBuf)> {
+    let name = base
+        .file_name()
+        .ok_or("artifact basename requires a file name")?;
+    let name = name.to_string_lossy();
+    if name.ends_with(".json") || name.ends_with(".dat") {
+        return Err("specify the artifact basename (for example output/integral.fsd), without .json or .dat".into());
+    }
+    Ok((
+        base.with_file_name(format!("{name}.json")),
+        base.with_file_name(format!("{name}.dat")),
+    ))
+}
+
+/// Normalize a path relative to a caller-selected directory without requiring
+/// the destination to exist. Absolute paths are only transient local values.
+pub fn relative_path(path: &Path, base: &Path) -> CliResult<PathBuf> {
+    fn normalized(path: &Path) -> CliResult<PathBuf> {
+        let path = if path.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            path
+        };
+        let full = std::path::absolute(path)?;
+        if let Ok(existing) = fs::canonicalize(&full) {
+            return Ok(existing);
+        }
+        // Keep symlink resolution for the existing prefix. The suffix may name
+        // a future output file or directory and is normalized only afterward.
+        let (ancestor, suffix) = full
+            .ancestors()
+            .find_map(|ancestor| {
+                fs::canonicalize(ancestor).ok().map(|resolved| {
+                    (
+                        resolved,
+                        full.strip_prefix(ancestor).expect("path ancestor"),
+                    )
+                })
+            })
+            .ok_or("path has no existing ancestor")?;
+        let mut clean = ancestor;
+        for part in suffix.components() {
+            match part {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    clean.pop();
+                }
+                other => clean.push(other.as_os_str()),
+            }
+        }
+        Ok(clean)
+    }
+    let path = normalized(path)?;
+    let base = normalized(base)?;
+    let a = path.components().collect::<Vec<_>>();
+    let b = base.components().collect::<Vec<_>>();
+    let common = a.iter().zip(&b).take_while(|(a, b)| a == b).count();
+    if common == 0 {
+        return Err("path and destination cannot be represented relatively".into());
+    }
+    let mut result = PathBuf::new();
+    for _ in common..b.len() {
+        result.push("..");
+    }
+    for part in &a[common..] {
+        result.push(part.as_os_str());
+    }
+    if result.as_os_str().is_empty() {
+        result.push(".");
+    }
+    Ok(result)
+}
+
+pub fn relative_display(path: &Path) -> String {
+    relative_path(path, Path::new("."))
+        .unwrap_or_else(|_| PathBuf::from(path.file_name().unwrap_or_default()))
+        .display()
+        .to_string()
+}
+
 impl Artifact {
     pub fn new(kernels: &KernelSet, provenance: Provenance) -> CliResult<Self> {
-        let kernel = serde_json::from_slice(kernels.artifact_bytes()?)?;
         let mut result = Self {
-            format_version: 2,
+            format_version: 3,
             content_id: String::new(),
             provenance,
-            kernel,
-            kernel_content_id: kernels.content_id().to_owned(),
+            kernel_content_id: kernels.template_content_id().to_owned(),
+            kernel: RawValue::from_string(serde_json::to_string_pretty(&serde_json::json!({
+                "threshold_policy": "user_responsible", "threshold_certification": "not_performed",
+                "orders": kernels.orders(), "components": kernels.components(),
+                "sectors": kernels.sectors().len(),
+                "dimensions": kernels.sectors().iter().map(|s| s.dimension()).collect::<Vec<_>>(),
+                "runtime_parameters": kernels.runtime_parameters().iter().map(|p| p.get_name().to_owned()).collect::<Vec<_>>(),
+                "evaluator_statistics": kernels.sectors().iter().map(|s| s.statistics()).collect::<Vec<_>>(),
+            }))?)?,
+            data: kernels.to_bytes()?,
+            source_root: PathBuf::from("."),
             generation_timings: None,
             reference: None,
             loading_seconds: 0.0,
@@ -167,55 +256,94 @@ impl Artifact {
         result.content_id = result.identity()?;
         Ok(result)
     }
-
     fn identity(&self) -> CliResult<String> {
         let mut hasher = blake3::Hasher::new();
-        match self.format_version {
-            1 => {
-                // Historical identities canonicalized the native JSON as Value.
-                // Keep this branch exact for existing files, including their IDs.
-                let kernel: serde_json::Value = serde_json::from_str(self.kernel.get())?;
-                hasher.update(b"fastsecdec-artifact-v1");
-                serde_json::to_writer(&mut hasher, &self.provenance)?;
-                serde_json::to_writer(&mut hasher, &kernel)?;
-            }
-            2 => {
-                // The native loader validates the payload against this native
-                // content ID before returning kernels to a caller.
-                hasher.update(b"fastsecdec-artifact-v2");
-                serde_json::to_writer(&mut hasher, &self.provenance)?;
-                hasher.update(self.kernel_content_id()?.as_bytes());
-            }
-            _ => return Err("artifact version is unsupported".into()),
-        }
+        hasher.update(b"fastsecdec-artifact-v3");
+        serde_json::to_writer(&mut hasher, &self.provenance)?;
+        hasher.update(self.kernel_content_id.as_bytes());
+        serde_json::to_writer(&mut hasher, &self.kernel)?;
         Ok(hasher.finalize().to_hex().to_string())
     }
-
-    pub fn save(&self, path: &Path) -> CliResult<()> {
-        atomic_write_with(path, |writer| {
+    /// Input paths enter relative to the run card and leave relative to the
+    /// artifact pair; copying a directory tree preserves the provenance links.
+    pub fn relocate_sources(
+        &mut self,
+        source_root: &Path,
+        destination_root: &Path,
+    ) -> CliResult<()> {
+        for source in &mut self.provenance.sources {
+            source.path = relative_path(&source_root.join(&source.path), destination_root)?
+                .to_string_lossy()
+                .into_owned();
+        }
+        if let Some(reference) = &mut self.reference {
+            // Prepared references have been resolved against the caller's cwd.
+            reference.path = relative_path(&reference.path, destination_root)?;
+        }
+        self.source_root = destination_root.to_path_buf();
+        self.content_id = self.identity()?;
+        Ok(())
+    }
+    pub fn source_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
+        self.provenance
+            .sources
+            .iter()
+            .map(|source| self.source_root.join(&source.path))
+    }
+    pub fn resolved_reference(&self) -> Option<crate::config::ReferenceInput> {
+        self.reference.clone().map(|mut reference| {
+            reference.path = self.source_root.join(reference.path);
+            reference
+        })
+    }
+    pub fn save(&self, base: &Path) -> CliResult<()> {
+        let (metadata, data) = paths(base)?;
+        if self
+            .provenance
+            .sources
+            .iter()
+            .any(|s| Path::new(&s.path).is_absolute())
+            || self
+                .reference
+                .as_ref()
+                .is_some_and(|r| r.path.is_absolute())
+        {
+            return Err("artifact provenance paths must be relative".into());
+        }
+        // The metadata commits the pair only after the complete data is durable.
+        // A interrupted overwrite can leave a mismatched pair, which loading rejects.
+        atomic_write(&data, &self.data)?;
+        atomic_write_with(&metadata, |writer| {
             serde_json::to_writer_pretty(writer, self)?;
             Ok(())
         })
     }
-
     pub fn kernel_content_id(&self) -> CliResult<&str> {
         if self.kernel_content_id.is_empty() {
-            return Err("portable artifact has no kernel content identity".into());
+            return Err("artifact has no kernel content identity".into());
         }
         Ok(&self.kernel_content_id)
     }
-
     pub fn verify_input_sources(&self, input: &Path) -> CliResult<()> {
         let first = self
             .provenance
             .sources
             .first()
             .ok_or("artifact has no source provenance")?;
-        if fs::canonicalize(input)? != fs::canonicalize(&first.path)? {
-            return Err("resume run card differs from the artifact's input; regenerate before integrating changed inputs".into());
-        }
-        for source in &self.provenance.sources {
-            if source.fingerprint.hash(&fs::read(&source.path)?)? != source.blake3 {
+        // The caller can relocate the run card and its input directory together.
+        let original_card = self.source_root.join(&first.path);
+        let original_directory = original_card.parent().unwrap_or_else(|| Path::new("."));
+        let supplied_directory = input.parent().unwrap_or_else(|| Path::new("."));
+        for (index, source) in self.provenance.sources.iter().enumerate() {
+            let path = if index == 0 {
+                input.to_path_buf()
+            } else {
+                supplied_directory.join(relative_path(
+                    &self.source_root.join(&source.path),
+                    original_directory,
+                )?)
+            };
+            if source.fingerprint.hash(&fs::read(path)?)? != source.blake3 {
                 return Err(format!(
                     "input source {} changed since generation; checkpoint resume refused",
                     source.path
@@ -225,34 +353,34 @@ impl Artifact {
         }
         Ok(())
     }
-    pub fn load(path: &Path) -> CliResult<(Self, KernelSet)> {
-        Self::load_with_preflight(path, |_| Ok(()))
+    pub fn load(base: &Path) -> CliResult<(Self, KernelSet)> {
+        Self::load_with_preflight(base, |_| Ok(()))
     }
-
-    /// Validate optional caller-side input before recompiling portable kernels.
     pub fn load_with_preflight(
-        path: &Path,
+        base: &Path,
         preflight: impl FnOnce(&Self) -> CliResult<()>,
     ) -> CliResult<(Self, KernelSet)> {
         let started = Instant::now();
-        let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(path)?))?;
-        if !matches!(artifact.format_version, 1 | 2) {
-            return Err("artifact version is unsupported".into());
+        let (metadata, data) = paths(base)?;
+        let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(metadata)?))?;
+        if artifact.format_version != 3 {
+            return Err(
+                "artifact version is unsupported; regenerate using an .fsd basename".into(),
+            );
         }
-        #[derive(Deserialize)]
-        struct KernelIdentity {
-            content_id: String,
-        }
-        artifact.kernel_content_id =
-            serde_json::from_str::<KernelIdentity>(artifact.kernel.get())?.content_id;
         if artifact.content_id != artifact.identity()? {
             return Err("artifact complete content identity is invalid".into());
         }
         if !dependencies_match(&artifact.provenance.dependencies, &dependencies()) {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
+        artifact.source_root = base
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf();
         preflight(&artifact)?;
-        let kernels = KernelSet::from_bytes(artifact.kernel.get().as_bytes())?;
+        artifact.data = fs::read(data)?;
+        let kernels = KernelSet::from_bytes(&artifact.data)?;
         if kernels.content_id() != artifact.kernel_content_id()? {
             return Err("validated native kernel identity differs from the artifact".into());
         }

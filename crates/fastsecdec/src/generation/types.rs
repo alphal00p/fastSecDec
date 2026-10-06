@@ -5,9 +5,8 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 
 #[derive(Clone, Debug)]
 pub struct GenerationOptions {
-    /// Accept an inconclusive no-threshold check by an explicit caller assertion.
-    /// A proven interior zero or sign change is never overridden.
-    /// Boundary geometry must still be certified for the available charts.
+    /// Legacy recorded caller assertion; threshold freedom is always the
+    /// caller's responsibility when no regularisation is requested.
     pub assume_no_threshold: bool,
     /// Highest included Laurent order. Lower pole orders are found exactly.
     pub max_order: i32,
@@ -92,6 +91,10 @@ pub enum GenerationProgress {
     Decomposition(DecompositionProgress),
     Factorization {
         sector: usize,
+        total: usize,
+    },
+    Symmetry {
+        completed: usize,
         total: usize,
     },
     Subtraction {

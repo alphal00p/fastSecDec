@@ -18,6 +18,7 @@ pub(super) struct ComplexKernel {
     evaluator: evaluator::ComplexEvaluator,
     conditioning: Option<ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>>,
     input: Vec<Complex<f64>>,
+    integration_dimension: usize,
     output: Vec<Complex<f64>>,
     check_input: Vec<Complex<ErrorPropagatingFloat<f64>>>,
     check_output: Vec<Complex<ErrorPropagatingFloat<f64>>>,
@@ -48,6 +49,7 @@ impl ComplexKernel {
             .map_err(|error| KernelError::Compilation(error.to_string()))?;
         Self::from_program(
             exact,
+            parameters.len(),
             cancellation,
             precision,
             coefficients.iter().map(|value| value.is_zero()).collect(),
@@ -60,6 +62,7 @@ impl ComplexKernel {
 
     pub(super) fn from_program(
         exact: super::program::ExactProgram,
+        integration_dimension: usize,
         cancellation: Cancellation,
         precision: PrecisionPolicy,
         exact_zero: Vec<bool>,
@@ -89,6 +92,7 @@ impl ComplexKernel {
             evaluator,
             conditioning,
             input: vec![Complex::new(0.0, 0.0); inputs],
+            integration_dimension,
             output: vec![Complex::new(0.0, 0.0); outputs],
             check_input: vec![Complex::new(tracked(0.0), tracked(0.0)); inputs],
             check_output: vec![Complex::new(tracked(0.0), tracked(0.0)); outputs],
@@ -129,9 +133,10 @@ impl ComplexKernel {
                 actual: output.len(),
             });
         }
-        if point
-            .iter()
-            .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+        if point.iter().any(|value| !value.is_finite())
+            || point[..self.integration_dimension]
+                .iter()
+                .any(|value| !(0.0..=1.0).contains(value))
         {
             return Err(KernelError::InvalidPoint);
         }
@@ -239,6 +244,7 @@ impl ComplexKernel {
             evaluator: self.evaluator.clone(),
             conditioning: self.conditioning.clone(),
             input: self.input.clone(),
+            integration_dimension: self.integration_dimension,
             output: self.output.clone(),
             check_input: self.check_input.clone(),
             check_output: self.check_output.clone(),

@@ -12,6 +12,7 @@ pub(super) type ExactProgram = ExpressionEvaluator<Complex<Rational>>;
 
 pub(super) struct SectorProgram {
     pub parameters: Vec<Symbol>,
+    pub runtime_parameters: Vec<Symbol>,
     pub exact: ExactProgram,
     pub cancellation: Cancellation,
     pub exact_zero: Vec<bool>,
@@ -25,6 +26,25 @@ pub(super) fn build(
     coefficients: &[AliasedAtom],
     cancellation: Cancellation,
 ) -> Result<SectorProgram, KernelError> {
+    build_with_parameters(parameters, &[], coefficients, cancellation)
+}
+
+pub(super) fn build_with_parameters(
+    parameters: Vec<Symbol>,
+    runtime_parameters: &[Symbol],
+    coefficients: &[AliasedAtom],
+    cancellation: Cancellation,
+) -> Result<SectorProgram, KernelError> {
+    let mut seen = std::collections::HashSet::new();
+    if parameters
+        .iter()
+        .chain(runtime_parameters)
+        .any(|symbol| !seen.insert(*symbol))
+    {
+        return Err(KernelError::Compilation(
+            "duplicate coordinate or runtime parameter".into(),
+        ));
+    }
     let aliases = coefficients
         .iter()
         .map(AliasedAtom::get_aliases)
@@ -42,7 +62,11 @@ pub(super) fn build(
         .iter()
         .map(AliasedAtom::get_root)
         .collect::<Vec<_>>();
-    let variables = parameters.iter().map(|p| Atom::var(*p)).collect::<Vec<_>>();
+    let variables = parameters
+        .iter()
+        .chain(runtime_parameters)
+        .map(|p| Atom::var(*p))
+        .collect::<Vec<_>>();
     let mut builder = Atom::evaluator_multiple(&roots, &variables)
         .direct_translation(true)
         .horner_iterations(0);
@@ -64,6 +88,7 @@ pub(super) fn build(
         .map_err(|error| KernelError::Compilation(error.to_string()))?;
     Ok(SectorProgram {
         parameters,
+        runtime_parameters: runtime_parameters.to_vec(),
         exact,
         cancellation,
         exact_zero: roots.iter().map(|root| root.is_zero()).collect(),
@@ -71,7 +96,7 @@ pub(super) fn build(
     })
 }
 
-/// Native literal coefficients plus the certified real phase-one domain provide
+/// Native literal coefficients plus the caller-chosen real domain provide
 /// this sufficient test. Only definitions used by the root contribute.
 pub(super) fn is_real(coefficient: &AliasedAtom) -> bool {
     let symbols = coefficient.get_root().get_all_symbols(true);

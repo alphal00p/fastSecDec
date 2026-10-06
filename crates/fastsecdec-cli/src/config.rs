@@ -56,7 +56,9 @@ pub struct KinematicsInput {
 pub struct Product {
     pub left: MomentumName,
     pub right: MomentumName,
-    pub value: String,
+    pub value: Option<String>,
+    /// A real scalar supplied when integrating the generated kernel.
+    pub symbol: Option<String>,
 }
 
 /// Integer labels preserve the native graph's P(i) shorthand. Expressions
@@ -117,6 +119,9 @@ impl Default for GenerationInput {
 #[derive(Clone, Debug, serde::Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct IntegrationInput {
+    /// The complete physical point, included in numerical checkpoint identity.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub parameters: BTreeMap<String, f64>,
     /// Native scope; absent historical settings continue to mean the full integral.
     #[serde(skip_serializing_if = "fastsecdec::results::ResultScope::is_full_integral")]
     pub scope: fastsecdec::results::ResultScope,
@@ -170,6 +175,7 @@ impl Default for DiscreteMcInput {
 impl Default for IntegrationInput {
     fn default() -> Self {
         Self {
+            parameters: BTreeMap::new(),
             scope: Default::default(),
             method: "qmc".into(),
             points: 4096,

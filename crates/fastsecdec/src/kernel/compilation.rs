@@ -1,14 +1,59 @@
 //! Caller-driven compilation of one exact native program per sector.
+#[cfg(feature = "native")]
+use super::SectorExpressions;
 use super::{
     Backend, CompilationProgress, KernelError, KernelSet, PrecisionPolicy, RealKernel,
-    SectorExpressions, SectorKernel, cancellation::Cancellation, complex, evaluator, program,
+    SectorKernel, cancellation::Cancellation, complex, evaluator, program,
 };
 use crate::generation::{GeneratedIntegral, GenerationMetadata};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};
 use symbolica::{
-    atom::{AliasedAtom, Atom, AtomCore},
+    atom::{AliasedAtom, Atom, AtomCore, Symbol},
     domains::float::ErrorPropagatingFloat,
 };
+
+/// Caller-owned native sector compilation; jobs are tied to one compilation call.
+pub type CompilationDispatch<'a> = dyn FnMut(
+        &mut dyn ExactSizeIterator<Item = CompilationJob>,
+    ) -> Result<Vec<CompilationCompletion>, KernelError>
+    + 'a;
+
+pub struct CompilationJob {
+    owner: std::sync::Arc<()>,
+    index: usize,
+    sector: crate::generation::GeneratedSector,
+    runtime_parameters: std::sync::Arc<Vec<Symbol>>,
+    precision: PrecisionPolicy,
+    use_complex: bool,
+}
+pub struct CompilationCompletion {
+    owner: std::sync::Arc<()>,
+    index: usize,
+    sector: SectorKernel,
+}
+impl CompilationJob {
+    pub fn index(&self) -> usize {
+        self.index
+    }
+    pub fn run(self) -> Result<CompilationCompletion, KernelError> {
+        let program = program::build_with_parameters(
+            self.sector.parameters().to_vec(),
+            &self.runtime_parameters,
+            self.sector.aliased_coefficients(),
+            Cancellation::new(
+                self.sector.cancellation_degree(),
+                Some(self.sector.cancellation_terms().to_vec()),
+                self.sector.dimension(),
+            )?,
+        )?;
+        let sector = SectorKernel::from_program(program, &self.precision, self.use_complex)?;
+        Ok(CompilationCompletion {
+            owner: self.owner,
+            index: self.index,
+            sector,
+        })
+    }
+}
 
 impl GeneratedIntegral {
     pub fn compile(&self) -> Result<KernelSet, KernelError> {
@@ -32,6 +77,27 @@ impl GeneratedIntegral {
     pub fn compile_with_precision_and_progress(
         &self,
         precision: PrecisionPolicy,
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_precision_parameters_and_progress(precision, &[], progress)
+    }
+
+    pub fn compile_with_parameters_and_progress(
+        &self,
+        runtime_parameters: &[Symbol],
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_precision_parameters_and_progress(
+            PrecisionPolicy::default(),
+            runtime_parameters,
+            progress,
+        )
+    }
+
+    pub fn compile_with_precision_parameters_and_progress(
+        &self,
+        precision: PrecisionPolicy,
+        runtime_parameters: &[Symbol],
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
@@ -52,8 +118,9 @@ impl GeneratedIntegral {
         emit(0)?;
         let mut sectors = Vec::with_capacity(total);
         for sector in self.sectors() {
-            let program = program::build(
+            let program = program::build_with_parameters(
                 sector.parameters().to_vec(),
+                runtime_parameters,
                 sector.aliased_coefficients(),
                 Cancellation::new(
                     sector.cancellation_degree(),
@@ -75,6 +142,91 @@ impl GeneratedIntegral {
             precision,
             Some(self.metadata().clone()),
             use_complex,
+            runtime_parameters.to_vec(),
+        )?;
+        kernels.initialize_artifact()?;
+        Ok(kernels)
+    }
+    /// Compile independent sectors on the caller's executor and assemble in native order.
+    /// The library owns no threads. Cancellation around individual compilation
+    /// calls is caller driven; native symbolic/JIT calls are not preemptible.
+    pub fn compile_with_parameters_and_dispatch(
+        &self,
+        runtime_parameters: &[Symbol],
+        dispatch: &mut CompilationDispatch<'_>,
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_precision_parameters_and_dispatch(
+            PrecisionPolicy::default(),
+            runtime_parameters,
+            dispatch,
+            progress,
+        )
+    }
+
+    pub fn compile_with_precision_parameters_and_dispatch(
+        &self,
+        precision: PrecisionPolicy,
+        runtime_parameters: &[Symbol],
+        dispatch: &mut CompilationDispatch<'_>,
+        mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        precision.validate()?;
+        let started = Instant::now();
+        let total = self.sectors().len();
+        emit(&mut progress, started, 0, total)?;
+        let use_complex = self.sectors().iter().any(|sector| {
+            sector
+                .aliased_coefficients()
+                .iter()
+                .any(|value| !program::is_real(value))
+        }) || self
+            .exact_coefficients()
+            .iter()
+            .any(super::has_complex_coefficients);
+        let owner = std::sync::Arc::new(());
+        let runtime = std::sync::Arc::new(runtime_parameters.to_vec());
+        let mut jobs = self
+            .sectors()
+            .iter()
+            .enumerate()
+            .map(|(index, sector)| CompilationJob {
+                owner: std::sync::Arc::clone(&owner),
+                index,
+                sector: sector.clone(),
+                runtime_parameters: std::sync::Arc::clone(&runtime),
+                precision: precision.clone(),
+                use_complex,
+            });
+        let mut completions = dispatch(&mut jobs)?;
+        if completions.len() != total
+            || completions
+                .iter()
+                .any(|value| !std::sync::Arc::ptr_eq(&owner, &value.owner))
+        {
+            return Err(KernelError::Artifact(
+                "compilation dispatcher returned foreign or incomplete work".into(),
+            ));
+        }
+        completions.sort_by_key(|value| value.index);
+        let mut sectors = Vec::with_capacity(total);
+        for (index, completion) in completions.into_iter().enumerate() {
+            if completion.index != index {
+                return Err(KernelError::Artifact(
+                    "compilation dispatcher duplicated or omitted work".into(),
+                ));
+            }
+            sectors.push(completion.sector);
+        }
+        emit(&mut progress, started, total, total)?;
+        let mut kernels = KernelSet::finish(
+            self.orders().to_vec(),
+            sectors,
+            self.exact_coefficients().to_vec(),
+            precision,
+            Some(self.metadata().clone()),
+            use_complex,
+            runtime_parameters.to_vec(),
         )?;
         kernels.initialize_artifact()?;
         Ok(kernels)
@@ -89,12 +241,13 @@ impl SectorKernel {
     ) -> Result<Self, KernelError> {
         let program::SectorProgram {
             parameters,
+            runtime_parameters,
             exact,
             cancellation,
             exact_zero,
             real_coefficients,
         } = program;
-        let inputs = parameters.len();
+        let inputs = parameters.len() + runtime_parameters.len();
         let outputs = exact.get_output_len();
         if exact.get_input_len() != inputs
             || exact_zero.len() != outputs
@@ -121,6 +274,7 @@ impl SectorKernel {
         let backend = if use_complex {
             Backend::Complex(complex::ComplexKernel::from_program(
                 exact,
+                parameters.len(),
                 cancellation.clone(),
                 precision.clone(),
                 exact_zero.clone(),
@@ -169,6 +323,9 @@ impl SectorKernel {
             symjit_ir_bytes,
         };
         Ok(Self {
+            input: vec![0.0; inputs],
+            parameters_bound: runtime_parameters.is_empty(),
+            runtime_parameters,
             parameters,
             cancellation,
             precision: precision.clone(),
@@ -183,6 +340,7 @@ impl SectorKernel {
 impl KernelSet {
     // Codec loaders validate and retain their own original artifact after these
     // constructors finish. Do not encode a replacement envelope only to discard it.
+    #[cfg(feature = "native")]
     pub(super) fn from_expressions_for_load(
         orders: Vec<i32>,
         expressions: Vec<SectorExpressions>,
@@ -213,6 +371,7 @@ impl KernelSet {
             precision,
             metadata,
             use_complex,
+            Vec::new(),
         )
     }
 
@@ -223,6 +382,7 @@ impl KernelSet {
         precision: PrecisionPolicy,
         metadata: Option<GenerationMetadata>,
         use_complex: bool,
+        runtime_parameters: Vec<Symbol>,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         let mut sectors = Vec::with_capacity(programs.len());
@@ -245,6 +405,7 @@ impl KernelSet {
             precision,
             metadata,
             use_complex,
+            runtime_parameters,
         )
     }
 
@@ -255,8 +416,37 @@ impl KernelSet {
         precision: PrecisionPolicy,
         metadata: Option<GenerationMetadata>,
         use_complex: bool,
+        runtime_parameters: Vec<Symbol>,
     ) -> Result<Self, KernelError> {
-        let exact_coefficients = if use_complex {
+        if sectors
+            .iter()
+            .any(|sector| sector.runtime_parameters != runtime_parameters)
+        {
+            return Err(KernelError::Artifact(
+                "inconsistent runtime parameter schema".into(),
+            ));
+        }
+        let exact_kernel = if runtime_parameters.is_empty() {
+            None
+        } else {
+            Some(SectorKernel::from_program(
+                program::build_with_parameters(
+                    Vec::new(),
+                    &runtime_parameters,
+                    &exact_expressions
+                        .iter()
+                        .cloned()
+                        .map(AliasedAtom::from)
+                        .collect::<Vec<_>>(),
+                    Cancellation::new(0, Some(Vec::new()), 0)?,
+                )?,
+                &precision,
+                use_complex,
+            )?)
+        };
+        let exact_coefficients = if exact_kernel.is_some() {
+            vec![f64::NAN; coefficient_orders.len() * if use_complex { 2 } else { 1 }]
+        } else if use_complex {
             complex::exact(&exact_expressions)?
         } else {
             let constants = HashMap::<Atom, f64>::new();
@@ -269,11 +459,16 @@ impl KernelSet {
                 })
                 .collect::<Result<Vec<_>, _>>()?
         };
-        if exact_coefficients.iter().any(|value| !value.is_finite()) {
+        if runtime_parameters.is_empty()
+            && exact_coefficients.iter().any(|value| !value.is_finite())
+        {
             return Err(KernelError::NonFinite);
         }
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
+            runtime_parameters,
+            exact_kernel,
+            template_content_id: None,
             portable_artifact: None,
             metadata,
             orders: coefficient_orders

@@ -8,6 +8,7 @@ use symbolica::atom::{Atom, Symbol};
 /// The ordered parameter vector is fixed for this owner. Entries contain only
 /// source-polynomial support, independent of a factor's role/exponent or chart.
 /// No support is collected before an existing consumer actually requests it.
+#[derive(Clone)]
 pub(super) struct SupportCache {
     parameters: Vec<Symbol>,
     entries: BTreeMap<Atom, PolynomialSupport>,

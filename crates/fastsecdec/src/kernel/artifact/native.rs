@@ -1,5 +1,5 @@
 //! Version three binds ordered native IR and the full numerical/semantic policy.
-use super::{atom, parameter_names, parameters, validate_orders};
+use super::{atom, parameters, validate_orders};
 use crate::{
     kernel::{
         KernelError, KernelSet, PrecisionPolicy,
@@ -10,9 +10,8 @@ use crate::{
     status::CoefficientComponent,
 };
 use serde::{Deserialize, Serialize};
-use symbolica::atom::AtomCore;
 
-mod literal_zero;
+pub(super) mod literal_zero;
 #[cfg(test)]
 mod tests;
 
@@ -88,6 +87,7 @@ struct Artifact {
 
 // These views preserve the owned wire schema and its field order. Native program
 // bytes and cancellation terms remain in their existing kernel owners.
+#[cfg(test)]
 #[derive(Serialize)]
 struct PayloadRef<'a> {
     version: u32,
@@ -101,6 +101,7 @@ struct PayloadRef<'a> {
     metadata: Option<PortableMetadata>,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 struct PortableSectorRef<'a> {
     parameters: Vec<String>,
@@ -109,6 +110,7 @@ struct PortableSectorRef<'a> {
     cancellation_terms: Option<&'a [Vec<usize>]>,
 }
 
+#[cfg(test)]
 #[derive(Serialize)]
 struct ArtifactRef<'a, P> {
     content_id: &'a str,
@@ -122,6 +124,7 @@ fn content_id(payload: &impl Serialize) -> Result<String, KernelError> {
     Ok(hash.finalize().to_hex().to_string())
 }
 
+#[cfg(test)]
 fn encoded(payload: &impl Serialize) -> Result<(String, Vec<u8>), KernelError> {
     let id = content_id(payload)?;
     let bytes = serde_json::to_vec(&ArtifactRef {
@@ -131,7 +134,7 @@ fn encoded(payload: &impl Serialize) -> Result<(String, Vec<u8>), KernelError> {
     Ok((id, bytes))
 }
 
-fn component_layout(count: usize, complex: bool) -> Vec<CoefficientComponent> {
+pub(super) fn component_layout(count: usize, complex: bool) -> Vec<CoefficientComponent> {
     (0..count)
         .flat_map(|_| {
             if complex {
@@ -141,86 +144,6 @@ fn component_layout(count: usize, complex: bool) -> Vec<CoefficientComponent> {
             }
         })
         .collect()
-}
-
-pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
-    encoded(&PayloadRef {
-        version: 3,
-        program_codec: CODEC,
-        compiler_policy: compiler_policy(),
-        orders: &kernels.coefficient_orders,
-        components: &kernels.components,
-        exact: kernels
-            .exact_expressions
-            .iter()
-            .map(AtomCore::to_canonical_string)
-            .collect(),
-        precision: &kernels.precision,
-        sectors: kernels
-            .sectors
-            .iter()
-            .map(|sector| PortableSectorRef {
-                parameters: parameter_names(&sector.parameters),
-                program: &sector.program_bytes,
-                cancellation_degree: sector.cancellation.degree(),
-                cancellation_terms: sector.cancellation.terms(),
-            })
-            .collect(),
-        metadata: kernels.metadata.as_ref().map(PortableMetadata::from_native),
-    })
-}
-
-pub(super) fn generated(
-    value: &crate::generation::GeneratedIntegral,
-    precision: PrecisionPolicy,
-) -> Result<Vec<u8>, KernelError> {
-    precision.validate()?;
-    let complex = value
-        .sectors()
-        .iter()
-        .flat_map(|sector| sector.aliased_coefficients())
-        .any(|c| !program::is_real(c))
-        || value
-            .exact_coefficients()
-            .iter()
-            .any(crate::kernel::has_complex_coefficients);
-    let sectors = value
-        .sectors()
-        .iter()
-        .map(|sector| {
-            let program = program::build(
-                sector.parameters().to_vec(),
-                sector.aliased_coefficients(),
-                Cancellation::new(
-                    sector.cancellation_degree(),
-                    Some(sector.cancellation_terms().to_vec()),
-                    sector.dimension(),
-                )?,
-            )?;
-            Ok(PortableSector {
-                parameters: parameter_names(&program.parameters),
-                program: program::encode(&program.exact)?,
-                cancellation_degree: program.cancellation.degree(),
-                cancellation_terms: program.cancellation.terms().map(<[Vec<usize>]>::to_vec),
-            })
-        })
-        .collect::<Result<_, KernelError>>()?;
-    Ok(encoded(&Payload {
-        version: 3,
-        program_codec: CODEC.into(),
-        compiler_policy: compiler_policy().into(),
-        orders: value.orders().to_vec(),
-        components: component_layout(value.orders().len(), complex),
-        exact: value
-            .exact_coefficients()
-            .iter()
-            .map(AtomCore::to_canonical_string)
-            .collect(),
-        precision,
-        sectors,
-        metadata: Some(PortableMetadata::from_native(value.metadata())),
-    })?
-    .1)
 }
 
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
@@ -281,6 +204,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         }
         programs.push(SectorProgram {
             parameters,
+            runtime_parameters: Vec::new(),
             // Recover only facts proved by the decoded native instruction owner;
             // no serialized claim or sampled numerical zero suppresses rescue.
             exact_zero: literal_zero::outputs(&exact),
@@ -314,6 +238,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         payload.precision,
         metadata,
         use_complex,
+        Vec::new(),
     )?;
     kernels.content_id = artifact.content_id;
     kernels.portable_artifact = Some(bytes.to_vec());

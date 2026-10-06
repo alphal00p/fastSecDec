@@ -153,17 +153,33 @@ pub fn fixture(
         "auxiliary_momenta = {}\nproducts = [",
         serde_json::to_string(&auxiliary_names)?
     )?;
-    for product in &point.products {
+    let runtime_names = [
+        "p0p0", "p0p1", "p0p2", "p0eps1", "p0eps2", "p1p1", "p1p2", "p1eps1", "p1eps2", "p2p2",
+        "p2eps1", "p2eps2", "eps1eps1", "eps1eps2", "eps2eps2",
+    ];
+    if point.products.len() != runtime_names.len() {
+        return Err("unexpected external Gram layout".into());
+    }
+    let mut runtime_point = String::from(
+        "# Default physical point; supplied only at integration time.\n[parameters]\n",
+    );
+    for (product, name) in point.products.iter().zip(runtime_names) {
         writeln!(
             card,
-            "  {{ left = {}, right = {}, value = {} }},",
+            "  {{ left = {}, right = {}, symbol = {} }},",
             serde_json::to_string(&product.left)?,
             serde_json::to_string(&product.right)?,
+            serde_json::to_string(name)?
+        )?;
+        writeln!(
+            runtime_point,
+            "{name} = {}",
             serde_json::to_string(&product.value)?
         )?;
     }
-    card.push_str("]\n\n[integral]\ndimension = \"4-2*eps\"\nregulator = \"eps\"\nmeasure_multiplier = \"1\"\n\n[generation]\norder = 0\nassume_no_threshold = false\n\n[generation.coefficient_expansion]\nmethod = \"native_named\"\n");
+    card.push_str("]\n\n[integral]\ndimension = \"4-2*eps\"\nregulator = \"eps\"\nmeasure_multiplier = \"1\"\n\n[generation]\norder = 0\n\n[generation.coefficient_expansion]\nmethod = \"native_named\"\n");
     std::fs::write(output.join("run.toml"), card)?;
+    std::fs::write(output.join("point.toml"), runtime_point)?;
     std::fs::write(
         output.join("provenance.json"),
         serde_json::to_vec_pretty(&serde_json::json!({
@@ -183,7 +199,7 @@ pub fn fixture(
                 "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
             },
             "couplings": "native SM card, mt=ymt=172.5, mH=125, widths zero",
-            "gauge_invariant_sum": false, "threshold_admission": "ordinary CLI check remains required",
+            "gauge_invariant_sum": false, "threshold_admission": "caller responsibility; generation performs no threshold certification",
             "parametric_generation_complete": false, "numerical_integral_complete": false,
         }))?,
     )?;

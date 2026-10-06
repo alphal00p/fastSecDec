@@ -8,21 +8,21 @@ parameter_card = "parameters.json"
 [kinematics]
 auxiliary_momenta = ["gghh::{spenso::tensor,spenso::rank1}::eps1","gghh::{spenso::tensor,spenso::rank1}::eps2"]
 products = [
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", value = "45000" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", value = "-3000*11^(1/2)+22500" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", value = "11^(1/2)*3000+22500" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", value = "0" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", value = "15625" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", value = "11^(1/2)*23883943771971645/2251799813685248" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", value = "11^(1/2)*23883943771971645/2251799813685248" },
-  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", value = "0" },
-  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", value = "-2535301200456458353478625262249/2535301200456458802993406410752" },
-  { left = "gghh::{spenso::tensor,spenso::rank1}::eps2", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", value = "0" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", symbol = "p0p0" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p0p1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p0p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p0eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p0eps2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p1p1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p1p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p1eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p1eps2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p2p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p2eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p2eps2" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "eps1eps1" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "eps1eps2" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps2", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "eps2eps2" },
 ]
 
 [integral]
@@ -32,7 +32,6 @@ measure_multiplier = "1"
 
 [generation]
 order = 0
-assume_no_threshold = false
 
 [generation.coefficient_expansion]
 method = "native_named"

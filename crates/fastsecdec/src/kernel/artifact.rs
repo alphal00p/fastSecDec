@@ -1,5 +1,6 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
 //! Symbolica owns decoding of native programs from trusted cache producers.
+mod binary;
 #[cfg(feature = "native")]
 mod legacy;
 mod native;
@@ -65,20 +66,21 @@ impl crate::generation::GeneratedIntegral {
     /// This performs native expression-to-IR translation; it does not materialize
     /// aliased coefficients or compile host executable machine code.
     pub fn to_kernel_bytes(&self, precision: PrecisionPolicy) -> Result<Vec<u8>, KernelError> {
-        native::generated(self, precision)
+        binary::generated(self, precision)
     }
 }
 
 impl KernelSet {
     pub(super) fn initialize_artifact(&mut self) -> Result<(), KernelError> {
-        let (id, bytes) = native::compiled(self)?;
+        let (id, bytes) = binary::compiled(self)?;
         self.content_id = id;
         self.portable_artifact = Some(bytes);
         Ok(())
     }
 
-    /// Save immutable portable programs, metadata and numerical policy. Loaded
-    /// version-one/two artifacts retain their original bytes and identities.
+    /// Save immutable portable programs, metadata and numerical policy. Runtime
+    /// parameter values are excluded: these bytes identify `template_content_id()`.
+    /// Legacy loaded artifacts retain their original bytes and identities.
     /// Executable code and mutable evaluator work stacks are excluded.
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
         Ok(self.artifact_bytes()?.to_vec())
@@ -98,6 +100,9 @@ impl KernelSet {
     /// instruction index. A valid content hash is not proof of safe provenance;
     /// do not pass attacker-created or manually modified native program bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
+        if bytes.starts_with(binary::PREFIX) {
+            return binary::load(bytes);
+        }
         // Dispatch does not replace either codec's strict owned schema.
         // Ignore the large program arrays here instead of allocating a second
         // full JSON representation before the selected codec reads them.

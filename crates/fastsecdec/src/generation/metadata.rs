@@ -5,15 +5,20 @@ use symbolica::atom::{Atom, Symbol};
 mod pre_subtraction;
 pub use pre_subtraction::{EndpointPower, PreSubtractionMetadata, PreSubtractionTerm};
 
-/// Only the admitted real no-threshold branch is implemented. Complex scalar
-/// coefficients are permitted; singular-factor continuation is not implied.
+/// Threshold regularization is not implemented. The caller chooses a suitable
+/// integration point; generation makes no assertion about threshold absence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BranchPolicy {
+    /// Historical artifacts whose generation performed a domain assessment.
     NoThresholdReal,
+    /// No threshold certification or regularization was requested or performed.
+    UserResponsible,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum FactorCertificate {
+    /// No sign, boundary or interior threshold checks were performed.
+    UncheckedUserResponsibility,
     PositiveCoefficients,
     NegativeCoefficientsIntegerPower,
     /// The caller asserted absence of interior thresholds. Boundary resolution

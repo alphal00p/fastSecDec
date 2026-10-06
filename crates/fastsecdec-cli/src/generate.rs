@@ -1,3 +1,5 @@
+pub(crate) mod dispatch;
+#[cfg(test)]
 mod geometry_dispatch;
 mod progress;
 
@@ -33,10 +35,10 @@ pub fn generate_with_workers(
     output: &Path,
     dashboard: &mut Dashboard,
     reference: Option<&crate::reference::PreparedReference>,
-    geometry_workers: usize,
+    workers: usize,
 ) -> CliResult<(Artifact, KernelSet)> {
-    if geometry_workers == 0 {
-        return Err("geometry workers must be positive".into());
+    if workers == 0 {
+        return Err("generation workers must be positive".into());
     }
     let started = Instant::now();
     let mut status = GenerationSnapshot {
@@ -48,7 +50,7 @@ pub fn generate_with_workers(
         elapsed_seconds: 0.0,
         timings: Default::default(),
         coefficient_expansion: None,
-        detail: format!("Reading {}", path.display()),
+        detail: format!("Reading {}", crate::artifact::relative_display(path)),
     };
     dashboard.generation(&status)?;
     let loaded = input::load(path)?;
@@ -77,7 +79,7 @@ pub fn generate_with_workers(
     let cancelled = dashboard.cancellation_handle();
     let generated = {
         let ui = RefCell::new((&mut *dashboard, &mut status, &mut display_error));
-        let mut present = |progress: &GenerationProgress| {
+        let present = |progress: &GenerationProgress| {
             let mut ui = ui.borrow_mut();
             let (dashboard, status, error) = &mut *ui;
             observe_generation(
@@ -89,76 +91,186 @@ pub fn generate_with_workers(
                 progress,
             )
         };
-        if geometry_workers == 1 {
-            generation::generate(&loaded.integrand, &options, &mut present)
-        } else {
-            let pool = rayon::ThreadPoolBuilder::new()
-                .num_threads(geometry_workers)
-                .build()?;
-            let mut stage = 0;
-            let mut dispatch = |jobs: &mut dyn ExactSizeIterator<
-                Item = generation::GeometryJob,
-            >| {
-                let label = if stage == 0 { "chart" } else { "cone" };
-                stage += 1;
-                geometry_dispatch::run(&pool, geometry_workers, jobs, &cancelled, |progress| {
-                    let mut ui = ui.borrow_mut();
-                    let (dashboard, status, error) = &mut *ui;
-                    status.stage = GenerationStage::Geometry;
-                    status.completed = progress.completed;
-                    status.total = Some(progress.total);
-                    status.elapsed_seconds = started.elapsed().as_secs_f64();
-                    status.detail = format!(
-                        "{geometry_workers} geometry workers · {label} jobs returned ({} running); native admission pending{}",
-                        progress.running,
-                        progress
-                            .latest
-                            .as_ref()
-                            .map_or_else(String::new, |(id, p)| format!(
-                                " · {id:?} {:?} {}/{} local constraints",
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(workers)
+            .build()?;
+        let mut geometry_stage = 0;
+        let mut geometry_dispatch =
+            |jobs: &mut dyn ExactSizeIterator<Item = generation::GeometryJob>| {
+                let label = if geometry_stage == 0 {
+                    "charts"
+                } else {
+                    "cones"
+                };
+                geometry_stage += 1;
+                dispatch::run(
+                    &pool,
+                    jobs,
+                    &cancelled,
+                    |job| format!("geometry {:?}", job.id()),
+                    |job, observe| {
+                        let id = job.id();
+                        Ok(job.run(|p| {
+                            observe(format!(
+                                "{id:?} · {:?} · {}/{} constraints",
                                 p.phase, p.completed_constraints, p.total_constraints
                             ))
-                    );
-                    publish_generation(dashboard, status, error)
+                        }))
+                    },
+                    |progress| {
+                        let mut ui = ui.borrow_mut();
+                        let (dashboard, status, error) = &mut *ui;
+                        status.stage = GenerationStage::Geometry;
+                        status.completed = progress.completed;
+                        status.total = Some(progress.total);
+                        status.elapsed_seconds = started.elapsed().as_secs_f64();
+                        status.detail = format!(
+                            "{workers} workers · {label} · {} running · {} queued",
+                            progress.running(),
+                            progress
+                                .total
+                                .saturating_sub(progress.completed + progress.running())
+                        );
+                        dashboard.generation_workers(progress);
+                        publish_generation(dashboard, status, error)
+                    },
+                )
+                .map_err(|error| {
+                    if error == "generation cancelled" {
+                        generation::SectorError::Cancelled
+                    } else {
+                        generation::SectorError::Geometry(error)
+                    }
                 })
             };
-            GenerationContext::new(0).generate_with_dispatch(
-                &loaded.integrand,
-                &options,
-                &mut dispatch,
-                || cancelled.load(Ordering::Relaxed),
-                |event| match event {
-                    GenerationEvent::Progress(progress) => present(progress),
-                    GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
-                },
-            )
-        }
+        let mut symbolic_dispatch =
+            |jobs: &mut dyn ExactSizeIterator<Item = generation::SymbolicJob>| {
+                let mut stage = GenerationStage::Mapping;
+                // The first job identifies the homogeneous native stage without
+                // pre-running or collecting its remaining lazy work.
+                let mut jobs = jobs.peekable();
+                if jobs
+                    .peek()
+                    .is_some_and(|job| job.id().stage == generation::SymbolicStage::Coefficients)
+                {
+                    stage = GenerationStage::CoefficientExpansion;
+                }
+                dispatch::run(
+                    &pool,
+                    &mut jobs,
+                    &cancelled,
+                    |job| format!("{:?} · sector {}", job.id().stage, job.id().index),
+                    |job, observe| {
+                        let id = job.id();
+                        job.run(|progress| {
+                            let mut snapshot = GenerationSnapshot {
+                                stage,
+                                completed: 0,
+                                total: None,
+                                sectors: 0,
+                                kernels: 0,
+                                elapsed_seconds: 0.0,
+                                timings: Default::default(),
+                                coefficient_expansion: None,
+                                detail: String::new(),
+                            };
+                            snapshot.observe_generation(options.max_order, progress);
+                            observe(format!("sector {} · {}", id.index, snapshot.detail))
+                        })
+                        .map_err(|error| error.to_string())
+                    },
+                    |progress| {
+                        let mut ui = ui.borrow_mut();
+                        let (dashboard, status, error) = &mut *ui;
+                        status.stage = stage;
+                        status.completed = progress.completed;
+                        status.total = Some(progress.total);
+                        status.elapsed_seconds = started.elapsed().as_secs_f64();
+                        status.detail = format!(
+                            "{workers} workers · {} running · {} queued",
+                            progress.running(),
+                            progress
+                                .total
+                                .saturating_sub(progress.completed + progress.running())
+                        );
+                        dashboard.generation_workers(progress);
+                        publish_generation(dashboard, status, error)
+                    },
+                )
+                .map_err(|error| {
+                    if error == "generation cancelled" {
+                        generation::GenerationError::Cancelled
+                    } else {
+                        generation::GenerationError::Invariant(error)
+                    }
+                })
+            };
+        GenerationContext::new(0).generate_with_all_dispatch(
+            &loaded.integrand,
+            &options,
+            &mut geometry_dispatch,
+            &mut symbolic_dispatch,
+            || cancelled.load(Ordering::Relaxed),
+            |event| match event {
+                GenerationEvent::Progress(progress) => present(progress),
+                GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
+            },
+        )
     };
     if let Some(error) = display_error {
         return Err(error.into());
     }
     let generated = generated?;
     let compilation_started = Instant::now();
-    let kernels = generated.compile_with_progress(|progress| {
-        status.observe_compilation(progress);
-        status.elapsed_seconds = started.elapsed().as_secs_f64();
-        status.detail = "Compiling portable SymJIT O2 kernels".into();
-        if let Err(error) = dashboard.generation(&status) {
-            display_error = Some(error.to_string());
-            return ControlFlow::Break(());
-        }
-        if dashboard.cancelled() {
-            ControlFlow::Break(())
-        } else {
-            ControlFlow::Continue(())
-        }
-    });
+    let kernels = {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(workers)
+            .build()?;
+        let ui = RefCell::new((&mut *dashboard, &mut status, &mut display_error));
+        let mut compile_dispatch =
+            |jobs: &mut dyn ExactSizeIterator<Item = fastsecdec::kernel::CompilationJob>| {
+                dispatch::run(
+                    &pool,
+                    jobs,
+                    &cancelled,
+                    |job| format!("SymJIT O2 · sector {}", job.index()),
+                    |job, _| job.run().map_err(|error| error.to_string()),
+                    |progress| {
+                        let mut ui = ui.borrow_mut();
+                        let (dashboard, status, error) = &mut *ui;
+                        status.stage = GenerationStage::Compilation;
+                        status.completed = progress.completed;
+                        status.total = Some(progress.total);
+                        status.kernels = progress.completed;
+                        status.elapsed_seconds = started.elapsed().as_secs_f64();
+                        status.detail = format!(
+                            "SymJIT O2 · {workers} workers · {} running",
+                            progress.running()
+                        );
+                        dashboard.generation_workers(progress);
+                        publish_generation(dashboard, status, error)
+                    },
+                )
+                .map_err(fastsecdec::kernel::KernelError::Compilation)
+            };
+        generated.compile_with_parameters_and_dispatch(
+            &loaded.runtime_parameters,
+            &mut compile_dispatch,
+            |progress| {
+                let mut ui = ui.borrow_mut();
+                let (dashboard, status, error) = &mut *ui;
+                status.observe_compilation(progress);
+                status.elapsed_seconds = started.elapsed().as_secs_f64();
+                publish_generation(dashboard, status, error)
+            },
+        )
+    };
     if let Some(error) = display_error {
         return Err(error.into());
     }
     let kernels = kernels?;
     drop(generated);
-    if let Some(reference) = reference {
+    if let Some(reference) = reference.filter(|_| kernels.runtime_parameters().is_empty()) {
         reference.validate_identity(kernels.content_id())?;
     }
     status.timings.compilation_seconds = compilation_started.elapsed().as_secs_f64();
@@ -181,14 +293,24 @@ pub fn generate_with_workers(
         integration: serde_json::to_value(loaded.card.integration)?,
         family_preparation: loaded.family_preparation,
     };
+    dashboard.generation_coordinator();
+    status.completed = 0;
+    status.total = None;
     status.detail = "Preparing portable artifact; all kernels compiled".into();
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
     let mut artifact = Artifact::new(&kernels, provenance)?;
     artifact.reference = reference.map(|value| value.settings.clone());
+    artifact.relocate_sources(
+        path.parent().unwrap_or_else(|| Path::new(".")),
+        output.parent().unwrap_or_else(|| Path::new(".")),
+    )?;
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());
-    status.detail = format!("Saving portable artifact to {}", output.display());
+    status.detail = format!(
+        "Saving portable artifact to {}",
+        crate::artifact::relative_display(output)
+    );
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
     artifact.save(output)?;
@@ -197,7 +319,7 @@ pub fn generate_with_workers(
     status.completed = status.kernels;
     status.total = Some(status.kernels);
     status.elapsed_seconds = started.elapsed().as_secs_f64();
-    status.detail = format!("Saved {}", output.display());
+    status.detail = format!("Saved {}", crate::artifact::relative_display(output));
     dashboard.generation(&status)?;
     Ok((artifact, kernels))
 }

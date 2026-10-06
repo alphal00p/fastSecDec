@@ -4,7 +4,7 @@ use symbolica::{api::python::PythonExpression, atom::Atom};
 
 use super::{Owner, domain_name, expression};
 
-/// The original native domain admission and its retained factor certificates.
+/// The native domain and threshold policy, including historical assessments.
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     frozen,
@@ -26,6 +26,7 @@ impl PyDomainAssessment {
     fn branch_policy(&self) -> &'static str {
         match self.owner.metadata().domain_assessment().branch_policy() {
             BranchPolicy::NoThresholdReal => "no_threshold_real",
+            BranchPolicy::UserResponsible => "user_responsible",
         }
     }
     #[getter]
@@ -95,6 +96,7 @@ impl PyFactorAssessment {
     #[getter]
     fn certificate(&self) -> &'static str {
         match self.owner.metadata().domain_assessment().factors()[self.index].certificate() {
+            FactorCertificate::UncheckedUserResponsibility => "unchecked_user_responsibility",
             FactorCertificate::PositiveCoefficients => "positive_coefficients",
             FactorCertificate::NegativeCoefficientsIntegerPower => {
                 "negative_coefficients_integer_power"
