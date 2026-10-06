@@ -115,3 +115,69 @@ The independent seven-pair review is
 reference latency review is `pathfinder-current-sample-latency-plan3/box/independent-review.json`
 (`4263ba43…`). Pathfinder independently accepted the native controls and
 recomputed all native statistics in the sibling `independent-native-review.json`.
+
+### Corrected first-use measurement
+
+The historical box table above remains intact. Source inspection found that the
+Pathfinder recorder evaluated each ordinary batch before timing its individual
+rows. That warmed lazy evaluation state outside the recorded interval. The
+corrected recorder times every row first, then performs the unchanged ordinary
+batch equivalence check. The native recorder likewise completes its timed pass
+before its separate equivalence pass. No evaluator, precision policy, sampler,
+point or production cache changed.
+
+One fresh complete-stream observation, serialized on CPU0 after the owned Wasm
+build and browser processes had finished, gives:
+
+| Box metric, corrected timed-first ordering | FastSecDec | Pathfinder |
+| --- | ---: | ---: |
+| Timed rows | 393,216 | 393,216 |
+| Sample-weighted mean, µs | 9.878479 | 70.390258 |
+| Observed individual maximum, µs | 5,863.705 | 43,051.430 |
+| Local sector 0 mean / maximum, µs | 11.373119 / 5,863.705 | 65.974259 / 43,051.430 |
+| Local sector 1 mean / maximum, µs | 7.679639 / 169.800 | 78.482209 / 36,677.323 |
+| Local sector 2 mean / maximum, µs | 10.582680 / 5,726.054 | 66.714305 / 35,214.030 |
+
+FastSecDec has lower mean and maximum in this corrected observation. This is a
+single finite sample of elapsed times, not a tail-distribution comparison or a
+worst-case guarantee. In particular, Pathfinder's 43.051 ms outlier is retained;
+this recorder has no per-call CPU measurement that would distinguish arithmetic,
+lazy preparation, allocation, garbage collection or scheduling. No specific
+cause is inferred. Local sector IDs still do not imply cross-program sector
+correspondence.
+
+The earlier three-point cold/warm diagnostic separately confirmed a real native
+first-use cost: one retained difficult point took 4.403 ms wall / 4.262 ms thread
+CPU on its first call and about 36 µs on warm calls. Pathfinder's corresponding
+first call took 5.042 ms wall / 3.905 ms CPU and about 738 µs warm. That experiment
+included fresh application owners, not guaranteed fresh process-global state,
+and ran alongside compilation; it explains why charging first use matters but
+is not the full-stream parity evidence. Its other observations and full-vector
+normalization checks remain in `box-cold-warm-attribution-1/`.
+
+The corrected full-stream run retains all 384 task digests, complete vectors,
+covariance, shifts, precision decisions and replay state. The entire native
+scientific record equals the historical record exactly, including 79,731
+rescues and three additional replays. Every nontiming field in all 384
+Pathfinder batches also equals its historical record, and all row-to-batch
+vector/precision checks pass. The native rejected-prefix retry still passes.
+Both processes exit successfully and are reaped; their measured whole-process
+walls are 10.145 and 63.430 seconds, which include different validation work and
+are not throughput ratios.
+
+The native helper links the accepted archived optimized a3/f6 mathematical
+libraries, with the already documented equivalent Option-spelling difference
+from published source. The old artifact's original reader supplies provenance
+admission; numerical work uses the bound current libraries. The one-active-sector
+context policy remains unchanged. Loading and context construction remain
+outside sample brackets in both recorders; preparation triggered inside a first
+evaluator call remains inside. Complete-vector and global-prefactor boundary
+qualifications above continue to apply.
+
+The accepted retained-data assessment and all immutable source/process bindings
+are in `output/diagnostics/box-fullstream-first-use-1/assessment.json`. The earlier
+historical output has not been overwritten. No further box timing or cache change
+is needed for this corrected observed metric.
+Independent review in the same directory (`independent-review.json`) recomputes
+all sector/total statistics, checks every canonical task/batch and accepts the
+preserved full-vector equivalence and measurement boundaries.

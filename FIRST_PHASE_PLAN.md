@@ -820,6 +820,28 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-06: the corrected full-stream box latency comparison includes lazy
+  first-use work in both providers. All 393,216 complete-vector rows per provider
+  pass retained scientific-equivalence checks. Native mean/observed maximum are
+  9.878479 microseconds / 5.863705 milliseconds; Pathfinder gives 70.390258
+  microseconds / 43.051430 milliseconds. The reference maximum is unattributed,
+  and finite observations are not worst-case bounds. Independent data/source
+  review accepts the corrected ordering, coverage, complete covariance,
+  precision/replay and historical numerical identity. The earlier asymmetric
+  measurements remain recorded. No further box timing or cache tuning is needed
+  for this observed comparison. A single scalar-double-box Korobov2 allocation
+  then reaches 0.713577 per mil finite-part relative standard error in 172.715
+  seconds on eight workers: 13,369,344 samples, 102 complete sectors, all five
+  independent reference checks passing and zero failed evaluations. Generation
+  takes 2.810 seconds including 0.367 seconds of O2 compilation; exact numerical
+  payload identity with the accepted kernel is preserved. Full vectors and all
+  103 covariance matrices are retained. The initial reference-envelope parsing
+  failure performs no algebra or sampling and is preserved separately; its
+  transport-only correction is charged to the same bounded attempt. The new
+  timing is one different-transform observation against Pathfinder's retained
+  275.506-second Korobov3 result, not final paired parity. Other representative
+  parity gaps remain open.
+
 - 2026-10-06: retained generation explainability and discrete-sector Havana
   are implemented. Native source charts preserve mapped prefactors, exact affine
   epsilon powers and required endpoint Taylor counts before subtraction;
