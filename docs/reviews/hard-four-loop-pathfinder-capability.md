@@ -34,7 +34,7 @@ bounded each process's address space. Sampling is not an atomic aggregate memory
 cap. All owned processes were reaped, and all 44 frozen input/source bindings
 remained unchanged. The earlier unused 1,800-second/30-GiB proposal was never run.
 No numerical integration, FORM/C++ package compilation, retry or resource
-escalation followed this capability attempt.
+escalation was included in this generation-only capability attempt.
 
 The reference decomposes combined U/F support, whereas the earlier native
 full-orthant result used 699 representatives of F-support charts and retained
@@ -144,3 +144,56 @@ reviewed interpreter correction, the complete Pathfinder result, cleanup,
 close first full-vector execution and available-reference comparison; the
 highest-order target and repeated representative performance acceptance remain
 open. No ladder, repeat or further Pathfinder allocation followed this pair.
+
+## One independent-sector adaptive allocation
+
+The retained democratic shifts show broad positive cross-sector correlation:
+the finite total variance is 89.2630068, whereas the sum of marginal sector
+variances is 0.4432707. Independent reconstruction confirms this decomposition.
+The latter sum is only a diagnostic; it is not a replacement uncertainty for the
+existing shared-shift result. No finite sector means cancel each other in that
+observation. This motivates testing the already available adaptive QMC mode,
+which uses independent production shifts, without changing the geometry or
+numerical kernels.
+
+One subsequent eight-worker allocation uses HKKN alpha3 N8192, Korobov3, seed
+20261010, four fresh pilot shifts, and a 1,600-worker-second production budget
+with at least two shifts per sector. The budget was fixed before the pilot. An
+initial 400-second proposal was not executed: the existing minimum-equivalent
+work already cost 514 worker seconds. The 600+5-second/15-GB numerical bound was
+unchanged. Because the current CLI stores this budget in the run card, ordinary
+native generation was repeated once with only that steering field changed.
+It takes 11.399109 seconds and reproduces the complete kernel payload and content
+identity exactly; the original artifact is unchanged.
+
+| Epsilon order | Production mean ± standard error |
+| --- | ---: |
+| −2 | −3.608806212018 ± 0.001981733293 |
+| −1 | −16.672785928949 ± 0.018012648789 |
+| 0 | −149.682057116381 ± 0.168312480748 |
+
+The finite uncertainty is **1.124467 per mille**, so the requested one-per-mille
+target is still missed. The full numerical process takes **316.246359 seconds**,
+including 2.861 seconds of loading, the fresh pilot and production. Generation
+plus this numerical process totals 327.645469 seconds. The earlier fixed-work
+comparison remains separate and is not pooled with this result.
+
+All 22,904,832 pilot points are excluded from the production estimator. The
+native allocator freezes 24,731,648 production points: 3,019 independent shifts,
+with 2–27 per sector across all 699 sectors. Pilot and production worker totals
+are 952.966733 and 1,474.387068 seconds. All 700 native covariance matrices are
+retained; independent reconstruction from compensated checkpoint sums reproduces
+the complete three-vector and covariance. All three available reference checks
+pass, with largest absolute pull 1.38007. The separate lower-order zero certificate
+is unchanged.
+
+Across both phases there are 47,636,480 evaluations, 11,283,358 rescues, maximum
+precision 576 bits and zero failures. The numerical process peaks at 439.7 MB
+sampled owned RSS. All 80 frozen inputs remain unchanged and all owned processes
+are reaped. Evidence is in
+`output/diagnostics/hard-four-loop-adaptive-budget1600-1/`; its independent result
+review SHA-256 is
+`a402ce6eff9522e549f34159d5d9f69b36ef565d614cdbb8f43b5bb01344df53`.
+This is one complete distinct sampling design, not a matched-work attribution,
+convergence-law measurement, target crossing or final performance acceptance.
+No further allocation was run under this bounded diagnostic.

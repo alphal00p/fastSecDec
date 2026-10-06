@@ -820,6 +820,17 @@ And as I said, once you're feature complete within what's stated in the goal, an
 
 ## Implementation record
 
+- 2026-10-06: the sole existing adaptive-QMC hard-four-loop trial completes all
+  699 sectors with independent production shifts and a discarded fresh pilot.
+  Its finite coefficient is -149.6820571 ± 0.1683125, or 1.124467 per mille:
+  the target is narrowly missed. The numerical process takes 316.246 seconds,
+  including loading and pilot; ordinary generation with the declared production
+  budget takes 11.399 seconds and reproduces the exact kernel payload. All three
+  available reference checks, all 700 covariance checks and cleanup pass, with
+  zero evaluation failures. No kernel, geometry, precision or default changes
+  follow, and no further allocation is run under this bounded diagnostic. The
+  highest-order target and representative parity remain open.
+
 - 2026-10-06: the first hard-four-loop fixed-work pair completes both full
   numerical vectors with all available reference checks passing. Fresh native
   generation takes 12.976 seconds. Eight-worker integration takes 68.735 seconds
