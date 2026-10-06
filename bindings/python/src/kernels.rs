@@ -45,6 +45,7 @@ impl PyKernels {
         let started = Instant::now();
         let inner = KernelSet::from_bytes(artifact.as_bytes())
             .map_err(|e| error::native(py, "artifact", e))?;
+        crate::citations::mark_generation();
         py.check_signals()?;
         let count = inner.sectors().len();
         let elapsed = started.elapsed().as_secs_f64();

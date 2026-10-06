@@ -14,7 +14,7 @@ use fastsecdec::{
         ParametricIntegrand, ParametricTerm, PolynomialFactor,
     },
 };
-use feynkit_model::ParameterNature;
+use feynkit_model::resolve_scalar_bindings;
 use symbolica::{
     atom::AtomView,
     domains::rational::Rational,
@@ -71,27 +71,6 @@ fn bind(expression: &Atom, values: &BTreeMap<Symbol, Atom>) -> Atom {
     }))
 }
 
-fn resolve(mut values: BTreeMap<Symbol, Atom>) -> CliResult<BTreeMap<Symbol, Atom>> {
-    for _ in 0..=values.len() {
-        let next = values
-            .iter()
-            .map(|(symbol, value)| (*symbol, bind(value, &values)))
-            .collect::<BTreeMap<_, _>>();
-        if next == values {
-            break;
-        }
-        values = next;
-    }
-    if values.values().any(|value| {
-        values
-            .keys()
-            .any(|symbol| value.contains(Atom::var(*symbol).as_view()))
-    }) {
-        return Err("parameter definitions have a cyclic or unresolved dependency".into());
-    }
-    Ok(values)
-}
-
 fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     match value {
         toml::Value::String(text) => expression(text),
@@ -101,40 +80,6 @@ fn value_expression(value: &toml::Value) -> CliResult<Atom> {
         }
         _ => Err("parameter values must be Symbolica strings or finite numbers".into()),
     }
-}
-
-fn model_values(model: &Model, restriction: &ParameterCard) -> CliResult<BTreeMap<Symbol, Atom>> {
-    let mut result = BTreeMap::new();
-    for parameter in model.parameters() {
-        // Cached numeric dependents belong to the model's original point. Keep
-        // native analytic definitions for exact inline values; explicit internal
-        // restriction-card values remain authoritative, as in native recomputation.
-        let analytic = parameter.expression.as_ref().filter(|_| {
-            parameter.nature == ParameterNature::Internal
-                && !restriction.contains_key(&parameter.name)
-        });
-        let value = if let Some(expression) = analytic {
-            expression.clone()
-        } else if let Some(value) = parameter.value {
-            // Native affine family construction uses exact coefficient fields.
-            // Preserve the supplied binary values exactly; formatting a decimal
-            // and reparsing it creates a Float coefficient instead.
-            Atom::num(Rational::try_from(value.re)?)
-                + Atom::num(Rational::try_from(value.im)?) * Atom::i()
-        } else if let Some(expression) = &parameter.expression {
-            expression.clone()
-        } else {
-            continue;
-        };
-        result.insert(symbol(&format!("UFO::{}", parameter.name))?, value);
-    }
-    for coupling in model.couplings() {
-        result.insert(
-            symbol(&format!("UFO::{}", coupling.name))?,
-            coupling.expression.clone(),
-        );
-    }
-    Ok(result)
 }
 
 pub fn load(path: &Path) -> CliResult<LoadedInput> {
@@ -170,9 +115,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             } else {
                 ParameterCard::new()
             };
-            let mut all = model_values(&model, &restriction)?;
-            all.extend(values);
-            let values = resolve(all)?;
+            let values = model.scalar_bindings(Some(&restriction), &values)?;
             let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
             for product in &card.kinematics.products {
                 kinematics = kinematics.with_scalar_product(
@@ -188,18 +131,19 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 .iter()
                 .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
                 .collect::<Result<BTreeMap<_, _>, _>>()?;
-            let graph = GraphIntegral::from_dot(Arc::new(model), &graph_text, &kinematics)?
-                .with_auxiliary_external_momenta(
-                    &card
-                        .kinematics
-                        .auxiliary_momenta
-                        .iter()
-                        .map(|name| expression(name))
-                        .collect::<CliResult<Vec<_>>>()?,
-                )?
-                .with_powers(&powers)?
-                .with_measure_multiplier(expression(&card.integral.measure_multiplier)?)
-                .with_scalar_values(&values)?;
+            let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
+            let graph =
+                GraphIntegral::new_with_scalar_values(Arc::new(diagram), &kinematics, &values)?
+                    .with_auxiliary_external_momenta(
+                        &card
+                            .kinematics
+                            .auxiliary_momenta
+                            .iter()
+                            .map(|name| expression(name))
+                            .collect::<CliResult<Vec<_>>>()?,
+                    )?
+                    .with_powers(&powers)?
+                    .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
             let loops = Some(graph.diagram().loop_count());
             let propagators = graph.powers().len();
             let independent_externals = graph
@@ -263,7 +207,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                         .into(),
                 );
             }
-            let values = resolve(values)?;
+            let values = resolve_scalar_bindings(values)?;
             let domain =
                 match direct.domain.as_str() {
                     "unit_cube" => ParametricDomain::UnitCube,
@@ -392,7 +336,7 @@ mod tests {
             "value":[2.5,3.25], "expression":null,
             }));
         let model = Model::from_json(&serde_json::to_string(&json).unwrap()).unwrap();
-        let values = model_values(&model, &ParameterCard::new()).unwrap();
+        let values = model.scalar_bindings(None, &BTreeMap::new()).unwrap();
         assert_eq!(
             values[&symbol("UFO::complex_external").unwrap()],
             Atom::num((5, 2)) + Atom::num((13, 4)) * Atom::i(),
@@ -401,6 +345,52 @@ mod tests {
             value_expression(&toml::Value::Float(172.5)).unwrap(),
             Atom::num((345, 2)),
         );
+    }
+
+    #[test]
+    fn inline_zero_width_is_admitted_before_the_default_model_point() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut model: serde_json::Value =
+            serde_json::from_str(include_str!("../../../examples/models/massless_phi3.json"))
+                .unwrap();
+        model["parameters"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "name":"width", "nature":"external", "parameter_type":"real",
+                "value":[0.1,0.0], "expression":null,
+            }));
+        model["particles"][0]["width"] = "width".into();
+        fs::write(directory.path().join("model.json"), model.to_string()).unwrap();
+        fs::write(
+            directory.path().join("bubble.dot"),
+            include_str!("../../../examples/graphs/bubble.dot"),
+        )
+        .unwrap();
+        let card = r#"
+[input]
+model = 'model.json'
+graph = 'bubble.dot'
+[kinematics]
+products = [{left=1,right=1,value='-1'}]
+[parameters]
+'UFO::width' = '0'
+"#;
+        let path = directory.path().join("input.toml");
+        fs::write(&path, card).unwrap();
+        let loaded = load(&path).unwrap();
+        assert_eq!(loaded.propagators, 2);
+        assert!(!loaded.integrand.terms().is_empty());
+        for card in [
+            card.replace("'UFO::width' = '0'", ""),
+            card.replace("'UFO::width' = '0'", "'UFO::width' = '1'"),
+        ] {
+            fs::write(&path, card).unwrap();
+            match load(&path) {
+                Err(error) => assert!(error.to_string().contains("width")),
+                Ok(_) => panic!("unsupported width was silently omitted"),
+            }
+        }
     }
 
     #[test]

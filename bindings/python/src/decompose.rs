@@ -4,7 +4,11 @@ use std::collections::BTreeMap;
 
 use fastsecdec::{Atom, input::prepare_family_input, parametric::ParametricIntegrand};
 use feynkit_py::{PyFeynmanDiagram, PyIntegralFamily, PyKinematics};
-use pyo3::{exceptions::PyTypeError, prelude::*, types::PyDict};
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{PyDict, PyString},
+};
 use symbolica::{api::python::PythonExpression, symbol};
 
 use super::{
@@ -37,7 +41,11 @@ use super::{
 /// and scalar bindings that change formal momenta or tensor dimension fail.
 ///
 /// None/True from observer continues; False cancels at a native event boundary.
-/// Original observer exceptions propagate. The result retains native metadata;
+/// Original observer exceptions propagate. progress="auto" uses HEPKit's marimo
+/// presenter unless observer is supplied; None disables it. A progress callable
+/// receives every GenerationSnapshot after observer, with the same None/True
+/// continue, False cancel semantics. Original exceptions survive UI cleanup.
+/// The result retains native metadata;
 /// compilation and numerical sessions remain separate explicit operations.
 #[cfg_attr(
     feature = "python_stubgen",
@@ -62,6 +70,7 @@ def sector_decompose(
     measure_multiplier: typing.Optional[symbolica.Expression] = None,
     max_order: int = 0, coefficient_expansion: str = "physical",
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
+    progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
 ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:
     """Generate from an existing native diagram or an explicitly weighted family.
 
@@ -71,12 +80,18 @@ def sector_decompose(
     auxiliary slots never default to power one. Kinematics overrides must retain
     original external products after scalar binding, but may add auxiliary data.
     Dimension defaults to 4-2*regulator. Compilation and sessions are explicit.
+    progress="auto" shows HEPKit progress in marimo when observer is absent.
+    None disables display; a callable receives every snapshot after observer.
+    None/True continues, False cancels; original callback exceptions propagate.
     """
 "#
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, max_order=0, coefficient_expansion="physical", observer=None))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, max_order=0, coefficient_expansion="physical", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, max_order=0, coefficient_expansion='physical', observer=None, progress='auto')"
+)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
     py: Python<'_>,
@@ -92,6 +107,7 @@ pub(crate) fn sector_decompose(
     max_order: i32,
     coefficient_expansion: &str,
     observer: Option<Py<PyAny>>,
+    progress: Option<Py<PyAny>>,
 ) -> PyResult<PyGeneratedIntegral> {
     if let Ok(diagram) = input.extract::<PyRef<'_, PyFeynmanDiagram>>() {
         let kinematics = kinematics.ok_or_else(|| {
@@ -116,7 +132,7 @@ pub(crate) fn sector_decompose(
             auxiliary_momenta,
             measure_multiplier,
         )?
-        .generate(py, max_order, coefficient_expansion, observer);
+        .generate(py, max_order, coefficient_expansion, observer, progress);
     }
     if let Ok(family) = input.extract::<PyRef<'_, PyIntegralFamily>>() {
         let powers = powers
@@ -147,6 +163,7 @@ pub(crate) fn sector_decompose(
             max_order,
             coefficient_expansion,
             observer.as_ref(),
+            progress.as_ref(),
             "Parametrizing the native integral family",
             || {
                 let (family, powers, numerator) = prepare_family_input(

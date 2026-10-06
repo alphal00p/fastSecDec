@@ -1,5 +1,47 @@
 # Native HEPKit → FastSecDec notebook
 
+For the complete gg→HH calculation in one file, open [gghh.py](gghh.py):
+
+```sh
+python -m marimo edit examples/hepkit/gghh.py
+```
+
+It starts from `Model.standard_model()`, specifies masses and zero widths inline,
+generates and selects a double box with native HEPKit graph primitives, and
+contracts its color/helicity numerator. It then calls
+`diagram.sector_decompose(...)`, followed by explicit compilation and QMC or
+Havana integration. No parameter card, saved graph or Python helper script is
+required. The expensive cells start disabled and use ordinary marimo editor
+execution controls. Sector inspection and streamed native results are included
+in the same file. Generation and compilation use HEPKit's automatic marimo
+progress presenter, also used by `generate_diagrams`. Pass `progress=None` for
+silence or a callable to receive every native generation snapshot.
+This new walkthrough requires the matching experimental wheel with
+`Model.scalar_bindings` and automatic sector progress; its final editor and
+portable acceptance is in progress. The current native wheel passes all
+118 maintained controls; the actual generated graph, both integration methods
+and final bibliography cells have also been exercised locally.
+See the [challenge inventory](../../docs/reviews/gghh-single-notebook.md).
+
+For a browser export, add `--notebook gghh` to the existing
+`examples/hepkit/export.py --wheel ... --output ...` command. This selects editor
+mode and packages only the community wheel and installation manifest. The
+notebook's hidden setup cell verifies and installs that wheel in Pyodide;
+it downloads no model, parameter, graph or helper-script bundle.
+
+Both notebooks end with `symbolica.get_citations()` and a BibTeX download. The
+bibliography updates after the native computation and uses Symbolica's existing
+rich citation objects. FastSecDec records use when generation starts or saved
+kernels load; importing it alone does not add references. Its
+[software citation](../../citations/fastsecdec.bib),
+[pySecDec reference](https://arxiv.org/abs/1703.09692),
+[geometric sector method](https://arxiv.org/abs/0908.2897) and
+[endpoint subtraction method](https://arxiv.org/abs/hep-ph/0004013) join the
+references recorded by the other HEPKit libraries. Citations are cumulative
+within the Python process, including previous notebook runs.
+
+## Dashboard with several examples
+
 Run `fastsecdec_showcase.py` with marimo 0.24.2 and a community wheel containing
 FastSecDec's experimental bindings. Follow [BUILD.md](BUILD.md) to build the
 wheel from the same pinned FastSecDec checkout as this notebook.

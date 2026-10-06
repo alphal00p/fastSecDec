@@ -24,6 +24,9 @@ pyodide.globals.set("bridge_wheel_uri", `emfs:/${wheels[0]}`);
 const tests = [
   "bindings/python/tests/test_fastsecdec.py",
   "bindings/python/tests/test_sector_decomposition.py",
+  "bindings/python/tests/test_model_scalar_bindings.py",
+  "bindings/python/tests/test_progress.py",
+  "bindings/python/tests/test_citations.py",
   "bindings/python/tests/test_inspection.py",
   "bindings/python/tests/test_mc.py",
   "examples/hepkit/tests/test_inputs.py",
@@ -57,6 +60,16 @@ from symbolica import set_license_key
 if os.environ.get("SYMBOLICA_LICENSE_KEY"):
     set_license_key(os.environ["SYMBOLICA_LICENSE_KEY"])
 assert sys.platform == "emscripten"
+# A new Pyodide instance must not credit FastSecDec merely for importing its API.
+from symbolica import get_citations
+from symbolica.community.hepkit import sector_decomposition
+fastsecdec_citation_ids = {
+    "https://github.com/alphal00p/fastSecDec",
+    "doi:10.1016/j.cpc.2017.09.015",
+    "doi:10.1016/j.cpc.2010.04.001",
+    "doi:10.1016/S0550-3213(00)00429-6",
+}
+assert fastsecdec_citation_ids.isdisjoint(citation.id for citation in get_citations())
 import pytest
 started = time.perf_counter()
 class Report:
@@ -83,7 +96,8 @@ json.dumps({"exit_code": int(code), "collected": report.collected,
             "nodeids": report.nodeids, "files": report.files, "passed": report.passed,
             "failed": report.failed, "skipped": report.skipped,
             "seconds": time.perf_counter() - started,
-            "python": sys.version, "platform": sys.platform})
+            "python": sys.version, "platform": sys.platform,
+            "fresh_import_citations_absent": sorted(fastsecdec_citation_ids)})
 `);
 const report = JSON.parse(result);
 report.wheel = wheels[0];

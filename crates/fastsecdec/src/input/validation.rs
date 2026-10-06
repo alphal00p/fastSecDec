@@ -12,7 +12,11 @@ use symbolica::{
 
 use crate::{Error, Result};
 
-pub(super) fn validate_denominators(diagram: &FeynmanDiagram) -> Result<()> {
+pub(super) fn validate_denominators(
+    diagram: &FeynmanDiagram,
+    values: &BTreeMap<Symbol, Atom>,
+) -> Result<()> {
+    validate_scalar_bindings(diagram, values)?;
     let model = diagram.model();
     // This is the existing UFO quadratic template used by native HEPKit models,
     // not a second parser or propagator builder. Symbolica verifies equality.
@@ -27,10 +31,15 @@ pub(super) fn validate_denominators(diagram: &FeynmanDiagram) -> Result<()> {
         }
         let particle = model.particle_by_id(edge.particle)?;
         let width = model.particle_width(edge.particle)?;
-        let zero_width = match width.value {
-            Some(value) => value.re == 0.0 && value.im == 0.0,
-            None => width.expression.as_ref().is_some_and(Atom::is_zero),
-        };
+        let zero_width = values
+            .get(&symbol!(&format!("UFO::{}", width.name)))
+            .map_or_else(
+                || match width.value {
+                    Some(value) => value.re == 0.0 && value.im == 0.0,
+                    None => width.expression.as_ref().is_some_and(Atom::is_zero),
+                },
+                Atom::is_zero,
+            );
         if !zero_width {
             return Err(Error::UnsupportedWidth {
                 edge: edge_id,
@@ -38,10 +47,13 @@ pub(super) fn validate_denominators(diagram: &FeynmanDiagram) -> Result<()> {
             });
         }
         let mass = model.particle_mass(edge.particle)?;
-        let real_mass = match mass.value {
-            Some(value) => value.re.is_finite() && value.im == 0.0,
-            None => mass.parameter_type == ParameterType::Real,
-        };
+        // Explicit mass values were checked above in the existing native
+        // exact-real/finite admission, independently of cached model values.
+        let real_mass = values.contains_key(&symbol!(&format!("UFO::{}", mass.name)))
+            || match mass.value {
+                Some(value) => value.re.is_finite() && value.im == 0.0,
+                None => mass.parameter_type == ParameterType::Real,
+            };
         if !real_mass {
             return Err(Error::UnsupportedMass {
                 edge: edge_id,

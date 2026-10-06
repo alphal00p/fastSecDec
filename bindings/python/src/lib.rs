@@ -1,6 +1,7 @@
 //! Optional HEPKit Python bindings. The native FastSecDec core stays Python-free.
 
 //! Thin HEPKit ownership and caller-stepped execution boundary.
+mod citations;
 mod decompose;
 mod error;
 mod execution;
@@ -9,10 +10,13 @@ mod input;
 mod inspection;
 mod kernels;
 mod mc;
+mod progress;
 mod session;
 mod status;
 
 use pyo3::{prelude::*, types::PyModule};
+
+pub use citations::get_citations;
 
 pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(hep.py(), "symbolica.community.hepkit_fastsecdec_native")?;

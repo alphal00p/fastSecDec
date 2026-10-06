@@ -24,8 +24,24 @@ pub struct GraphIntegral {
 
 impl GraphIntegral {
     pub fn new(diagram: Arc<FeynmanDiagram>, kinematics: &Kinematics) -> Result<Self> {
+        Self::new_with_scalar_values(diagram, kinematics, &BTreeMap::new())
+    }
+
+    /// Admit a diagram at an explicit, already-resolved scalar point.
+    ///
+    /// Widths and masses are checked at this point before constructing the
+    /// native quadratic family. In particular, an explicit zero-width binding
+    /// may specialize a model whose default width is nonzero. Omitted widths
+    /// retain the strict model-default checks used by [`Self::new`]. The
+    /// diagram/model remain unchanged, and the complete binding set is applied
+    /// atomically through the ordinary native family specialization.
+    pub fn new_with_scalar_values(
+        diagram: Arc<FeynmanDiagram>,
+        kinematics: &Kinematics,
+        values: &BTreeMap<Symbol, Atom>,
+    ) -> Result<Self> {
         diagram.validate()?;
-        super::validation::validate_denominators(&diagram)?;
+        super::validation::validate_denominators(&diagram, values)?;
         let family = diagram.propagator_family(kinematics)?;
         let propagator_edges: Vec<_> = diagram
             .edges()
@@ -39,14 +55,18 @@ impl GraphIntegral {
             .collect();
         debug_assert_eq!(propagator_edges.len(), family.denominators().len());
         let powers = vec![1; propagator_edges.len()];
-        Ok(Self {
+        let mut input = Self {
             diagram,
             family,
             propagator_edges,
             powers,
             measure_multiplier: Atom::one(),
-            scalar_values: BTreeMap::new(),
-        })
+            scalar_values: values.clone(),
+        };
+        if !values.is_empty() {
+            input.rebuild_family(input.family.external_momenta().to_vec())?;
+        }
+        Ok(input)
     }
 
     /// Parse either native compact HEPKit DOT or its stable exported dialect.

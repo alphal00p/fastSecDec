@@ -485,5 +485,20 @@ def _(asset_description, mo, report, run_revision, run_state):
     return
 
 
+@app.cell
+def _(mo, run_revision):
+    from symbolica import get_citations
+
+    run_revision  # Update the process bibliography as the computation advances.
+    citations = get_citations()
+    mo.vstack([
+        mo.md("## References"),
+        *[mo.as_html(citation) for citation in citations],
+        mo.download("\n\n".join(citation.to_bibtex() for citation in citations).encode(),
+                    filename="fastsecdec-references.bib", label="Download BibTeX"),
+    ])
+    return (citations,)
+
+
 if __name__ == "__main__":
     app.run()

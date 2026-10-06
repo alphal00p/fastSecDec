@@ -211,6 +211,101 @@ fn widths_are_rejected_before_the_quadratic_family_can_omit_them() {
 }
 
 #[test]
+fn atomic_scalar_point_admits_zero_builtin_width_and_preserves_native_family() {
+    let native_model = Arc::new(Model::standard_model());
+    let original_model = native_model.to_json().unwrap();
+    let diagram = Arc::new(
+        FeynmanDiagram::from_dot(
+            Arc::clone(&native_model),
+            r#"
+        digraph top_bubble {
+            ext [style=invis];
+            ext -> a [particle="g"];
+            b -> ext [particle="g"];
+            a -> b [particle="t", lmb_id=0];
+            b -> a [particle="t"];
+        }
+    "#,
+        )
+        .unwrap()
+        .with_numerator(Atom::one())
+        .unwrap(),
+    );
+    let basis = diagram.loop_momentum_basis();
+    let independent = basis
+        .external_edges
+        .iter()
+        .position(|edge| !basis.dependent_externals.contains(edge))
+        .unwrap();
+    let kin = Kinematics::in_dimension(&parse!("D"))
+        .unwrap()
+        .with_mass_squared(&symbols::external_momentum().call(independent), parse!("s"))
+        .unwrap();
+    assert!(matches!(
+        GraphIntegral::new(Arc::clone(&diagram), &kin),
+        Err(Error::UnsupportedWidth { .. })
+    ));
+    for width in [Atom::num(1), parse!("unresolved_width")] {
+        assert!(matches!(
+            GraphIntegral::new_with_scalar_values(
+                Arc::clone(&diagram),
+                &kin,
+                &BTreeMap::from([(symbol!("UFO::WT"), width)])
+            ),
+            Err(Error::UnsupportedWidth { .. })
+        ));
+    }
+    let values = BTreeMap::from([
+        (symbol!("UFO::WT"), Atom::Zero),
+        (symbol!("UFO::MT"), Atom::num((345, 2))),
+        (symbol!("s"), Atom::num(-1)),
+    ]);
+    let integral =
+        GraphIntegral::new_with_scalar_values(Arc::clone(&diagram), &kin, &values).unwrap();
+    assert!(Arc::ptr_eq(integral.diagram(), &diagram));
+    assert_eq!(native_model.to_json().unwrap(), original_model);
+    assert_eq!(
+        integral.family().kinematics().dimension().to_symbolic(),
+        parse!("D")
+    );
+    let parametric = ScalarParametricIntegral::from_graph(
+        &integral,
+        vec![parse!("x"), parse!("y")],
+        parse!("2-2*eps"),
+    )
+    .unwrap();
+    assert!(
+        (parametric.f() - parse!("(345/2)^2*(x+y)^2+x*y"))
+            .expand()
+            .is_zero(),
+        "F={}, denominators={:?}, externals={:?}",
+        parametric.f(),
+        integral.family().denominators(),
+        integral.family().external_momenta(),
+    );
+    assert_eq!(parametric.u_exponent().expand(), parse!("2*eps"));
+    assert_eq!(parametric.f_exponent().expand(), parse!("-1-eps"));
+    let mut invalid = values.clone();
+    invalid.insert(symbol!("UFO::MT"), Atom::num(1) + Atom::i());
+    assert!(matches!(
+        GraphIntegral::new_with_scalar_values(Arc::clone(&diagram), &kin, &invalid),
+        Err(Error::UnsupportedMass { .. })
+    ));
+    invalid = values.clone();
+    invalid.insert(symbol!("D"), Atom::num(4));
+    assert!(matches!(
+        GraphIntegral::new_with_scalar_values(Arc::clone(&diagram), &kin, &invalid),
+        Err(Error::ScalarBindings(_))
+    ));
+    invalid = values;
+    invalid.insert(symbols::loop_momentum(), Atom::num(1));
+    assert!(matches!(
+        GraphIntegral::new_with_scalar_values(diagram, &kin, &invalid),
+        Err(Error::ScalarBindings(_))
+    ));
+}
+
+#[test]
 fn complex_masses_are_rejected_before_the_quadratic_family_can_omit_them() {
     let model = modified_model(|json| {
         json["parameters"]
@@ -237,12 +332,21 @@ fn custom_denominators_are_rejected_before_the_quadratic_family_can_omit_them() 
     let model = modified_model(|json| {
         json["propagators"][0]["denominator"] = serde_json::json!("(UFO::P(UFO::idx(1,1)))^4");
     });
+    let diagram = Arc::new(FeynmanDiagram::from_dot(Arc::clone(&model), BUBBLE).unwrap());
     assert!(matches!(
         GraphIntegral::from_dot(model, BUBBLE, &kinematics()),
         Err(Error::UnsupportedDenominator {
             edge: EdgeId(2),
             ..
         })
+    ));
+    assert!(matches!(
+        GraphIntegral::new_with_scalar_values(
+            diagram,
+            &kinematics(),
+            &BTreeMap::from([(symbol!("UFO::ZERO"), Atom::Zero),])
+        ),
+        Err(Error::UnsupportedDenominator { .. })
     ));
 }
 

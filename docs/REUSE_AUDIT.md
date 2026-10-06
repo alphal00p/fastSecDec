@@ -1,5 +1,26 @@
 # Ecosystem reuse evidence
 
+## Native notebook progress and citations (2026-10-06)
+
+The public `generate_diagrams(progress="auto")` behavior, its Rust source and an
+installed marimo detection probe were checked before adding sector progress.
+Its private presenter is extracted into `feynkit_py::MarimoProgress`; the
+diagram generator and FastSecDec share that implementation. Native generation
+snapshots remain authoritative, callbacks receive every event, and only automatic
+widget painting is coalesced. The standalone notebook calls this API directly.
+Focused helper lifecycle and strict scoped checks pass; integrated validation
+of the combined wheel is recorded separately.
+
+Citation transport reuses Symbolica's native `Citation` type, rich display,
+BibTeX export and cumulative deduplicating collector. FastSecDec owns its four
+references and a process usage flag; community adds only its feature-gated
+collector call. The independent audit matches native cone/triangulation and
+endpoint subtraction to the primary Kaneko–Ueda and Binoth–Heinrich papers.
+The user-requested pySecDec reference credits development and cross-checks;
+FastSecDec itself has an explicit software repository citation. Both notebook
+final cells depend on native work before refreshing the bibliography. See
+[citation data and sources](../citations/README.md).
+
 This is an implementation record, not permission to replace ecosystem features.
 Source paths below are relative to the pinned local checkouts documented in
 [DEVELOPMENT.md](DEVELOPMENT.md). Each new capability must pass the three checks
@@ -1265,3 +1286,18 @@ Visible notebook functions are the callbacks its buttons execute. Native
 `DiagramRender` reaches marimo through its existing HTML protocol. Generated
 type-stub and actual Wasm validation remain separate delivery gates; no new
 performance or ggHH accuracy claim is inferred from the triangle UI control.
+
+The self-contained ggHH extension reuses `Model.standard_model()`, native
+process generation, Linnet-backed connectivity, existing tensor contractions,
+GammaLoop external states and `diagram.sector_decompose`. Inline parameter data
+uses the existing Rust scalar-binding algorithm moved from the CLI to its native
+FeynKit Model owner. Both the CLI and previous notebook helper now call that
+owner; the Python dependency-resolution loop is removed. Five Model and four
+CLI controls pass, including exact equality of the complete earlier ggHH binding
+map. Independent [input audit](reviews/gghh-single-notebook-audit.md) also verifies
+exact physical graph equality after accounting for the model fingerprint and
+display name. The direct diagram call exposed a pre-existing admission-order
+defect for explicit zero-width overrides of a nonzero-width default model. The
+atomic constructor reuses the existing admission guards and native family
+specialization; 30 input/family/example and five CLI tests plus strict Clippy
+pass. Final installed-runtime checks remain in progress.

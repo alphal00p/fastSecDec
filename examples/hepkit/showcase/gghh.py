@@ -58,35 +58,6 @@ def _near(value, expected):
         raise ValueError("Native external-state Gram check failed")
 
 
-def _scalar_values(model, restriction):
-    """Match the CLI input boundary with native model expressions/substitution.
-
-    Keep unoverridden internal parameters analytic. Card/external numerical
-    values enter as exact binary64 rationals, rather than rounded decimals or
-    pre-evaluated internal couplings. GraphIntegral expects resolved bindings.
-    """
-    values = {}
-    for parameter in model.parameters:
-        if (parameter.nature == hep.ParameterNature.INTERNAL
-                and parameter.name not in restriction and parameter.expression is not None):
-            value = parameter.expression
-        else:
-            if parameter.value is None:
-                raise ValueError(f"Model parameter has no value: {parameter.name}")
-            value = _rational(parameter.value.real) + E("1i") * _rational(parameter.value.imag)
-        values[parameter.symbol] = value
-    values.update((coupling.symbol, coupling.expression) for coupling in model.couplings)
-    for _ in range(len(values) + 1):
-        rules = [Replacement(symbol, value) for symbol, value in values.items()]
-        resolved = {symbol: value.replace_multiple(rules) for symbol, value in values.items()}
-        if resolved == values:
-            if any(value.contains(symbol) for value in values.values() for symbol in values):
-                raise ValueError("Native model scalar bindings contain an unresolved dependency")
-            return values
-        values = resolved
-    raise ValueError("Native model scalar bindings contain a cycle")
-
-
 @dataclass(frozen=True)
 class GGHHInput(ShowcaseInput):
     auxiliary_momenta: tuple
@@ -120,8 +91,9 @@ def prepare(*, observer=None, assets=ASSETS):
     origin = _assets(assets)
     assets = Path(assets)
     model = hep.Model(assets / "model.json")
-    model = model.with_parameter_card(hep.ParameterCard.from_json((assets / "parameters.json").read_text()))
-    scalar_values = _scalar_values(model, json.loads((assets / "parameters.json").read_text()))
+    card = hep.ParameterCard.from_json((assets / "parameters.json").read_text())
+    model = model.with_parameter_card(card)
+    scalar_values = model.scalar_bindings(card)
     vertices = [v for v in model.vertex_rules
                 if sorted(model.particle(p).pdg_code for p in v.particles)
                 in ([-6, 6, 21], [-6, 6, 25])]

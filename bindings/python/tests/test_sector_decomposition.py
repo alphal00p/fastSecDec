@@ -60,6 +60,43 @@ def test_weighted_diagram_family_and_compatibility_generation_agree():
     assert legacy.compile().to_bytes() == expected
 
 
+def test_diagram_admission_uses_explicit_width_point_before_model_defaults():
+    model = hep.Model.standard_model()
+    before = model.to_json()
+    raw = hep.FeynmanDiagram.from_dot(model, '''digraph top_bubble {
+        ext [style=invis];
+        ext -> a [particle="g"];
+        b -> ext [particle="g"];
+        a -> b [particle="t", lmb_id=0];
+        b -> a [particle="t"];
+    }''')
+    diagram = sd.with_diagram_expressions(raw, numerator=E("2"), projector=E("3"),
+                                          overall_factor=E("5"))
+    dimension, eps = S("atomic_point::D", "atomic_point::eps")
+    basis = diagram.loop_momentum_basis
+    independent = next(i for i, edge in enumerate(basis.external_edges)
+                       if edge not in basis.dependent_externals)
+    momentum = hep.Kinematics.external_momentum()(independent)
+    kin = hep.Kinematics(dimension).with_scalar_product(
+        momentum, momentum, E("-1"))
+    mass, width = model.parameter("MT").symbol, model.parameter("WT").symbol
+    args = dict(regulator=eps, dimension=2 - 2 * eps, kinematics=kin, max_order=0)
+    for values in ({}, {width: E("1")}, {width: S("unknown_width")},
+                   {width: E("0"), mass: E("1+1i")}):
+        with pytest.raises(sd.FastSecDecError) as caught:
+            diagram.sector_decompose(scalar_values=values, **args)
+        assert caught.value.stage == "input"
+    values = model.scalar_bindings(overrides={mass: E("1"), width: E("0")})
+    generated = diagram.sector_decompose(scalar_values=values, **args)
+    assert generated.snapshot().kernels == 0  # Compilation remains explicit.
+    family = diagram.propagator_family(kinematics=kin)
+    control = family.sector_decompose(numerator=E("30"), powers=[1, 1],
+                                     scalar_values=values, **args)
+    assert generated.compile().to_bytes() == control.compile().to_bytes()
+    assert model.to_json() == before
+    assert model.parameter("WT").value.real > 0
+
+
 def family_fixture():
     d, k, p, mass, eps = S("entry_family::D", "entry_family::k", "entry_family::p",
                           "entry_family::m2", "entry_family::eps")

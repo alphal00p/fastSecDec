@@ -70,7 +70,7 @@ The pinned source identities are:
 
 | Generated owner | Revision / branch |
 |---|---|
-| `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `c6710fe017815b7540c444741a7bb359bb1da235`, plus the literal-symbol substitution fix |
+| `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `7f3d6c79a8f02fe979a587afe4a5c9a7a0a4a6fc`, including native scalar bindings and shared marimo progress, plus the literal-symbol substitution fix |
 | `symbolica` from `symbolica-dev/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, plus the seven reviewed patches below |
 | `numerica` from `ValentinHirschi/numerica` | Commit `f6ecdac8237a30adfcd1be5944a95c5160e474ce` on `codex/havana-qmc`; includes the reviewed QMC fixes, completed-package and shift-coverage access, guarded Korobov2/Korobov3 periodization, attributed published catalogues, and recursive sample-free cloning of nested Havana grids |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |

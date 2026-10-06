@@ -312,6 +312,33 @@ perhaps sector_decompose istead of decompose, not sure.
 Yes this sounds good! Make sure to use the hepkit structures that already exist whenever you can (don't reinvent the wheel), modify them if they lack a feature.
 ```
 
+### Self-contained gg → HH walkthrough (2026-10-06)
+
+Provide one notebook using `Model.standard_model()` and native graph generation,
+with masses, widths and couplings specified inline. No helper scripts or input
+files are required by this walkthrough. Keep the native diagram/family API
+visible, inventory genuine missing primitives, and extend their existing owners
+where necessary. Reuse the existing Rust scalar-binding logic through Model
+rather than copying its dependency resolution into Python. Prefer ordinary
+marimo cell execution to a custom Generate/Resume workflow in this compact
+walkthrough. Use `diagram.sector_decompose(...)` for the gg→HH walkthrough,
+retaining the contracted numerator and graph weights on the native diagram.
+Retain the richer dashboard as a separate example.
+
+User clarifications, verbatim:
+
+```text
+Try to do the whole gg→hh in one notebook, no other python scripts and with minimal code. Can you use Model.standard_model() and the graph generator to get the double-box? Inventorize the challenges. I am not sure buttons of the workflow are needed, especially for Generate. It should be clear that with little code the decomposition should be set up
+```
+
+```text
+Is the parameter card really needed? Can this not be in the notebook?
+```
+
+```text
+Can it not use diagram.`sector_decompose` instead?
+```
+
 ## 2. Architecture, ecosystem reuse, and inputs
 
 Use a Cargo workspace with three crates:
@@ -1312,3 +1339,43 @@ And as I said, once you're feature complete within what's stated in the goal, an
 - 2026-10-04: six independent multiloop references are frozen in the native versioned format with source identities, explicit real projection and reported uncertainties. Three focused data/comparison checks passed, including the two explicitly invoked ignored record/replay checks; the six-case CLI harness compiles and targeted Clippy passes. A constant-integrand control reproduces the five-dimensional Kuo33002/Korobov3 error plateau. At equal work, alternative published vectors substantially improve the actual six-line result, while broader dimensional controls rule out selecting a universal default from that case alone. Production rule defaults remain unchanged pending further physical comparisons. Separate rank-five attribution finds repeated native support extraction accounts for 99.63% of mapping time; a lazy reuse implementation and its independent acceptance checks are in progress. This milestone adds scientific evidence and reference transport, not a convergence or matched-performance certificate.
 - 2026-10-04: native support reuse and published-catalogue milestone: **231 workspace tests passed**, twelve explicit probes ignored; formatting and all-target Clippy pass. The production dependency audit retains one Symbolica 3.0.1/SymJIT 2.26.4 owner and excludes Python, pySecDec, CLI presentation and development-only reference providers. The generation-owned lazy support cache preserves compact factors and complete vectors: three alternating release pairs improve rank-five generation from 11.371 to 2.522 seconds, and an untimed independent pair has identical complete-vector fingerprints. Numerica is committed locally at `5d768eea73c525bb28affea31c298db9358b2f5f` with attributed HKKN/Kuo catalogue choices, native bounds and provenance validation; its 29 QMC and nine MC tests pass. Forty-eight physical comparisons retain native joint covariance and show case-dependent rule quality. The default remains unchanged. The CLI exposes explicit choices, reports the effective native design, and rejects mismatched native/outer checkpoint settings before work. Independent HEPKit audits pass, and the exact massive-box run-card point now agrees with native D0. Saved-result APIs, coupled numerator and remaining triple-box/orthant campaigns, difficult-case convergence and matched performance remain open.
 - 2026-10-04: saved-result and coupled-numerator milestone: **253 workspace tests passed**, twelve explicit probes ignored; the final enum-layout adjustment passed eleven native result and five CLI result/reference tests, followed by formatting and all-target Clippy. Saved results preserve full covariance, scope, exact offsets, original references and effective QMC design without symbolic loading. Numerical failures retain accepted coverage and produce nonzero CLI exits; independent reviews closed coverage, metadata-allocation, numeric-range and rendering-cost issues. The minimal Numerica coverage accessor is committed at `e4638da22a17cfa931fa14c6829d3350b7a8de2b`, with 30 QMC and nine existing MC tests passing. The native coupled-sunset fixture passes exact routing/export-reload, nine independent density points, a convergent scalar sign control and complete Laurent vectors through epsilon one at two spacelike scales. All 24 run cards and the 17-DOT inventory pass CLI checks. Production dependencies retain Symbolica 3.0.1/SymJIT 2.26.4 and exclude Python, pySecDec and CLI/reference-provider dependencies. Qualified CLI sector selection, remaining triple-box/orthant examples, difficult-case convergence and matched performance remain open; Numerica upstream PR readiness is being checked under the new publication authorization.
+
+
+### Additional notebook requirements (2026-10-06, verbatim)
+
+> Make sure that the generation has a progress report similar to `generate_diagrams`
+
+> Add a get_citations at the end of the notebook. Make sure that when secdec is used the relevant papers are cited. Also add a citation for fastsecdec
+
+> The pysecdec paper [https://arxiv.org/abs/1703.09692](https://arxiv.org/abs/1703.09692) should also be cited
+
+Reuse the native HEPKit marimo progress presenter for generation and compilation,
+with `progress="auto"`, explicit silence and full native-event callbacks. Keep
+tracking and citation metadata in FastSecDec, expose native Symbolica `Citation`
+objects through the existing HEPKit collector, and add reactive final
+`get_citations()` cells with BibTeX downloads to both notebooks. Cite the
+FastSecDec software repository, Kaneko–Ueda geometric sector construction,
+Binoth–Heinrich endpoint subtraction, and pySecDec as the reference implementation
+that informed this project. Do not invent a FastSecDec publication DOI.
+Record actual use, including valid cached kernels, rather than import alone.
+These notebook/API additions do not close the outstanding phase-A science and
+performance gates.
+
+
+- 2026-10-06: the standalone gg→HH notebook now starts from the native Standard
+  Model with inline scalar bindings, generates the physical diagram, contracts
+  native external states and calls `diagram.sector_decompose`. Automatic progress
+  shares HEPKit's existing presenter. Both notebooks end with the native
+  `get_citations()` collector and BibTeX export, including FastSecDec, pySecDec,
+  Kaneko–Ueda and Binoth–Heinrich. The updated wheel passes 118 maintained
+  controls, strict binding Clippy and generated-stub validation. Native generation
+  produces 30 charts; a saved-kernel continuation completes the small QMC and
+  Havana runs with full covariance and no evaluation failures. A diagnostic
+  covariance-writer error and its corrected continuation are retained separately.
+  Actual marimo generation/compilation, sector inspection, reactive citations
+  and BibTeX download are observed. The new notebook's editor interruption/resume
+  remains unverified after diagnostic selector failures; the existing dashboard's
+  prior lifecycle evidence is separate. Fresh portable validation is running.
+  The tested shared Model/progress owner is published at FeynKit `7f3d6c79`;
+  community retains only registration, citation aggregation and generated stubs.
+  These API/notebook gates do not close the remaining phase-A performance gates.

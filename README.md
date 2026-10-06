@@ -16,8 +16,9 @@ separate Generate and Integrate actions, live status views and sector inspection
 The scalar triangle is selected by default; the projected `g g -> H H`
 double box is an optional longer calculation in native and browser execution.
 Its [build guide](examples/hepkit/BUILD.md) documents the opt-in
-feature and required dependency patches. The current native wheel and hosted
-native CI each pass 81 controls; the published `a3d09e` Wasm wheel passes generic
+feature and required dependency patches. The updated local native wheel passes
+118 controls; the preceding published API milestone passed 95 in hosted native
+CI. The earlier `a3d09e` Wasm wheel passes generic
 smoke and all 58 collected portable controls. Actual triangle browser execution
 covers native metadata/math inspection, QMC checkpoint resume and same-kernel
 Havana pilot/production pause and resume. The final supplemental screenshot
@@ -26,6 +27,14 @@ See the [current portable review](docs/reviews/hepkit-metadata-mc-portable.md)
 for the bounded optional double-box outcome, exact source identities and
 single-thread browser interaction limits. These checks do not establish
 browser convergence or representative performance parity.
+
+The [standalone gg→HH notebook](examples/hepkit/gghh.py) builds its diagram from
+`Model.standard_model()` with inline masses and helicities, calls
+`diagram.sector_decompose(progress="auto")`, and uses ordinary marimo editor
+controls for its expensive cells. Generation shares HEPKit's progress presenter;
+the final bibliography uses `get_citations()` and offers a BibTeX download.
+Its current native/editor and fresh portable validation status is recorded in
+the [notebook review](docs/reviews/gghh-single-notebook.md).
 
 Prepare the exact dependency sources and reviewed patches once. The output
 directory must not already exist; use `output/` as below or a location outside
@@ -78,6 +87,11 @@ for scope, checkpoint and reference-export rules.
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)
 - [Correctness and performance comparison protocol](docs/BENCHMARK_PROTOCOL.md)
+- [Software and method citations, with BibTeX](citations/README.md)
+
+The HEPKit notebooks end with `symbolica.get_citations()`, which includes
+FastSecDec, pySecDec and the geometric sector/subtraction method papers after
+native FastSecDec use. Saved kernels also register these citations when loaded.
 
 The workspace separates the public physics library (`fastsecdec`), exact sector
 geometry (`fastsecdec-sectors`), and command-line orchestration (`fastsecdec-cli`).

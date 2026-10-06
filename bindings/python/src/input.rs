@@ -99,13 +99,14 @@ impl PyIntegral {
         measure_multiplier: Option<&PythonExpression>,
     ) -> PyResult<Self> {
         let regulator = symbol(py, regulator, "regulator")?;
+        let bindings = scalar_bindings(py, scalar_values)?;
         // Guard partial selected subgraphs before borrowing the native owner.
-        let graph = GraphIntegral::new(
+        let graph = GraphIntegral::new_with_scalar_values(
             Arc::new(diagram.as_diagram()?.clone()),
             kinematics.as_kinematics(),
+            &bindings,
         )
         .map_err(|e| error::native(py, "input", e))?;
-        let bindings = scalar_bindings(py, scalar_values)?;
         let powers = powers
             .unwrap_or_default()
             .into_iter()
@@ -118,7 +119,6 @@ impl PyIntegral {
             .collect();
         let graph = graph
             .with_auxiliary_external_momenta(&momenta)
-            .and_then(|g| g.with_scalar_values(&bindings))
             .and_then(|g| g.with_powers(&powers))
             .map_err(|e| error::native(py, "input", e))?
             .with_measure_multiplier(measure_multiplier.map_or_else(Atom::one, |v| v.expr.clone()));
