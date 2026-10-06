@@ -1,5 +1,36 @@
 # Ecosystem reuse evidence
 
+## Artifact inspection and saved generation facts (2026-10-07)
+
+Artifact inspection reads the existing native `GenerationMetadata`,
+`CoordinateMap`, pre-subtraction terms and `EvaluatorStatistics`. Stable kernel
+IDs come from the kernel slice; chart associations and representative
+permutations come from the retained records. Native Atom multiplication assembles
+the recorded endpoint factors for display without inferring a new leading term,
+named U/F factor or threshold certificate. Symbolica's `Atom::printer` and
+`PrintOptions` own expression formatting. Namespace suppression uses native
+symbol inventories to avoid collapsing distinct symbols into the same label.
+The CLI's existing `tabled` dependency supplies width-aware tables, with its ANSI
+feature handling colored native expressions.
+
+The Pathfinder reference's bounded sector table informed the presentation, not
+the physical representation or algebra. No graph helper, evaluator traversal,
+CAS or numerical reference implementation was added. The exact program byte
+count and operation counts reuse observations captured when the shared native
+Laurent-vector evaluator was built; compressed SymJIT data is labeled separately.
+Existing one-loop master and reduction APIs remain unaffected.
+
+The optional human JSON generation record adds the saved worker count and
+requested expansion method. Other summary facts reuse existing kernel metadata
+and timings. These observations are excluded from scientific identity and do
+not alter the binary artifact. The [persistence review](reviews/generation-record.md)
+and independent [native inspection review](reviews/artifact-inspect-review.md)
+record source/API probes, attribution and validation boundaries. The
+[release acceptance](reviews/artifact-inspect-results.md) confirms actual
+terminal behavior, portable compilation and byte-identical fresh ggHH
+evaluators. Other examples and the user's deferred tests/gates migration remain
+unchanged.
+
 ## Generation terminal summary and count availability (2026-10-07)
 
 The human generation summary uses typed native kernel metadata and measured

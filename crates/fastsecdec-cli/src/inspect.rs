@@ -1,33 +1,103 @@
-//! Artifact inspection delegates semantic transport and presentation to the
-//! native metadata owner. No polynomial support or coordinate map is rebuilt.
-use crate::{CliResult, artifact::Artifact};
-use fastsecdec::kernel::{KernelSet, PortableMetadata};
-use std::path::Path;
+//! Inspection reads retained native metadata; it never regenerates expressions,
+//! reconstructs sector maps, or samples an evaluator.
+mod overview;
+mod presentation;
+mod tables;
 
-pub fn artifact(path: &Path, expressions: bool, json: bool) -> CliResult<()> {
+use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
+use fastsecdec::kernel::{KernelSet, PortableMetadata};
+use std::{io::IsTerminal, path::Path};
+
+pub fn artifact(
+    path: &Path,
+    expressions: bool,
+    sector: Option<usize>,
+    plain: bool,
+    json: bool,
+) -> CliResult<()> {
     let (artifact, kernels) = Artifact::load(path)?;
+    if let Some(id) = sector
+        && id >= kernels.sectors().len()
+    {
+        return Err(format!(
+            "unknown sector {id}; artifact contains {} numerical sectors (IDs start at 0)",
+            kernels.sectors().len()
+        )
+        .into());
+    }
     if json {
-        crate::report(&document(&artifact, &kernels)?, true)?;
-    } else {
-        crate::report(&summary(&artifact, &kernels), false)?;
-        if let Some(metadata) = kernels.generation_metadata() {
-            println!("{}", metadata.display(expressions));
+        let value = if let Some(id) = sector {
+            serde_json::json!({
+                "content_id":artifact.content_id,
+                "generation":artifact.generation,
+                "generation_timings":artifact.generation_timings,
+                "loading_seconds":artifact.loading_seconds,
+                "sectors":kernels.sectors().len(),
+                "orders":kernels.orders(),"components":kernels.components(),
+                "runtime_parameters":kernels.runtime_parameters().iter().map(|symbol|symbol.get_name()).collect::<Vec<_>>(),
+                "parameters_bound":kernels.parameters_bound(),
+                "selected_sector": {
+                "id": id,
+                "content_id": kernels.sector_content_id(id)?,
+                "dimension": kernels.sectors()[id].dimension(),
+                "evaluator_statistics": kernels.sectors()[id].statistics(),
+                "charts": kernels.generation_metadata().map(|metadata| PortableMetadata::charts_for_sector(metadata,id)),
+                }
+            })
         } else {
-            println!("Retained chart/domain metadata unavailable (legacy artifact).");
-        }
+            let mut value = document(&artifact, &kernels)?;
+            value["largest_sectors"] = serde_json::to_value(ranked_sectors(&kernels))?;
+            value
+        };
+        crate::report(&value, true)?;
+    } else {
+        let terminal = std::io::stdout().is_terminal();
+        let width = if terminal {
+            crossterm::terminal::size()
+                .map(|(w, _)| usize::from(w))
+                .unwrap_or(100)
+        } else {
+            100
+        };
+        let colors = ColorPolicy::for_stream(plain, terminal);
+        print!(
+            "{}",
+            presentation::render(
+                path,
+                &artifact,
+                &kernels,
+                sector,
+                expressions,
+                width.clamp(1, 140),
+                colors
+            )?
+        );
     }
     Ok(())
+}
+
+fn ranked_sectors(kernels: &KernelSet) -> Vec<usize> {
+    let mut ids = (0..kernels.sectors().len()).collect::<Vec<_>>();
+    ids.sort_by_key(|&id| {
+        (
+            std::cmp::Reverse(kernels.sectors()[id].statistics().exact_program_bytes),
+            id,
+        )
+    });
+    ids.truncate(10);
+    ids
 }
 
 fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
     serde_json::json!({
         "content_id":artifact.content_id,"provenance":artifact.provenance,
-        "orders":kernels.orders(),"sectors":kernels.sectors().len(),
+        "orders":kernels.orders(),"components":kernels.components(),"sectors":kernels.sectors().len(),
         "dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
         "evaluator_statistics":kernels.sectors().iter().map(|k|k.statistics()).collect::<Vec<_>>(),
         "exact_coefficients":kernels.parameters_bound().then(|| kernels.exact_coefficients()),
         "runtime_parameters":kernels.runtime_parameters().iter().map(|symbol| symbol.get_name()).collect::<Vec<_>>(),
         "parameters_bound":kernels.parameters_bound(),
+        "generation":artifact.generation,
         "generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds,
         "retained_metadata_available":kernels.generation_metadata().is_some()
     })

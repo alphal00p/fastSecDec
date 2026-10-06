@@ -7,6 +7,7 @@ mod generate;
 mod generation_report;
 mod input;
 mod inspect;
+mod math_display;
 mod reference;
 mod results;
 mod status_policy;
@@ -106,6 +107,9 @@ enum Action {
     /// Inspect native input or an existing portable artifact.
     Inspect {
         path: PathBuf,
+        /// Inspect one compiled sector by its zero-based ID from the overview.
+        #[arg(long)]
+        sector: Option<usize>,
         #[arg(long)]
         expressions: bool,
     },
@@ -402,14 +406,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 reference.validate_identity(kernels.content_id())?;
             }
             drop(dashboard);
-            generation_report::print(
-                &output,
-                &artifact,
-                &kernels,
-                geometry_workers.get(),
-                cli.plain,
-                render_json,
-            )?;
+            generation_report::print(&output, &artifact, &kernels, cli.plain, render_json)?;
         }
         Action::Run {
             input,
@@ -548,11 +545,20 @@ fn run(cli: Cli) -> CliResult<()> {
                 render_json,
             )?;
         }
-        Action::Inspect { path, expressions } => {
+        Action::Inspect {
+            path,
+            expressions,
+            sector,
+        } => {
             if path
                 .extension()
                 .is_some_and(|extension| extension == "toml")
             {
+                if sector.is_some() {
+                    return Err(
+                        "--sector requires a generated artifact basename, not a run card".into(),
+                    );
+                }
                 let loaded = input::load(&path)?;
                 let mut value = serde_json::json!({"name":loaded.label,"loops":loaded.loops,"parameters":loaded.propagators,
                     "domain":format!("{:?}",loaded.integrand.domain()),"terms":loaded.integrand.terms().len(),
@@ -567,7 +573,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 }
                 report(&value, render_json)?;
             } else {
-                inspect::artifact(&path, expressions, render_json)?;
+                inspect::artifact(&path, expressions, sector, cli.plain, render_json)?;
             }
         }
         Action::Benchmark {

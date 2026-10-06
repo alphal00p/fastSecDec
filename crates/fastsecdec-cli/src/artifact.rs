@@ -135,6 +135,17 @@ pub struct Provenance {
     pub model_parameter_defaults: BTreeMap<String, f64>,
 }
 
+/// Observed generation configuration, independent of mathematical identity.
+/// Kernel layout, evaluator backends and timings are retained by their existing
+/// artifact fields; absence here means the older producer did not record it.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GenerationRecord {
+    pub workers: usize,
+    /// The requested route can use its supported per-sector physical fallback;
+    /// this field does not claim every sector followed the named-series route.
+    pub requested_coefficient_expansion: fastsecdec::generation::CoefficientExpansionMethod,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Artifact {
     format_version: u32,
@@ -149,6 +160,8 @@ pub struct Artifact {
     source_root: PathBuf,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generation_timings: Option<GenerationTimings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generation: Option<GenerationRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<crate::config::ReferenceInput>,
     #[serde(skip)]
@@ -261,6 +274,7 @@ impl Artifact {
             data: kernels.to_bytes()?,
             source_root: PathBuf::from("."),
             generation_timings: None,
+            generation: None,
             reference: None,
             loading_seconds: 0.0,
         };
@@ -268,6 +282,8 @@ impl Artifact {
         Ok(result)
     }
     fn identity(&self) -> CliResult<String> {
+        // Generation observations, wall timings and comparison settings do not
+        // change the mathematical artifact or any evaluator's identity.
         let mut hasher = blake3::Hasher::new();
         hasher.update(b"fastsecdec-artifact-v3");
         serde_json::to_writer(&mut hasher, &self.provenance)?;

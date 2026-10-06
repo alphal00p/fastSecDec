@@ -4,6 +4,7 @@
 use std::{collections::BTreeSet, io::IsTerminal, path::Path};
 
 use fastsecdec::{
+    Atom, AtomCore,
     kernel::KernelSet,
     status::{CoefficientComponent, GenerationTimings},
 };
@@ -17,7 +18,7 @@ use tabled::{
     },
 };
 
-use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
+use crate::{CliResult, artifact::Artifact, math_display, terminal_policy::ColorPolicy};
 
 /// Presentation values copied from the generated artifact and native kernels.
 /// Keeping this separate from terminal I/O also supports alternate terminal widths.
@@ -25,9 +26,11 @@ pub struct Summary<'a> {
     pub artifact: String,
     pub content_id: &'a str,
     pub sectors: usize,
-    pub workers: usize,
+    pub workers: Option<usize>,
+    pub requested_coefficient_expansion: Option<fastsecdec::generation::CoefficientExpansionMethod>,
     pub runtime_inputs: usize,
     pub backends: Vec<String>,
+    pub regulator: Atom,
     pub outputs: Vec<(i32, CoefficientComponent)>,
     pub timings: Option<&'a GenerationTimings>,
 }
@@ -36,7 +39,6 @@ pub fn print(
     output: &Path,
     artifact: &Artifact,
     kernels: &KernelSet,
-    workers: usize,
     plain: bool,
     json: bool,
 ) -> CliResult<()> {
@@ -53,7 +55,8 @@ pub fn print(
                 "orders": kernels.orders(),
                 "components": kernels.components(),
                 "generation_timings": artifact.generation_timings,
-                "workers": workers,
+                "workers": artifact.generation.as_ref().map(|generation| generation.workers),
+                "generation": artifact.generation,
             }))?
         );
         return Ok(());
@@ -70,7 +73,14 @@ pub fn print(
         artifact: relative.to_string_lossy().into_owned(),
         content_id: &artifact.content_id,
         sectors: kernels.sectors().len(),
-        workers,
+        workers: artifact
+            .generation
+            .as_ref()
+            .map(|generation| generation.workers),
+        requested_coefficient_expansion: artifact
+            .generation
+            .as_ref()
+            .map(|generation| generation.requested_coefficient_expansion),
         runtime_inputs: kernels.runtime_parameters().len(),
         backends: kernels
             .sectors()
@@ -79,6 +89,7 @@ pub fn print(
             .collect::<BTreeSet<_>>()
             .into_iter()
             .collect(),
+        regulator: crate::input::expression(&artifact.provenance.regulator)?,
         outputs: kernels
             .orders()
             .iter()
@@ -115,15 +126,26 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
     } else {
         format!("{} (supply at integration)", summary.runtime_inputs)
     };
-    let facts = vec![
+    let mut facts = vec![
         ["Artifact".into(), terminal_text(&summary.artifact)],
         ["Files".into(), ".json metadata + .dat evaluators".into()],
         ["ID (short)".into(), short_id(summary.content_id)],
         ["Sectors".into(), summary.sectors.to_string()],
-        ["Workers".into(), summary.workers.to_string()],
+        [
+            "Workers".into(),
+            summary
+                .workers
+                .map_or_else(|| "Not recorded".into(), |workers| workers.to_string()),
+        ],
         ["Backend".into(), terminal_text(&backend)],
         ["Runtime inputs".into(), runtime_inputs],
     ];
+    if let Some(method) = summary.requested_coefficient_expansion {
+        facts.push([
+            "Requested expansion".into(),
+            expansion_method(method).into(),
+        ]);
+    }
     let mut result = heading("Generation complete", width, colors, Color::FG_GREEN);
     result.push_str(&facts_table(facts, width, colors));
     result.push_str("\n\n");
@@ -133,9 +155,10 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
         colors,
         Color::FG_CYAN,
     ));
-    let mut output_rows: Vec<[String; 2]> = Vec::new();
+    let mut output_rows: Vec<[String; 3]> = Vec::new();
     for (order, component) in &summary.outputs {
-        let order = format!("ε^{order}");
+        let basis = math_display::atom(&summary.regulator.pow(*order), colors, width);
+        let order = math_display::atom(&Atom::num(*order), colors, width);
         let component = match component {
             CoefficientComponent::Real => "real",
             CoefficientComponent::Imag => "imaginary",
@@ -143,48 +166,32 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
         if let Some(last) = output_rows.last_mut()
             && last[0] == order
         {
-            last[1].push_str(", ");
-            last[1].push_str(component);
+            last[2].push_str(", ");
+            last[2].push_str(component);
         } else {
-            output_rows.push([order, component.to_owned()]);
+            output_rows.push([order, basis, component.to_owned()]);
         }
     }
     if output_rows.is_empty() {
-        output_rows.push(["Outputs".into(), "None".into()]);
+        result.push_str(&heading(
+            "No outputs",
+            width,
+            colors,
+            Color::FG_BRIGHT_BLACK,
+        ));
+    } else {
+        result.push_str(&coefficient_table(output_rows, width, colors));
     }
-    result.push_str(&data_table(
-        ["Order", "Components"],
-        output_rows,
-        width,
-        colors,
-        false,
-    ));
     if let Some(timings) = summary.timings {
-        let mut rows = [
-            ("Input", timings.input_seconds),
-            ("Parametrization", timings.parametrization_seconds),
-            ("Domain metadata", timings.domain_seconds),
-            ("Geometry", timings.geometry_seconds),
-            ("Sector mapping", timings.mapping_seconds),
-            ("Sector equivalence", timings.symmetry_seconds),
-            ("Subtraction", timings.subtraction_seconds),
-            ("Laurent expansion", timings.laurent_seconds),
-            (
-                "Coefficient expansion",
-                timings.coefficient_expansion_seconds,
-            ),
-            ("Compilation", timings.compilation_seconds),
-        ]
-        .into_iter()
-        // A zero field can mean an unmeasured/dispatched subphase. Do not
-        // present it as an independently measured zero-duration operation.
-        .filter(|(_, seconds)| *seconds > 0.0)
-        .map(|(label, seconds)| [label.to_owned(), duration(seconds)])
-        .collect::<Vec<_>>();
-        rows.push(["Generation total".into(), duration(timings.total_seconds)]);
         result.push_str("\n\n");
         result.push_str(&heading("Wall time", width, colors, Color::FG_CYAN));
-        result.push_str(&data_table(["Phase", "Elapsed"], rows, width, colors, true));
+        result.push_str(&data_table(
+            ["Phase", "Elapsed"],
+            timing_rows(timings),
+            width,
+            colors,
+            true,
+        ));
         result.push('\n');
         result.push_str(&heading(
             "Total excludes writing the artifact files.",
@@ -198,7 +205,90 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
     result
 }
 
-fn short_id(id: &str) -> String {
+fn coefficient_table(rows: Vec<[String; 3]>, width: usize, colors: ColorPolicy) -> String {
+    if width < 32 {
+        return rows
+            .into_iter()
+            .map(|[order, basis, components]| {
+                facts_table(
+                    vec![
+                        ["Order".into(), order],
+                        ["Basis".into(), basis],
+                        ["Components".into(), components],
+                    ],
+                    width,
+                    colors,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    let available = width - 10;
+    let order_width = 5;
+    let component_width = 16.min((available - order_width) / 2);
+    let basis_width = available - order_width - component_width;
+    let mut table = Builder::from_iter(
+        [["Order".into(), "Basis".into(), "Components".into()]]
+            .into_iter()
+            .chain(rows),
+    )
+    .build();
+    table
+        .with(Style::rounded())
+        .modify(Columns::first(), Width::wrap(order_width).keep_words(true))
+        .modify(
+            Columns::new(1..2),
+            Width::wrap(basis_width).keep_words(true),
+        )
+        .modify(
+            Columns::last(),
+            Width::wrap(component_width).keep_words(true),
+        );
+    if colors.enabled() {
+        table
+            .with(BorderColor::filled(Color::FG_BRIGHT_BLACK))
+            .modify(Rows::first(), Color::FG_CYAN | Color::BOLD);
+    }
+    table.to_string()
+}
+
+pub(crate) fn timing_rows(timings: &GenerationTimings) -> Vec<[String; 2]> {
+    let mut rows = [
+        ("Input", timings.input_seconds),
+        ("Parametrization", timings.parametrization_seconds),
+        ("Domain metadata", timings.domain_seconds),
+        ("Geometry", timings.geometry_seconds),
+        ("Sector mapping", timings.mapping_seconds),
+        ("Sector equivalence", timings.symmetry_seconds),
+        ("Subtraction", timings.subtraction_seconds),
+        ("Laurent expansion", timings.laurent_seconds),
+        (
+            "Coefficient expansion",
+            timings.coefficient_expansion_seconds,
+        ),
+        ("Compilation", timings.compilation_seconds),
+    ]
+    .into_iter()
+    // A zero field can mean an unmeasured/dispatched subphase. Do not
+    // present it as an independently measured zero-duration operation.
+    .filter(|(_, seconds)| *seconds > 0.0)
+    .map(|(label, seconds)| [label.to_owned(), duration(seconds)])
+    .collect::<Vec<_>>();
+    rows.push(["Generation total".into(), duration(timings.total_seconds)]);
+    rows
+}
+
+pub(crate) fn expansion_method(
+    method: fastsecdec::generation::CoefficientExpansionMethod,
+) -> &'static str {
+    use fastsecdec::generation::CoefficientExpansionMethod;
+    match method {
+        CoefficientExpansionMethod::NativeNamed => "Coefficient series",
+        CoefficientExpansionMethod::Physical => "Full expression",
+    }
+}
+
+pub(crate) fn short_id(id: &str) -> String {
     let prefix = id.chars().take(16).collect::<String>();
     if prefix.len() == id.len() {
         prefix
@@ -207,7 +297,7 @@ fn short_id(id: &str) -> String {
     }
 }
 
-fn terminal_text(text: &str) -> String {
+pub(crate) fn terminal_text(text: &str) -> String {
     text.chars()
         .flat_map(|character| {
             if character.is_control() {
@@ -219,7 +309,7 @@ fn terminal_text(text: &str) -> String {
         .collect()
 }
 
-fn duration(seconds: f64) -> String {
+pub(crate) fn duration(seconds: f64) -> String {
     if !seconds.is_finite() || seconds < 0.0 {
         return "unavailable".into();
     }
@@ -241,7 +331,7 @@ fn duration(seconds: f64) -> String {
 
 /// Table widths include padding and borders. Assign column budgets explicitly:
 /// a whole-table Width::wrap can otherwise shrink the label column to zero.
-fn facts_table(rows: Vec<[String; 2]>, width: usize, colors: ColorPolicy) -> String {
+pub(crate) fn facts_table(rows: Vec<[String; 2]>, width: usize, colors: ColorPolicy) -> String {
     if width < 32 {
         let mut table = Builder::from_iter(
             rows.into_iter()
@@ -301,7 +391,7 @@ fn data_table(
     table.to_string()
 }
 
-fn heading(text: &str, width: usize, colors: ColorPolicy, color: Color) -> String {
+pub(crate) fn heading(text: &str, width: usize, colors: ColorPolicy, color: Color) -> String {
     let mut table = Builder::from_iter([[text]]).build();
     table
         .with(Style::empty())

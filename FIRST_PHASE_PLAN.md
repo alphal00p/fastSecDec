@@ -1,5 +1,20 @@
 # FastSecDec first-phase implementation plan
 
+## Artifact inspection follow-up (2026-10-07)
+
+Replace the human artifact inspection dump with a compact, colored tabled
+summary. Show overall artifact statistics and the ten largest serialized sector
+evaluators, ordered deterministically by size with their stable kernel IDs and
+native leading endpoint monomials. Add `inspect BASENAME --sector ID` for rich
+sector metadata, including retained remapping equations and measure factors.
+Use Symbolica's native pretty printer for expressions and omit per-factor
+threshold-status noise. Persist the generation summary's facts in human JSON
+metadata and display those saved facts in a dedicated inspection section.
+Keep original-chart, representative-chart and numerical-kernel identities
+distinct, and identify whether statistics describe exact evaluator storage or
+compressed SymJIT data. Preserve plain/JSON output, portable artifacts and eager
+evaluation. Other examples and the tests/gates migration remain deferred.
+
 ## Generation summary presentation follow-up (2026-10-07)
 
 Replace the final human generation metadata dump with a properly aligned,

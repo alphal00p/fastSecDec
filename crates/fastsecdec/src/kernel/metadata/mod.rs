@@ -73,6 +73,20 @@ impl PortableMetadata {
                 .collect(),
         }
     }
+
+    /// Serialize retained source charts associated with one numerical kernel.
+    /// Original chart, representative and kernel indices remain unchanged.
+    /// This presentation view excludes unrelated charts and global factors;
+    /// unlike the sector identity view, it never renumbers the kernel to zero.
+    pub fn charts_for_sector(value: &GenerationMetadata, index: usize) -> impl Serialize {
+        value
+            .charts()
+            .iter()
+            .filter(|chart| chart.kernel_sector() == Some(index))
+            .map(chart::PortableChart::from_native)
+            .collect::<Vec<_>>()
+    }
+
     pub(super) fn into_native(
         self,
         sectors: &[Vec<Symbol>],

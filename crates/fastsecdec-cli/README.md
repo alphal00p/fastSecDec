@@ -111,6 +111,13 @@ before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
 identity and checkpoint compatibility.
 
+New artifacts also save the generation worker count and requested coefficient
+expansion method in their JSON metadata. Inspection reconstructs the generation
+summary from those saved observations, timings and evaluator layout; missing
+observations in older artifacts are labeled as not recorded. The displayed
+artifact path is resolved from the current basename, so moving the artifact
+does not preserve or expose its old working-directory path.
+
 The final human generation report presents aligned run facts, Laurent
 orders/components and stage timings. Durations use readable units and bounded
 precision; paths and identifiers wrap to the available terminal width. Colors
@@ -450,12 +457,22 @@ exclusive with the subset flags. Omitting scope continues to mean the full integ
 full-run checkpoint settings. Only selected worker evaluators and integration
 work are created; loading the artifact still compiles its complete kernel set.
 
-`inspect integral.json` shows retained native domain certificates, chart to
-representative/kernel associations, permutations, exact exponent matrices and
-support valuations. `--expressions` adds canonical coordinate images and the
-positive real measure in plain output. JSON includes the existing complete native
-portable metadata record. Projective images are gauge-fixed, and valuation rows
-use the native deduplicated support order rather than invented U/F names. A chart
-with no kernel can be exact, cancelled or truncated; individual chart exact
-coefficients are not retained. Legacy artifacts explicitly report unavailable
-metadata.
+`inspect output/gghh_double_box.fsd` shows an artifact overview, saved generation
+facts and the ten largest sector evaluators, sorted by serialized evaluator size
+with stable kernel IDs. Add `--sector 5` for the selected kernel's endpoint
+monomials, remapping equations and detailed evaluator statistics. Human reports
+use colored tables and Symbolica's native expression printer; `--plain`,
+`NO_COLOR` and redirected output retain readable uncolored tables. `--json`
+keeps the structured metadata route.
+
+Evaluator sizes describe the serialized shared program for the complete Laurent
+vector. Compressed SymJIT representations are identified separately; neither is
+executable machine-code size. The `.dat` file additionally stores expressions,
+Symbolica state and retained metadata, so its size need not equal the evaluator
+sum. Source charts, symmetry representatives and numerical kernel IDs remain
+distinct. Remapping equations and endpoint powers describe the density before
+endpoint subtraction, while the evaluator can include boundary contributions.
+Projective images are gauge-fixed, with their positive real measure factor.
+Legacy artifacts explicitly report unavailable metadata rather than inventing
+missing generation facts. A chart with no kernel can be exact, cancelled or
+truncated; individual chart exact coefficients are not retained.

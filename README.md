@@ -83,8 +83,10 @@ it independent validation.
 
 For diagnostics, `--sectors 0,3 --exact-contributions include` selects compiled
 kernel IDs and retains an explicitly qualified result. `--full-integral` clears
-a stored selection. Inspect a generated artifact to view its retained chart,
-coordinate-map and domain metadata. See the [CLI guide](crates/fastsecdec-cli/README.md)
+a stored selection. `inspect output/gghh_double_box.fsd` summarizes the saved
+generation and lists the ten largest sector evaluators. Add `--sector 5` to see
+that kernel's endpoint monomials, coordinate maps and evaluator statistics.
+See the [CLI guide](crates/fastsecdec-cli/README.md)
 for scope, checkpoint and reference-export rules.
 
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)

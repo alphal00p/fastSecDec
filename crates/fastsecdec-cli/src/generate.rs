@@ -15,7 +15,7 @@ use fastsecdec::{
 
 use crate::{
     CliResult,
-    artifact::{Artifact, Provenance, dependencies},
+    artifact::{Artifact, GenerationRecord, Provenance, dependencies},
     display::Dashboard,
     input,
 };
@@ -315,6 +315,10 @@ pub fn generate_with_workers(
         path.parent().unwrap_or_else(|| Path::new(".")),
         output.parent().unwrap_or_else(|| Path::new(".")),
     )?;
+    artifact.generation = Some(GenerationRecord {
+        workers,
+        requested_coefficient_expansion: options.coefficient_expansion.method,
+    });
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());
     status.detail = format!(
