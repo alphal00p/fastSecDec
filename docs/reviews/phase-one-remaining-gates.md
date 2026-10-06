@@ -37,9 +37,11 @@ is interpolated and no previous result is replaced.
 The subsequent [native evaluator probes](native-evaluator-storage-probes.md)
 reject the arithmetic-optimization candidate on a strict physical comparison.
 A separate storage-only candidate preserves all 7,752 tested vectors and
-precision/replay decisions bit for bit, with fewer temporary slots. Production
-remains unchanged pending its one bounded timing comparison. Existing
-ordinary-lane point-accuracy limitations are retained explicitly in that review.
+precision/replay decisions bit for bit, with fewer temporary slots. Its sole
+full-workload timing pair also preserves every vector and the complete covariance,
+but reduces callback time by only 0.921%, below the predeclared 5% interest
+threshold. Production stays unchanged and this optimization track stops.
+Existing ordinary-lane point-accuracy limitations remain explicit in that review.
 
 **Latest user scope decision:** Successful generation of the original on-shell
 triple box is sufficient for phase A. Its full artifact and cold-load checks

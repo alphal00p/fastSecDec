@@ -826,8 +826,10 @@ And as I said, once you're feature complete within what's stated in the goal, an
   complete vectors and precision/replay decisions bit for bit, while reducing
   aggregate temporary slots by 76.7% with unchanged arithmetic. Its independent
   MPFR checks retain 60 identical existing ordinary-lane tolerance exceedances;
-  no blanket point-accuracy claim follows. No production change is made. One
-  bounded full-workload timing comparison remains before a storage decision.
+  no blanket point-accuracy claim follows. The sole full-workload timing pair
+  preserves all 835,584 vectors per lane and complete covariance, but reduces
+  callback time by only 0.921%, below its predeclared 5% interest threshold.
+  Production stays unchanged and this optimization track stops.
   See `docs/reviews/native-evaluator-storage-probes.md`.
 
 - 2026-10-06: cold native-program loading now conservatively recovers literal-zero

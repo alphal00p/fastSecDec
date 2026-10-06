@@ -67,5 +67,66 @@ Evidence: `output/diagnostics/double-box-native-stack-1/`, including the complet
 vectors, native oracle comparisons, `baseline-accuracy-summary.json`, assessment
 and independent review. The independent review SHA-256 is
 `bb9d62ef0987091f50da0318d80ddfb50158aa6c215d0df186b4a37ded0cbe37`.
-One separate bounded full-workload timing comparison is authorized before any
-production decision. Storage reduction is not yet a speed or parity claim.
+
+## Full-workload timing: no adoption
+
+The sole paired comparison uses all 102 sectors, HKKN alpha-3 with 1,024 points
+and eight shifts, Korobov2, seed 20561302, one worker on CPU 0. Each lane evaluates
+835,584 complete weighted five-component vectors in 816 packages. Package order
+alternates which lane runs first, giving 408 first packages to each. A fresh
+caller context restores the accepted sector replay state for every sector switch,
+matching the prior one-slot, timed-first observer. Neither lane receives an
+untimed numerical warmup.
+
+The individual timer encloses only `WeightedEvaluationContext::evaluate_weighted`,
+including conditioning, native rescue and weighted replay. Point generation,
+native accumulation, hashing and recording remain outside that timer. Cold
+context setup and kernel loading/compilation are reported separately.
+
+| Measurement | Unchanged baseline | Stack-only candidate |
+| --- | ---: | ---: |
+| Sum of individual callback times | 76.083042 s | 75.382527 s |
+| Mean per complete vector | 91.053732 µs | 90.215379 µs |
+| Largest individual callback | 41.237237 ms | 43.876474 ms |
+| Native caller wall, including observer work | 76.610099 s | 75.907297 s |
+| Cold worker/context setup | 0.068769 s | 0.068689 s |
+
+The combined load/compile group takes 0.920780 seconds; the paired caller loop
+takes 156.315798 seconds. The supervised runtime completes in 160.300259 seconds.
+These are one-run observations, not confidence intervals or general performance
+parity evidence. Alternation balances first-lane counts globally; because the
+round-robin workload has 102 sectors, the first lane remains fixed within each
+sector.
+
+The six sectors with the largest baseline callback totals are shown below.
+Every sector has 8,192 calls; all 102 per-sector means and maxima are retained.
+
+| Sector | Baseline mean (µs) | Candidate mean (µs) | Baseline max (ms) | Candidate max (ms) |
+| --- | ---: | ---: | ---: | ---: |
+| 40 | 640.593 | 631.019 | 41.237 | 40.542 |
+| 47 | 628.503 | 617.495 | 40.955 | 43.876 |
+| 45 | 510.161 | 503.322 | 40.333 | 41.292 |
+| 29 | 506.122 | 500.257 | 24.104 | 23.655 |
+| 48 | 504.395 | 500.581 | 40.572 | 39.909 |
+| 35 | 493.298 | 483.647 | 24.402 | 23.862 |
+
+All package digests of point/weight/vector IEEE bits and precision/replay reports
+match. Native partials, replay maxima, complete-shift results, means, standard
+errors, full covariance and coverage also agree. Both lanes perform 263,547
+rescues, 263,772 conditioning checks, 117 weighted checks and 75 additional
+replays, reach 448 bits, and report zero evaluation failures. No external MPFR
+oracle runs inside this timing comparison; the preceding 60 matched pointwise
+tolerance violations remain explicit.
+
+The callback-cost improvement is **0.920723%**, below the predeclared **5%**
+interest threshold, and the largest individual callback is higher. **Do not
+adopt this storage optimization on this evidence.** Production source, compiler
+settings, artifacts and precision policy remain unchanged. No further IR
+candidate, timing ladder, retry or tolerance change follows this result.
+
+Evidence: `output/diagnostics/double-box-native-stack-timing-1/`, including
+`data/packages.jsonl`, all per-sector statistics, both native observations,
+`assessment.json` and independent source/result reviews. All 428 frozen inputs
+remain unchanged and every owned process is reaped. The independent result
+review SHA-256 is
+`0305c660297c9b24a6e522670e681ecef8b165760314a511ac9230d03bca6194`.
