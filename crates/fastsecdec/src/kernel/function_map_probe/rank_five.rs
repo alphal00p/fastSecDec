@@ -242,11 +242,12 @@ fn boundary(
     };
     let cancellation = Cancellation::new(degree, Some(terms), dimension).unwrap();
     let exact = exact.clone();
+    let requirements = crate::kernel::evaluator::MappingRequirements::new(&exact).unwrap();
     std::thread::spawn(move || {
         let mut output = vec![0.0; exact.get_output_len()];
         let report = precision::rescue(
             &exact,
-            &mut PrecisionCache::default(),
+            &mut PrecisionCache::new(requirements),
             &point,
             &mut output,
             &cancellation,

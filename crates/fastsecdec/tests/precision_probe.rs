@@ -6,8 +6,8 @@ use fastsecdec::{
     kernel::KernelSet,
     parametric::ParametricIntegrand,
 };
-use feynkit_graph::symbols;
 use fastsecdec_qmc::{Korobov3, QmcPlan, Rank1Rule};
+use feynkit_graph::symbols;
 use std::{
     collections::BTreeMap,
     ops::ControlFlow,

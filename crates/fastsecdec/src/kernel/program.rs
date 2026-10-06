@@ -91,6 +91,8 @@ pub(super) fn encode(program: &ExactProgram) -> Result<Vec<u8>, KernelError> {
 }
 
 pub(super) fn decode(bytes: &[u8]) -> Result<ExactProgram, KernelError> {
+    // This is Symbolica's native cache codec, not an untrusted IR validator.
+    // Only decode programs produced by a trusted, compatible native builder.
     // Native callbacks for external fixed Gamma/polygamma constants must exist
     // before the portable program imports their symbol identities.
     let _ = symbolica::transcendental::gamma();

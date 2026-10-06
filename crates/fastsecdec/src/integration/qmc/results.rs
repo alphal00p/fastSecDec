@@ -84,12 +84,7 @@ impl QmcSession {
         let value = if self.method == IntegrationMethod::DemocraticQmc {
             let complete_rows = self.common_shift_rows()?;
             let Some(anchor) = complete_rows.first() else {
-                return Err(
-                    fastsecdec_qmc::QmcError::InsufficientShifts {
-                        complete: 0,
-                    }
-                    .into(),
-                );
+                return Err(fastsecdec_qmc::QmcError::InsufficientShifts { complete: 0 }.into());
             };
             // Center each sector before aggregation. Exact constants enter the
             // absolute mean only, preserving both small covariance and large
@@ -178,9 +173,9 @@ impl QmcSession {
         let estimate = match self.estimate() {
             Ok(value) => Some(value),
             Err(IntegrationError::Unavailable(_))
-            | Err(IntegrationError::Qmc(
-                fastsecdec_qmc::QmcError::InsufficientShifts { .. },
-            )) => None,
+            | Err(IntegrationError::Qmc(fastsecdec_qmc::QmcError::InsufficientShifts { .. })) => {
+                None
+            }
             Err(error) => return Err(error),
         };
         let uncertainty = if self.runs.is_empty() {

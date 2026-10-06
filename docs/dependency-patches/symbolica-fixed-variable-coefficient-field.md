@@ -1,5 +1,11 @@
 # Configurable coefficient field for fixed-variable polynomial conversion
 
+Status (2026-10-06): the required API is upstream in Symbolica `community`
+revision `58652fabc2f736302a570deaaf8d517679f7fe6e`. The local patch is removed;
+FastSecDec uses that public source directly through Cargo.
+
+## Historical proposal and validation
+
 The adjacent local Symbolica patch adds
 `AtomCore::to_polynomial_in_vars_with_field(variables, &AtomField)`. It reuses
 the existing fixed-variable conversion recursion and propagates the supplied

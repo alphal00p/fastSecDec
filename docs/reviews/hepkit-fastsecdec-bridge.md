@@ -1,5 +1,10 @@
 # HEPKit FastSecDec bridge boundary
 
+The versioned runtime evidence below predates the unpatched upstream migration.
+For current dependency and feature delivery, see the
+[ordinary-build review](regular-hepkit-build.md). The earlier experimental feature
+and preparation workflow are historical.
+
 Current public `a3d09e` delivery passes native 81 and portable 58 controls, with
 actual triangle metadata/QMC/Havana browser acceptance. The [current portable
 review](hepkit-metadata-mc-portable.md) records exact identities, the final

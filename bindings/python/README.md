@@ -54,12 +54,11 @@ available. HEPKit's object methods are optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
-to build and install the host wheel. Promotion into the host's ordinary
-`community` feature is prepared locally, but remains unpublished while the
-[remaining Symbolica requirements](../../docs/reviews/regular-hepkit-build.md)
-are resolved. The public development PR still uses its experimental opt-in.
-Both configurations select one exact FastSecDec Git revision; core-only
-Symbolica builds remain separate. The historical metadata/MC pin,
+to build and install the host wheel. The host's ordinary `community` feature
+includes this crate for native and Wasm builds; core-only Symbolica builds remain
+separate. Cargo selects the public dependencies without local source patches.
+See the [delivery review](../../docs/reviews/regular-hepkit-build.md) for current
+validation and publication status. The historical metadata/MC pin,
 `a3d09e177196013326fd1532eb938f559be87401`, passes dependency bootstrap and locked
 native/portable ownership checks. Its actual portable wheel, built with the
 community host at `c9bacce12dd4fffd171aecfbc4f76a2a273d39e7`, passes the generic
@@ -100,14 +99,10 @@ On Linux x86_64, select an absolute native linker with
 compiler wrappers redirect generic `cc` to Emscripten. The build guide shows
 the command; it preserves the separate Wasm target linker.
 
-For isolated Rust development, generate the exact owner overlay from the
-FastSecDec repository root, using a new destination under excluded `output/`
-or outside the repository:
+For isolated Rust development, use ordinary Cargo from the FastSecDec repository:
 
 ```sh
-bash scripts/bootstrap-dependencies.sh "$PWD" "$PWD/output/python-owners"
-cargo test --manifest-path bindings/python/Cargo.toml \
-  --config "$PWD/output/python-owners/overlay-python.toml" --locked --lib
+cargo test --manifest-path bindings/python/Cargo.toml --locked --lib
 ```
 
 Use the Rust/toolchain environment described in
@@ -117,7 +112,7 @@ Python dependencies into the numerical core.
 
 `scripts/check_dependencies.py` checks native-object ownership in Cargo
 metadata. Its default mode requires the actual published Git source for this
-crate and both native core crates. `--allow-local-fastsecdec` explicitly selects
+crate and all three native library crates. `--allow-local-fastsecdec` explicitly selects
 development with local overrides. Metadata is not evidence of a successful
 target compilation or runtime. In particular, Cargo can report a union of
 native and portable numeric features from target-specific community integrations;

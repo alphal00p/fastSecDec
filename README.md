@@ -16,7 +16,7 @@ separate Generate and Integrate actions, live status views and sector inspection
 The scalar triangle is selected by default; the projected `g g -> H H`
 double box is an optional longer calculation in native and browser execution.
 Its [build guide](examples/hepkit/BUILD.md) documents the community build
-and required dependency patches. The updated local native wheel passes
+without local dependency patches. The updated local native wheel passes
 118 controls; the preceding published API milestone passed 95 in hosted native
 CI. The earlier `a3d09e` Wasm wheel passes generic
 smoke and all 58 collected portable controls. Actual triangle browser execution
@@ -38,31 +38,26 @@ including the new Model, progress and citation APIs. Native/editor and portable
 validation scope is recorded in
 the [notebook review](docs/reviews/gghh-single-notebook.md).
 
-Those wheel results precede the latest QMC relocation and dependency cleanup.
-QMC now lives in `crates/fastsecdec-qmc`, alongside ordinary registry Numerica
-for Havana MC. Focused Rust tests pass; no new wheel validation is implied.
-The [dependency review](docs/reviews/regular-hepkit-build.md) records the four
-remaining Symbolica changes and the pending regular HEPKit build promotion.
+Those wheel results precede the latest QMC relocation and upstream dependency
+migration. QMC now lives in `crates/fastsecdec-qmc`, alongside ordinary registry
+Numerica for Havana MC. The [dependency review](docs/reviews/regular-hepkit-build.md)
+records current validation separately from historical wheel results.
 
-Prepare the exact dependency sources and reviewed patches once. The output
-directory must not already exist; use `output/` as below or a location outside
-the checkout. The script never changes existing checkouts.
-Then enter `nix-shell` and pass the generated Cargo config on every build:
+Cargo fetches the public dependencies directly; no checkout or source-patching
+script is required. Enter the development shell and run:
 
 ```sh
-mkdir -p output
-./scripts/bootstrap-dependencies.sh "$PWD" "$PWD/output/dependencies"
 nix-shell
-cargo --config output/dependencies/overlay-root.toml metadata --format-version 1 --locked
-cargo --config output/dependencies/overlay-root.toml run --locked -- run examples/runs/triangle.toml --points 4096 --shifts 16 --workers 2
-cargo --config output/dependencies/overlay-root.toml run --locked -- run examples/runs/analytic_endpoint.toml --points 4096 --shifts 16
-cargo --config output/dependencies/overlay-root.toml run --locked -- --json inspect examples/runs/double_box.toml --expressions
+cargo metadata --format-version 1 --locked
+cargo run --locked -- run examples/runs/triangle.toml --points 4096 --shifts 16 --workers 2
+cargo run --locked -- run examples/runs/analytic_endpoint.toml --points 4096 --shifts 16
+cargo run --locked -- --json inspect examples/runs/double_box.toml --expressions
 ```
 
-The generated config selects one source owner per ecosystem crate and supplies
-the CLI's dependency provenance. It is required while the recorded upstream
-patches are under review. See the [development guide](docs/DEVELOPMENT.md) for
-portable-library and HEPKit consumers, source pins, and validation boundaries.
+The workspace selects upstream Symbolica's `community` source through Cargo,
+and the lockfile records the resolved public dependency identities. See the
+[development guide](docs/DEVELOPMENT.md) for portable-library and HEPKit
+consumers and the build/runtime validation boundaries.
 
 Interactive terminals show a live dashboard. `--plain` selects text progress;
 `--json` emits the final structured report, and `--status-json` streams status

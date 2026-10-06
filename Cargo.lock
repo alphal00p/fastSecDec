@@ -923,6 +923,7 @@ dependencies = [
 [[package]]
 name = "feynkit-amplitude"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "feynkit-graph",
  "feynkit-model",
@@ -936,6 +937,7 @@ dependencies = [
 [[package]]
 name = "feynkit-generator"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -955,6 +957,7 @@ dependencies = [
 [[package]]
 name = "feynkit-graph"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "feynkit-kinematics",
  "feynkit-model",
@@ -972,6 +975,7 @@ dependencies = [
 [[package]]
 name = "feynkit-kinematics"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "linnet",
  "numerica",
@@ -984,6 +988,7 @@ dependencies = [
 [[package]]
 name = "feynkit-model"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -999,6 +1004,7 @@ dependencies = [
 [[package]]
 name = "feynkit-tensor"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "feynkit-graph",
  "idenso",
@@ -1097,6 +1103,8 @@ dependencies = [
 [[package]]
 name = "graphica"
 version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "118912fe5e24df9c7f36c1211bdeb1a803013b312cc149bd1794b9a0e4ef9c78"
 dependencies = [
  "ahash",
  "dyn-clone",
@@ -1160,6 +1168,7 @@ dependencies = [
 [[package]]
 name = "idenso"
 version = "0.3.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "ahash",
  "base64",
@@ -1358,6 +1367,7 @@ dependencies = [
 [[package]]
 name = "linnet"
 version = "0.17.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "ahash",
  "bincode",
@@ -1640,6 +1650,7 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "one-loop-reduce"
 version = "0.1.0"
+source = "git+https://github.com/lcnbr/one-loop-reduce?branch=main#b53a70776a43bd14c6562c52a03bc4909568e473"
 dependencies = [
  "feynkit-graph",
  "feynkit-kinematics",
@@ -1651,6 +1662,7 @@ dependencies = [
 [[package]]
 name = "oneloop"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/oneloopmaster?branch=main#27c3723434b7d99cf70ce612b0b8041d3f5c0e78"
 dependencies = [
  "bincode",
  "symbolica",
@@ -2348,6 +2360,7 @@ checksum = "02ef091d4e8b981dbaa4cc17789d00b53d5d2c001ae689f14e6093f30c529036"
 [[package]]
 name = "spenso"
 version = "0.6.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -2390,6 +2403,7 @@ dependencies = [
 [[package]]
 name = "spenso-hep-lib"
 version = "0.1.7"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "ahash",
  "idenso",
@@ -2402,6 +2416,7 @@ dependencies = [
 [[package]]
 name = "spenso-macros"
 version = "0.3.2"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2444,6 +2459,7 @@ dependencies = [
 [[package]]
 name = "symbolica"
 version = "3.0.1"
+source = "git+https://github.com/symbolica-dev/symbolica?rev=58652fabc2f736302a570deaaf8d517679f7fe6e#58652fabc2f736302a570deaaf8d517679f7fe6e"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -2489,6 +2505,7 @@ dependencies = [
 [[package]]
 name = "symbolica-utils"
 version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
 dependencies = [
  "bincode",
  "bincode-trait-derive",

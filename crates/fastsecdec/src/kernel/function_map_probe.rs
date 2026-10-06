@@ -300,12 +300,13 @@ fn inspect(exact: &Exact, complex: bool, jit_direct: bool) -> (Vec<Vec<f64>>, Ve
     };
     let cancellation = Cancellation::new(2, Some(vec![vec![1, 1]]), 2).unwrap();
     let worker_exact = exact.clone();
+    let requirements = super::evaluator::MappingRequirements::new(&worker_exact).unwrap();
     let (weighted, report) = std::thread::spawn(move || {
         let mut weighted = vec![0.0; n * if complex { 2 } else { 1 }];
         let report = if complex {
             precision::rescue_complex(
                 &worker_exact,
-                &mut PrecisionCache::default(),
+                &mut PrecisionCache::new(requirements.clone()),
                 &[1e-80, 0.25],
                 &mut weighted,
                 &cancellation,
@@ -316,7 +317,7 @@ fn inspect(exact: &Exact, complex: bool, jit_direct: bool) -> (Vec<Vec<f64>>, Ve
         } else {
             precision::rescue(
                 &worker_exact,
-                &mut PrecisionCache::default(),
+                &mut PrecisionCache::new(requirements.clone()),
                 &[1e-80, 0.25],
                 &mut weighted,
                 &cancellation,

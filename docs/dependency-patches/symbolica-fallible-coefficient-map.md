@@ -1,5 +1,12 @@
 # Fallible native evaluator coefficient mapping
 
+Status (2026-10-06): the local API patch is removed. FastSecDec uses upstream
+`map_coeff_with_prec`, preceded by numerical-domain admission through public
+Symbolica metadata and conversion APIs. No native mapping implementation is
+copied into FastSecDec.
+
+## Historical proposal and validation
+
 The adjacent patch adds `ExpressionEvaluator::try_map_coeff_with_prec` to the
 local Symbolica 3.0.1 worktree. It returns the native mapping result or a `String`
 error while preserving the existing `map_coeff` and `map_coeff_with_prec` APIs.

@@ -23,11 +23,12 @@ impl HavanaSession {
                     .map(|r| r.mean.clone())
                     .collect::<Vec<_>>();
                 QmcEstimate::from_shift_means(&means).map_err(|error| match error {
-                    fastsecdec_qmc::QmcError::InsufficientShifts {
-                        ..
-                    } => IntegrationError::Unavailable(
-                        "each Havana sector needs at least two complete independent batches".into(),
-                    ),
+                    fastsecdec_qmc::QmcError::InsufficientShifts { .. } => {
+                        IntegrationError::Unavailable(
+                            "each Havana sector needs at least two complete independent batches"
+                                .into(),
+                        )
+                    }
                     error => IntegrationError::Qmc(error),
                 })
             })
@@ -83,9 +84,9 @@ impl HavanaSession {
         let estimate = match self.estimate() {
             Ok(value) => Some(value),
             Err(IntegrationError::Unavailable(_))
-            | Err(IntegrationError::Qmc(
-                fastsecdec_qmc::QmcError::InsufficientShifts { .. },
-            )) => None,
+            | Err(IntegrationError::Qmc(fastsecdec_qmc::QmcError::InsufficientShifts { .. })) => {
+                None
+            }
             Err(error) => return Err(error),
         };
         let sectors = self.progress_sectors()?;

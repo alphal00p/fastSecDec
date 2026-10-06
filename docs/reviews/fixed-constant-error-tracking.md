@@ -1,5 +1,10 @@
 # Fixed constants and decoded evaluator IR: scope audit
 
+Delivery update (2026-10-06): the generic fallback and decoder-validation
+patches are removed. FastSecDec now uses upstream numeric-domain APIs and
+optional conditioning, with the existing multiprecision rescue as fallback.
+This document retains the source audit that motivated the change.
+
 Source-only audit, 2026-10-06. No implementation, build or numerical run was
 performed for this review. Public Symbolica community revision
 `473b4b8dbc2f9bff8658a047196ba0877238bf9e` changes the alias parser; its evaluator,

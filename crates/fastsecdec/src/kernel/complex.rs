@@ -16,7 +16,7 @@ pub(super) struct ComplexKernel {
     precision_cache: super::precision_cache::PrecisionCache<Complex<Float>>,
     exact: ExpressionEvaluator<Complex<Rational>>,
     evaluator: evaluator::ComplexEvaluator,
-    conditioning: ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>,
+    conditioning: Option<ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>>,
     input: Vec<Complex<f64>>,
     output: Vec<Complex<f64>>,
     check_input: Vec<Complex<ErrorPropagatingFloat<f64>>>,
@@ -69,10 +69,12 @@ impl ComplexKernel {
         let inputs = exact.get_input_len();
         let outputs = exact.get_output_len();
         let evaluator = evaluator::complex(&exact)?;
-        let conditioning = exact
-            .clone()
-            .try_map_coeff_with_prec(
-                &|coefficient| {
+        let requirements =
+            evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
+        let conditioning = requirements
+            .map(
+                &exact,
+                |coefficient| {
                     Complex::new(
                         tracked(coefficient.re.to_f64()),
                         tracked(coefficient.im.to_f64()),
@@ -80,9 +82,9 @@ impl ComplexKernel {
                 },
                 53,
             )
-            .map_err(KernelError::Compilation)?;
+            .ok();
         Ok(Self {
-            precision_cache: Default::default(),
+            precision_cache: super::precision_cache::PrecisionCache::new(requirements),
             exact,
             evaluator,
             conditioning,
@@ -158,12 +160,15 @@ impl ComplexKernel {
         let boundary = self
             .cancellation
             .needs_check(point, self.precision.boundary_threshold);
-        if boundary && !nonfinite && !range_loss {
+        if boundary
+            && !nonfinite
+            && !range_loss
+            && let Some(conditioning) = &mut self.conditioning
+        {
             for (input, value) in self.check_input.iter_mut().zip(point) {
                 *input = Complex::new(tracked(*value), tracked(0.0));
             }
-            self.conditioning
-                .evaluate(&self.check_input, &mut self.check_output);
+            conditioning.evaluate(&self.check_input, &mut self.check_output);
             // Relative accuracy applies to the complex coefficient's infinity
             // norm. An exactly zero imaginary component must not demand an
             // arbitrarily small relative error from native roundoff tracking.
@@ -229,7 +234,7 @@ impl ComplexKernel {
 
     pub(super) fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
-            precision_cache: Default::default(),
+            precision_cache: self.precision_cache.empty_clone(),
             exact: self.exact.clone(),
             evaluator: self.evaluator.clone(),
             conditioning: self.conditioning.clone(),
@@ -257,8 +262,15 @@ pub(super) fn exact(coefficients: &[Atom]) -> Result<Vec<f64>, KernelError> {
     let evaluator = Atom::evaluator_multiple(coefficients, &[] as &[Atom])
         .build()
         .map_err(|error| KernelError::Compilation(error.to_string()))?;
-    let mut evaluator =
-        evaluator.map_coeff(&|value| Complex::new(value.re.to_f64(), value.im.to_f64()));
+    let mut evaluator = evaluator::MappingRequirements::new(&evaluator)
+        .and_then(|requirements| {
+            requirements.map(
+                &evaluator,
+                |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
+                53,
+            )
+        })
+        .map_err(KernelError::Compilation)?;
     let mut values = vec![Complex::new(0.0, 0.0); coefficients.len()];
     evaluator.evaluate(&[], &mut values);
     let flattened = values

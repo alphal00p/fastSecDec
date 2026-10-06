@@ -1,5 +1,13 @@
 # Validate decoded native evaluator IR
 
+Status (2026-10-06): this optional decoder-hardening patch is removed from
+delivery. Native evaluator artifacts are trusted application caches; FastSecDec
+retains envelope and compatibility checks without claiming validation of an
+arbitrary rewritten instruction stream. The historical malformed-IR probe
+below was never a failure of FastSecDec generation.
+
+## Historical proposal and validation
+
 Status: independently source-reviewed; four focused native tests and the
 preserved-byte before/after codec checks pass. FastSecDec's public pipeline gates
 are tracked separately by the coordinator. The unchanged upstream base is

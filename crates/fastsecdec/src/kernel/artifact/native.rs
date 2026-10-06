@@ -16,8 +16,9 @@ mod literal_zero;
 #[cfg(test)]
 mod tests;
 
-// Native evaluator serde is not a stable cross-revision interchange format.
-// The local structural-validation patch preserves this upstream wire layout.
+// Historical compatible native evaluator wire-layout identifier, not the linked
+// Symbolica source revision. Keep it stable while that serialization layout is
+// unchanged; actual dependency provenance is recorded separately by Cargo/CLI.
 #[cfg(feature = "native")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
 #[cfg(feature = "native")]

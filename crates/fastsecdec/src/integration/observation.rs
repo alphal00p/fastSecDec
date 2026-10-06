@@ -28,9 +28,7 @@ pub(crate) fn observed_estimate(
             },
         ),
         Err(IntegrationError::Unavailable(_))
-        | Err(IntegrationError::Qmc(
-            fastsecdec_qmc::QmcError::InsufficientShifts { .. },
-        )) => (
+        | Err(IntegrationError::Qmc(fastsecdec_qmc::QmcError::InsufficientShifts { .. })) => (
             None,
             if stage == IntegrationStage::Pilot {
                 UncertaintyStatus::PilotOnly
@@ -137,12 +135,10 @@ mod tests {
 
     #[test]
     fn structural_errors_are_not_disguised_as_statistical_range_failures() {
-        let structural = IntegrationError::Qmc(
-            fastsecdec_qmc::QmcError::OutputDimension {
-                expected: 2,
-                actual: 1,
-            },
-        );
+        let structural = IntegrationError::Qmc(fastsecdec_qmc::QmcError::OutputDimension {
+            expected: 2,
+            actual: 1,
+        });
         assert!(matches!(
             observed_estimate(Err(structural), IntegrationStage::Production, false),
             Err(IntegrationError::Qmc(

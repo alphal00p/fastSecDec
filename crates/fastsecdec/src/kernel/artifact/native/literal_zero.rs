@@ -1,4 +1,4 @@
-//! Recover literal output facts from Symbolica's validated, decoded native IR.
+//! Recover literal output facts from Symbolica's decoded native IR from a trusted producer.
 use crate::kernel::program::ExactProgram;
 use symbolica::evaluate::{Instruction, Slot};
 

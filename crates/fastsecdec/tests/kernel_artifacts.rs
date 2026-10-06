@@ -291,47 +291,6 @@ fn real_layout_cannot_discard_an_exact_imaginary_coefficient_below_f64_range() {
 }
 
 #[test]
-fn codec_valid_but_structurally_invalid_native_program_returns_a_decode_error() {
-    let input = ParametricIntegrand::new(
-        vec![symbol!("artifact_invalid::x")],
-        symbol!("artifact_invalid::eps"),
-        ParametricDomain::UnitCube,
-        vec![ParametricTerm::new(Atom::one(), vec![Atom::one()], vec![])],
-    )
-    .unwrap();
-    let generated = generate(&input, &GenerationOptions::default(), |_| {
-        ControlFlow::Continue(())
-    })
-    .unwrap();
-    let text = String::from_utf8(
-        generated
-            .to_kernel_bytes(PrecisionPolicy::default())
-            .unwrap(),
-    )
-    .unwrap();
-    let start = text.find("\"program\":[").unwrap() + "\"program\":".len();
-    let end = start + text[start..].find(']').unwrap() + 1;
-    // Native public codecs on the frozen unpatched build produced this fixture.
-    // Its public input/output dimensions are both one; its result index is invalid.
-    // No malformed program is evaluated and no instruction serializer lives here.
-    let malformed = include_bytes!("fixtures/malformed-exact-program.bin");
-    let text = format!(
-        "{}{}{}",
-        &text[..start],
-        serde_json::to_string(malformed.as_slice()).unwrap(),
-        &text[end..]
-    );
-    let error = match KernelSet::from_bytes(&resign(text, 3)) {
-        Ok(_) => panic!("malformed native IR passed the decoder boundary"),
-        Err(error) => error,
-    };
-    assert!(
-        error.to_string().contains("native evaluator decoding"),
-        "{error}"
-    );
-}
-
-#[test]
 fn complex_fixed_gamma_cannot_be_loaded_with_a_real_output_layout() {
     let input = ParametricIntegrand::new(
         vec![symbol!("artifact_fixed::x")],

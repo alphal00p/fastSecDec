@@ -1,6 +1,8 @@
 //! Compile-time adapter over Symbolica's existing evaluator backends.
 use super::{KernelError, program::ExactProgram};
 use symbolica::domains::float::Complex;
+mod mapping;
+pub(super) use mapping::MappingRequirements;
 
 #[cfg(feature = "native")]
 pub(super) type RealEvaluator = symbolica::evaluate::JITCompiledEvaluator<f64>;
@@ -15,9 +17,8 @@ pub(super) fn real(exact: &ExactProgram) -> Result<RealEvaluator, KernelError> {
     #[cfg(feature = "native")]
     let result = exact.jit_compile::<f64>(settings());
     #[cfg(feature = "portable")]
-    let result = exact
-        .clone()
-        .try_map_coeff_with_prec(&|value| value.re.to_f64(), 53);
+    let result = MappingRequirements::new(exact)
+        .and_then(|requirements| requirements.map(exact, |value| value.re.to_f64(), 53));
     result.map_err(KernelError::Compilation)
 }
 
@@ -25,10 +26,13 @@ pub(super) fn complex(exact: &ExactProgram) -> Result<ComplexEvaluator, KernelEr
     #[cfg(feature = "native")]
     let result = exact.jit_compile::<Complex<f64>>(settings());
     #[cfg(feature = "portable")]
-    let result = exact.clone().try_map_coeff_with_prec(
-        &|value| Complex::new(value.re.to_f64(), value.im.to_f64()),
-        53,
-    );
+    let result = MappingRequirements::new(exact).and_then(|requirements| {
+        requirements.map(
+            exact,
+            |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
+            53,
+        )
+    });
     result.map_err(KernelError::Compilation)
 }
 

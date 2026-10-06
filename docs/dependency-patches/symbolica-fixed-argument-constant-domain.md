@@ -1,5 +1,13 @@
 # Fixed-argument external constants in alternate numeric domains
 
+Status (2026-10-06): the local fallback patch is removed. FastSecDec uses
+upstream ordinary/multiprecision implementations and makes the error-tracking
+conditioning shortcut optional. Unsupported conditioning selects the existing
+precision rescue. The generic callback uncertainty limitation below is not
+carried into upstream dependency delivery.
+
+## Historical proposal and validation
+
 Status (2026-10-06): qualified local workaround, **not accepted general
 error-tracking support for arbitrary callbacks**. The fallback assigns the
 target domain's nominal floating-point uncertainty after callback evaluation;

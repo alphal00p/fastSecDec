@@ -1,5 +1,6 @@
 use fastsecdec_qmc::{
-    Korobov2, PublishedLattice, QmcAccumulator, QmcError, QmcPartial, QmcPlan, QmcWorkPackage, Rank1Rule,
+    Korobov2, PublishedLattice, QmcAccumulator, QmcError, QmcPartial, QmcPlan, QmcWorkPackage,
+    Rank1Rule,
 };
 use numerica::domains::rational::Rational;
 

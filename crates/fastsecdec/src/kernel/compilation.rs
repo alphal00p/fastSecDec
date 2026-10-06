@@ -128,15 +128,17 @@ impl SectorKernel {
             )?)
         } else {
             let evaluator = evaluator::real(&exact)?;
-            let conditioning = exact
-                .clone()
-                .try_map_coeff_with_prec(
-                    &|value| ErrorPropagatingFloat::new(value.re.to_f64(), 15.0),
+            let requirements =
+                evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
+            let conditioning = requirements
+                .map(
+                    &exact,
+                    |value| ErrorPropagatingFloat::new(value.re.to_f64(), 15.0),
                     53,
                 )
-                .map_err(KernelError::Compilation)?;
+                .ok();
             Backend::Real(RealKernel {
-                precision_cache: Default::default(),
+                precision_cache: super::precision_cache::PrecisionCache::new(requirements),
                 exact_evaluator: exact,
                 evaluator,
                 conditioning,

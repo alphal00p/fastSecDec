@@ -1,5 +1,5 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
-//! Symbolica owns native program decoding and structural validation.
+//! Symbolica owns decoding of native programs from trusted cache producers.
 #[cfg(feature = "native")]
 mod legacy;
 mod native;
@@ -92,6 +92,11 @@ impl KernelSet {
             .ok_or_else(|| KernelError::Artifact("kernel artifact was not initialized".into()))
     }
 
+    /// Load a cache produced by a trusted, compatible FastSecDec/Symbolica builder.
+    /// The envelope, content identity, dimensions and metadata are checked, but
+    /// upstream Symbolica's native IR decoder does not validate every internal
+    /// instruction index. A valid content hash is not proof of safe provenance;
+    /// do not pass attacker-created or manually modified native program bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
         // Dispatch does not replace either codec's strict owned schema.
         // Ignore the large program arrays here instead of allocating a second

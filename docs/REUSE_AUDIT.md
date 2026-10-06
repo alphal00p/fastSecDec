@@ -1345,3 +1345,53 @@ The [constant-domain audit](reviews/fixed-constant-error-tracking.md) records
 that generic fallback conversion assigns nominal uncertainty without tracking
 callback-internal errors. This remains an upstream design issue rather than a
 new downstream numerical implementation.
+
+
+## Unpatched upstream Symbolica integration
+
+The user supplied the required coefficient-field API upstream in Symbolica
+`community` revision `58652fabc2f736302a570deaaf8d517679f7fe6e`. The remaining
+local patches and dependency-preparation scripts are removed. Ordinary Cargo
+resolves one public owner per shared ecosystem crate, with registry Numerica
+and Graphica; no package version change or alternative algebra implementation
+is needed.
+
+The mapping adapter reuses public `ExpressionEvaluator::export_instructions`,
+`EvaluationDomain::resolve_function`, `EvaluationDomain::try_from_complex_float`,
+`EvaluationInfo::evaluate_constant` and upstream `map_coeff_with_prec`. The
+existing fallible JIT constructor remains unchanged. Callback requirements and
+native parsed tags are collected once at construction; workers share immutable
+requirements and keep bounded numerical evaluator caches. It does not evaluate
+Atoms per sample, copy a mapping implementation, or add special functions.
+
+Native Gamma/polygamma already support ordinary and multiprecision arithmetic.
+A missing error-tracking callback now disables only the conditioning shortcut.
+The same boundary, nonfinite and range-loss predicates lead to the existing
+precision rescue, with unchanged tolerances and two-precision agreement.
+Unsupported required callbacks or constant conversions return typed errors;
+there is no catch-unwind dependency or generic conversion assigning an assumed
+error to a callback result.
+
+Independent source review accepts the separation of these responsibilities.
+Five focused controls cover nested native bodies, missing callbacks, failed
+constant conversion, nonreal fixed arguments, and real/complex special-function
+rescue with worker cloning. Existing public artifact and portable controls remain
+part of the runtime gate; actual outcomes are recorded at milestone completion.
+
+The optional native-IR structural validation proposal is retired. Kernel caches
+retain their producer bytes, identity and outer format checks, while their
+public loader documents trusted native-program provenance. The intentionally
+corrupted raw-index test is removed before using the unpatched decoder. This
+changes the cache trust contract, not generated integral expressions or numerical
+methods. It is not replaced by a FastSecDec instruction validator.
+
+The ordinary public-source runtime gate passes 475 native workspace tests with
+25 existing ignored diagnostics, plus all 58 maintained portable-backend host
+controls. Strict workspace all-target Clippy, root/leaf formatting and the Python
+binding's all-target check with `python_stubgen` pass. Root and standalone
+consumer graphs retain one ecosystem owner per shared type without path overlays;
+the portable active tree excludes GMP. The corresponding community promotion
+keeps numerical implementation in FastSecDec and removes the preparation script
+and experimental feature gates. These checks establish upstream compatibility;
+they do not relabel historical native/Wasm wheels or add physics/performance
+acceptance. See the [delivery review](reviews/regular-hepkit-build.md).

@@ -1,8 +1,6 @@
 use std::{fmt::Display, time::Instant};
 
-use fastsecdec_qmc::{
-    Korobov2, Korobov3, QmcPartial, QmcPlan, QmcWorkPackage,
-};
+use fastsecdec_qmc::{Korobov2, Korobov3, QmcPartial, QmcPlan, QmcWorkPackage};
 use serde::{Deserialize, Serialize};
 
 use super::{IntegrationError, Periodization, Result};

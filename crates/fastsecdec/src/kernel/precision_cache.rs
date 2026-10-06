@@ -1,6 +1,7 @@
 //! Bounded worker-local native evaluator storage. Cache history affects only
 //! allocation and constant conversion, never the chosen precision or result.
-use super::KernelError;
+use super::{KernelError, evaluator::MappingRequirements};
+use std::sync::Arc;
 use symbolica::{
     domains::{
         float::{Complex, Real},
@@ -20,13 +21,19 @@ struct Entry<T> {
 
 pub(super) struct PrecisionCache<T> {
     entries: Vec<Entry<T>>,
+    requirements: Arc<MappingRequirements>,
 }
 
-impl<T> Default for PrecisionCache<T> {
-    fn default() -> Self {
+impl<T> PrecisionCache<T> {
+    pub(super) fn new(requirements: Arc<MappingRequirements>) -> Self {
         Self {
             entries: Vec::new(),
+            requirements,
         }
+    }
+
+    pub(super) fn empty_clone(&self) -> Self {
+        Self::new(self.requirements.clone())
     }
 }
 
@@ -43,9 +50,9 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
             let entry = self.entries.remove(index);
             self.entries.push(entry);
         } else {
-            let evaluator = exact
-                .clone()
-                .try_map_coeff_with_prec(&coefficient, bits)
+            let evaluator = self
+                .requirements
+                .map(exact, coefficient, bits)
                 .map_err(KernelError::PrecisionEvaluation)?;
             if self.entries.len() == CAPACITY {
                 self.entries.remove(0);

@@ -1481,3 +1481,35 @@ numerical contract.
   community feature promotion remains locally prepared pending the outstanding
   owner requirements. No new Python/Wasm wheel or performance result is claimed,
   and phase A remains incomplete.
+
+
+Further upstream integration instructions, verbatim:
+
+> Which fix is still needed to be able to use upstream symbolica? Some seem soptinal
+
+> I added it to symbolica/community. Use that version and once no more patches are needed, commit and push to main
+
+Use the public Symbolica revision supplying configurable fixed-variable
+coefficient fields. Adapt FastSecDec to the existing evaluator mapping APIs;
+keep unsupported-domain errors explicit and make error-tracking conditioning
+optional, using the existing precision rescue when needed. Remove local source
+patches and dependency-preparation scripts, resolve public Cargo dependencies
+with a single owner for shared native types, and validate native and portable
+behavior before committing and pushing FastSecDec main. Keep native artifacts
+as trusted application caches without claiming structural validation of arbitrary
+instruction streams. The regular HEPKit feature promotion and its dependency
+selection must use this same public-source implementation.
+
+- 2026-10-06: Ordinary upstream dependency delivery passes with Symbolica
+  `58652fabc2f736302a570deaaf8d517679f7fe6e`, tested FeynKit `259df879`, merged
+  OneLOop `27c37234`, and registry Numerica/Graphica. All remaining local
+  dependency patches and preparation scripts are removed. Public native
+  callback metadata supplies typed mapping admission; optional conditioning
+  preserves the existing precision-rescue policy without a generic constant
+  fallback. Native workspace tests pass 475 controls (25 existing diagnostics
+  ignored), portable-backend host tests pass 58, strict workspace Clippy passes,
+  and the Python binding passes all-target checking with stub generation enabled.
+  Root/leaf source-identity and formatting checks pass. The HEPKit PR's ordinary
+  feature promotion follows the published main revision. Historical actual
+  native/Wasm wheels retain their original source identities; no new wheel,
+  convergence or performance result is claimed. Phase A remains incomplete.

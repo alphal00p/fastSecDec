@@ -1,78 +1,82 @@
-# Ordinary HEPKit builds: dependency preparation audit
+# Ordinary upstream dependency delivery
 
-Ordinary native and Wasm community builds should resolve their Rust dependencies
-through Cargo, without a manual checkout/patch step. The existing preparation
-script is a temporary development workaround. Passing tests on patched wheels
-are not evidence that unpatched public sources already build.
+FastSecDec now selects public Symbolica `community` revision
+`58652fabc2f736302a570deaaf8d517679f7fe6e` through ordinary Cargo source
+selection. This revision supplies the configurable coefficient-field API.
+There are no local Symbolica source patches or dependency-preparation scripts.
+The historical patch proposals remain documented under
+[dependency-patches](../dependency-patches/) and in Git history.
 
-## Updated public owners, 2026-10-06
+## How the remaining requirements were resolved
 
-Symbolica `community` revision `473b4b8dbc2f9bff8658a047196ba0877238bf9e`
-includes three of our corrections: canonical complex-product printing,
-attributed-symbol alias preservation, and literal series-variable substitution.
-The latter was already upstream in `6589d0c`. The three local patch files and
-their bootstrap applications are removed. Upstream's alias implementation also
-preserves registered callbacks and user data; the comparison checks behavior,
-not just whether the old test-containing diff reverses cleanly.
-
-FeynKit's literal kinematic substitution is published at
-`259df8790f27b8d3ef32778cd7195942691b4ef0`. OneLOop's
-[PR #1](https://github.com/alphal00p/oneloopmaster/pull/1) is merged into `main`
-at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`, with the same source tree as the
-tested PR head. Both superseded patch files are removed. OneLOop declares
-`symjit = "2.26.0"`; FastSecDec declares `"2.26.4"`. These are compatible
-minimum versions, with actual resolution in lockfiles. Stored OneLOop data is
-Symbolica evaluator IR, recompiled on load.
-
-QMC now lives in `crates/fastsecdec-qmc` under the user's revised ownership
-instruction. Ordinary registry Numerica supplies RNG, numerical backends and
-Havana MC. The bootstrap no longer fetches or patches the Numerica fork.
-
-## Four remaining Symbolica changes
-
-| Change | Reason and limitation |
+| Previous local change | Current implementation |
 |---|---|
-| Fixed-argument constant-domain fallback | Fixed polygamma values from Gamma expansions need the conditioning evaluator's numerical domain; the generic fallback does not propagate callback-internal uncertainty and remains an unresolved upstream design proposal |
-| Evaluator IR decoding validation | Reject deliberately malformed saved programs before evaluation; no faulty generated IR was observed |
-| `try_map_coeff_with_prec` | Return unsupported coefficient/callback-domain errors during native/portable evaluator construction |
-| `to_polynomial_in_vars_with_field` | Use the existing polynomial converter with a configurable native coefficient field, preserving compact expressions |
+| Configurable fixed-variable coefficient field | Upstream `to_polynomial_in_vars_with_field`; existing compact homogeneity, monomial and domain checks retain their deterministic zero policy |
+| Fallible coefficient mapping | Preflight native callback metadata and target-domain conversion through public Symbolica APIs, then call upstream `map_coeff_with_prec` |
+| Generic fixed-constant fallback | Removed; ordinary and multiprecision Gamma/polygamma implementations already exist upstream. Unsupported error-tracking conditioning skips that shortcut and uses existing precision rescue for flagged points |
+| Native evaluator decoding validation | Removed as an optional owner hardening change; saved evaluator IR is a trusted application cache, with the existing outer envelope and compatibility checks |
 
-All four residual patches apply to the updated public revision. The two named
-APIs remain absent from its unpatched source. Removing the bootstrap before
-resolving these requirements would break current builds. The constant fallback
-is explicitly qualified in the [numerical audit](fixed-constant-error-tracking.md);
-a successful conversion test does not establish a sound error bound for an
-arbitrary registered callback.
+The admission adapter does not implement arithmetic, special functions, a
+coefficient mapper or an IR validator. It collects callback requirements at
+kernel construction and shares them with worker-local precision caches. Native
+callbacks retain their own numerical contract. It does not assign a fictitious
+error estimate to an arbitrary callback result. The earlier
+[constant-error audit](fixed-constant-error-tracking.md) records the motivation.
 
-The updated development setup selects four public source owners and applies
-only these four Symbolica changes. Historical reproduction notes remain under
-[dependency-patches](../dependency-patches/); removed patches are not reapplied.
-The user's existing working trees in `/common/dev/` are left untouched.
+Native artifacts preserve their original bytes and IDs. Their loader is not a
+validator for arbitrary rewritten instruction streams. No malformed IR was
+observed from generation; the removed decoder regression deliberately changed
+an instruction index and depended on the discarded upstream patch.
 
-## Validation and remaining delivery work
+## Public dependency ownership
 
-The QMC move passes 37 native and 37 portable-feature host tests plus 43 focused
-core QMC/MC controls. Version reporting, artifact compatibility and CLI provenance
-pass 46 focused tests and scoped strict Clippy. Owner validation passes three
-FeynKit regressions, two OneLOop fixture/cache controls and the updated core
-one-loop cache regression. Those gates precede the latest Symbolica source
-update. The updated public base plus four residual patches subsequently passes
-all 23 selected controls: two fresh-process artifact tests, four complex-kernel
-tests, the Gamma-regulator regression and sixteen kernel-artifact tests. There
-are no failures or skips; the locked graph has one owner per shared crate and
-the root lock is unchanged. Compilation and tests take about 497 seconds. The
-source comparison and execution receipt are retained under
-`output/diagnostics/symbolica-public-update-1/`.
+Root, standalone Python and portable consumers each select one public Symbolica
+owner. FeynKit is locked at tested public revision
+`259df8790f27b8d3ef32778cd7195942691b4ef0`, OneLOop `main` at
+`27c3723434b7d99cf70ce612b0b8041d3f5c0e78`, and ordinary Numerica/Graphica at
+registry version 3.0.1. SymJIT remains a compatible minimum with exact resolution
+in the lockfile. QMC belongs to FastSecDec.
 
-Native, Wasm, stub-generation and core-only metadata graphs have been checked
-for the locally prepared removal of the experimental feature. That promotion
-and its development lock are not published as a working ordinary public build.
-No fresh Python wheel, Wasm runtime or scientific performance claim follows
-from these dependency checks.
+Resolving without path overrides exposed two Git source identities for the
+same OneLOop commit: one revision request and one branch request. The core now
+uses the same `main` source as the reducer, with its revision fixed by the lock.
+No unrelated package version upgrade is needed. The root's only local packages
+are FastSecDec's own workspace crates; the standalone consumers likewise use
+only their own FastSecDec source paths.
 
-Once the remaining owner requirements are resolved, select the public Symbolica
-source through the consuming workspace's normal Cargo patch table, resolve
-lockfiles without path overrides, remove the preparation scripts and their
-workflow invocations, and validate ordinary builds. Library crates should retain
-registry-based Symbolica requirements so the final consumer controls the single
-shared Rust type owner.
+The standard Cargo `[patch.crates-io]` table selects the public Symbolica Git
+package for ecosystem consumers. It is source selection, not a modification of
+upstream source. No generated Cargo home, manual checkout or source-root
+environment variable is needed for normal builds. Local developer overrides
+remain possible but are excluded from ordinary-delivery verification.
+
+## Validation and HEPKit delivery
+
+Ordinary locked metadata passes for the root and both native/portable variants
+of the standalone Python and portable validation consumers. The maintained
+owner checker confirms a single shared ecosystem identity; the portable target
+tree has no active GMP dependency. Existing package versions remain unchanged.
+Native workspace tests pass: 475 passed, zero failed, and 25 existing ignored
+diagnostic tests. All five callback-admission controls pass, including fixed
+special-function rescue in real and complex arithmetic. The nine maintained
+portable Rust targets pass all 58 controls on the host. Strict all-target
+workspace Clippy passes, as does the standalone Python binding's all-target
+check with `python_stubgen`. Root and both standalone-consumer formatting checks
+pass. These checks use ordinary public dependencies without Cargo path overlays.
+
+The corresponding [HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18)
+update includes FastSecDec in the ordinary `community` feature and removes the
+experimental opt-in and preparation workflow. Its final dependency pin follows
+publication of this FastSecDec milestone. Generated stubs and numerical
+implementation ownership remain unchanged: community links/registers;
+FastSecDec owns the binding crate.
+
+Receipts are retained under
+`output/diagnostics/symbolica-ordinary-cargo-1/`. Initial compile errors in the new
+adapter/tests and bounded linking timeouts remain recorded separately from the
+successful corrected run. The native test run was followed only by routine
+rustfmt corrections and removal of an unused malformed-IR fixture.
+
+Earlier 118-test native and 89-test actual Wasm wheel results predate this
+migration. They are historical validation, not a claim of freshly rebuilt
+wheels or a new physical ggHH convergence run.

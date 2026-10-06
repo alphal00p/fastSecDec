@@ -92,7 +92,7 @@ struct RealKernel {
     precision_cache: precision_cache::PrecisionCache<Float>,
     evaluator: evaluator::RealEvaluator,
     exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
-    conditioning: ExpressionEvaluator<ErrorPropagatingFloat<f64>>,
+    conditioning: Option<ExpressionEvaluator<ErrorPropagatingFloat<f64>>>,
     check_input: Vec<ErrorPropagatingFloat<f64>>,
     check_output: Vec<ErrorPropagatingFloat<f64>>,
 }
@@ -170,13 +170,15 @@ impl SectorKernel {
         let boundary = self
             .cancellation
             .needs_check(point, self.precision.boundary_threshold);
-        if boundary && !nonfinite && !range_loss {
+        if boundary
+            && !nonfinite
+            && !range_loss
+            && let Some(conditioning) = &mut backend.conditioning
+        {
             for (target, value) in backend.check_input.iter_mut().zip(point) {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
             }
-            backend
-                .conditioning
-                .evaluate(&backend.check_input, &mut backend.check_output);
+            conditioning.evaluate(&backend.check_input, &mut backend.check_output);
             let stable = backend
                 .check_output
                 .iter()
@@ -254,7 +256,7 @@ impl SectorKernel {
             backend: match &self.backend {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
-                    precision_cache: Default::default(),
+                    precision_cache: kernel.precision_cache.empty_clone(),
                     evaluator: kernel.evaluator.clone(),
                     exact_evaluator: kernel.exact_evaluator.clone(),
                     conditioning: kernel.conditioning.clone(),

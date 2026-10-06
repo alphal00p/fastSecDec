@@ -1,5 +1,9 @@
 # Reproducible dependency delivery
 
+**Historical record:** the bootstrap described below has been removed. Current
+builds use unpatched public dependencies through ordinary Cargo; see the
+[current delivery review](regular-hepkit-build.md).
+
 This document retains the original bootstrap/delivery evidence. Substantive
 Python bindings now belong to FastSecDec; community links/registers them. The
 [current public metadata/MC delivery](hepkit-metadata-mc-portable.md) records

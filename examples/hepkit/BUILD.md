@@ -1,21 +1,17 @@
 # Build the HEPKit bindings
 
-Symbolica-community builds the wheel and registers FastSecDec. Promotion to a
-regular HEPKit module is prepared locally; ordinary public builds still await
-the remaining [Symbolica fixes](../../docs/reviews/regular-hepkit-build.md).
-The commands below describe that prepared feature branch. FastSecDec owns the
-Rust/PyO3 implementation under `bindings/python`;
-there is no separate FastSecDec wheel. The default numerical library and CLI
-remain Python-free.
+Symbolica-community builds the wheel and registers FastSecDec through its
+ordinary `community` feature for native and Wasm builds. FastSecDec owns the
+Rust/PyO3 implementation under `bindings/python`; there is no separate FastSecDec
+wheel. The numerical library and CLI remain Python-free.
 
-Use the community feature branch with a FastSecDec dependency pin that includes
-the `sector_decomposition` namespace and native diagram/family methods, in
-addition to endpoint inspection and `HavanaDiscreteSettings`. The dependency helper
-fetches that exact pin. Keep the showcase in **this checkout** at the same
-FastSecDec revision, unless a separate receipt verifies a demo-only difference.
-Record its `git rev-parse HEAD` alongside the wheel hash and compiled revisions.
-The older `539019a` binding wheel does not contain these new APIs; its accepted
-demo-only pairing with `0cf08c6` remains historical evidence.
+Use the community feature branch linked from the
+[dependency review](../../docs/reviews/regular-hepkit-build.md). Cargo fetches
+upstream dependencies directly; no dependency-preparation script or patched
+checkout is required. Keep the showcase checkout at the host's exact FastSecDec
+Git revision unless a separate receipt verifies a demo-only difference. Record
+that revision with the wheel hash. Historical wheels do not validate the latest
+source changes; the review records the current test scope.
 
 ## Native wheel and notebook
 
@@ -26,30 +22,19 @@ FastSecDec checkout containing this guide, then run:
 
 ```sh
 export SHOWCASE_CHECKOUT=/absolute/path/fastsecdec
-export FASTSECDEC_DEPENDENCIES=/absolute/path/new-dependencies
 git -C "$SHOWCASE_CHECKOUT" rev-parse HEAD
-bash scripts/prepare_fastsecdec_dependencies.sh "$FASTSECDEC_DEPENDENCIES"
-CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
-  maturin develop --release --locked
-bash "$FASTSECDEC_DEPENDENCIES/fastsecdec/bindings/python/scripts/test-native.sh" "$PWD"
+maturin develop --release --locked
+bash "$SHOWCASE_CHECKOUT/bindings/python/scripts/test-native.sh" "$PWD"
 python -c 'from symbolica.community.hepkit.sector_decomposition import sector_decompose, HavanaDiscreteSettings, PreSubtractionMetadata'
 python -m marimo run "$SHOWCASE_CHECKOUT/examples/hepkit/fastsecdec_showcase.py"
 ```
 
-The new dependency destination must be outside the community checkout and must
-not exist. The helper fetches the exact binding pin and delegates owner setup
-to its `bindings/python/scripts/prepare-community.sh`. Its command-scoped Cargo
-home supplies the same configuration to metadata and compilation, with isolated
-caches and no global changes. Keep it available for subsequent builds. Maturin
-1.15 does not forward `--config` to its metadata command.
-
-OneLOop and FastSecDec now declare compatible SymJIT minimum versions. The
-temporary owner setup remains necessary for the outstanding Symbolica fixes;
-it is not the intended ordinary build workflow. Native and portable backends are exclusive;
-all shared HEPKit objects must retain one Rust owner. The pinned checkout's
-`bindings/python/scripts/check_dependencies.py` checks this metadata boundary.
-Use a release wheel for costly generation: native O2 kernels alone do not
-optimize the generation library.
+The checkout above supplies examples and maintained tests; it does not configure
+Rust dependencies. The host manifest and lockfile select the public owners.
+Native and portable backends are exclusive, and all shared HEPKit objects retain
+one Rust owner. `bindings/python/scripts/check_dependencies.py` checks this
+metadata boundary. Use a release wheel for costly generation: native O2 kernels
+alone do not optimize the generation library.
 
 ## Pyodide wheel and static showcase
 
@@ -64,10 +49,9 @@ must remain native. The host-target setting below leaves the Wasm linker alone.
 
 ```sh
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER="$(command -v cc)"
-CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
-  bash scripts/build_wasm_performance.sh /absolute/path/new-wasm-wheel
+bash scripts/build_wasm_performance.sh /absolute/path/new-wasm-wheel
 export PYODIDE_DIST_DIR="$(pyodide config get dist_dir)"
-node "$FASTSECDEC_DEPENDENCIES/fastsecdec/bindings/python/scripts/test-pyodide.mjs" \
+node "$SHOWCASE_CHECKOUT/bindings/python/scripts/test-pyodide.mjs" \
   /absolute/path/new-wasm-wheel "$PWD"
 python "$SHOWCASE_CHECKOUT/examples/hepkit/export.py" \
   --wheel /absolute/path/new-wasm-wheel/symbolica-3.0.0-cp314-abi3-pyemscripten_2026_0_wasm32.whl \
