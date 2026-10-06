@@ -18,7 +18,7 @@ use super::{
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "Kernels",
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     unsendable
 )]
 pub(crate) struct PyKernels {

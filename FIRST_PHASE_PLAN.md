@@ -264,6 +264,54 @@ Also do some basic sanity checks that at least the sector you identified there a
 Then continue the goal (without overemphasizing performance gains yet) until all is covered and you can consider the goal completed.
 ```
 
+### Native HEPKit entry points and visible notebook workflow (2026-10-06)
+
+Use `symbolica.community.hepkit.sector_decomposition` as the canonical Python
+namespace. Add `sector_decompose()` to HEPKit's existing `FeynmanDiagram` and
+`IntegralFamily` classes, forwarding to the same public function. Keep the
+existing `hepkit.fastsecdec` namespace as a compatibility reexport of the same
+objects. These methods return the existing inspectable `GeneratedIntegral`;
+compilation and integration remain separate explicit operations.
+
+Reuse the native diagram, family, kinematics and Symbolica expression owners.
+Diagram input preserves its numerator, projector and weights. Family input
+requires an explicit signed power vector and an already weighted scalar
+numerator; auxiliary denominators must not silently receive unit powers.
+Use native sector selection and Symbolica operations for nonpositive powers,
+and share any input specialization orchestration with the existing graph path.
+Inspect existing ecosystem APIs before adding a primitive. If an existing
+HEPKit structure lacks a necessary feature, extend its owning crate minimally
+instead of introducing another graph, family or algebra representation.
+
+The notebook must visibly define the actual decomposition, compilation,
+session creation and bounded stepping calls using this API. Its helpers may
+own presentation, controls and lifecycle state. Visible functions are invoked
+only by the existing Generate/Integrate actions and active integration ticks;
+displaying the code must not duplicate scientific work or start it on load.
+Keep the scalar triangle first, the optional gg→HH browser case, typed streamed
+events, lazy sector inspection and accepted checkpoint ownership.
+
+Delegate the binding, native-owner delivery and notebook slices separately,
+then independently audit reuse, normalization, signed powers, namespaces and
+action ownership. Validate native and portable entry points against their
+actual compiled sources; previous wheel results do not validate a changed API.
+
+Latest user requests, verbatim:
+
+```text
+Explain the layout of the notebook structure. In principle I expect clear integration:
+
+from symbolica.community.hepkit.sector_decomposition import *
+
+and perhaps stuff like IntegralFamily.decompose(), FeynmanDiagram.decompose()
+
+perhaps sector_decompose istead of decompose, not sure.
+```
+
+```text
+Yes this sounds good! Make sure to use the hepkit structures that already exist whenever you can (don't reinvent the wheel), modify them if they lack a feature.
+```
+
 ## 2. Architecture, ecosystem reuse, and inputs
 
 Use a Cargo workspace with three crates:

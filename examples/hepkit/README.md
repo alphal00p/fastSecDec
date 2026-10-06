@@ -12,6 +12,32 @@ The notebook has separate **Generate** and **Integrate** actions. Editing an
 input or opening the notebook does not prepare a graph, contract a numerator,
 generate sectors, compile kernels, or start sampling.
 
+The scientific API is `symbolica.community.hepkit.sector_decomposition`.
+The notebook displays the actual callable cells with marimo's `show_code`, so
+they remain visible in run view as well as the editor. `decompose_input` calls
+the native `diagram.sector_decompose(...)` method with its HEPKit `Kinematics`,
+Symbolica regulator and dimension, explicit parameter bindings and graph powers.
+`compile_sectors` compiles that returned owner. `create_session` shows the native
+QMC or Havana settings, and `advance_session` accepts one native work unit.
+The lifecycle helper stores UI state, typed events, owners and checkpoints; it
+does not construct an alternative integrator or hide these scientific calls.
+These functions execute only through the controls below, not as a second demo
+calculation alongside them.
+
+The same backend accepts `IntegralFamily.sector_decompose(...)` with an explicit
+signed power vector and an already weighted scalar numerator. Powers follow
+the native denominator order: zero omits a slot, and a negative power moves its
+denominator into the numerator. Auxiliary completion slots never implicitly
+acquire power one. A family does not infer a graph weight, projector or measure
+convention. The diagram route retains those native graph expressions once.
+
+The canonical namespace, object methods and visible-call refactor require their
+matching new wheel. The current native wheel passes all 95 maintained controls;
+an actual triangle UI run validates the visible calls, inspection, and same-kernel
+QMC/Havana pause/resume. See the [entry-point review](../../docs/reviews/hepkit-sector-entrypoints.md)
+for its scope. The versioned browser results below describe earlier sources and
+do not by themselves validate these API changes.
+
 1. Choose a problem and its kinematics. The four portable inputs are the massive
    triangle, massless box, rank-two box and coupled sunset. Their native fixtures,
    defaults and normalization are retained. Only relevant mass/invariant controls
@@ -177,12 +203,12 @@ labelled saved-data screenshots, without repeating scientific work.
 
 ## Explicit browser export
 
-The current published `a3d09e` wheel passes generic smoke and all **58** collected
+The previously published `a3d09e` wheel passes generic smoke and all **58** collected
 portable controls. Its actual triangle browser run validates native metadata
 and rendered math, QMC checkpoint resume, and same-kernel Havana pilot/production
 pause and resume. All scientific actions and final downloads complete; a final
 supplemental screenshot failure is retained and independently qualified without
-rerunning science. The [current portable review](../../docs/reviews/hepkit-metadata-mc-portable.md)
+rerunning science. The [portable review](../../docs/reviews/hepkit-metadata-mc-portable.md)
 records the exact gg→HH bounded outcome and interaction limits.
 
 A native wheel cannot run in Pyodide. The exporter packages an existing tested
@@ -256,7 +282,8 @@ it in memory. There is deliberately no persistent pilot checkpoint. Downloads
 become available for frozen production, whose accepted prefix and replay state
 can be restored through the native codec. Reloading during a pilot loses its
 unsaved training state. These new controls require the updated binding wheel;
-the current public wheel and actual triangle lifecycle validate this interface.
+the recorded metadata/Monte Carlo wheel and triangle lifecycle validate that
+version of the interface, before the canonical-namespace refactor above.
 Older wheels lack these APIs and cannot substitute for it.
 
 Earlier portable evidence used a Pyodide 314.0.7 wheel in marimo 0.24.2's actual

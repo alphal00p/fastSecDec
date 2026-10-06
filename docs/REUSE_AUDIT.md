@@ -1245,3 +1245,23 @@ estimates meet one per mil. This uses existing native reference adapters and
 preserves their UnverifiedReference qualification, rather than claiming an
 independent analytic amplitude. Actual Wasm validation of the new interfaces
 and the bounded remaining representative parity claims are still open.
+
+The HEPKit entry-point extension adds `sector_decompose()` to the existing
+native `FeynmanDiagram` and `IntegralFamily` owners and the canonical
+`hepkit.sector_decomposition` namespace. Community contains registration,
+reexports and generated stubs; the optional FeynKit methods forward without a
+reverse Rust dependency. Family support reuses native denominator ordering,
+`IntegralFamily::sector`, constructors and kinematics; Symbolica supplies
+negative-power numerator factors and scalar substitution. Explicit signed powers
+avoid assigning unit powers to family-completion denominators. The graph and
+family paths share native preparation, and neither duplicates graph or algebra
+primitives in Python. Symbolica's existing symbol inventory also guards against
+momentum-dependent scalar bindings, including tensor function heads.
+
+The [entry-point review](reviews/hepkit-sector-entrypoints.md) records independent
+ownership and scientific-contract review, 29 native input/parametrization tests,
+95 installed Python/frontend tests, and the actual native notebook lifecycle.
+Visible notebook functions are the callbacks its buttons execute. Native
+`DiagramRender` reaches marimo through its existing HTML protocol. Generated
+type-stub and actual Wasm validation remain separate delivery gates; no new
+performance or ggHH accuracy claim is inferred from the triangle UI control.

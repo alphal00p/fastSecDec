@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use fastsecdec::{
-    Atom, AtomCore, EdgeId, Error, FeynmanDiagram, Kinematics, Model,
-    input::{GraphIntegral, default_algebra_settings},
+    Atom, AtomCore, EdgeId, Error, FeynmanDiagram, IntegralFamily, Kinematics, Model,
+    input::{GraphIntegral, default_algebra_settings, prepare_family_input},
     parametric::ScalarParametricIntegral,
 };
 use feynkit_graph::symbols;
@@ -383,4 +383,123 @@ fn scalar_bindings_and_dimension_names_ending_in_underscore_are_literal() {
     )
     .unwrap();
     assert_eq!(general.terms()[0].prefactor(), scalar.prefactor());
+}
+
+#[test]
+fn signed_family_projection_preserves_native_numerator_and_specialization() {
+    let k = parse!("family_input_k");
+    let p = parse!("family_input_p");
+    let e = parse!("family_input_e");
+    let kin = Kinematics::in_dimension(&parse!("family_input_D"))
+        .unwrap()
+        .with_scalar_product(&p, &p, parse!("family_input_s"))
+        .unwrap();
+    let kk = kin.scalar_product(&k, &k).unwrap();
+    let kp = kin.scalar_product(&k, &p).unwrap();
+    let family = IntegralFamily::new(
+        vec![k.clone()],
+        vec![p.clone()],
+        vec![&kk - parse!("family_input_m2"), kp.clone(), &kk + &kp],
+        &kin,
+    )
+    .unwrap();
+    let extended = kin
+        .clone()
+        .with_scalar_product(&p, &p, Atom::num(-1))
+        .unwrap()
+        .with_scalar_product(&e, &e, Atom::num(-2))
+        .unwrap()
+        .with_scalar_product(&p, &e, Atom::num(3))
+        .unwrap();
+    let bindings = BTreeMap::from([
+        (symbol!("family_input_s"), Atom::num(-1)),
+        (symbol!("family_input_m2"), Atom::num(2)),
+        (symbol!("family_input_weight"), Atom::num(5)),
+    ]);
+    let ke = extended.scalar_product(&k, &e).unwrap();
+    let (projected, powers, numerator) = prepare_family_input(
+        &family,
+        &[3, -2, 0],
+        parse!("family_input_weight") * &ke,
+        Some(&extended),
+        &bindings,
+        std::slice::from_ref(&e),
+    )
+    .unwrap();
+    assert_eq!(projected.denominators(), &[&kk - 2]);
+    assert_eq!(powers, [3]);
+    assert_eq!(numerator, Atom::num(5) * ke * kp.pow(Atom::num(2)));
+    assert_eq!(projected.external_momenta(), &[p.clone(), e.clone()]);
+    assert_eq!(
+        projected.kinematics().scalar_product(&p, &p).unwrap(),
+        Atom::num(-1)
+    );
+    assert_eq!(
+        projected.kinematics().scalar_product(&e, &e).unwrap(),
+        Atom::num(-2)
+    );
+    // The input remains the native symbolic owner, with no changed assumptions.
+    assert_eq!(
+        family.kinematics().scalar_product(&p, &p).unwrap(),
+        parse!("family_input_s")
+    );
+    assert_eq!(family.denominators()[0], &kk - parse!("family_input_m2"));
+}
+
+#[test]
+fn family_input_rejects_stale_kinematics_empty_support_and_momentum_bindings() {
+    let k = parse!("family_guard_k");
+    let p = parse!("family_guard_p");
+    let kin = Kinematics::in_dimension(&parse!("family_guard_D"))
+        .unwrap()
+        .with_scalar_product(&p, &p, Atom::num(-1))
+        .unwrap();
+    let family = IntegralFamily::new(
+        vec![k.clone()],
+        vec![p.clone()],
+        vec![kin.scalar_product(&k, &k).unwrap() - parse!("family_guard_m2")],
+        &kin,
+    )
+    .unwrap();
+    let conflicting = kin.with_scalar_product(&p, &p, Atom::num(-2)).unwrap();
+    assert!(matches!(
+        prepare_family_input(
+            &family,
+            &[2],
+            Atom::one(),
+            Some(&conflicting),
+            &BTreeMap::new(),
+            &[],
+        ),
+        Err(Error::ScalarBindings(_))
+    ));
+    let kk = family.kinematics().scalar_product(&k, &k).unwrap();
+    let unresolved_pp = Kinematics::in_dimension(&parse!("family_guard_D"))
+        .unwrap()
+        .scalar_product(&p, &p)
+        .unwrap();
+    for bindings in [
+        BTreeMap::from([(symbol!("family_guard_k"), Atom::num(1))]),
+        BTreeMap::from([(symbol!("family_guard_p"), Atom::num(1))]),
+        BTreeMap::from([(symbol!("family_guard_D"), Atom::num(4))]),
+        BTreeMap::from([(symbol!("family_guard_s"), k)]),
+        BTreeMap::from([(symbol!("family_guard_s"), p)]),
+        // Native dot products use momentum function heads, not bare variables.
+        // k²/2 would otherwise silently produce a different valid quadratic
+        // denominator, rather than necessarily failing later with U=0.
+        BTreeMap::from([(symbol!("family_guard_m2"), &kk / 2)]),
+        BTreeMap::from([(symbol!("family_guard_m2"), kk)]),
+        BTreeMap::from([(symbol!("family_guard_m2"), unresolved_pp)]),
+    ] {
+        assert!(matches!(
+            prepare_family_input(&family, &[2], Atom::one(), None, &bindings, &[],),
+            Err(Error::ScalarBindings(_))
+        ));
+    }
+    for powers in [vec![], vec![0], vec![-1], vec![i32::MIN]] {
+        assert!(
+            prepare_family_input(&family, &powers, Atom::one(), None, &BTreeMap::new(), &[],)
+                .is_err()
+        );
+    }
 }

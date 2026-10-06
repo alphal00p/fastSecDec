@@ -95,8 +95,19 @@ async def _(mo):
     from showcase import state as workflow, generation, integration, sectors, presentation, report
     from showcase import gghh as gghh_builder
     from symbolica.community import hepkit as hep
-    fs = getattr(hep, "fastsecdec", None)
-    return asset_description, browser_runtime, builders, fs, gghh_builder, interrupt_isolated, workflow, generation, integration, sectors, presentation, report
+    return asset_description, browser_runtime, builders, gghh_builder, interrupt_isolated, workflow, generation, integration, sectors, presentation, report
+
+
+@app.cell
+def _(mo):
+    # The canonical HEPKit API. Importing it starts no scientific work.
+    from symbolica.community import hepkit as _hep
+    if hasattr(_hep, "sector_decomposition"):
+        import symbolica.community.hepkit.sector_decomposition as sd
+    else:
+        sd = None
+    mo.show_code()
+    return (sd,)
 
 
 @app.cell(hide_code=True)
@@ -210,6 +221,80 @@ def _(allocation_controls, integration_method, physics_controls, problem):
 
 
 @app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ### The scientific calls
+
+    These visible functions are the code the controls execute. Defining them
+    performs no generation, compilation or sampling. **Generate** invokes the
+    diagram method and compiles its result; **Integrate** creates a session from
+    those same kernels. Native observers supply the live dashboard.
+
+    An explicit family member uses the same interface:
+    `family.sector_decompose(powers=[...], numerator=weighted_scalar, regulator=eps)`.
+    Its powers follow the native denominator order; zero powers omit a line and
+    negative powers put that denominator in the numerator. A family carries no
+    diagram weight or projector implicitly.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    def decompose_input(prepared, max_order, observer):
+        # Native diagram, kinematics and Symbolica values are passed directly.
+        diagram = prepared.diagram
+        arguments = dict(prepared.integral_arguments())
+        for name in ("diagram", "kinematics", "regulator", "dimension"):
+            arguments.pop(name)
+        generation_options = getattr(prepared, "generation_arguments", lambda: {})()
+        return diagram.sector_decompose(
+            kinematics=prepared.kinematics,
+            regulator=prepared.regulator,
+            dimension=prepared.dimension,
+            max_order=max_order, observer=observer,
+            **arguments, **generation_options,
+        )
+
+    def compile_sectors(generated, observer):
+        # Compilation completes before Integrate can create a session.
+        return generated.compile(observer=observer)
+
+    mo.show_code()
+    return compile_sectors, decompose_input
+
+
+@app.cell
+def _(mo, sd):
+    def create_session(kernels, configuration):
+        if configuration.get("method", "qmc") == "havana_discrete_mc":
+            settings = sd.HavanaDiscreteSettings(
+                points_per_batch=configuration["pilot_points"],
+                batches=configuration["pilot_batches"],
+                seed=configuration["seed"], bins=configuration["bins"],
+                minimum_probability_density=configuration["minimum_probability_density"],
+                maximum_sector_probability_ratio=configuration["maximum_sector_probability_ratio"],
+            )
+            # The pilot is trained explicitly, then frozen into production.
+            return kernels.mc_session(settings, pilot=True)
+        settings = sd.QmcSettings(
+            points=configuration["points"], shifts=configuration["shifts"],
+            seed=configuration["seed"], package_points=configuration["package_points"],
+            rule=configuration["rule"], periodization=configuration.get("periodization", "korobov3"),
+        )
+        return kernels.session(settings)
+
+    def advance_session(session, method):
+        # The notebook owns the loop; each active refresh accepts at most one unit.
+        if method == "havana_discrete_mc":
+            return session.step(max_batches=1)
+        return session.step(max_packages=1)
+
+    mo.show_code()
+    return advance_session, create_session
+
+
+@app.cell(hide_code=True)
 def _(mo, workflow):
     run_state = workflow.RunState(message="Choose the input, then Generate. No scientific work starts automatically.")
     get_sampling_active, set_sampling_active = mo.state(False)
@@ -256,7 +341,7 @@ def _(adapt_button, browser_runtime, cancel_button, freeze_button, generate_butt
 
 
 @app.cell(hide_code=True)
-def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_button, fs, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state, set_sampling_active):
+def _(adapt_button, advance_session, allocation_controls, builders, cancel_button, compile_sectors, create_session, decompose_input, draft, freeze_button, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state, sd, set_sampling_active):
     _was_active = run_state.active
     _actions = {"generate": generate_button.value, "integrate": integrate_button.value,
                 "cancel": cancel_button.value, "resume": resume_button.value,
@@ -270,19 +355,19 @@ def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_
         _validation = None if draft["example"] == "gghh" else presentation.validate_configuration(draft)
         if _validation:
             run_state.message = _validation
-        elif fs is None:
+        elif sd is None:
             run_state.message = "Install a wheel with the experimental FastSecDec API."
         else:
             _configuration = dict(draft)
             _prepare = (lambda observer: gghh_builder.prepare(observer=observer)) if draft["example"] == "gghh" else (lambda observer: builders.prepare(_configuration))
-            run_state.generate(fs, _prepare, _configuration,
+            run_state.generate(decompose_input, _prepare, _configuration, compile=compile_sectors,
                 display=lambda event: mo.output.replace(generation.generation_view(mo, run_state)),
                 input_display=lambda event: mo.output.replace(mo.vstack([
                     mo.md("**HEPKit diagram generation**"), presentation.table(mo, [{"native stage": event.stage, "completed": event.completed, "total": event.total}]),
                 ])))
             if run_state.prepared is not None:
                 try:
-                    run_state.drawing = mo.Html(f'<div style="max-width:480px;margin:auto">{run_state.prepared.diagram.render()}</div>')
+                    run_state.drawing = mo.as_html(run_state.prepared.diagram.render())
                 except Exception as _drawing_error:
                     run_state.drawing = mo.callout(f"Native graph rendering is unavailable: {_drawing_error}", kind="warn")
     elif "new" in _changed:
@@ -293,7 +378,7 @@ def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_
         _settings = None
         if run_state.configuration is not None and draft["example"] == run_state.configuration["example"]:
             _settings = {"method": draft["method"], **allocation_controls.value}
-        run_state.integrate(fs, _settings)
+        run_state.integrate(create_session, _settings)
     elif "resume" in _changed:
         run_state.resume()
     elif "adapt" in _changed:
@@ -301,7 +386,7 @@ def _(adapt_button, allocation_controls, builders, cancel_button, draft, freeze_
     elif "freeze" in _changed:
         run_state.pilot_action(freeze=True)
     elif "tick" in _changed:
-        run_state.advance()
+        run_state.advance(advance_session)
     if run_state.active != _was_active:
         set_sampling_active(run_state.active)
     _content = [mo.callout(run_state.message, kind="danger" if run_state.error else "info")]

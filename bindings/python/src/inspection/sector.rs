@@ -8,7 +8,7 @@ use super::{Owner, coefficient::PyCompactCoefficient, geometry::PySectorMap};
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     frozen,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "GeneratedSector"
 )]
 pub(crate) struct PyGeneratedSector {

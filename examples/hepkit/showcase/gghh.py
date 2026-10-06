@@ -114,7 +114,7 @@ def prepare(*, observer=None, assets=ASSETS):
     ``observer`` receives HEPKit's original typed GenerationProgress objects.
     All expensive preparation is explicit; importing this module does no work.
     """
-    fs = hep.fastsecdec
+    fs = hep.sector_decomposition
     if not hasattr(fs, "with_diagram_expressions"):
         raise RuntimeError("Rebuild the experimental bridge with the ggHH expression-copy API")
     origin = _assets(assets)

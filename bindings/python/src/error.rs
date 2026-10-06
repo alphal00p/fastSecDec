@@ -26,14 +26,14 @@ fn with_stage(py: Python<'_>, stage: &'static str, error: PyErr) -> PyErr {
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module
-        .py()
-        .get_type::<FastSecDecError>()
-        .setattr("__module__", "symbolica.community.hepkit.fastsecdec")?;
-    module
-        .py()
-        .get_type::<CancelledError>()
-        .setattr("__module__", "symbolica.community.hepkit.fastsecdec")?;
+    module.py().get_type::<FastSecDecError>().setattr(
+        "__module__",
+        "symbolica.community.hepkit.sector_decomposition",
+    )?;
+    module.py().get_type::<CancelledError>().setattr(
+        "__module__",
+        "symbolica.community.hepkit.sector_decomposition",
+    )?;
     module.add("FastSecDecError", module.py().get_type::<FastSecDecError>())?;
     module.add("CancelledError", module.py().get_type::<CancelledError>())?;
     Ok(())

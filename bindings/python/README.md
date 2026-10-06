@@ -2,19 +2,60 @@
 
 This optional Rust crate owns FastSecDec's PyO3 implementation. The
 `symbolica-community` extension links it and registers the public
-`symbolica.community.hepkit.fastsecdec` module. It is not an independent wheel.
+`symbolica.community.hepkit.sector_decomposition` module. It is not an independent wheel.
 The numerical workspace and default CLI do not depend on Python or PyO3.
 
-The native API accepts the existing HEPKit `FeynmanDiagram` and `Kinematics`
-objects and Symbolica expressions. Generation and compilation emit native
+The native API accepts the existing HEPKit `FeynmanDiagram`, `IntegralFamily`
+and `Kinematics` objects and Symbolica expressions. Generation and compilation emit native
 snapshots through caller-supplied observers. Integration uses caller-requested
 QMC packages or native Havana global batches, with native replay, covariance and
 checkpoint validation. The
 binding introduces no graph, algebra or numerical integration implementation.
 
+For an existing native diagram, kinematics and regulator symbol:
+
+```python
+from symbolica.community.hepkit.sector_decomposition import QmcSettings
+
+generated = diagram.sector_decompose(
+    kinematics=kinematics, regulator=eps, max_order=0,
+    observer=on_generation,
+)
+kernels = generated.compile(observer=on_generation)
+session = kernels.session(QmcSettings(points=4096, shifts=16))
+# Advance only when requested by the caller; each call is bounded.
+snapshot = session.step(max_packages=1, observer=on_integration)
+```
+
+The free function `sector_decompose(diagram, ...)` is the same entry point.
+`IntegralFamily.sector_decompose(...)` uses the family's native kinematics unless
+explicitly overridden. Overrides may add auxiliary-vector assumptions; existing
+external products must agree after scalar binding because family construction
+may already have substituted them into its denominators. Use `scalar_values`
+to specialize stored symbolic invariants consistently, or construct a new native
+family for a different fixed point. It requires `powers=[...]` and a scalar `numerator=...`:
+one signed power per native denominator, including auxiliary entries. Zero powers
+drop a denominator; negative powers multiply that denominator into the numerator.
+The family numerator must already include the intended projector and diagram
+weights. Both inputs use the normalized Minkowski loop measure
+`prod_l d^D k_l / (i*pi^(D/2))`, with an optional extra `measure_multiplier`.
+The default integration dimension is `4-2*eps`; the native symbolic tensor
+dimension is specialized consistently during parametrization.
+
+The diagram route retains its native numerator, projector and weights and accepts
+positive power overrides by native edge ID. It does not accept a second numerator.
+Use the existing diagram-expression replacement helper when preparing a different
+diagram numerator. Generation returns inspectable sectors and metadata without
+compiling kernels or creating an integration session.
+
+`hepkit.fastsecdec` remains a compatibility reexport with identical class and
+exception objects, and `Integral(diagram, kinematics, ...).generate()` remains
+available. HEPKit's object methods are optional-backend forwarding hooks; all
+FastSecDec generation, bindings and numerical work remain in this repository.
+
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
 to build and install the host wheel. The host's `experimental-fastsecdec` feature
-selects this crate by one exact FastSecDec Git revision. The current public pin,
+selects this crate by one exact FastSecDec Git revision. The historical metadata/MC pin,
 `a3d09e177196013326fd1532eb938f559be87401`, passes dependency bootstrap and locked
 native/portable ownership checks. Its actual portable wheel, built with the
 community host at `c9bacce12dd4fffd171aecfbc4f76a2a273d39e7`, passes the generic
@@ -32,7 +73,7 @@ responsiveness limitation during long synchronous generation. The complete
 attempt exited cleanly after 596.00 seconds; no retry or browser convergence
 claim follows.
 
-The optimized native wheel passes 81 controls and an actual triangle notebook
+That optimized native wheel passed 81 controls and an actual triangle notebook
 lifecycle covering metadata, QMC, and Havana pilot/production pause and resume.
 Its later source qualifications (one test fixture, an equivalent Option guard,
 and presentation CSS) are recorded in the delivery reviews; the portable wheel
@@ -87,7 +128,10 @@ its cost is separate from these small controls. The corresponding community
 workflow invokes its tests from the exact pinned binding checkout.
 
 The public module/class names and native serialized representations remain
-stable across this ownership move. Compatibility still follows native content,
+available through the legacy import path. The canonical namespace change has
+its own [entry-point review](../../docs/reviews/hepkit-sector-entrypoints.md);
+the historical wheel results above do not validate the new owner methods.
+Compatibility still follows native content,
 precision and checkpoint identity validation; moving the wrappers does not
 override those checks.
 

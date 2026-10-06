@@ -23,6 +23,7 @@ pyodide.FS.writeFile(`/${wheels[0]}`, bytes);
 pyodide.globals.set("bridge_wheel_uri", `emfs:/${wheels[0]}`);
 const tests = [
   "bindings/python/tests/test_fastsecdec.py",
+  "bindings/python/tests/test_sector_decomposition.py",
   "bindings/python/tests/test_inspection.py",
   "bindings/python/tests/test_mc.py",
   "examples/hepkit/tests/test_inputs.py",

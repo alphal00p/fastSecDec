@@ -19,7 +19,7 @@ use super::{
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "QmcSettings",
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     from_py_object,
     frozen
 )]
@@ -139,7 +139,7 @@ struct Checkpoint {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "QmcSession",
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     unsendable
 )]
 pub(crate) struct PyQmcSession {

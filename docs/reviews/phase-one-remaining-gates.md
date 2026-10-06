@@ -2,8 +2,24 @@
 
 Current ledger, 2026-10-06. [FIRST_PHASE_PLAN.md](../../FIRST_PHASE_PLAN.md)
 remains authoritative. This reconciliation adds no requirement or execution
-campaign. No first-phase subsystem is currently identified as missing; the
-remaining acceptance work concerns the three performance cases below.
+campaign. The previously identified scientific subsystems are implemented.
+The subsequently requested native HEPKit entry points and visible notebook
+workflow are under validation; the three performance cases below remain open.
+
+## Current HEPKit API extension
+
+The user approved the canonical `hepkit.sector_decomposition` namespace and
+`sector_decompose()` methods on the existing native `FeynmanDiagram` and
+`IntegralFamily` classes. Implementation includes signed family powers, shared
+native input specialization, compatibility exports and visible notebook calls
+behind the existing explicit actions. Independent source review, 29 native
+input/parametrization tests and all 95 installed Python/frontend controls pass.
+The actual native triangle UI validates visible scientific calls, generation,
+sector inspection, and same-kernel QMC/Havana cancel/resume. Generated type-stub
+validation also passes. Fresh portable validation is pending; the older delivery
+records below do not certify this extension.
+See the [entry-point review](hepkit-sector-entrypoints.md). Performance work
+remains parked until this requested API/notebook milestone is validated.
 
 ## Accepted implementation and delivery
 

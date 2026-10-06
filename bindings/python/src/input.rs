@@ -11,7 +11,9 @@ use super::error;
 /// Native numerator validation and all graph/model ownership are preserved.
 #[cfg_attr(
     feature = "python_stubgen",
-    pyo3_stub_gen::derive::gen_stub_pyfunction(module = "symbolica.community.hepkit.fastsecdec")
+    pyo3_stub_gen::derive::gen_stub_pyfunction(
+        module = "symbolica.community.hepkit.sector_decomposition"
+    )
 )]
 #[pyfunction]
 #[pyo3(signature = (diagram, *, numerator=None, projector=None, overall_factor=None))]
@@ -41,7 +43,7 @@ pub(crate) fn with_diagram_expressions(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "Integral",
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     frozen
 )]
 pub(crate) struct PyIntegral {
@@ -50,7 +52,7 @@ pub(crate) struct PyIntegral {
     pub(crate) dimension: Atom,
 }
 
-fn symbol(py: Python<'_>, value: &PythonExpression, name: &str) -> PyResult<Symbol> {
+pub(crate) fn symbol(py: Python<'_>, value: &PythonExpression, name: &str) -> PyResult<Symbol> {
     match value.expr.as_view() {
         AtomView::Var(value) => Ok(value.get_symbol()),
         _ => Err(error::native(
@@ -61,6 +63,23 @@ fn symbol(py: Python<'_>, value: &PythonExpression, name: &str) -> PyResult<Symb
     }
 }
 
+/// Transport Python expressions only; native input owners validate and apply
+/// the complete scalar point consistently to their physics data.
+pub(crate) fn scalar_bindings(
+    py: Python<'_>,
+    values: Option<&Bound<'_, PyDict>>,
+) -> PyResult<BTreeMap<Symbol, Atom>> {
+    let mut bindings = BTreeMap::new();
+    if let Some(values) = values {
+        for (key, value) in values.iter() {
+            let key = key.extract::<PyRef<'_, PythonExpression>>()?;
+            let value = value.extract::<PyRef<'_, PythonExpression>>()?;
+            bindings.insert(symbol(py, &key, "scalar binding key")?, value.expr.clone());
+        }
+    }
+    Ok(bindings)
+}
+
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyIntegral {
@@ -68,7 +87,7 @@ impl PyIntegral {
     #[new]
     #[pyo3(signature = (diagram, kinematics, *, regulator, dimension=None, powers=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None))]
     #[allow(clippy::too_many_arguments)]
-    fn new(
+    pub(crate) fn new(
         py: Python<'_>,
         diagram: &PyFeynmanDiagram,
         kinematics: &PyKinematics,
@@ -86,14 +105,7 @@ impl PyIntegral {
             kinematics.as_kinematics(),
         )
         .map_err(|e| error::native(py, "input", e))?;
-        let mut bindings = BTreeMap::new();
-        if let Some(values) = scalar_values {
-            for (key, value) in values.iter() {
-                let key = key.extract::<PyRef<'_, PythonExpression>>()?;
-                let value = value.extract::<PyRef<'_, PythonExpression>>()?;
-                bindings.insert(symbol(py, &key, "scalar binding key")?, value.expr.clone());
-            }
-        }
+        let bindings = scalar_bindings(py, scalar_values)?;
         let powers = powers
             .unwrap_or_default()
             .into_iter()

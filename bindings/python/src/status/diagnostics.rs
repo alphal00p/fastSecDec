@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "EvaluationDiagnostics"
 )]
 #[derive(Clone)]

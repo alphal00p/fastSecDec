@@ -14,7 +14,7 @@ use pyo3::prelude::*;
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "IntegrationSnapshot"
 )]
 #[derive(Clone)]
@@ -154,7 +154,7 @@ impl PyIntegrationSnapshot {
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "SectorSnapshot"
 )]
 #[derive(Clone)]
@@ -218,7 +218,7 @@ impl PySectorSnapshot {
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "VectorEstimate"
 )]
 #[derive(Clone)]

@@ -1,6 +1,4 @@
 """Exercise the notebook's actual public-state cells without numerical work."""
-import ast
-from pathlib import Path
 from types import SimpleNamespace as NS
 
 from test_state import CONFIG, backend
@@ -8,21 +6,7 @@ from test_mc_state import MC, state_backend
 from showcase.state import RunState
 
 
-SOURCE = Path(__file__).resolve().parents[1] / "fastsecdec_showcase.py"
-
-
-def cell_defining(name):
-    tree = ast.parse(SOURCE.read_text())
-    cells = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-             and any(isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store)
-                     and child.id == name for child in ast.walk(node))]
-    assert len(cells) == 1
-    cell = cells[0]
-    cell.decorator_list = []
-    cell.name = "cell"
-    scope = {}
-    exec(compile(ast.Module(body=[cell], type_ignores=[]), str(SOURCE), "exec"), scope)
-    return scope["cell"], cell
+from notebook_cells import cell_defining, science
 
 
 class Notebook:
@@ -42,7 +26,7 @@ class Notebook:
             return NS(value="", options=kwargs)
         null = lambda *args, **kwargs: None
         self.mo = NS(state=state, ui=NS(button=lambda **kw: NS(value=kw["value"]), refresh=refresh),
-                     callout=null, md=null, vstack=null, Html=null, output=NS(replace=null))
+                     callout=null, md=null, vstack=null, Html=null, as_html=null, output=NS(replace=null))
         creator, tree = cell_defining("run_state")
         values = creator(self.mo, NS(RunState=RunState))
         names = [item.id for item in tree.body[-1].value.elts]
@@ -50,7 +34,7 @@ class Notebook:
         self.clock, _ = cell_defining("refresh")
         self.action, _ = cell_defining("run_revision")
         fs, prepared, self.calls = backend()
-        self.env.update(mo=self.mo, fs=fs, draft={**CONFIG, "method": "qmc"},
+        self.env.update(mo=self.mo, sd=fs, **vars(science(fs)), draft={**CONFIG, "method": "qmc"},
                         allocation_controls=NS(value={}), builders=NS(prepare=lambda _: prepared),
                         gghh_builder=None, presentation=NS(validate_configuration=lambda _: None),
                         generation=NS(generation_view=null),
@@ -121,7 +105,7 @@ def test_cancel_stale_tick_resume_completion_and_error_disarm():
 def test_pilot_completion_adapt_and_freeze_remain_explicit():
     notebook = Notebook()
     run, fs, calls = state_backend()
-    notebook.env.update(run_state=run, fs=fs, draft={"example": "triangle", "method": MC["method"]},
+    notebook.env.update(run_state=run, sd=fs, **vars(science(fs)), draft={"example": "triangle", "method": MC["method"]},
                         allocation_controls=NS(value={key: value for key, value in MC.items() if key != "method"}))
     notebook.dispatch("integrate")
     owner = run.session

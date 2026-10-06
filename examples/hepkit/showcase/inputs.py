@@ -31,7 +31,7 @@ class ShowcaseInput:
     max_order: int
 
     def integral_arguments(self):
-        """Arguments for ``hep.fastsecdec.Integral``; no serialization step."""
+        """Native arguments for diagram sector decomposition; no serialization step."""
         return {
             "diagram": self.diagram,
             "kinematics": self.kinematics,

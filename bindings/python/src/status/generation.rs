@@ -11,7 +11,7 @@ use pyo3::prelude::*;
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "GenerationSnapshot"
 )]
 #[derive(Clone)]
@@ -97,7 +97,7 @@ impl PyGenerationSnapshot {
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "GenerationTimings"
 )]
 #[derive(Clone)]
@@ -170,7 +170,7 @@ impl PyGenerationTimings {
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "CoefficientExpansionSnapshot"
 )]
 #[derive(Clone)]
@@ -252,7 +252,7 @@ fn coefficient_method(method: CoefficientExpansionMethod) -> &'static str {
 #[pyclass(
     frozen,
     from_py_object,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "CoefficientRequestCounts"
 )]
 #[derive(Clone)]

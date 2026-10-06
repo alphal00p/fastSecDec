@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from showcase.state import RunState
+from notebook_cells import science
 from showcase.integration import coverage_summary, sector_rows
 
 
@@ -66,19 +67,19 @@ def state_backend():
 
 def test_pilot_pause_keeps_same_session_and_never_requests_a_checkpoint():
     state, fs, calls = state_backend()
-    state.integrate(fs, MC)
+    state.integrate(science(fs).create_session, MC)
     owner = state.session
     assert state.phase == "pilot" and calls["steps"] == 0
     assert "rule" not in state.configuration and "periodization" not in state.configuration
-    state.advance()
+    state.advance(science(fs).advance_session)
     state.cancel()
     assert state.session is owner and state.checkpoint_bytes is None
     assert state.phase == "paused" and not state.active
-    state.advance()
+    state.advance(science(fs).advance_session)
     assert calls["steps"] == 1
     state.resume()
     assert state.session is owner and state.active
-    state.advance()
+    state.advance(science(fs).advance_session)
     assert state.phase == "pilot_ready" and not state.active
     assert calls["checkpoint"] == calls["restore"] == 0
     assert calls["create"] == 1
@@ -86,34 +87,34 @@ def test_pilot_pause_keeps_same_session_and_never_requests_a_checkpoint():
 
 def test_adapt_and_freeze_are_explicit_and_production_restores_checkpoint():
     state, fs, calls = state_backend()
-    state.integrate(fs, MC)
+    state.integrate(science(fs).create_session, MC)
     state.pilot_action(freeze=True)
     assert calls["freeze"] == 0
-    state.advance(); state.advance()
-    state.advance()
+    state.advance(science(fs).advance_session); state.advance(science(fs).advance_session)
+    state.advance(science(fs).advance_session)
     assert calls["steps"] == 2 and calls["freeze"] == 0
     state.pilot_action()
     assert state.phase == "pilot" and calls["adapt"] == 1
-    state.advance(); state.advance()
+    state.advance(science(fs).advance_session); state.advance(science(fs).advance_session)
     state.history.append({"pilot": "must not survive into production"})
     owner = state.session
     state.pilot_action(freeze=True)
     assert state.session is owner and state.history == []
     assert state.phase == "integrating" and calls["steps"] == 4
-    state.advance()
+    state.advance(science(fs).advance_session)
     state.cancel()
     assert state.checkpoint_bytes == b"1"
     state.resume()
     assert state.session is not owner and state.session.accepted == 1
-    state.advance()
+    state.advance(science(fs).advance_session)
     assert state.phase == "complete" and state.checkpoint_bytes == b"2"
     assert calls["restore"] == 1
 
 
 def test_pilot_keyboard_interrupt_retains_owner_and_accepted_prefix():
     state, fs, calls = state_backend()
-    state.integrate(fs, MC)
-    state.advance()
+    state.integrate(science(fs).create_session, MC)
+    state.advance(science(fs).advance_session)
     owner = state.session
     state.fail(KeyboardInterrupt())
     assert state.error is None and state.phase == "interrupted"

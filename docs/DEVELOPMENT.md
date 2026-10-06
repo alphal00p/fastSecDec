@@ -70,7 +70,7 @@ The pinned source identities are:
 
 | Generated owner | Revision / branch |
 |---|---|
-| `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `6c707c6b77a437256eb1180da13d4d327b371d13`, plus the literal-symbol substitution fix |
+| `feynkit` from `alphal00p/gammaloop` | Published `feynkit` commit `c6710fe017815b7540c444741a7bb359bb1da235`, plus the literal-symbol substitution fix |
 | `symbolica` from `symbolica-dev/symbolica` | `98794d0d7337ba2b08e4c046dde584ad7fc1ce10`, plus the seven reviewed patches below |
 | `numerica` from `ValentinHirschi/numerica` | Commit `f6ecdac8237a30adfcd1be5944a95c5160e474ce` on `codex/havana-qmc`; includes the reviewed QMC fixes, completed-package and shift-coverage access, guarded Korobov2/Korobov3 periodization, attributed published catalogues, and recursive sample-free cloning of nested Havana grids |
 | Published SymJIT Rust crate | `2.26.4`, registry checksum in Cargo.lock; latest non-yanked release verified against the registry index on 2026-10-04 |
@@ -110,6 +110,13 @@ SymJIT checkout's Python/C-ABI manifest as a Rust path dependency.
 FastSecDec and the developing community bridge now select the same published
 FeynKit lineage above, including its shared external-state API. The earlier
 `worktrees/feynkit` checkout and its unrelated renderer edits remain untouched.
+The current revision also supplies native `DiagramRender` objects and thin
+`FeynmanDiagram.sector_decompose()` / `IntegralFamily.sector_decompose()`
+forwarders to the optional FastSecDec-owned backend. The integrated native API
+passes 95 installed controls and 29 core regressions; generated declarations
+preserve the native argument types. See the
+[entry-point review](reviews/hepkit-sector-entrypoints.md) for scope and the
+separately qualified local wheel build.
 Cargo metadata confirms one graph, model, kinematics, tensor, Linnet, Idenso,
 Spenso, Symbolica and Numerica owner in each consuming dependency graph; the
 identity reports are in `output/diagnostics/bridge-*-identities.json`. The

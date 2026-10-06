@@ -4,10 +4,7 @@ use feynkit_graph::{EdgeId, FeynmanDiagram, IntegralFamily};
 use feynkit_kinematics::Kinematics;
 use feynkit_model::Model;
 use idenso::tensor::AlgebraSettings;
-use symbolica::{
-    atom::{Atom, AtomCore, Symbol},
-    id::{Pattern, Replacement},
-};
+use symbolica::atom::{Atom, Symbol};
 
 use crate::{Error, Result, input::contract_numerator};
 
@@ -108,27 +105,6 @@ impl GraphIntegral {
                 "bind the complete parameter point in one call".into(),
             ));
         }
-        let dimension = self.family.kinematics().dimension().to_symbolic();
-        for (key, value) in values {
-            if Atom::var(*key) == dimension
-                || value
-                    .get_all_symbols(true)
-                    .contains(&feynkit_graph::symbols::loop_momentum())
-                || self
-                    .family
-                    .loop_momenta()
-                    .iter()
-                    .any(|p| value.contains(p.as_view()))
-                || values
-                    .keys()
-                    .any(|symbol| value.contains(Atom::var(*symbol).as_view()))
-            {
-                return Err(Error::ScalarBindings(
-                    "bindings must be closed scalar values and cannot replace the tensor dimension"
-                        .into(),
-                ));
-            }
-        }
         super::validation::validate_scalar_bindings(&self.diagram, values)?;
         self.scalar_values = values.clone();
         self.rebuild_family(self.family.external_momenta().to_vec())?;
@@ -137,37 +113,17 @@ impl GraphIntegral {
     }
 
     fn rebuild_family(&mut self, external_momenta: Vec<Atom>) -> Result<()> {
-        let mut kinematics = self.family.kinematics().clone();
-        for (i, p) in external_momenta.iter().enumerate() {
-            for q in &external_momenta[i..] {
-                let product = kinematics
-                    .scalar_product(p, q)
-                    .map_err(feynkit_graph::IntegralFamilyError::from)?;
-                kinematics = kinematics
-                    .with_scalar_product(p, q, self.bind(&product))
-                    .map_err(feynkit_graph::IntegralFamilyError::from)?;
-            }
-        }
-        self.family = IntegralFamily::new(
-            self.family.loop_momenta().to_vec(),
+        self.family = super::family::specialize_family(
+            &self.family,
+            self.family.kinematics(),
             external_momenta,
-            self.family
-                .denominators()
-                .iter()
-                .map(|d| self.bind(d))
-                .collect(),
-            &kinematics,
+            &self.scalar_values,
         )?;
         Ok(())
     }
 
     fn bind(&self, expression: &Atom) -> Atom {
-        expression.replace_multiple(self.scalar_values.iter().map(|(symbol, value)| {
-            Replacement::new(
-                Pattern::Literal(Atom::var(*symbol)),
-                Pattern::Literal(value.clone()),
-            )
-        }))
+        super::family::bind_scalar_values(expression, &self.scalar_values)
     }
 
     pub fn diagram(&self) -> &Arc<FeynmanDiagram> {

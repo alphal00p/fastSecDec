@@ -8,7 +8,7 @@ use super::{Owner, domain_name, expression};
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     frozen,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "DomainAssessment"
 )]
 pub(crate) struct PyDomainAssessment {
@@ -65,7 +65,7 @@ impl PyDomainAssessment {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     frozen,
-    module = "symbolica.community.hepkit.fastsecdec",
+    module = "symbolica.community.hepkit.sector_decomposition",
     name = "FactorAssessment"
 )]
 pub(crate) struct PyFactorAssessment {

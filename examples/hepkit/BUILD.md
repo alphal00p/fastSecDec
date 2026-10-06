@@ -6,7 +6,8 @@ there is no separate FastSecDec wheel. The default numerical library and CLI
 remain Python-free.
 
 Use the community feature branch with a FastSecDec dependency pin that includes
-the endpoint inspection and `HavanaDiscreteSettings` APIs. The dependency helper
+the `sector_decomposition` namespace and native diagram/family methods, in
+addition to endpoint inspection and `HavanaDiscreteSettings`. The dependency helper
 fetches that exact pin. Keep the showcase in **this checkout** at the same
 FastSecDec revision, unless a separate receipt verifies a demo-only difference.
 Record its `git rev-parse HEAD` alongside the wheel hash and compiled revisions.
@@ -28,7 +29,7 @@ bash scripts/prepare_fastsecdec_dependencies.sh "$FASTSECDEC_DEPENDENCIES"
 CARGO_HOME="$FASTSECDEC_DEPENDENCIES/cargo-home" \
   maturin develop --release --locked --features experimental-fastsecdec
 bash "$FASTSECDEC_DEPENDENCIES/fastsecdec/bindings/python/scripts/test-native.sh" "$PWD"
-python -c 'from symbolica.community.hepkit.fastsecdec import HavanaDiscreteSettings, PreSubtractionMetadata'
+python -c 'from symbolica.community.hepkit.sector_decomposition import sector_decompose, HavanaDiscreteSettings, PreSubtractionMetadata'
 python -m marimo run "$SHOWCASE_CHECKOUT/examples/hepkit/fastsecdec_showcase.py"
 ```
 
@@ -89,11 +90,11 @@ tests alongside the binding tests and preserve both source identities in reports
 Provide the Symbolica license through the private environment, never source or
 browser assets.
 
-The current optimized native wheel passes 81 controls and an actual triangle
+Historical metadata/MC validation: the optimized native wheel passed 81 controls and an actual triangle
 notebook lifecycle covering endpoint/evaluator inspection, QMC checkpoint
 resume, same-kernel method changes, and Havana pilot/production pause and resume.
 Its generated stubs are packaged without changing the tested extension bytes.
-The current public FastSecDec pin is `a3d09e177196013326fd1532eb938f559be87401`;
+That validation used FastSecDec `a3d09e177196013326fd1532eb938f559be87401`;
 community `c9bacce` builds the accepted optimized Wasm wheel. Generic smoke and
 all 58 actually collected portable controls pass. The workflow-only `b827`
 follow-up also passes [hosted native CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37406327401)
@@ -101,6 +102,10 @@ with 81 controls. The actual triangle browser lifecycle passes its scientific
 checks; a final supplemental screenshot failure remains explicitly qualified.
 See the [current portable review](../../docs/reviews/hepkit-metadata-mc-portable.md)
 for exact wheel/runtime identities and the separate bounded gg→HH outcome.
+These historical wheels do not provide the newer canonical namespace or native
+`sector_decompose()` methods. See the
+[entry-point review](../../docs/reviews/hepkit-sector-entrypoints.md) for their
+separate validation and source identities.
 
 For the earlier `539019a` binding revision,
 [Dedicated hosted CI](https://github.com/symbolica-dev/symbolica-community/actions/runs/37391742450)

@@ -64,8 +64,8 @@ class RunState:
             display(event)
         return True
 
-    def generate(self, fs, prepare, configuration, display=None, input_display=None):
-        """Explicitly prepare, generate and compile; never create a session."""
+    def generate(self, decompose, prepare, configuration, *, compile, display=None, input_display=None):
+        """Own the UI lifecycle; invoke the notebook's explicit native callbacks."""
         if self.active:
             self.message = "Cancel integration before generating another input."
             return
@@ -95,19 +95,17 @@ class RunState:
             self.preparation_seconds = perf_counter() - started
             self.phase = "generating"
             self.message = "Generating native sectors…"
-            integral = fs.Integral(**self.prepared.integral_arguments())
             observer = lambda event: self.observe_generation(event, display)
-            arguments = getattr(self.prepared, "generation_arguments", lambda: {})()
-            self.generated = integral.generate(configuration["max_order"], observer=observer, **arguments)
+            self.generated = decompose(self.prepared, configuration["max_order"], observer)
             self.phase = "compiling"
-            self.kernels = self.generated.compile(observer=observer)
+            self.kernels = compile(self.generated, observer)
             self.phase = "ready"
             self.message = "Generation and compilation complete. No points sampled. Inspect the sectors, then select Integrate."
         except (Exception, KeyboardInterrupt) as error:
             self.preparation_seconds = self.preparation_seconds or perf_counter() - started
             self.fail(error)
 
-    def integrate(self, fs, settings=None):
+    def integrate(self, create_session, settings=None):
         """Start a fresh native session only from already prepared kernels."""
         if self.kernels is None:
             self.message = "Generate and compile the input before integration."
@@ -132,19 +130,7 @@ class RunState:
                               "minimum_probability_density", "maximum_sector_probability_ratio"})
             for key in inactive_keys:
                 configuration.pop(key, None)
-            if configuration.get("method", "qmc") == "havana_discrete_mc":
-                native_settings = fs.HavanaDiscreteSettings(
-                    points_per_batch=configuration["pilot_points"], batches=configuration["pilot_batches"],
-                    **{key: configuration[key] for key in ("seed", "bins", "minimum_probability_density", "maximum_sector_probability_ratio")},
-                )
-                self.session = self.kernels.mc_session(native_settings, pilot=True)
-            else:
-                native_settings = fs.QmcSettings(
-                    points=configuration["points"], shifts=configuration["shifts"],
-                    seed=configuration["seed"], package_points=configuration["package_points"],
-                    rule=configuration["rule"], periodization=configuration.get("periodization", "korobov3"),
-                )
-                self.session = self.kernels.session(native_settings)
+            self.session = create_session(self.kernels, configuration)
             self.configuration = configuration
             self.snapshot = self.session.snapshot()
             self.active = not self.session.complete
@@ -281,12 +267,12 @@ class RunState:
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
 
-    def advance(self):
+    def advance(self, step):
         """Only an explicit Integrate or Resume action can arm these steps."""
         if not self.active:
             return
         try:
-            self.snapshot = self.session.step(**({"max_batches": 1} if self.is_mc else {"max_packages": 1}))
+            self.snapshot = step(self.session, self.configuration.get("method", "qmc"))
             if self.snapshot.estimate is not None:
                 for row in highest_order_rows(self.snapshot.estimate):
                     self.history.append({"accepted points": self.snapshot.completed_points, **row})
