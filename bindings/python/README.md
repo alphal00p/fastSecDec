@@ -48,9 +48,9 @@ Use the existing diagram-expression replacement helper when preparing a differen
 diagram numerator. Generation returns inspectable sectors and metadata without
 compiling kernels or creating an integration session.
 
-`hepkit.fastsecdec` remains a compatibility reexport with identical class and
-exception objects, and `Integral(diagram, kinematics, ...).generate()` remains
-available. HEPKit's object methods are optional-backend forwarding hooks; all
+`Integral(diagram, kinematics, ...).generate()` remains available in the canonical
+`hepkit.sector_decomposition` namespace. HEPKit's object methods are
+optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)

@@ -7,7 +7,7 @@ from symbolica import E, S
 from symbolica.community import hepkit as hep
 
 pytestmark = pytest.mark.skipif(
-    not hasattr(hep, "fastsecdec"), reason="requires a community wheel with FastSecDec"
+    not hasattr(hep, "sector_decomposition"), reason="requires a community wheel with FastSecDec"
 )
 
 

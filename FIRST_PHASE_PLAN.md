@@ -268,9 +268,9 @@ Then continue the goal (without overemphasizing performance gains yet) until all
 
 Use `symbolica.community.hepkit.sector_decomposition` as the canonical Python
 namespace. Add `sector_decompose()` to HEPKit's existing `FeynmanDiagram` and
-`IntegralFamily` classes, forwarding to the same public function. Keep the
-existing `hepkit.fastsecdec` namespace as a compatibility reexport of the same
-objects. These methods return the existing inspectable `GeneratedIntegral`;
+`IntegralFamily` classes, forwarding to the same public function. The user's
+later compatibility-removal instruction drops the unused `hepkit.fastsecdec`
+namespace. These methods return the existing inspectable `GeneratedIntegral`;
 compilation and integration remain separate explicit operations.
 
 Reuse the native diagram, family, kinematics and Symbolica expression owners.
@@ -1513,3 +1513,18 @@ selection must use this same public-source implementation.
   feature promotion follows the published main revision. Historical actual
   native/Wasm wheels retain their original source identities; no new wheel,
   convergence or performance result is claimed. Phase A remains incomplete.
+
+Further namespace and publication instructions, verbatim:
+
+> Remove the compatiblity [`fastsecdec/__init__.py`](https://github.com/symbolica-dev/symbolica-community/pull/18/changes#diff-346603d84f04b9841cd398b49116481ed655aaf26f90947652247ead1ee16b5c). It is not in use. Then push it to main directly using the token.
+
+Remove the unused Python compatibility package, its generated stub and stub
+generation output, reexports and compatibility-only import controls. Use
+`symbolica.community.hepkit.sector_decomposition` throughout maintained callers
+and tests; retain the supported `Integral(...).generate()` entry point within
+that canonical namespace. Preserve historical audit records. Validate the
+namespace cleanup and integrate current upstream community main without
+discarding its newer modules or dependency owners, then publish the reviewed
+HEPKit changes directly to community main using the authorized account. This
+supersedes the earlier requirement to retain the compatibility namespace and
+the earlier PR-only publication restriction for these changes.

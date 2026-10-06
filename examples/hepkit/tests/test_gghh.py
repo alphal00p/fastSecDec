@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from showcase import gghh
 
 pytestmark = pytest.mark.skipif(
-    sys.platform == "emscripten" or getattr(hep, "fastsecdec", None) is None,
+    sys.platform == "emscripten" or getattr(hep, "sector_decomposition", None) is None,
     reason="requires native community FastSecDec bindings and ggHH inputs",
 )
 

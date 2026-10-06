@@ -21,14 +21,10 @@ def arguments(value):
     return result
 
 
-def test_canonical_and_compatibility_names_preserve_exact_native_identity():
-    from symbolica.community.hepkit import fastsecdec
-
+def test_public_types_use_canonical_module():
     for name in ("Integral", "GeneratedIntegral", "Kernels", "QmcSettings",
                  "QmcSession", "FastSecDecError", "CancelledError"):
-        assert getattr(sd, name) is getattr(fastsecdec, name)
         assert getattr(sd, name).__module__ == "symbolica.community.hepkit.sector_decomposition"
-    assert sd.sector_decompose is fastsecdec.sector_decompose
 
 
 def test_weighted_diagram_family_and_compatibility_generation_agree():
