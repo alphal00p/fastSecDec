@@ -37,16 +37,86 @@ fn unsupported_conditioning_preserves_ordinary_values_and_rejects_unsupported_re
     let Backend::Real(backend) = &kernel.backend else {
         panic!()
     };
-    assert!(backend.conditioning.is_none());
+    assert!(!backend.conditioning.attempted());
     let mut output = [0.0];
     let report = kernel.evaluate_scaled(&[0.25], &mut output, 1.0).unwrap();
     assert_eq!(output, [1.25]);
     assert!(!report.checked);
+    kernel.stability = crate::kernel::StabilitySettings::validated();
     // Missing conditioning cannot turn a flagged boundary into unchecked output.
     assert!(matches!(
         kernel.evaluate(&[1e-4], &mut output),
         Err(KernelError::PrecisionEvaluation(reason)) if reason.contains("implementation")
     ));
+    let Backend::Real(backend) = &kernel.backend else {
+        panic!()
+    };
+    assert!(backend.conditioning.attempted());
+    assert!(backend.conditioning.clone().attempted());
+    // Unsupported conditioning is remembered; it still falls through to the
+    // same explicit unsupported precision-rescue error on subsequent points.
+    assert!(matches!(
+        kernel.evaluate(&[1e-4], &mut output),
+        Err(KernelError::PrecisionEvaluation(reason)) if reason.contains("implementation")
+    ));
+}
+
+#[test]
+fn conditioning_is_lazy_and_keeps_worker_owned_native_values() {
+    let x = symbol!("lazy_conditioning::x");
+    let exact = parse!("1+lazy_conditioning::x")
+        .evaluator(&[Atom::var(x)])
+        .build()
+        .unwrap();
+    let mut kernel = SectorKernel::from_program(
+        SectorProgram {
+            parameters: vec![x],
+            runtime_parameters: vec![],
+            exact,
+            cancellation: Cancellation::new(1, Some(vec![vec![1]]), 1).unwrap(),
+            exact_zero: vec![false],
+            real_coefficients: vec![true],
+        },
+        &PrecisionPolicy::default(),
+        false,
+    )
+    .unwrap();
+    let mut before = kernel.try_clone().unwrap();
+    let mut output = [0.0];
+    kernel.evaluate(&[1e-4], &mut output).unwrap();
+    let Backend::Real(backend) = &kernel.backend else {
+        panic!()
+    };
+    assert!(!backend.conditioning.attempted());
+    assert_eq!(backend.conditioning_timing.calls, 0);
+    kernel.stability = crate::kernel::StabilitySettings::validated();
+    for point in [1e-4, 2e-4] {
+        let report = kernel.evaluate_scaled(&[point], &mut output, 1.0).unwrap();
+        assert!(report.checked && !report.rescued);
+        assert_eq!(output, [1.0 + point]);
+    }
+    let Backend::Real(backend) = &kernel.backend else {
+        panic!()
+    };
+    assert!(backend.conditioning.attempted());
+    assert_eq!(backend.conditioning_timing.calls, 2);
+    let mut after = kernel.try_clone().unwrap();
+    let Backend::Real(backend) = &after.backend else {
+        panic!()
+    };
+    assert!(backend.conditioning.attempted());
+    assert_eq!(backend.conditioning_timing.calls, 0);
+    before.stability = crate::kernel::StabilitySettings::validated();
+    std::thread::spawn(move || {
+        for worker in [&mut before, &mut after] {
+            let mut output = [0.0];
+            let report = worker.evaluate_scaled(&[1e-4], &mut output, 1.0).unwrap();
+            assert!(report.checked && !report.rescued);
+            assert_eq!(output, [1.0001]);
+        }
+    })
+    .join()
+    .unwrap();
 }
 
 #[test]

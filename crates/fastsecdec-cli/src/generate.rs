@@ -355,7 +355,7 @@ pub fn generate_with_workers(
     dashboard.generation_coordinator();
     status.completed = 0;
     status.total = None;
-    dashboard.generation_saving();
+    dashboard.generation_saving(started.elapsed().as_secs_f64());
     status.detail = "Preparing portable artifact; all kernels compiled".into();
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;

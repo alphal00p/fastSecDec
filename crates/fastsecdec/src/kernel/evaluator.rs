@@ -2,7 +2,9 @@
 use super::{EvaluatorBackend, EvaluatorTiming, KernelError, program::ExactProgram};
 use symbolica::domains::float::Complex;
 mod batch;
+mod conditioning;
 mod mapping;
+pub(super) use conditioning::Conditioning;
 pub(super) use mapping::MappingRequirements;
 
 macro_rules! evaluator {

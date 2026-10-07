@@ -4,6 +4,7 @@ mod generation_view;
 pub(crate) use diagnostic_summary::diagnostic_summary;
 mod integration_activity;
 mod integration_view;
+mod loading_view;
 mod memory;
 pub(crate) mod number;
 mod terminal;
@@ -15,7 +16,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
@@ -40,6 +41,7 @@ pub struct Dashboard {
     scope: fastsecdec::results::ResultScope,
     integration_cadence: crate::status_policy::StatusCadence,
     generation_cadence: crate::status_policy::StatusCadence,
+    loading_cadence: crate::status_policy::StatusCadence,
     generation_boundary: Option<crate::status_policy::GenerationBoundary>,
     color: ColorPolicy,
     generation_workers: Option<crate::generate::dispatch::Progress>,
@@ -49,6 +51,8 @@ pub struct Dashboard {
     cached_integration: Option<integration_view::Cached>,
     previous_completed: Option<integration_view::CompletedAllocation>,
     cached_generation: Option<GenerationSnapshot>,
+    cached_loading: Option<loading_view::Cached>,
+    generation_observed_at: Option<Instant>,
     integration_view: integration_view::View,
     live: Option<fastsecdec::integration::LiveObservation>,
     operational: fastsecdec::integration::OperationalMetrics,
@@ -81,6 +85,7 @@ impl Dashboard {
             scope: Default::default(),
             integration_cadence: crate::status_policy::StatusCadence::new(interval),
             generation_cadence: crate::status_policy::StatusCadence::new(interval),
+            loading_cadence: crate::status_policy::StatusCadence::new(interval),
             generation_boundary: None,
             color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
             generation_workers: None,
@@ -90,6 +95,8 @@ impl Dashboard {
             cached_integration: None,
             previous_completed: None,
             cached_generation: None,
+            cached_loading: None,
+            generation_observed_at: None,
             integration_view: Default::default(),
             live: None,
             operational: Default::default(),
@@ -115,17 +122,19 @@ impl Dashboard {
         self.generation_boundary = None;
     }
 
-    pub(crate) fn generation_saving(&mut self) {
-        self.generation_plan.saving();
+    pub(crate) fn generation_saving(&mut self, elapsed_seconds: f64) {
+        self.generation_plan.saving(elapsed_seconds);
         self.generation_boundary = None;
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
-        self.generation_plan.observe(snapshot.stage);
+        self.generation_plan
+            .observe(snapshot.stage, snapshot.elapsed_seconds);
         if let Some(formulas) = &snapshot.formula_preparation {
             self.generation_plan.formula_count(formulas.total);
         }
         self.cached_generation = Some(snapshot.clone());
+        self.generation_observed_at = Some(Instant::now());
         let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
         let force = self.generation_boundary != Some(boundary)
             || snapshot.stage == fastsecdec::status::GenerationStage::Complete;
@@ -212,6 +221,61 @@ impl Dashboard {
         self.previous_completed = None;
         self.cached_integration = None;
         self.cached_generation = None;
+        self.cached_loading = None;
+    }
+
+    pub(crate) fn begin_loading(&mut self) {
+        self.memory.begin_integration();
+        self.cached_integration = None;
+        self.cached_generation = None;
+        self.cached_loading = None;
+        self.loading_cadence =
+            crate::status_policy::StatusCadence::new(self.integration_cadence.interval());
+    }
+
+    pub(crate) fn loading(&mut self, snapshot: &crate::loading::Snapshot) -> CliResult<()> {
+        let cancelled = self.interrupt.flag.load(Ordering::Relaxed);
+        let force = self.cached_loading.as_ref().is_none_or(|cached| {
+            cached.snapshot.phase != snapshot.phase || cached.cancelled != cancelled
+        });
+        if !self
+            .loading_cadence
+            .due(Duration::from_secs_f64(snapshot.elapsed_seconds), force)
+        {
+            return Ok(());
+        }
+        if !self.interrupt.terminal_active() {
+            self.terminal = None;
+        }
+        let cached = loading_view::Cached {
+            snapshot: snapshot.clone(),
+            memory: self.memory.sample(),
+            observed_at: Instant::now(),
+            cancelled,
+        };
+        if self.json_status {
+            #[derive(serde::Serialize)]
+            struct LoadingStatus<'a> {
+                kind: &'static str,
+                #[serde(flatten)]
+                snapshot: &'a crate::loading::Snapshot,
+                memory: memory::Snapshot,
+                cancellation_requested: bool,
+            }
+            eprintln!(
+                "{}",
+                serde_json::to_string(&LoadingStatus {
+                    kind: "artifact_loading",
+                    snapshot,
+                    memory: cached.memory,
+                    cancellation_requested: cancelled,
+                })?
+            );
+        } else if self.terminal.is_none() {
+            eprintln!("{}", loading_view::plain(&cached));
+        }
+        self.cached_loading = Some(cached);
+        self.redraw_cached()
     }
 
     pub fn set_stability_mode(&mut self, mode: fastsecdec::kernel::StabilityMode) {
@@ -302,9 +366,27 @@ impl Dashboard {
                     self.interrupt.flag.load(Ordering::Relaxed),
                 )
             })?;
+        } else if let (Some(terminal), Some(cached)) = (&mut self.terminal, &self.cached_loading) {
+            let _output = io::stderr().lock();
+            if !self.interrupt.terminal_active() {
+                return Ok(());
+            }
+            terminal.draw(|frame| {
+                loading_view::render(
+                    frame,
+                    cached,
+                    self.color,
+                    self.interrupt.flag.load(Ordering::Relaxed),
+                )
+            })?;
         } else if self.terminal.is_some()
-            && let Some(snapshot) = self.cached_generation.clone()
+            && let Some(mut snapshot) = self.cached_generation.clone()
         {
+            if snapshot.stage != fastsecdec::status::GenerationStage::Complete
+                && let Some(observed_at) = self.generation_observed_at
+            {
+                snapshot.elapsed_seconds += observed_at.elapsed().as_secs_f64();
+            }
             self.render_generation(&snapshot)?;
         }
         Ok(())

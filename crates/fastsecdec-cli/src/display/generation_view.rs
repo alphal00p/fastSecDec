@@ -50,7 +50,7 @@ pub(super) fn render(
             )),
             chunks[0],
         );
-        steps(frame, chunks[1], plan, color);
+        steps(frame, chunks[1], plan, snapshot.elapsed_seconds, color);
         let (memory_label, capacity) = memory.free_or_available();
         frame.render_widget(
             Paragraph::new(vec![
@@ -86,14 +86,19 @@ pub(super) fn render(
             Constraint::Length(
                 plan.labels()
                     .iter()
-                    .map(|label| Line::from(*label).width() + 5)
+                    .enumerate()
+                    .map(|(index, label)| {
+                        Line::from(*label).width()
+                            + timer(plan, index, snapshot.elapsed_seconds).len()
+                            + 5
+                    })
                     .max()
                     .unwrap_or(33) as u16,
             ),
             Constraint::Min(20),
         ])
         .split(chunks[1]);
-        steps(frame, columns[0], plan, color);
+        steps(frame, columns[0], plan, snapshot.elapsed_seconds, color);
         let details = Layout::vertical([
             Constraint::Length(3),
             Constraint::Length(4),
@@ -166,7 +171,22 @@ pub(super) fn render(
     );
 }
 
-fn steps(frame: &mut Frame<'_>, area: Rect, plan: &Plan, color: ColorPolicy) {
+fn timer(plan: &Plan, index: usize, elapsed: f64) -> String {
+    plan.seconds(index, elapsed)
+        .map(|seconds| {
+            // The shared formatter already selects s/min/h/d. Its tiny-time
+            // scientific form is useful in reports, but steps stay plain.
+            let time = if seconds < 0.01 {
+                format!("{seconds:.2} s")
+            } else {
+                super::number::duration(seconds)
+            };
+            format!(" [{time}]")
+        })
+        .unwrap_or_default()
+}
+
+fn steps(frame: &mut Frame<'_>, area: Rect, plan: &Plan, elapsed: f64, color: ColorPolicy) {
     let rows = plan
         .labels()
         .into_iter()
@@ -182,9 +202,19 @@ fn steps(frame: &mut Frame<'_>, area: Rect, plan: &Plan, color: ColorPolicy) {
             if plan.state(index) == State::Current {
                 style = style.add_modifier(Modifier::BOLD);
             }
+            let time = timer(plan, index, elapsed);
+            let available = usize::from(area.width.saturating_sub(5)).saturating_sub(time.len());
+            // All plan labels are ASCII. Keep the complete duration visible on
+            // narrow terminals and make any shortened label explicit.
+            let label = if label.len() > available {
+                format!("{}…", &label[..available.saturating_sub(1)])
+            } else {
+                label.to_owned()
+            };
             Line::from(vec![
                 Span::styled(format!(" {marker} "), style),
                 Span::styled(label, style),
+                Span::styled(time, style),
             ])
         })
         .collect::<Vec<_>>();

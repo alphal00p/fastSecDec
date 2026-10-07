@@ -116,7 +116,14 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
                 .unwrap(),
         );
         // Each following command is a fresh process loading the ordinary artifact.
-        let cold = success(cli().arg("inspect").arg(&artifact).output().unwrap());
+        let cold = success(
+            cli()
+                .arg("inspect")
+                .arg(&artifact)
+                .arg("--deep")
+                .output()
+                .unwrap(),
+        );
         assert_complex_laurent_layout(&cold);
         assert_eq!(cold["parameters_bound"], false);
         assert!(cold["exact_coefficients"].is_null());

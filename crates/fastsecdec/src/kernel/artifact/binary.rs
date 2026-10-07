@@ -342,7 +342,15 @@ pub(super) fn generated(
     })?
     .1)
 }
-pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
+#[cfg(test)]
+fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
+    load_with_progress(bytes, &mut |_| std::ops::ControlFlow::Continue(()))
+}
+
+pub(super) fn load_with_progress(
+    bytes: &[u8],
+    progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
+) -> Result<KernelSet, KernelError> {
     let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
         (wire, MAGIC, 8)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V7) {
@@ -475,7 +483,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     {
         return Err(failure("complex exact offset in real output layout"));
     }
-    let mut kernels = KernelSet::from_programs_for_load(
+    let mut kernels = KernelSet::from_programs_for_load_with_progress(
         payload.orders,
         programs,
         payload.exact,
@@ -484,6 +492,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         use_complex,
         payload.runtime_parameters,
         settings.expect("compiler policy validated"),
+        progress,
     )?;
     kernels.runtime_mass_constraints = payload
         .runtime_mass_constraints

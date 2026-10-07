@@ -19,6 +19,9 @@ pub(in crate::display) struct Plan {
     complete: bool,
     seen: [bool; 8],
     empty_formulas: bool,
+    started: f64,
+    elapsed: f64,
+    durations: [Option<f64>; 8],
 }
 impl Default for Plan {
     fn default() -> Self {
@@ -29,6 +32,9 @@ impl Default for Plan {
             complete: false,
             seen: [true, false, false, false, false, false, false, false],
             empty_formulas: false,
+            started: 0.0,
+            elapsed: 0.0,
+            durations: [None; 8],
         }
     }
 }
@@ -38,13 +44,19 @@ impl Plan {
         mode: GenerationMode,
         method: CoefficientExpansionMethod,
     ) {
-        *self = Self {
-            mode: Some(mode),
-            method,
-            ..Self::default()
-        };
+        // Parsing reveals the plan while the input phase is already running.
+        // Keep its start and elapsed time rather than restarting the clock.
+        self.mode = Some(mode);
+        self.method = method;
     }
-    pub(in crate::display) fn observe(&mut self, stage: GenerationStage) {
+    pub(in crate::display) fn observe(&mut self, stage: GenerationStage, elapsed: f64) {
+        if self.complete && stage == GenerationStage::Input {
+            *self = Self::default();
+        }
+        self.advance_clock(elapsed);
+        if self.complete {
+            return;
+        }
         let index = match stage {
             GenerationStage::Input => 0,
             GenerationStage::Parametrization => 1,
@@ -56,23 +68,49 @@ impl Plan {
             | GenerationStage::CoefficientExpansion => 5,
             GenerationStage::Compilation => 6,
             GenerationStage::Complete => {
+                self.finish_current();
                 self.complete = true;
-                7
+                self.current = 7;
+                return;
             }
         };
         // Nested subtraction/epsilon passes and fallback events never undo a
         // completed parent phase. Counts/timing updates alone do not finish it.
-        if stage != GenerationStage::Complete {
-            self.seen[index] = true;
-        }
-        self.current = self.current.max(index);
+        self.enter(index);
     }
     pub(in crate::display) fn formula_count(&mut self, total: usize) {
         self.empty_formulas = self.mode == Some(GenerationMode::NumericalDual) && total == 0;
     }
-    pub(in crate::display) fn saving(&mut self) {
-        self.current = 7;
-        self.seen[7] = true;
+    pub(in crate::display) fn saving(&mut self, elapsed: f64) {
+        self.advance_clock(elapsed);
+        if !self.complete {
+            self.enter(7);
+        }
+    }
+    fn advance_clock(&mut self, elapsed: f64) {
+        if elapsed.is_finite() {
+            self.elapsed = self.elapsed.max(elapsed);
+        }
+    }
+    fn enter(&mut self, index: usize) {
+        if index > self.current {
+            self.finish_current();
+            self.current = index;
+            self.started = self.elapsed;
+            self.seen[index] = true;
+        }
+    }
+    fn finish_current(&mut self) {
+        if self.state(self.current) == State::Current {
+            self.durations[self.current] = Some(self.elapsed - self.started);
+        }
+    }
+    pub(super) fn seconds(&self, index: usize, elapsed: f64) -> Option<f64> {
+        match self.state(index) {
+            State::Current => Some(self.elapsed.max(elapsed) - self.started),
+            State::Complete => self.durations[index],
+            State::Pending | State::NotNeeded => None,
+        }
     }
     pub(super) fn labels(&self) -> Vec<&'static str> {
         let Some(mode) = self.mode else {

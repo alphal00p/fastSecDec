@@ -1,5 +1,35 @@
 # FastSecDec first-phase implementation plan
 
+## Lightweight inspection and observable evaluator loading (2026-10-07)
+
+Show bracketed elapsed time beside the active generation step and frozen elapsed
+times for completed steps, leaving future steps unchanged. Keep these caller-wall
+timings separate from the existing native generation phase measurements.
+
+Make default artifact inspection, including a selected sector, metadata-only.
+Preserve cached evaluator sizes, sector ranking, generation timings and the
+available compact chart information. Older artifacts must explicitly report
+missing chart previews instead of loading their binary payload implicitly.
+Retain an explicit deep inspection path for native chart data and expressions.
+New artifacts may include a bounded, versioned preview index without changing
+the mathematical artifact identity or binary format.
+
+Integration loads the saved optimized evaluator program and prepares its native
+execution backend; it must not repeat symbolic sector generation or Horner/CPE
+optimization. The user explicitly waives backward compatibility: reject old
+expression-only evaluator formats instead of rebuilding them. Evaluate saved
+exact-offset Atoms directly through native APIs when binding runtime parameters;
+mass validation must not construct an expression evaluator either.
+Report metadata reading, binary reading, decoding and sector
+restoration before sampling starts, with elapsed time, process CPU and RAM.
+Reuse the CLI-owned dispatcher for responsive display and cancellation polling;
+do not introduce a library-owned pool. Keep all compatibility and identity
+admission checks. Defer the optional conditioning evaluator until the validated
+stability policy actually requests it. Reuse native evaluator mapping and preserve
+unsupported-domain fallback and worker-local ownership. Test round trips,
+cancellation, numerical parity, metadata-only I/O and portable behavior, then
+record an independent reuse review before publishing.
+
 ## Persistent generation step list (2026-10-07)
 
 Keep the applicable generation steps visible in the CLI dashboard, highlighting

@@ -1,7 +1,10 @@
+pub(crate) mod inspection;
+pub use inspection::{InspectionIndex, KernelSummary};
+
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::{BufReader, BufWriter, Write},
+    io::{BufReader, BufWriter, Read, Write},
     path::{Path, PathBuf},
     time::Instant,
 };
@@ -185,6 +188,13 @@ pub struct Artifact {
     pub reference: Option<crate::config::ReferenceInput>,
     #[serde(skip)]
     pub loading_seconds: f64,
+    /// Optional bounded display observations; excluded from scientific identity.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "inspection::deserialize_index"
+    )]
+    pub inspection: Option<InspectionIndex>,
 }
 
 /// Validate the public basename and derive its two sibling paths without I/O.
@@ -271,6 +281,16 @@ pub fn relative_display(path: &Path) -> String {
         .to_string()
 }
 
+#[derive(Clone, Debug)]
+pub enum ArtifactLoadProgress {
+    Metadata,
+    ReadingBinary {
+        completed: usize,
+        total: Option<usize>,
+    },
+    Native(fastsecdec::kernel::KernelLoadProgress),
+}
+
 impl Artifact {
     pub fn new(kernels: &KernelSet, provenance: Provenance) -> CliResult<Self> {
         let mut result = Self {
@@ -296,6 +316,7 @@ impl Artifact {
             generation: None,
             reference: None,
             loading_seconds: 0.0,
+            inspection: Some(InspectionIndex::from_kernels(kernels)),
         };
         result.content_id = result.identity()?;
         Ok(result)
@@ -399,15 +420,13 @@ impl Artifact {
         }
         Ok(())
     }
-    pub fn load(base: &Path) -> CliResult<(Self, KernelSet)> {
-        Self::load_with_preflight(base, |_| Ok(()))
-    }
-    pub fn load_with_preflight(
-        base: &Path,
-        preflight: impl FnOnce(&Self) -> CliResult<()>,
-    ) -> CliResult<(Self, KernelSet)> {
+    /// Read and check the human summary only. Never opens the data sibling,
+    /// initializes native evaluators, or requires a compatible native backend.
+    /// The optional inspection index and generation observations are not hashed;
+    /// this does not validate them against the unread binary.
+    pub fn load_metadata(base: &Path) -> CliResult<Self> {
         let started = Instant::now();
-        let (metadata, data) = paths(base)?;
+        let (metadata, _) = paths(base)?;
         let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(metadata)?))?;
         if artifact.format_version != 3 {
             return Err(
@@ -417,19 +436,97 @@ impl Artifact {
         if artifact.content_id != artifact.identity()? {
             return Err("artifact complete content identity is invalid".into());
         }
-        if !dependencies_match(&artifact.provenance.dependencies, &dependencies()) {
-            return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
-        }
         artifact.source_root = base
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
+        artifact.loading_seconds = started.elapsed().as_secs_f64();
+        Ok(artifact)
+    }
+    pub fn dependencies_compatible(&self) -> bool {
+        dependencies_match(&self.provenance.dependencies, &dependencies())
+    }
+    pub fn load(base: &Path) -> CliResult<(Self, KernelSet)> {
+        Self::load_with_preflight(base, |_| Ok(()))
+    }
+    pub fn load_with_preflight(
+        base: &Path,
+        preflight: impl FnOnce(&Self) -> CliResult<()>,
+    ) -> CliResult<(Self, KernelSet)> {
+        Self::load_observed(base, preflight, |_| std::ops::ControlFlow::Continue(()))
+    }
+    pub fn load_observed(
+        base: &Path,
+        preflight: impl FnOnce(&Self) -> CliResult<()>,
+        mut observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
+    ) -> CliResult<(Self, KernelSet)> {
+        let started = Instant::now();
+        let (_, data) = paths(base)?;
+        let poll = |event: &ArtifactLoadProgress,
+                    observe: &mut dyn FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>|
+         -> CliResult<()> {
+            if observe(event).is_break() {
+                Err("artifact loading cancelled".into())
+            } else {
+                Ok(())
+            }
+        };
+        poll(&ArtifactLoadProgress::Metadata, &mut observe)?;
+        let mut artifact = Self::load_metadata(base)?;
+        if !artifact.dependencies_compatible() {
+            return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
+        }
         preflight(&artifact)?;
-        artifact.data = fs::read(data)?;
-        let kernels = KernelSet::from_bytes(&artifact.data)?;
+        poll(
+            &ArtifactLoadProgress::ReadingBinary {
+                completed: 0,
+                total: None,
+            },
+            &mut observe,
+        )?;
+        let mut file = File::open(data)?;
+        let total = usize::try_from(file.metadata()?.len()).ok();
+        poll(
+            &ArtifactLoadProgress::ReadingBinary {
+                completed: 0,
+                total,
+            },
+            &mut observe,
+        )?;
+        if let Some(size) = total {
+            artifact.data.try_reserve_exact(size)?;
+        }
+        loop {
+            // Read existing native bytes in bounded chunks solely to service cancellation.
+            let count = Read::by_ref(&mut file)
+                .take(8 * 1024 * 1024)
+                .read_to_end(&mut artifact.data)?;
+            poll(
+                &ArtifactLoadProgress::ReadingBinary {
+                    completed: artifact.data.len(),
+                    total,
+                },
+                &mut observe,
+            )?;
+            if count == 0 {
+                break;
+            }
+        }
+        let kernels = KernelSet::from_bytes_with_progress(&artifact.data, |progress| {
+            // Complete is a delivery event only after the outer artifact identity check.
+            if matches!(progress, fastsecdec::kernel::KernelLoadProgress::Complete) {
+                std::ops::ControlFlow::Continue(())
+            } else {
+                observe(&ArtifactLoadProgress::Native(*progress))
+            }
+        })?;
         if kernels.content_id() != artifact.kernel_content_id()? {
             return Err("validated native kernel identity differs from the artifact".into());
         }
+        poll(
+            &ArtifactLoadProgress::Native(fastsecdec::kernel::KernelLoadProgress::Complete),
+            &mut observe,
+        )?;
         artifact.loading_seconds = started.elapsed().as_secs_f64();
         Ok((artifact, kernels))
     }

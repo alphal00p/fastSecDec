@@ -616,15 +616,46 @@ rejects scope or exact-policy changes, including selected-all versus full scope.
 `--full-integral` explicitly clears a scoped card/artifact default and is mutually
 exclusive with the subset flags. Omitting scope continues to mean the full integral and preserves historical
 full-run checkpoint settings. Only selected worker evaluators and integration
-work are created; loading the artifact still compiles its complete kernel set.
+work are created; loading the artifact restores the saved programs and prepares
+execution backends for the complete kernel set. SymJIT prepares machine code
+from the saved optimized native IR, without rebuilding symbolic expressions or
+rerunning Horner/CPE optimization. Old expression-only evaluator caches are
+rejected; regenerate them to store native evaluator programs.
 
-`inspect output/gghh_double_box.fsd` shows an artifact overview, saved generation
-facts and the ten largest sector evaluators, sorted by serialized evaluator size
-with stable kernel IDs. Add `--sector 5` for the selected kernel's endpoint
-monomials, remapping equations and detailed evaluator statistics. Human reports
-use colored tables and Symbolica's native expression printer; `--plain`,
-`NO_COLOR` and redirected output retain readable uncolored tables. `--json`
-keeps the structured metadata route.
+`inspect output/gghh_double_box.fsd` reads only the human `.json` metadata. It
+shows saved generation facts and the ten largest sector evaluators, sorted by
+serialized evaluator size with stable kernel IDs. `--sector 5` also stays on
+this fast path and shows the selected evaluator's saved statistics. Neither
+command opens, decodes or compiles the `.dat` sibling, even for old artifacts.
+They check the JSON content identity and report native dependency compatibility,
+but do not validate the binary or authenticate optional generation observations.
+
+Newly generated artifacts include a bounded, versioned chart preview: at most
+three monomial factors and sixteen coordinate images per representative, with
+an aggregate budget of 1 MiB and explicit omission counts. Input polynomials,
+regular bodies and large prefactors are not duplicated. Older artifacts without
+this index display available sizes/layouts and mark chart details as not indexed;
+inspection never silently restores their binary.
+
+Use `inspect output/gghh_double_box.fsd --deep` for complete retained native
+chart metadata and sector identities. This explicitly reads and validates the
+binary and restores all its evaluators, so large artifacts can take time and
+memory. `--expressions` implies `--deep` and also shows retained expressions.
+The same distinction applies to `--json`: default output identifies itself as
+`metadata_only`, while deep output contains the full retained generation record.
+Human reports retain colored tables; `--plain`, `NO_COLOR` and redirected output
+remain readable without colors. Native Symbolica printing produces the saved
+math previews and the deep expression views.
+
+`integrate` and `run --resume` show artifact loading before sampling starts:
+metadata, binary-byte reading, native decoding/validation and evaluator
+restoration. Elapsed time and process/system RAM stay visible while native work
+runs; evaluator counts appear when known. Loading observations also support
+plain and `--status-json` output (`kind = "artifact_loading"`). The CLI polls
+cancellation independently of the display interval. Cancellation takes effect
+between file chunks or native restoration units; a single decode/JIT operation
+cannot be interrupted midway. Runtime binding and checkpoint checks still follow
+successful artifact restoration before numerical integration begins.
 
 Evaluator sizes describe the serialized shared program for the complete Laurent
 vector. Compressed SymJIT representations are identified separately; neither is

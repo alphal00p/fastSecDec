@@ -1,8 +1,8 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
 //! Symbolica owns decoding of native programs from trusted cache producers.
 mod binary;
-#[cfg(feature = "native")]
-mod legacy;
+#[cfg(test)]
+mod load_tests;
 mod native;
 mod sector_identity;
 
@@ -109,32 +109,54 @@ impl KernelSet {
     /// instruction index. A valid content hash is not proof of safe provenance;
     /// do not pass attacker-created or manually modified native program bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
-        if bytes.starts_with(binary::PREFIX) {
-            return binary::load(bytes);
+        Self::from_bytes_with_progress(bytes, |_| std::ops::ControlFlow::Continue(()))
+    }
+
+    /// Restore a trusted artifact with caller-owned progress and cancellation.
+    /// The callback runs before decoding, between sequential sector restorations,
+    /// and after final admission. It cannot interrupt an individual native call.
+    /// Supported artifacts restore exact sector IR without regenerating or optimizing
+    /// sector expressions. Historical expression-only v1/v2 artifacts are rejected.
+    /// Exact offsets are evaluated directly by the native
+    /// expression owner, once at a supplied physical point, without compilation.
+    pub fn from_bytes_with_progress(
+        bytes: &[u8],
+        mut progress: impl FnMut(&super::KernelLoadProgress) -> std::ops::ControlFlow<()>,
+    ) -> Result<Self, KernelError> {
+        use super::KernelLoadProgress;
+        if progress(&KernelLoadProgress::Decoding).is_break() {
+            return Err(KernelError::Cancelled);
         }
-        // Dispatch does not replace either codec's strict owned schema.
-        // Ignore the large program arrays here instead of allocating a second
-        // full JSON representation before the selected codec reads them.
-        #[derive(serde::Deserialize)]
-        struct Envelope {
-            payload: Version,
+        let mut restoring =
+            |step: &super::CompilationProgress| progress(&KernelLoadProgress::Restoring(*step));
+        let kernels = if bytes.starts_with(binary::PREFIX) {
+            binary::load_with_progress(bytes, &mut restoring)
+        } else {
+            // Dispatch does not replace either codec's strict owned schema.
+            // Ignore the large program arrays here instead of allocating a second
+            // full JSON representation before the selected codec reads them.
+            #[derive(serde::Deserialize)]
+            struct Envelope {
+                payload: Version,
+            }
+            #[derive(serde::Deserialize)]
+            struct Version {
+                version: u32,
+            }
+            let envelope: Envelope = serde_json::from_slice(bytes)?;
+            match envelope.payload.version {
+                1 | 2 => Err(KernelError::Artifact(
+                    "expression-only kernel artifacts are unsupported; regenerate native evaluator IR".into(),
+                )),
+                3 => native::load(bytes, &mut restoring),
+                _ => Err(KernelError::Artifact(
+                    "unsupported kernel artifact version".into(),
+                )),
+            }
+        }?;
+        if progress(&KernelLoadProgress::Complete).is_break() {
+            return Err(KernelError::Cancelled);
         }
-        #[derive(serde::Deserialize)]
-        struct Version {
-            version: u32,
-        }
-        let envelope: Envelope = serde_json::from_slice(bytes)?;
-        match envelope.payload.version {
-            #[cfg(feature = "native")]
-            1 | 2 => legacy::load(bytes),
-            #[cfg(feature = "portable")]
-            1 | 2 => Err(KernelError::Artifact(
-                "legacy native artifacts require the native backend".into(),
-            )),
-            3 => native::load(bytes),
-            _ => Err(KernelError::Artifact(
-                "unsupported kernel artifact version".into(),
-            )),
-        }
+        Ok(kernels)
     }
 }

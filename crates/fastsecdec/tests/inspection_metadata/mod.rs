@@ -151,28 +151,3 @@ fn actual_shared_program_size_records_distinguish_backend_and_arithmetic() {
         }
     }
 }
-
-#[cfg(feature = "native")]
-#[test]
-fn old_chart_metadata_remains_explicitly_absent_without_identity_change() {
-    let bytes = include_bytes!("../fixtures/kernel-v2-triangle.json");
-    let kernels = KernelSet::from_bytes(bytes).unwrap();
-    let meta = kernels.generation_metadata().unwrap();
-    assert!(
-        meta.charts()
-            .iter()
-            .all(|chart| chart.pre_subtraction().is_none())
-    );
-    let portable = fastsecdec::kernel::PortableMetadata::from_native(meta);
-    assert!(
-        !serde_json::to_string(&portable)
-            .unwrap()
-            .contains("pre_subtraction")
-    );
-    assert_eq!(kernels.to_bytes().unwrap(), bytes);
-    let original: serde_json::Value = serde_json::from_slice(bytes).unwrap();
-    assert_eq!(
-        kernels.content_id(),
-        original["content_id"].as_str().unwrap()
-    );
-}

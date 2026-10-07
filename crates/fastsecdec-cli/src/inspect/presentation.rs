@@ -23,7 +23,14 @@ pub(super) fn render(
     width: usize,
     colors: ColorPolicy,
 ) -> CliResult<String> {
-    let mut out = super::overview::render(path, artifact, kernels, width, colors)?;
+    let mut out = super::overview::render(
+        path,
+        artifact,
+        &crate::artifact::KernelSummary::from_kernels(kernels),
+        Some(kernels),
+        width,
+        colors,
+    )?;
     if let Some(id) = selected {
         out.push('\n');
         out.push_str(&sector(artifact, kernels, id, expressions, width, colors)?);

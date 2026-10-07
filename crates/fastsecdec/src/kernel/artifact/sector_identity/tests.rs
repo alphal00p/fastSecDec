@@ -9,14 +9,36 @@ use crate::{
 use std::ops::ControlFlow;
 use symbolica::{parse, symbol};
 
-const V1: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/tests/fixtures/kernel-v1-triangle.json"
-));
-const V2: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/tests/fixtures/kernel-v2-triangle.json"
-));
+fn native_template() -> KernelSet {
+    let input = ParametricIntegrand::new(
+        vec![symbol!("sector_identity::x"), symbol!("sector_identity::y")],
+        symbol!("sector_identity::eps"),
+        ParametricDomain::UnitCube,
+        vec![ParametricTerm::new(
+            Atom::one(),
+            vec![Atom::Zero, Atom::Zero],
+            vec![
+                PolynomialFactor::new(
+                    parse!("sector_identity::x+sector_identity::y"),
+                    parse!("-1-sector_identity::eps"),
+                    FactorRole::Singularity,
+                ),
+                PolynomialFactor::new(
+                    parse!("1+sector_identity::x"),
+                    Atom::one(),
+                    FactorRole::Polynomial,
+                ),
+            ],
+        )],
+    )
+    .unwrap();
+    generate(&input, &GenerationOptions::default(), |_| {
+        ControlFlow::Continue(())
+    })
+    .unwrap()
+    .compile()
+    .unwrap()
+}
 
 #[test]
 fn native_complex_sector_identity_survives_reload_and_evaluation() {
@@ -68,9 +90,14 @@ fn native_complex_sector_identity_survives_reload_and_evaluation() {
 }
 
 #[test]
-fn legacy_identity_is_additive_and_missing_metadata_stays_distinct() {
+fn native_identity_is_additive_and_missing_metadata_stays_distinct() {
+    let mut original = native_template();
+    let with_metadata = original.to_bytes().unwrap();
+    original.metadata = None;
+    original.initialize_artifact().unwrap();
+    let without_metadata = original.to_bytes().unwrap();
     let mut ids = Vec::new();
-    for bytes in [V1, V2] {
+    for bytes in [&with_metadata, &without_metadata] {
         let loaded = KernelSet::from_bytes(bytes).unwrap();
         let parent = loaded.content_id().to_owned();
         let id = loaded.sector_content_id(0).unwrap();
@@ -81,7 +108,7 @@ fn legacy_identity_is_additive_and_missing_metadata_stays_distinct() {
                 .unwrap(),
             id
         );
-        assert_eq!(loaded.to_bytes().unwrap(), bytes);
+        assert_eq!(loaded.to_bytes().unwrap(), *bytes);
         assert_eq!(loaded.content_id(), parent);
         ids.push(id);
     }
@@ -89,8 +116,34 @@ fn legacy_identity_is_additive_and_missing_metadata_stays_distinct() {
 }
 
 #[test]
+fn optional_chart_preview_can_be_absent_in_saved_native_ir() {
+    let mut kernels = native_template();
+    for chart in &mut kernels.metadata.as_mut().unwrap().charts {
+        chart.pre_subtraction = None;
+    }
+    kernels.initialize_artifact().unwrap();
+    let bytes = kernels.to_bytes().unwrap();
+    let restored = KernelSet::from_bytes(&bytes).unwrap();
+    let metadata = restored.generation_metadata().unwrap();
+    assert!(
+        metadata
+            .charts()
+            .iter()
+            .all(|chart| chart.pre_subtraction().is_none())
+    );
+    let portable = crate::kernel::PortableMetadata::from_native(metadata);
+    assert!(
+        !serde_json::to_string(&portable)
+            .unwrap()
+            .contains("pre_subtraction")
+    );
+    assert_eq!(restored.content_id(), kernels.content_id());
+    assert_eq!(restored.to_bytes().unwrap(), bytes);
+}
+
+#[test]
 fn selected_identity_ignores_other_kernels_offsets_and_parent_ordinal() {
-    let mut kernels = KernelSet::from_bytes(V2).unwrap();
+    let mut kernels = native_template();
     let id = kernels.sector_content_id(0).unwrap();
     let parent = kernels.content_id().to_owned();
     assert!(kernels.sectors.len() > 1);
@@ -115,7 +168,7 @@ fn selected_identity_ignores_other_kernels_offsets_and_parent_ordinal() {
 
 #[test]
 fn numerical_policy_layout_and_retained_semantics_bind_selected_identity() {
-    let mut kernels = KernelSet::from_bytes(V2).unwrap();
+    let mut kernels = native_template();
     let id = kernels.sector_content_id(0).unwrap();
     let precision = kernels.sectors[0].precision.clone();
     kernels.sectors[0].precision.relative_tolerance *= 2.;

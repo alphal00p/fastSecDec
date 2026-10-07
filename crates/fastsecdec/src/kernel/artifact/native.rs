@@ -202,7 +202,10 @@ pub(super) fn component_layout(count: usize, complex: bool) -> Vec<CoefficientCo
         .collect()
 }
 
-pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
+pub(super) fn load(
+    bytes: &[u8],
+    progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
+) -> Result<KernelSet, KernelError> {
     let artifact: Artifact = serde_json::from_slice(bytes)?;
     let payload = artifact.payload;
     let settings = settings_from_policy(&payload.compiler_policy);
@@ -290,7 +293,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
             "complex exact offset in real output layout".into(),
         ));
     }
-    let mut kernels = KernelSet::from_programs_for_load(
+    let mut kernels = KernelSet::from_programs_for_load_with_progress(
         payload.orders,
         programs,
         exact,
@@ -299,6 +302,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         use_complex,
         Vec::new(),
         settings.expect("compiler policy validated"),
+        progress,
     )?;
     kernels.content_id = artifact.content_id;
     kernels.portable_artifact = Some(bytes.to_vec());

@@ -3,8 +3,9 @@
 use super::{
     KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, evaluator, precision,
 };
+#[cfg(test)]
+use symbolica::atom::{Atom, AtomCore};
 use symbolica::{
-    atom::{Atom, AtomCore},
     domains::{
         float::{Complex, DoubleFloat, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
@@ -19,7 +20,7 @@ pub(super) struct ComplexKernel {
     conditioning_timing: super::EvaluatorTiming,
     exact: ExpressionEvaluator<Complex<Rational>>,
     evaluator: evaluator::ComplexEvaluator,
-    conditioning: Option<ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>>,
+    conditioning: evaluator::Conditioning<Complex<ErrorPropagatingFloat<f64>>>,
     input: Vec<Complex<f64>>,
     integration_dimension: usize,
     output: Vec<Complex<f64>>,
@@ -176,18 +177,7 @@ impl ComplexKernel {
         let evaluator = evaluator::complex(&exact, backend)?;
         let requirements =
             evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
-        let conditioning = requirements
-            .map(
-                &exact,
-                |coefficient| {
-                    Complex::new(
-                        tracked(coefficient.re.to_f64()),
-                        tracked(coefficient.im.to_f64()),
-                    )
-                },
-                53,
-            )
-            .ok();
+        let conditioning = evaluator::Conditioning::new(requirements.clone());
         Ok(Self {
             double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
             f64_timing: Default::default(),
@@ -282,7 +272,12 @@ impl ComplexKernel {
         if boundary
             && !nonfinite
             && !range_loss
-            && let Some(conditioning) = &mut self.conditioning
+            && let Some(conditioning) = self.conditioning.get_or_map(&self.exact, |coefficient| {
+                Complex::new(
+                    tracked(coefficient.re.to_f64()),
+                    tracked(coefficient.im.to_f64()),
+                )
+            })
         {
             for (input, value) in self.check_input.iter_mut().zip(point) {
                 *input = Complex::new(tracked(*value), tracked(0.0));
@@ -385,31 +380,6 @@ fn tracked(value: f64) -> ErrorPropagatingFloat<f64> {
     }
 }
 
-pub(super) fn exact(coefficients: &[Atom]) -> Result<Vec<f64>, KernelError> {
-    let evaluator = Atom::evaluator_multiple(coefficients, &[] as &[Atom])
-        .build()
-        .map_err(|error| KernelError::Compilation(error.to_string()))?;
-    let mut evaluator = evaluator::MappingRequirements::new(&evaluator)
-        .and_then(|requirements| {
-            requirements.map(
-                &evaluator,
-                |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
-                53,
-            )
-        })
-        .map_err(KernelError::Compilation)?;
-    let mut values = vec![Complex::new(0.0, 0.0); coefficients.len()];
-    evaluator.evaluate(&[], &mut values);
-    let flattened = values
-        .iter()
-        .flat_map(|value| [value.re, value.im])
-        .collect::<Vec<_>>();
-    if flattened.iter().any(|value| !value.is_finite()) {
-        return Err(KernelError::NonFinite);
-    }
-    Ok(flattened)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -434,7 +404,8 @@ mod tests {
         kernel.evaluate(&[0.5], &mut output).unwrap();
         assert_eq!(output, [4.5, 6.75, 5.0, 0.0]);
         assert_eq!(
-            exact(&[weight(), Atom::num(5)]).unwrap(),
+            crate::kernel::exact::evaluate(&[weight(), Atom::num(5)], &Default::default(), true)
+                .unwrap(),
             [2.0, 3.0, 5.0, 0.0]
         );
         assert!(kernel.evaluate(&[0.5], &mut output[..2]).is_err());
@@ -451,7 +422,14 @@ mod tests {
         )
         .unwrap();
         let mut output = [0.0; 2];
+        assert!(!kernel.conditioning.attempted());
+        kernel
+            .evaluate_at_class(&[1e-4], &mut output, 1.0, super::super::PrecisionClass::F64)
+            .unwrap();
+        assert!(!kernel.conditioning.attempted());
         let report = kernel.evaluate(&[1e-4], &mut output).unwrap();
+        assert!(kernel.conditioning.attempted());
+        assert!(kernel.try_clone().unwrap().conditioning.attempted());
         assert!(report.checked);
         assert!(!report.rescued);
         assert!((output[0] - 2.0002).abs() < 1e-14);

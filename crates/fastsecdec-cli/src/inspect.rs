@@ -1,5 +1,6 @@
-//! Inspection reads retained native metadata; it never regenerates expressions,
-//! reconstructs sector maps, or samples an evaluator.
+//! Default inspection reads only human metadata. Explicit deep inspection
+//! restores retained native metadata and evaluators, without sampling.
+mod lightweight;
 mod overview;
 mod presentation;
 mod tables;
@@ -10,11 +11,27 @@ use std::{io::IsTerminal, path::Path};
 
 pub fn artifact(
     path: &Path,
+    deep: bool,
     expressions: bool,
     sector: Option<usize>,
     plain: bool,
     json: bool,
 ) -> CliResult<()> {
+    if !deep {
+        let artifact = Artifact::load_metadata(path)?;
+        let summary = artifact.kernel_summary()?;
+        lightweight::validate_sector(&summary, sector)?;
+        if json {
+            crate::report(&lightweight::document(&artifact, &summary, sector)?, true)?;
+        } else {
+            let (width, colors) = presentation_options(plain);
+            print!(
+                "{}",
+                lightweight::render(path, &artifact, &summary, sector, width, colors)?
+            );
+        }
+        return Ok(());
+    }
     let (artifact, kernels) = Artifact::load(path)?;
     if let Some(id) = sector
         && id >= kernels.sectors().len()
@@ -29,6 +46,7 @@ pub fn artifact(
         let value = if let Some(id) = sector {
             serde_json::json!({
                 "content_id":artifact.content_id,
+                "inspection_mode":"deep", "binary_validated":true,
                 "generation":artifact.generation,
                 "generation_timings":artifact.generation_timings,
                 "loading_seconds":artifact.loading_seconds,
@@ -52,15 +70,7 @@ pub fn artifact(
         };
         crate::report(&value, true)?;
     } else {
-        let terminal = std::io::stdout().is_terminal();
-        let width = if terminal {
-            crossterm::terminal::size()
-                .map(|(w, _)| usize::from(w))
-                .unwrap_or(100)
-        } else {
-            100
-        };
-        let colors = ColorPolicy::for_stream(plain, terminal);
+        let (width, colors) = presentation_options(plain);
         print!(
             "{}",
             presentation::render(
@@ -75,6 +85,21 @@ pub fn artifact(
         );
     }
     Ok(())
+}
+
+fn presentation_options(plain: bool) -> (usize, ColorPolicy) {
+    let terminal = std::io::stdout().is_terminal();
+    let width = if terminal {
+        crossterm::terminal::size()
+            .map(|(w, _)| usize::from(w))
+            .unwrap_or(100)
+    } else {
+        100
+    };
+    (
+        width.clamp(1, 140),
+        ColorPolicy::for_stream(plain, terminal),
+    )
 }
 
 /// Join producer modes to the loaded kernel through stable source-chart IDs.
@@ -115,6 +140,7 @@ fn ranked_sectors(kernels: &KernelSet) -> Vec<usize> {
 fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
     serde_json::json!({
         "content_id":artifact.content_id,"provenance":artifact.provenance,
+        "inspection_mode":"deep", "binary_validated":true,
         "orders":kernels.orders(),"components":kernels.components(),"sectors":kernels.sectors().len(),
         "dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
         "evaluator_statistics":kernels.sectors().iter().map(|k|k.statistics()).collect::<Vec<_>>(),
@@ -138,35 +164,4 @@ fn document(artifact: &Artifact, kernels: &KernelSet) -> CliResult<serde_json::V
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn valid_legacy_artifact_inspection_keeps_metadata_explicitly_unavailable() {
-        let dir = tempfile::tempdir().unwrap();
-        let card = dir.path().join("input.toml");
-        std::fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['1']").unwrap();
-        let (artifact, _) = crate::generate::generate(
-            &card,
-            &dir.path().join("new.fsd"),
-            &mut crate::display::Dashboard::new(false, false).unwrap(),
-            None,
-        )
-        .unwrap();
-        // The historical expression fixture is independent of the current
-        // native-IR serializer and deliberately has no retained metadata.
-        let restored = KernelSet::from_bytes(include_bytes!(
-            "../../fastsecdec/tests/fixtures/kernel-v1-triangle.json"
-        ))
-        .unwrap();
-        let path = dir.path().join("legacy.fsd");
-        Artifact::new(&restored, artifact.provenance)
-            .unwrap()
-            .save(&path)
-            .unwrap();
-        let (artifact, kernels) = Artifact::load(&path).unwrap();
-        let view = document(&artifact, &kernels).unwrap();
-        assert_eq!(view["retained_metadata_available"], false);
-        assert!(view["generation_metadata"].is_null());
-        assert_eq!(view["sectors"], 2);
-    }
-}
+mod tests;

@@ -19,11 +19,22 @@ fn provenance() -> Provenance {
     }
 }
 
-fn legacy_kernels() -> KernelSet {
-    KernelSet::from_bytes(include_bytes!(
-        "../../../fastsecdec/tests/fixtures/kernel-v2-triangle.json"
-    ))
+fn current_kernels() -> KernelSet {
+    let directory = tempfile::tempdir().unwrap();
+    let card = directory.path().join("input.toml");
+    fs::write(
+        &card,
+        "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='1+x'\nexponent='-1+eps'\n[generation.evaluator]\nbackend='eager'\n",
+    )
+    .unwrap();
+    crate::generate::generate(
+        &card,
+        &directory.path().join("current.fsd"),
+        &mut crate::display::Dashboard::new(false, false).unwrap(),
+        None,
+    )
     .unwrap()
+    .1
 }
 
 fn vector(kernels: &mut KernelSet) -> Vec<f64> {
@@ -44,10 +55,11 @@ fn vector(kernels: &mut KernelSet) -> Vec<f64> {
 }
 
 #[test]
-fn native_pair_roundtrips_legacy_kernel_and_human_metadata() {
+fn native_pair_roundtrips_current_kernel_and_human_metadata() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("native.fsd");
-    let mut kernels = legacy_kernels();
+    let mut kernels = current_kernels();
+    assert!(!kernels.sectors().is_empty());
     let expected = vector(&mut kernels);
     let artifact = Artifact::new(&kernels, provenance()).unwrap();
     artifact.save(&path).unwrap();
@@ -105,7 +117,7 @@ fn generation_observations_do_not_change_the_pair_identity() {
 fn pair_rejects_metadata_and_binary_tampering_and_runs_preflight_before_binary_loading() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("tampered.fsd");
-    let artifact = Artifact::new(&legacy_kernels(), provenance()).unwrap();
+    let artifact = Artifact::new(&current_kernels(), provenance()).unwrap();
     artifact.save(&path).unwrap();
     let (metadata, data) = paths(&path).unwrap();
     let original_bytes = fs::read(&metadata).unwrap();
@@ -192,7 +204,7 @@ fn generation_choices_roundtrip_without_inventing_historical_settings() {
 
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("generation-choices.fsd");
-    let mut artifact = Artifact::new(&legacy_kernels(), provenance()).unwrap();
+    let mut artifact = Artifact::new(&current_kernels(), provenance()).unwrap();
     let id = artifact.content_id.clone();
     artifact.generation = Some(GenerationRecord {
         mode: Some(GenerationMode::NumericalDual),

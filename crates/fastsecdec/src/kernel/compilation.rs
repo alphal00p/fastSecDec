@@ -1,14 +1,12 @@
 //! Caller-driven compilation of one exact native program per sector.
-#[cfg(feature = "native")]
-use super::SectorExpressions;
 use super::{
     Backend, CompilationProgress, CompilationSettings, KernelError, KernelSet, PrecisionPolicy,
-    RealKernel, SectorKernel, cancellation::Cancellation, complex, evaluator, program,
+    RealKernel, SectorKernel, complex, evaluator, program,
 };
 use crate::generation::{GeneratedIntegral, GenerationMetadata};
-use std::{collections::HashMap, ops::ControlFlow, time::Instant};
+use std::{ops::ControlFlow, time::Instant};
 use symbolica::{
-    atom::{AliasedAtom, Atom, AtomCore, Symbol},
+    atom::{Atom, Symbol},
     domains::float::ErrorPropagatingFloat,
 };
 mod session;
@@ -339,13 +337,7 @@ impl SectorKernel {
             let evaluator = evaluator::real(&exact, execution)?;
             let requirements =
                 evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
-            let conditioning = requirements
-                .map(
-                    &exact,
-                    |value| ErrorPropagatingFloat::new(value.re.to_f64(), 15.0),
-                    53,
-                )
-                .ok();
+            let conditioning = evaluator::Conditioning::new(requirements.clone());
             Backend::Real(RealKernel {
                 double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
                 f64_timing: Default::default(),
@@ -401,51 +393,8 @@ impl SectorKernel {
 impl KernelSet {
     // Codec loaders validate and retain their own original artifact after these
     // constructors finish. Do not encode a replacement envelope only to discard it.
-    #[cfg(feature = "native")]
-    pub(super) fn from_expressions_for_load(
-        orders: Vec<i32>,
-        expressions: Vec<SectorExpressions>,
-        exact_expressions: Vec<Atom>,
-        precision: PrecisionPolicy,
-        metadata: Option<GenerationMetadata>,
-    ) -> Result<Self, KernelError> {
-        let use_complex = expressions.iter().any(|sector| {
-            sector.coefficients.iter().any(|coefficient| {
-                !program::is_real_coordinate_expression(coefficient, &sector.parameters)
-            })
-        }) || exact_expressions
-            .iter()
-            .any(|coefficient| !program::is_real_expression(coefficient, &[]));
-        let programs = expressions
-            .into_iter()
-            .map(|sector| {
-                let coefficients = sector
-                    .coefficients
-                    .into_iter()
-                    .map(AliasedAtom::from)
-                    .collect::<Vec<_>>();
-                program::build_with_settings(
-                    sector.parameters,
-                    &[],
-                    &coefficients,
-                    sector.cancellation,
-                    CompilationSettings::legacy(),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        Self::from_programs_for_load(
-            orders,
-            programs,
-            exact_expressions,
-            precision,
-            metadata,
-            use_complex,
-            Vec::new(),
-            CompilationSettings::legacy(),
-        )
-    }
-
     #[allow(clippy::too_many_arguments)]
+    #[cfg(test)]
     pub(super) fn from_programs_for_load(
         orders: Vec<i32>,
         programs: Vec<program::SectorProgram>,
@@ -456,7 +405,43 @@ impl KernelSet {
         runtime_parameters: Vec<Symbol>,
         settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
+        Self::from_programs_for_load_with_progress(
+            orders,
+            programs,
+            exact_expressions,
+            precision,
+            metadata,
+            use_complex,
+            runtime_parameters,
+            settings,
+            &mut |_| ControlFlow::Continue(()),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn from_programs_for_load_with_progress(
+        orders: Vec<i32>,
+        programs: Vec<program::SectorProgram>,
+        exact_expressions: Vec<Atom>,
+        precision: PrecisionPolicy,
+        metadata: Option<GenerationMetadata>,
+        use_complex: bool,
+        runtime_parameters: Vec<Symbol>,
+        settings: CompilationSettings,
+        progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<Self, KernelError> {
         precision.validate()?;
+        let started = Instant::now();
+        let total = programs.len();
+        if progress(&CompilationProgress {
+            completed: 0,
+            total,
+            elapsed_seconds: 0.0,
+        })
+        .is_break()
+        {
+            return Err(KernelError::Cancelled);
+        }
         let mut sectors = Vec::with_capacity(programs.len());
         for program in programs {
             if program.exact.get_output_len() != orders.len() {
@@ -470,11 +455,17 @@ impl KernelSet {
                 use_complex,
                 settings.backend,
             )?);
+            if progress(&CompilationProgress {
+                completed: sectors.len(),
+                total,
+                elapsed_seconds: started.elapsed().as_secs_f64(),
+            })
+            .is_break()
+            {
+                return Err(KernelError::Cancelled);
+            }
         }
-        // Loading restores programs; it is not a new user-requested optimizer
-        // log session. Exact runtime offsets need a small native reconstruction,
-        // whose transient logging must not pollute a caller's JSON/terminal.
-        let mut kernels = Self::finish(
+        Self::finish(
             orders,
             sectors,
             exact_expressions,
@@ -482,13 +473,8 @@ impl KernelSet {
             metadata,
             use_complex,
             runtime_parameters,
-            CompilationSettings {
-                verbose: false,
-                ..settings
-            },
-        )?;
-        kernels.compilation_settings = settings;
-        Ok(kernels)
+            settings,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -510,40 +496,10 @@ impl KernelSet {
                 "inconsistent runtime parameter schema".into(),
             ));
         }
-        let exact_kernel = if runtime_parameters.is_empty() {
-            None
-        } else {
-            Some(SectorKernel::from_program_with_backend(
-                program::build_with_settings(
-                    Vec::new(),
-                    &runtime_parameters,
-                    &exact_expressions
-                        .iter()
-                        .cloned()
-                        .map(AliasedAtom::from)
-                        .collect::<Vec<_>>(),
-                    Cancellation::new(0, Some(Vec::new()), 0)?,
-                    compilation_settings,
-                )?,
-                &precision,
-                use_complex,
-                compilation_settings.backend,
-            )?)
-        };
-        let exact_coefficients = if exact_kernel.is_some() {
+        let exact_coefficients = if !runtime_parameters.is_empty() {
             vec![f64::NAN; coefficient_orders.len() * if use_complex { 2 } else { 1 }]
-        } else if use_complex {
-            complex::exact(&exact_expressions)?
         } else {
-            let constants = HashMap::<Atom, f64>::new();
-            exact_expressions
-                .iter()
-                .map(|coefficient| {
-                    coefficient
-                        .evaluate(&constants)
-                        .map_err(|error| KernelError::Compilation(error.to_string()))
-                })
-                .collect::<Result<Vec<_>, _>>()?
+            super::exact::evaluate(&exact_expressions, &Default::default(), use_complex)?
         };
         if runtime_parameters.is_empty()
             && exact_coefficients.iter().any(|value| !value.is_finite())
@@ -556,7 +512,6 @@ impl KernelSet {
             runtime_parameters,
             stability: super::StabilitySettings::default(),
             runtime_mass_constraints: Vec::new(),
-            exact_kernel,
             template_content_id: None,
             portable_artifact: None,
             metadata,

@@ -1,5 +1,36 @@
 # Ecosystem reuse evidence
 
+## Lightweight inspection and evaluator loading (2026-10-07)
+
+Default CLI inspection reads the existing JSON kernel summary, leaving the native
+binary unopened. Existing evaluator statistics and generation observations remain
+available; optional bounded chart previews use Symbolica's display owner when
+the artifact is produced. Missing previews in older artifacts stay explicitly
+unavailable until the user requests deep inspection. This adds no expression
+parser, graph representation or alternative artifact evaluator. Binary identity,
+schema and dependency checks remain on the native loading path.
+
+Integration loading reuses the CLI's bounded Rayon dispatcher and status cadence
+to report file reads, native decoding and sequential evaluator restoration while
+the coordinator services cancellation and terminal cleanup. The native callback
+API remains synchronous and caller-owned. Conditioning uses the existing native
+numeric-domain mapping lazily when the validated policy first needs it; default
+distance dispatch avoids constructing it. Precision caches and scientific
+admission remain owned by their existing native implementations. Generation-step
+timers also remain caller-owned, separate from native phase measurements.
+
+The remaining exact-offset and mass-validation expression builders were removed
+from loading. Saved offsets use Symbolica's public `Atom::evaluate_with_prec`
+once at binding, retaining complex component order and native range rescue.
+Mass schema discovery uses the native indeterminate API; function forms are
+validated at the supplied physical point before successful binding. Old
+expression-only kernel formats are rejected, as requested, instead of keeping
+an expression reconstruction fallback.
+
+The [independent review](reviews/lightweight-inspect-loading.md) records the
+native API evidence, numerical validation, actual metadata inspection timings,
+remaining atomic-operation limits and historical-format behavior.
+
 ## Persistent generation step list (2026-10-07)
 
 The CLI's configured phase list reuses native generation options and status

@@ -86,14 +86,29 @@ fn selected_execution_keeps_ids_scope_exact_offset_and_checkpoint_identity() {
             .arg(&saved)
             .output()
             .unwrap();
+        let (mut loading_states, mut integration_states) = (0, 0);
         for line in String::from_utf8_lossy(&output.stderr).lines() {
             if let Ok(status) = serde_json::from_str::<serde_json::Value>(line) {
-                assert_eq!(
-                    status["scope"]["SelectedSectors"]["sector_ids"],
-                    serde_json::json!([id])
-                );
+                if status["kind"] == "artifact_loading" {
+                    loading_states += 1;
+                    assert!(matches!(
+                        status["phase"].as_str(),
+                        Some("metadata" | "reading_binary" | "decoding" | "restoring" | "complete")
+                    ));
+                    assert!(status["elapsed_seconds"].as_f64().unwrap() >= 0.0);
+                    assert!(status["memory"].is_object());
+                    // Loading precedes runtime binding and scope selection.
+                    assert!(status.get("scope").is_none());
+                } else {
+                    integration_states += 1;
+                    assert_eq!(
+                        status["scope"]["SelectedSectors"]["sector_ids"],
+                        serde_json::json!([id])
+                    );
+                }
             }
         }
+        assert!(loading_states > 0 && integration_states > 0);
         let report = success(output);
         assert_eq!(report["snapshot"]["completed_points"], 8192);
         assert_eq!(report["snapshot"]["sectors"].as_array().unwrap().len(), 1);
@@ -405,7 +420,14 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
             .output()
             .unwrap(),
     );
-    let inspect = success(cli().arg("inspect").arg(&artifact).output().unwrap());
+    let inspect = success(
+        cli()
+            .arg("inspect")
+            .arg(&artifact)
+            .arg("--deep")
+            .output()
+            .unwrap(),
+    );
     let stored: serde_json::Value =
         serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
     assert!(stored["kernel"].get("payload").is_none());
@@ -449,7 +471,7 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
         cli()
             .arg("inspect")
             .arg(&artifact)
-            .args(["--sector", "0"])
+            .args(["--sector", "0", "--deep"])
             .output()
             .unwrap(),
     );

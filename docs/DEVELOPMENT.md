@@ -100,6 +100,18 @@ remain; the loader does not certify arbitrary or deliberately rewritten native
 instruction streams. The experimental structural-decoder patch is no longer a
 build requirement. No faulty IR from the native generator was observed.
 
+Supported artifact loading restores saved optimized programs and prepares their
+eager or SymJIT execution backend without rebuilding expressions or running
+Horner/CPE. Expression-only v1/v2 kernel formats are rejected; regenerate those
+artifacts. Saved exact-offset Atoms are evaluated directly through Symbolica at
+parameter binding, with native precision escalation, rather than compiled into
+another evaluator. Mass constraints use native indeterminate discovery on load
+and native evaluation at the physical point; unsupported function forms fail
+before successful binding. The CLI reports loading progress independently of
+native work, and ordinary `inspect` reads only JSON metadata. See the
+[loading review](reviews/lightweight-inspect-loading.md) for the supported
+boundaries and measured inspection costs.
+
 The [reuse audit](REUSE_AUDIT.md) and
 [ordinary dependency review](reviews/regular-hepkit-build.md) distinguish current
 checks from historical patched builds. Original dependency-patch narratives and

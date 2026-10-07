@@ -1,7 +1,7 @@
 use super::tables::{bytes, section};
 use crate::{
     CliResult,
-    artifact::Artifact,
+    artifact::{Artifact, KernelSummary},
     generation_report::{
         duration, evaluator_rows, expansion_method, facts_table, facts_table_with_labels,
         formula_preparation_rows, generation_method_rows, heading, short_id, terminal_text,
@@ -17,46 +17,70 @@ use tabled::settings::Color;
 pub(super) fn render(
     path: &Path,
     artifact: &Artifact,
-    kernels: &KernelSet,
+    kernels: &KernelSummary,
+    restored: Option<&KernelSet>,
     width: usize,
     colors: ColorPolicy,
 ) -> CliResult<String> {
     let math =
         |value: &fastsecdec::Atom| math_display::atom(value, colors, width.saturating_sub(24));
-    let sizes = kernels
-        .sectors()
-        .iter()
-        .map(|k| k.statistics().exact_program_bytes)
-        .collect::<Vec<_>>();
-    let total: usize = sizes.iter().sum();
+    let sizes = kernels.evaluator_statistics.as_ref().map(|stats| {
+        stats
+            .iter()
+            .map(|s| s.exact_program_bytes)
+            .collect::<Vec<_>>()
+    });
+    let total = sizes.as_ref().map(|sizes| sizes.iter().sum::<usize>());
     let dimensions = kernels
-        .sectors()
-        .iter()
-        .map(|k| k.dimension())
-        .collect::<BTreeSet<_>>();
-    let dimensions = match (dimensions.first(), dimensions.last()) {
-        (Some(first), Some(last)) if first != last => format!("{first}–{last}"),
-        (Some(first), _) => first.to_string(),
-        _ => "None".into(),
+        .dimensions
+        .as_ref()
+        .map(|values| values.iter().copied().collect::<BTreeSet<_>>());
+    let dimensions = match dimensions.as_ref().map(|d| (d.first(), d.last())) {
+        Some((Some(first), Some(last))) if first != last => format!("{first}–{last}"),
+        Some((Some(first), _)) => first.to_string(),
+        Some(_) => "None".into(),
+        None => "Not recorded".into(),
     };
     let (json_path, data_path) = crate::artifact::paths(path)?;
-    let json_size = usize::try_from(std::fs::metadata(json_path)?.len())?;
-    let data_size = usize::try_from(std::fs::metadata(data_path)?.len())?;
-    let charts = kernels
-        .generation_metadata()
-        .map(|metadata| {
-            format!(
-                "{} charts · {} representatives",
-                metadata.charts().len(),
-                metadata
-                    .charts()
-                    .iter()
-                    .map(|c| c.representative())
-                    .collect::<BTreeSet<_>>()
-                    .len()
-            )
-        })
-        .unwrap_or_else(|| "Not retained".into());
+    let file_size = |path| {
+        std::fs::metadata(path)
+            .ok()
+            .and_then(|m| usize::try_from(m.len()).ok())
+            .map(bytes)
+            .unwrap_or_else(|| "unavailable".into())
+    };
+    let json_size = file_size(json_path);
+    let data_size = file_size(data_path);
+    let charts = if let Some(native) = restored {
+        native
+            .generation_metadata()
+            .map(|m| {
+                format!(
+                    "{} charts · {} representatives",
+                    m.charts().len(),
+                    m.charts()
+                        .iter()
+                        .map(|c| c.representative())
+                        .collect::<BTreeSet<_>>()
+                        .len()
+                )
+            })
+            .unwrap_or_else(|| "Not retained".into())
+    } else {
+        artifact
+            .inspection_index()
+            .map(|index| {
+                if index.retained_metadata_available {
+                    format!(
+                        "{} charts · {} representatives",
+                        index.total_charts, index.total_representatives
+                    )
+                } else {
+                    "Not retained".into()
+                }
+            })
+            .unwrap_or_else(|| "Not indexed; --deep".into())
+    };
     let facts = vec![
         [
             "Artifact".into(),
@@ -70,9 +94,9 @@ pub(super) fn render(
         ["ID (short)".into(), short_id(&artifact.content_id)],
         [
             "Saved files".into(),
-            format!(".json {} · .dat {}", bytes(json_size), bytes(data_size)),
+            format!(".json {} · .dat {}", json_size, data_size),
         ],
-        ["Sectors".into(), kernels.sectors().len().to_string()],
+        ["Sectors".into(), kernels.sectors.to_string()],
         ["Charts".into(), charts],
         ["Coordinates".into(), dimensions],
         [
@@ -91,26 +115,47 @@ pub(super) fn render(
         ],
         [
             "Evaluator sum".into(),
-            format!("{} ({total} bytes)", bytes(total)),
+            total
+                .map(|n| format!("{} ({n} bytes)", bytes(n)))
+                .unwrap_or_else(|| "Not recorded".into()),
         ],
         [
             "Min/mean/max".into(),
-            match (sizes.iter().min(), sizes.iter().max()) {
-                (Some(min), Some(max)) => format!(
+            match sizes.as_ref() {
+                Some(sizes) if !sizes.is_empty() => format!(
                     "{} / {} / {}",
-                    bytes(*min),
-                    bytes(total / sizes.len()),
-                    bytes(*max)
+                    bytes(*sizes.iter().min().unwrap()),
+                    bytes(total.unwrap() / sizes.len()),
+                    bytes(*sizes.iter().max().unwrap())
                 ),
-                _ => "No numerical evaluators".into(),
+                Some(_) => "No numerical evaluators".into(),
+                None => "Not recorded".into(),
             },
         ],
         [
             "Binding".into(),
-            if kernels.parameters_bound() {
-                "Bound"
+            match kernels.runtime_parameters.as_ref() {
+                Some(inputs) if inputs.is_empty() => "No runtime inputs",
+                Some(_) => "Awaiting integration values",
+                None => "Not recorded",
+            }
+            .into(),
+        ],
+        [
+            "Inspection".into(),
+            if restored.is_some() {
+                "Deep · native binary validated"
             } else {
-                "Awaiting integration values"
+                "Metadata only · binary not read or validated"
+            }
+            .into(),
+        ],
+        [
+            "Dependencies".into(),
+            if artifact.dependencies_compatible() {
+                "Match this build"
+            } else {
+                "Different from this build; deep loading unavailable"
             }
             .into(),
         ],
@@ -120,18 +165,19 @@ pub(super) fn render(
     out.push_str(&facts_table(facts, width, colors));
     out.push_str("\n\n");
     out.push_str(&heading("Generation", width, colors, Color::FG_CYAN));
-    let backend = kernels
-        .sectors()
-        .iter()
-        .map(|kernel| match kernel.statistics().backend.as_str() {
-            "symjit_o2" => "SymJIT · O2",
-            "symbolica_interpreter" => "Symbolica interpreter",
-            other => other,
-        })
-        .collect::<BTreeSet<_>>()
-        .into_iter()
-        .collect::<Vec<_>>()
-        .join(", ");
+    let backend = kernels.evaluator_statistics.as_ref().map(|stats| {
+        stats
+            .iter()
+            .map(|s| match s.backend.as_str() {
+                "symjit_o2" => "SymJIT · O2",
+                "symbolica_interpreter" => "Symbolica interpreter",
+                other => other,
+            })
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join(", ")
+    });
     let mut generation_facts = vec![
         [
             "Workers".into(),
@@ -152,15 +198,21 @@ pub(super) fn render(
         ],
         [
             "Backend".into(),
-            if backend.is_empty() {
-                "Exact coefficients only".into()
-            } else {
-                backend
-            },
+            backend.filter(|b| !b.is_empty()).unwrap_or_else(|| {
+                if kernels.sectors == 0 {
+                    "Exact coefficients only".into()
+                } else {
+                    "Not recorded".into()
+                }
+            }),
         ],
         [
             "Runtime inputs".into(),
-            kernels.runtime_parameters().len().to_string(),
+            kernels
+                .runtime_parameters
+                .as_ref()
+                .map(|v| v.len().to_string())
+                .unwrap_or_else(|| "Not recorded".into()),
         ],
     ];
     generation_facts.extend(generation_method_rows(
@@ -236,7 +288,7 @@ pub(super) fn render(
     out.push('\n');
     let regulator = crate::input::expression(&artifact.provenance.regulator)?;
     let mut outputs: Vec<Vec<String>> = Vec::new();
-    for (&order, component) in kernels.orders().iter().zip(kernels.components()) {
+    for (&order, component) in kernels.orders.iter().zip(&kernels.components) {
         let basis = math(&regulator.pow(order));
         let component = match component {
             CoefficientComponent::Real => "real",

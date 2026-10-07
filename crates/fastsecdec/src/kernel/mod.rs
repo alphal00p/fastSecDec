@@ -14,6 +14,7 @@ pub use compilation_settings::{CompilationSettings, EvaluatorBackend};
 mod complex;
 mod distance;
 mod evaluator;
+mod exact;
 mod metadata;
 mod model_constraints;
 pub use metadata::PortableMetadata;
@@ -48,7 +49,7 @@ pub use weighted::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
-    #[error("kernel compilation cancelled")]
+    #[error("kernel operation cancelled")]
     Cancelled,
     #[error("invalid runtime parameters: {0}")]
     Parameters(String),
@@ -89,6 +90,19 @@ pub struct CompilationProgress {
     pub elapsed_seconds: f64,
 }
 
+/// Caller-owned artifact restoration, separate from generation or integration.
+/// Decoding and each native evaluator construction are indivisible operations.
+#[derive(Clone, Copy, Debug)]
+pub enum KernelLoadProgress {
+    /// Validating and decoding portable native programs and metadata.
+    Decoding,
+    /// Restoring sector evaluators; N/N still precedes final offset validation.
+    Restoring(CompilationProgress),
+    /// Evaluators and load-time metadata/schema/identity are admitted. Runtime
+    /// constraints and exact offsets still require a valid physical point.
+    Complete,
+}
+
 pub struct SectorKernel {
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
@@ -102,13 +116,6 @@ pub struct SectorKernel {
     program_bytes: std::sync::Arc<[u8]>,
     statistics: EvaluatorStatistics,
     backend: Backend,
-}
-
-#[cfg(feature = "native")]
-struct SectorExpressions {
-    parameters: Vec<Symbol>,
-    coefficients: Vec<Atom>,
-    cancellation: cancellation::Cancellation,
 }
 
 // Both variants own large evaluator workspaces with heap-backed numeric buffers.
@@ -127,7 +134,7 @@ struct RealKernel {
     conditioning_timing: EvaluatorTiming,
     evaluator: evaluator::RealEvaluator,
     exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
-    conditioning: Option<ExpressionEvaluator<ErrorPropagatingFloat<f64>>>,
+    conditioning: evaluator::Conditioning<ErrorPropagatingFloat<f64>>,
     check_input: Vec<ErrorPropagatingFloat<f64>>,
     check_output: Vec<ErrorPropagatingFloat<f64>>,
 }
@@ -264,7 +271,11 @@ impl SectorKernel {
         if boundary
             && !nonfinite
             && !range_loss
-            && let Some(conditioning) = &mut backend.conditioning
+            && let Some(conditioning) = backend
+                .conditioning
+                .get_or_map(&backend.exact_evaluator, |value| {
+                    ErrorPropagatingFloat::new(value.re.to_f64(), 15.0)
+                })
         {
             for (target, value) in backend.check_input.iter_mut().zip(point) {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
@@ -387,7 +398,6 @@ pub struct KernelSet {
     stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
     runtime_mass_constraints: Vec<RuntimeMassConstraint>,
-    exact_kernel: Option<SectorKernel>,
     template_content_id: Option<String>,
     portable_artifact: Option<Vec<u8>>,
     metadata: Option<crate::generation::GenerationMetadata>,
@@ -411,11 +421,6 @@ impl KernelSet {
             stability: self.stability.clone(),
             runtime_parameters: self.runtime_parameters.clone(),
             runtime_mass_constraints: self.runtime_mass_constraints.clone(),
-            exact_kernel: self
-                .exact_kernel
-                .as_ref()
-                .map(SectorKernel::try_clone)
-                .transpose()?,
             template_content_id: self.template_content_id.clone(),
             portable_artifact: self.portable_artifact.clone(),
             metadata: self.metadata.clone(),
@@ -485,13 +490,12 @@ impl KernelSet {
         if self.runtime_parameters.is_empty() {
             return Ok(());
         }
-        let exact_kernel = self.exact_kernel.as_mut().ok_or_else(|| {
-            KernelError::Artifact("missing parameterized exact-offset evaluator".into())
-        })?;
-        exact_kernel.input.copy_from_slice(&ordered);
-        exact_kernel.parameters_bound = true;
-        let mut exact_coefficients = vec![0.0; exact_kernel.output_count()];
-        exact_kernel.evaluate(&[], &mut exact_coefficients)?;
+        let exact_coefficients = exact::evaluate(
+            &self.exact_expressions,
+            values,
+            self.components
+                .contains(&crate::status::CoefficientComponent::Imag),
+        )?;
         for sector in &mut self.sectors {
             let dimension = sector.dimension();
             sector.input[dimension..].copy_from_slice(&ordered);

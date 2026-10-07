@@ -8,6 +8,7 @@ mod generation_report;
 mod input;
 mod inspect;
 mod integration_report;
+mod loading;
 mod math_display;
 #[cfg(test)]
 mod numerical_dual_benchmark;
@@ -134,6 +135,10 @@ enum Action {
         /// Inspect one compiled sector by its zero-based ID from the overview.
         #[arg(long)]
         sector: Option<usize>,
+        /// Restore the binary evaluators and inspect all retained metadata (can be expensive).
+        #[arg(long)]
+        deep: bool,
+        /// Show retained expressions; implies --deep and can be expensive.
         #[arg(long)]
         expressions: bool,
     },
@@ -475,7 +480,7 @@ fn run(cli: Cli) -> CliResult<()> {
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
             let (artifact, mut kernels) = if integration.resume {
-                artifact::Artifact::load_with_preflight(&output, |_| Ok(()))?
+                loading::load(&output, &mut dashboard, |_| Ok(()))?
             } else {
                 generate::generate_with_workers(
                     &input,
@@ -541,14 +546,14 @@ fn run(cli: Cli) -> CliResult<()> {
             integration,
         } => {
             let mut reference = None;
-            let (artifact, mut kernels) =
-                artifact::Artifact::load_with_preflight(&path, |artifact| {
-                    reference = reference::prepare(
-                        artifact.resolved_reference(),
-                        integration.reference.as_deref(),
-                    )?;
-                    Ok(())
-                })?;
+            let mut dashboard = make_dashboard()?;
+            let (artifact, mut kernels) = loading::load(&path, &mut dashboard, |artifact| {
+                reference = reference::prepare(
+                    artifact.resolved_reference(),
+                    integration.reference.as_deref(),
+                )?;
+                Ok(())
+            })?;
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
             let checkpoint = integration
@@ -574,7 +579,6 @@ fn run(cli: Cli) -> CliResult<()> {
                     reference.as_ref(),
                 )?;
             }
-            let mut dashboard = make_dashboard()?;
             let result = driver::integrate(
                 &artifact,
                 &kernels,
@@ -612,6 +616,7 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::Inspect {
             path,
+            deep,
             expressions,
             sector,
         } => {
@@ -638,7 +643,14 @@ fn run(cli: Cli) -> CliResult<()> {
                 }
                 report(&value, render_json)?;
             } else {
-                inspect::artifact(&path, expressions, sector, cli.plain, render_json)?;
+                inspect::artifact(
+                    &path,
+                    deep || expressions,
+                    expressions,
+                    sector,
+                    cli.plain,
+                    render_json,
+                )?;
             }
         }
         Action::Benchmark {

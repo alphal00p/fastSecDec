@@ -53,7 +53,7 @@ impl Drop for CancelOnUnwind<'_> {
     }
 }
 
-pub(super) fn run<J: Send, C: Send>(
+pub(crate) fn run<J: Send, C: Send>(
     pool: &rayon::ThreadPool,
     jobs: &mut dyn ExactSizeIterator<Item = J>,
     cancelled: &Arc<AtomicBool>,

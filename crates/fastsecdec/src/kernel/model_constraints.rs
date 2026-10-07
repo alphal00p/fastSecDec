@@ -3,11 +3,14 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use symbolica::{
-    atom::{Atom, AtomCore, Symbol},
+    atom::{Atom, AtomCore, AtomView, Symbol},
     domains::float::{Complex, Float, SingleFloat},
 };
 
 use super::{KernelError, KernelSet};
+
+#[cfg(test)]
+mod tests;
 
 /// A generic propagator mass must remain finite, real and nonzero at runtime.
 /// A massless specialization has different endpoint structure and must be
@@ -40,12 +43,7 @@ impl KernelSet {
 
     pub(super) fn validate_runtime_mass_constraints(&self) -> Result<(), KernelError> {
         let mut names = BTreeSet::new();
-        let variables = self
-            .runtime_parameters
-            .iter()
-            .map(|s| Atom::var(*s))
-            .collect::<Vec<_>>();
-        if variables.is_empty() && !self.runtime_mass_constraints.is_empty() {
+        if self.runtime_parameters.is_empty() && !self.runtime_mass_constraints.is_empty() {
             return Err(KernelError::Artifact(
                 "runtime mass constraints require runtime parameters".into(),
             ));
@@ -56,15 +54,26 @@ impl KernelSet {
                     "invalid or duplicate runtime mass name".into(),
                 ));
             }
-            // The native evaluator builder checks the full scalar expression
-            // against the same ordered inputs used by all numerical backends.
-            Atom::evaluator_multiple(&[&constraint.expression], &variables)
-                .direct_translation(true)
-                .horner_iterations(0)
-                .build()
-                .map_err(|error| {
-                    KernelError::Artifact(format!("runtime mass {}: {error}", constraint.name))
-                })?;
+            // Reuse native indeterminate discovery without constructing an
+            // evaluator. Do not descend into functions: their leading arguments
+            // may be symbolic callback tags, not runtime variables. Native
+            // evaluation validates those bodies/arity at the supplied point,
+            // before a session can be created from the bound kernel set.
+            for value in constraint.expression.get_all_indeterminates(false) {
+                if let AtomView::Var(variable) = value {
+                    let symbol = variable.get_symbol();
+                    if !self.runtime_parameters.contains(&symbol)
+                        && !symbol
+                            .get_evaluation_info()
+                            .is_some_and(|info| info.has_constant_evaluator())
+                    {
+                        return Err(KernelError::Artifact(format!(
+                            "runtime mass {} contains undeclared parameter {symbol}",
+                            constraint.name
+                        )));
+                    }
+                }
+            }
         }
         Ok(())
     }

@@ -223,6 +223,7 @@ pub(super) fn is_real_expression(expression: &Atom, inputs: &[Symbol]) -> bool {
     RealInputs::new(inputs.iter()).is_real(expression)
 }
 
+#[cfg(test)]
 pub(super) fn is_real_coordinate_expression(expression: &Atom, coordinates: &[Symbol]) -> bool {
     RealInputs::with_coordinates(coordinates, &[]).is_real(expression)
 }
