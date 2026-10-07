@@ -111,6 +111,23 @@ class GGHHInput(ShowcaseInput):
     def generation_arguments(self):
         return {"coefficient_expansion": "coefficient_series"}
 
+    def gram_legend(self):
+        """Describe runtime Gram inputs using this diagram's native leg routing."""
+        legs = sorted(hep.Amplitude.from_diagram(self.raw_diagram).legs, key=lambda leg: leg.index)
+        external = {edge.id: edge.external_index for edge in self.raw_diagram.external_edges}
+        by_index = {leg.index: leg for leg in legs}
+        basis = self.raw_diagram.loop_momentum_basis
+        labels = []
+        for index, edge in enumerate(basis.external_edges):
+            if edge not in basis.dependent_externals:
+                leg = by_index[external[edge]]
+                labels.append(f"P({index}): {leg.state} {leg.particle.name}, leg {leg.index}")
+        labels += [f"eps{index + 1}: + helicity, incoming gluon leg {leg.index}"
+                   for index, leg in enumerate(leg for leg in legs if leg.state == "incoming")]
+        return tuple({"Runtime symbol": str(symbol.formatted(show_namespaces=True)),
+                      "Left vector": labels[left], "Right vector": labels[right]}
+                     for left, right, symbol in self.gram_symbols)
+
 
 def _tensor(name, components):
     return Tensor.dense(TensorName.vector(name)(Representation.mink(4)), components)
@@ -200,7 +217,9 @@ def prepare(*, selected=None, source=None, observer=None):
     raw_numerator = raw.numerator_expression(in_lmb=True)
     contracted = (raw_numerator * color * polarization * raw.projector_expression()).with_lorentz_dimension(dimension)
     contracted = contracted.simplify_algebra(
-        contract="minimal", color_substitute_cof_dimension_invariants=True,
+        # Scalar structure alone permits closed tensor networks. Resolve all
+        # Lorentz contractions to native scalar products for parametrization.
+        contract="dots", color_substitute_cof_dimension_invariants=True,
     ).to_dots()
     if not contracted.is_scalar:
         raise ValueError("Native numerator contraction left free tensor indices")

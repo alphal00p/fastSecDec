@@ -61,6 +61,44 @@ def test_box_preparation_retains_native_gram_symbols_for_later_point_binding(cat
     # Special angle zeros remain runtime values, never structural omissions.
     symmetric = value.runtime_point({"sqrt_s": 300, "higgs_mass": 125, "cos_theta": 0})
     assert set(symmetric) == set(first)
+    legend = value.gram_legend()
+    assert {row["Runtime symbol"] for row in legend} == {
+        str(symbol.formatted(show_namespaces=True)) for symbol in arguments["runtime_parameters"]
+    }
+    assert all("leg " in row["Left vector"] and "leg " in row["Right vector"] for row in legend)
+    assert any("eps1" in row["Left vector"] and "eps2" in row["Right vector"] for row in legend)
+
+
+@pytest.mark.parametrize("identity", [
+    "6586fc41a2a00087ef7be79f59b61224",  # User-reported graph: two triple-gluon vertices.
+    "bf45cfca79c449b3c03e49aebf39b9dc",  # Distinct routing with the same tensor obstruction.
+])
+def test_triple_gluon_numerators_are_contracted_before_native_parametrization(catalogue, identity):
+    from showcase import science
+
+    diagram = catalogue.selected(identity)
+    triple_gluon_vertices = [
+        vertex for vertex in diagram.vertices
+        if catalogue.model.vertex_rule(vertex.interaction).particles == ["g", "g", "g"]
+    ]
+    assert diagram.loop_count == 2 and len(triple_gluon_vertices) == 2
+    prepared = gghh.prepare(selected=identity, source=catalogue)
+    assert prepared.simplified_numerator != E("0")
+    owner = science.generation(prepared, {"max_order": 0})
+    # A tensor may be structurally scalar while retaining indexed contractions
+    # across sums. The previous minimal policy failed on this first native unit.
+    snapshot = owner.step(max_units=1)
+    assert owner.failed is None
+    assert snapshot.stage == "parametrization"
+    assert snapshot.timings.parametrization_seconds > 0
+    # Continue into genuine nonempty sector geometry, without expensive full
+    # compilation or an integration in this regression test.
+    for _ in range(3):
+        snapshot = owner.step(max_units=1)
+        if snapshot.stage == "geometry":
+            break
+    assert owner.failed is None
+    assert snapshot.stage == "geometry" and snapshot.completed > 0
 
 
 def test_box_numerator_pagers_are_native_cached_and_released(catalogue):
@@ -78,7 +116,8 @@ def test_box_numerator_pagers_are_native_cached_and_released(catalogue):
     # accordion unmounts content and closes the native widget's final view.
     assert panel.text.count("<details ") == 2
     assert panel.text.count("<marimo-anywidget ") == 2
-    assert "marimo-accordion" not in panel.text
+    assert all("marimo-accordion" not in content.text
+               for content in study.numerator_content.values())
     assert len(study.numerator_content) == 2
     study.publish()  # Monitor publication never recreates the widget cell.
     assert study.prepared_panel is panel

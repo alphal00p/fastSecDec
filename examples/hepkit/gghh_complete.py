@@ -339,6 +339,23 @@ def _(ShowcaseInput, runtime_ready):
             def generation_arguments(self):
                 return {"coefficient_expansion": "coefficient_series"}
 
+            def gram_legend(self):
+                """Describe runtime Gram inputs using this diagram's native leg routing."""
+                legs = sorted(hep.Amplitude.from_diagram(self.raw_diagram).legs, key=lambda leg: leg.index)
+                external = {edge.id: edge.external_index for edge in self.raw_diagram.external_edges}
+                by_index = {leg.index: leg for leg in legs}
+                basis = self.raw_diagram.loop_momentum_basis
+                labels = []
+                for index, edge in enumerate(basis.external_edges):
+                    if edge not in basis.dependent_externals:
+                        leg = by_index[external[edge]]
+                        labels.append(f"P({index}): {leg.state} {leg.particle.name}, leg {leg.index}")
+                labels += [f"eps{index + 1}: + helicity, incoming gluon leg {leg.index}"
+                           for index, leg in enumerate(leg for leg in legs if leg.state == "incoming")]
+                return tuple({"Runtime symbol": str(symbol.formatted(show_namespaces=True)),
+                              "Left vector": labels[left], "Right vector": labels[right]}
+                             for left, right, symbol in self.gram_symbols)
+
 
         def _tensor(name, components):
             return Tensor.dense(TensorName.vector(name)(Representation.mink(4)), components)
@@ -428,7 +445,9 @@ def _(ShowcaseInput, runtime_ready):
             raw_numerator = raw.numerator_expression(in_lmb=True)
             contracted = (raw_numerator * color * polarization * raw.projector_expression()).with_lorentz_dimension(dimension)
             contracted = contracted.simplify_algebra(
-                contract="minimal", color_substitute_cof_dimension_invariants=True,
+                # Scalar structure alone permits closed tensor networks. Resolve all
+                # Lorentz contractions to native scalar products for parametrization.
+                contract="dots", color_substitute_cof_dimension_invariants=True,
             ).to_dots()
             if not contracted.is_scalar:
                 raise ValueError("Native numerator contraction left free tensor indices")
@@ -535,7 +554,16 @@ def _(formatting):
             return [{"native phase": name, "seconds": getattr(event.timings, f"{name}_seconds")} for name in names]
 
         def generation_view(mo, state):
+            # The native session becomes complete only once kernels exist. A generated
+            # decomposition may already be retained when its compilation fails.
+            generation_complete = (state.generation_session.complete if state.generation_session is not None
+                                   else state.kernels is not None)
+            generation_failed = state.phase == "failed" and not generation_complete
             if not state.events:
+                if generation_failed:
+                    return mo.md("Generation failed before any sector results were produced. This is not a zero integral.")
+                if generation_complete:
+                    return mo.md("The completed generation is retained; no generation progress events were recorded.")
                 return mo.md("Preparing the native input. Individual algebra units are atomic; Pause takes effect at the next retained boundary.")
             last = state.events[-1]
             progress = f"{last.completed:,} / {last.total:,}" if last.total is not None else f"{last.completed:,} observed"
@@ -545,6 +573,8 @@ def _(formatting):
                            mo.stat(label="Sectors / kernels", value=f"{last.sectors} / {last.kernels}")], widths="equal"),
                 mo.md(last.detail),
             ]
+            if generation_failed:
+                content.append(mo.md("**Generation failed.** These are partial progress counters, not a completed decomposition or a zero integral."))
             if last.total is not None and last.total > 0:
                 content.append(mo.Html(f'<progress value="{last.completed}" max="{last.total}" style="width:100%;accent-color:#5b5bc4"></progress>'))
             detail = {"Observed phase timeline": table(mo, phase_rows(state.events)),
@@ -1723,7 +1753,8 @@ def _(RunState, formatting, generation_views, gghh_inputs, integration_views, re
 
             def monitor(self, mo):
                 run = self.run
-                content = [mo.callout(run.error or run.message, kind="danger" if run.error else "info")]
+                content = [mo.callout(mo.md(f"{run.error}\n\n{run.message}") if run.error else run.message,
+                                      kind="danger" if run.error else "info")]
                 if run.generation_session is not None or run.phase == "preparing":
                     content.append(panel(mo, "Generation · retained native units", generation.generation_view(mo, run), expanded=run.generation_active or run.phase == "generation_paused"))
                 if run.snapshot is not None:
@@ -1763,6 +1794,14 @@ def _(RunState, formatting, generation_views, gghh_inputs, integration_views, re
                     '<div style="padding-top:0.8rem">' + content.text + '</div></details>'
                 ) for title, content in items.items()]
                 content = panels or [mo.as_html(prepared.diagram)]
+                if hasattr(prepared, "gram_legend"):
+                    content.insert(0, mo.accordion({"Kinematic symbols · momentum and polarization products": mo.vstack([
+                        mo.md("`dot_i_j` is a runtime Minkowski scalar product, with metric (+, −, −, −). "
+                              "Its vectors are listed below using this diagram's native external-leg routing. "
+                              "The symbols stay unbound during generation; Integrate binds them from the chosen "
+                              "energy, Higgs mass, scattering angle and (+,+) helicities."),
+                        sectors._static_table(mo, list(prepared.gram_legend())),
+                    ])}))
                 self.prepared_panel = mo.vstack([mo.md(f"**Prepared input:** {prepared.name}"), *content])
                 return self.prepared_panel
 

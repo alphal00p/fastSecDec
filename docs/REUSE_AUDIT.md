@@ -1954,3 +1954,21 @@ and current public Git pin have the same revision but different recorded source
 states. The guard and old artifacts remain unchanged. Earlier full-vector ggHH
 parity and current native/portable scientific controls are the numerical evidence;
 no fresh four-artifact parity or runtime measurement is claimed for this update.
+
+## ggHH scalar contraction and native expression layout (2026-10-07)
+
+The reported two-loop notebook polynomial-admission failure uses an existing
+HEPKit capability: `AlgebraContraction::Dots`, exposed by
+`simplify_algebra(contract="dots")`. Owner documentation, existing native
+contraction regressions and the exact failing graph confirm that Minimal may
+leave closed tensor networks even when no free indices remain. The notebook
+now requests Dots; FastSecDec's native polynomial guard is unchanged. A second
+triple-gluon graph and the one-loop eager schema remain covered.
+
+The Gram-symbol legend reads native diagram legs and routing without inventing
+a kinematic representation. The overlapping formula is fixed in the shared
+Spenso pager's MathML layout, on its owning FeynKit branch, rather than by adding
+a notebook renderer. Both modular and self-contained notebooks retain the native
+pagers, runtime parameters, explicit actions and failure state. See the
+[contraction and display review](reviews/gghh-contraction-and-mathml.md) for the
+matched graph, before/after evidence and validation boundaries.

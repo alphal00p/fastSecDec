@@ -58,13 +58,22 @@ implemented; choosing an admissible physical point remains the caller's task.
 The visible native diagram rendering follows the HEPKit
 [four-loop numerator notebook](https://hepkit.org/gallery/notebooks/four_loop_numerator.html).
 Generate explicitly constructs the projector and performs native tensor/color
-contraction. The raw native tensor numerator and simplified scalar numerator
+contraction with HEPKit's `contract="dots"` mode. A tensor expression can have no
+free indices while still containing unevaluated contractions; those must be
+resolved to scalar products before FastSecDec parametrization.
+The raw native tensor numerator and simplified scalar numerator
 then appear in separate native lazy-paging panels. Both viewers are retained and
 displayed by stable cells until another Generate replaces the input. Sampling,
 pause and resume do not recreate their widget models or reset navigation.
 Collapsible numerator panels hide their content while keeping both native widgets
 mounted; reopening them preserves the current page. Merely opening a panel never
 contracts again.
+
+The **Kinematic symbols** panel identifies every `dot_i_j` with its two physical
+momentum or polarization vectors and the diagram's external-leg routing.
+These are runtime Minkowski products. Integrate binds them at the selected
+physical point. A failed generation retains its error and labels any sector
+counters as incomplete; it supplies no numerical zero result.
 
 ## Explicit actions and retained work
 

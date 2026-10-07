@@ -216,7 +216,8 @@ class Study:
 
     def monitor(self, mo):
         run = self.run
-        content = [mo.callout(run.error or run.message, kind="danger" if run.error else "info")]
+        content = [mo.callout(mo.md(f"{run.error}\n\n{run.message}") if run.error else run.message,
+                              kind="danger" if run.error else "info")]
         if run.generation_session is not None or run.phase == "preparing":
             content.append(panel(mo, "Generation · retained native units", generation.generation_view(mo, run), expanded=run.generation_active or run.phase == "generation_paused"))
         if run.snapshot is not None:
@@ -256,6 +257,14 @@ class Study:
             '<div style="padding-top:0.8rem">' + content.text + '</div></details>'
         ) for title, content in items.items()]
         content = panels or [mo.as_html(prepared.diagram)]
+        if hasattr(prepared, "gram_legend"):
+            content.insert(0, mo.accordion({"Kinematic symbols · momentum and polarization products": mo.vstack([
+                mo.md("`dot_i_j` is a runtime Minkowski scalar product, with metric (+, −, −, −). "
+                      "Its vectors are listed below using this diagram's native external-leg routing. "
+                      "The symbols stay unbound during generation; Integrate binds them from the chosen "
+                      "energy, Higgs mass, scattering angle and (+,+) helicities."),
+                sectors._static_table(mo, list(prepared.gram_legend())),
+            ])}))
         self.prepared_panel = mo.vstack([mo.md(f"**Prepared input:** {prepared.name}"), *content])
         return self.prepared_panel
 

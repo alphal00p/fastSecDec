@@ -1,6 +1,7 @@
 """The complete notebook runs without adjacent project modules or fixtures."""
 
 import ast
+import inspect
 import json
 from pathlib import Path
 import shutil
@@ -12,6 +13,30 @@ import pytest
 
 
 NOTEBOOK = Path(__file__).resolve().parents[1] / "gghh_complete.py"
+
+
+def test_complete_notebook_keeps_preparation_and_presentation_fixes_in_sync():
+    """The standalone workflow must carry the same fixes as its maintained source."""
+    class NormalizeDocstrings(ast.NodeTransformer):
+        def visit_FunctionDef(self, node):
+            if ast.get_docstring(node, clean=False) is not None:
+                node.body[0].value.value = inspect.cleandoc(node.body[0].value.value)
+            return self.generic_visit(node)
+
+        visit_ClassDef = visit_FunctionDef
+
+    complete = NormalizeDocstrings().visit(ast.parse(NOTEBOOK.read_text()))
+    for filename, names in {
+        "gghh.py": {"GGHHInput", "prepare"},
+        "notebook.py": {"monitor", "prepared_view"},
+        "generation.py": {"generation_view"},
+    }.items():
+        shared = NormalizeDocstrings().visit(ast.parse((NOTEBOOK.parent / "showcase" / filename).read_text()))
+        for name in names:
+            def definition(tree):
+                return next(node for node in ast.walk(tree)
+                            if isinstance(node, (ast.ClassDef, ast.FunctionDef)) and node.name == name)
+            assert ast.dump(definition(complete)) == ast.dump(definition(shared)), (filename, name)
 
 
 def test_complete_notebook_has_only_library_or_standard_imports():

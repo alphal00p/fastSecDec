@@ -18,7 +18,16 @@ def timing_rows(event):
     return [{"native phase": name, "seconds": getattr(event.timings, f"{name}_seconds")} for name in names]
 
 def generation_view(mo, state):
+    # The native session becomes complete only once kernels exist. A generated
+    # decomposition may already be retained when its compilation fails.
+    generation_complete = (state.generation_session.complete if state.generation_session is not None
+                           else state.kernels is not None)
+    generation_failed = state.phase == "failed" and not generation_complete
     if not state.events:
+        if generation_failed:
+            return mo.md("Generation failed before any sector results were produced. This is not a zero integral.")
+        if generation_complete:
+            return mo.md("The completed generation is retained; no generation progress events were recorded.")
         return mo.md("Preparing the native input. Individual algebra units are atomic; Pause takes effect at the next retained boundary.")
     last = state.events[-1]
     progress = f"{last.completed:,} / {last.total:,}" if last.total is not None else f"{last.completed:,} observed"
@@ -28,6 +37,8 @@ def generation_view(mo, state):
                    mo.stat(label="Sectors / kernels", value=f"{last.sectors} / {last.kernels}")], widths="equal"),
         mo.md(last.detail),
     ]
+    if generation_failed:
+        content.append(mo.md("**Generation failed.** These are partial progress counters, not a completed decomposition or a zero integral."))
     if last.total is not None and last.total > 0:
         content.append(mo.Html(f'<progress value="{last.completed}" max="{last.total}" style="width:100%;accent-color:#5b5bc4"></progress>'))
     detail = {"Observed phase timeline": table(mo, phase_rows(state.events)),
