@@ -42,6 +42,16 @@ with notebook validation and its native host identities. No three-loop numerator
 contraction, parameterization, sector generation or integration was run. Existing
 one-loop master/reduction owners and all numerical algorithms remain unchanged.
 
+The separate community delivery preserves its newer native dependencies and
+passes 29 focused installed-wheel host checks, including the full Laurent QMC
+comparisons. Its combined maintained suite exposed process-state sensitivity
+in two fixed graph-ID regressions; both exact cases pass in a fresh interpreter.
+Their tests now use that isolated boundary without changing scientific
+assertions or native graph/algebra code. The publication review records this
+limitation and distinguishes the two validation hosts. The complete corrected
+suite passes all 202 binding, notebook and wavefunction controls with no skips;
+independent source and execution-evidence review accepted this follow-up.
+
 ## Exact incoming-gluon mass shells (2026-10-07)
 
 The ggHH double-box and triple-box-bis generation cards now declare the two

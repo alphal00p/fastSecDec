@@ -179,6 +179,36 @@ already observed warm-state limitation documented in the linked on-shell audit.
 The full CLI suite passes 53 tests with one intentional ignored test in 4.14 s;
 strict workspace all-target Clippy passes in 1.96 s and Rust formatting passes.
 
+## Community delivery validation
+
+The replacement community delivery preserves its intervening native-owner
+updates: FeynKit `69a6b97`, Numerica/Graphica `ed2374f` (including the signed
+integer serialization fix), and the other locked dependencies. Only the four
+FastSecDec packages and shared Symbolica composition prerequisite change.
+The installed native release wheel passed all 29 focused host checks, including
+compiled notebook runtime binding, scalar preparation, API stubs, and the full
+Laurent/component QMC comparisons at their unchanged tolerances. These finite
+allocation comparisons do not establish convergence or full covariance parity.
+
+Combining all maintained binding, notebook and wavefunction controls in one
+process exposed a test-isolation issue: the two hard-coded triple-gluon graph
+IDs were absent after earlier native tests had run. Both original cases pass
+in a fresh process on the same wheel, and cold catalogues retain both original
+IDs. This establishes process-state sensitivity, not a native topology change;
+its underlying native-state cause has not been identified. The regression now
+runs each exact original case in an isolated interpreter, retaining every
+nonzero scalar, numerical-dual/Taylor and nonempty-geometry assertion. There is
+no production algebra, graph selection or numerical change in this correction.
+The corrected combined suite passes all 202 cases in 15.29 s, with no failures,
+errors or skipped cases: 86 binding controls, 102 notebook controls and 14
+wavefunction controls. Independent review accepted the unchanged scientific
+assertions and read the complete JUnit results. This test-only follow-up leaves
+all 429 tracked native build inputs byte-identical to `b950103`; the community
+delivery updates its public source pin so its ordinary CI discovers the
+corrected tests. Logs are retained under ignored `output/gghh-cards-review/`,
+including `community-maintained-corrected-tests.log` and its JUnit report,
+`community-host-tests.log`, and `native-input-equivalence.json`.
+
 No three-loop numerator contraction, parameterization, sector generation,
 evaluator compilation or integration was performed. No three-loop sector count,
 pole order, numerical value or performance claim follows from this review.

@@ -1,5 +1,6 @@
 """Native complete gg→HH catalogue and symbolic physical-point preparation."""
 from pathlib import Path
+import subprocess
 import sys
 import pytest
 from symbolica import E
@@ -96,7 +97,26 @@ def test_box_preparation_retains_native_gram_symbols_for_later_point_binding(cat
     "6586fc41a2a00087ef7be79f59b61224",  # User-reported graph: two triple-gluon vertices.
     "bf45cfca79c449b3c03e49aebf39b9dc",  # Distinct routing with the same tensor obstruction.
 ])
-def test_triple_gluon_numerators_are_contracted_before_native_parametrization(catalogue, identity):
+def test_triple_gluon_numerators_are_contracted_before_native_parametrization(identity):
+    # Native content IDs match these exact historical graphs in a fresh process,
+    # but can differ after unrelated symbolic owners have run in the test suite.
+    # Keep the two reported cases intact and exercise their ordinary cold native
+    # catalogue boundary, rather than selecting different graphs or relaxing IDs.
+    probe = """
+import runpy
+import sys
+module = runpy.run_path(sys.argv[1])
+catalogue = module["gghh"].catalogue(progress=None)
+module["_check_triple_gluon_parametrization"](catalogue, sys.argv[2])
+"""
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(Path(__file__).resolve()), identity],
+        capture_output=True, text=True, timeout=120,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
+def _check_triple_gluon_parametrization(catalogue, identity):
     from showcase import science
 
     diagram = catalogue.selected(identity)
