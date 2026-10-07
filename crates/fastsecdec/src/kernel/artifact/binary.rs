@@ -18,7 +18,8 @@ use symbolica::{
 mod tests;
 
 pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
-pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x07";
+pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x08";
+const MAGIC_V7: &[u8] = b"FastSecDec\0binserde\x07";
 const MAGIC_V6: &[u8] = b"FastSecDec\0binserde\x06";
 const MAGIC_V5: &[u8] = b"FastSecDec\0binserde\x05";
 const CODEC: &str = "symbolica-3:context-binserde-atoms-v1:serde-binserde-evaluators-v1";
@@ -230,13 +231,14 @@ fn semantic_id(payload: &Payload, version: u8) -> Result<String, KernelError> {
     hash.update(match version {
         5 => b"fastsecdec-native-semantic-v5",
         6 => b"fastsecdec-native-semantic-v6",
-        _ => b"fastsecdec-native-semantic-v7",
+        7 => b"fastsecdec-native-semantic-v7",
+        _ => b"fastsecdec-native-semantic-v8",
     });
     serde_json::to_writer(&mut hash, &semantic)?;
     Ok(hash.finalize().to_hex().to_string())
 }
 fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
-    let content_id = semantic_id(&payload, 7)?;
+    let content_id = semantic_id(&payload, 8)?;
     let mut symbols = Atom::Zero.get_all_symbols(true);
     let mut collect = |atom: &Atom| {
         symbols.extend(atom.get_all_symbols(true));
@@ -311,15 +313,7 @@ pub(super) fn generated(
 ) -> Result<Vec<u8>, KernelError> {
     precision.validate()?;
     settings.validate()?;
-    let complex = value
-        .sectors()
-        .iter()
-        .flat_map(|s| s.aliased_coefficients())
-        .any(|c| !program::is_real(c))
-        || value
-            .exact_coefficients()
-            .iter()
-            .any(crate::kernel::has_complex_coefficients);
+    let complex = crate::kernel::compilation::requires_complex(value, &[]);
     let sectors = value
         .sectors()
         .iter()
@@ -361,7 +355,9 @@ pub(super) fn generated(
 }
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
-        (wire, MAGIC, 7)
+        (wire, MAGIC, 8)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V7) {
+        (wire, MAGIC_V7, 7)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V6) {
         (wire, MAGIC_V6, 6)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V5) {
@@ -448,6 +444,11 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
             return Err(failure("invalid sector coordinates"));
         }
         let program = program::decode(&sector.program)?;
+        if version < 8 && !use_complex && program::legacy_real_branch(&program) {
+            return Err(failure(
+                "historical real layout has an unproved branch domain; regenerate with the current compiler",
+            ));
+        }
         if program.get_input_len() != sector.parameters.len() + payload.runtime_parameters.len()
             || program.get_output_len() != payload.orders.len()
         {
@@ -479,10 +480,9 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         .map(|m| m.into_native(&coordinates))
         .transpose()?;
     if !use_complex
-        && payload
-            .exact
-            .iter()
-            .any(crate::kernel::has_complex_coefficients)
+        && payload.exact.iter().any(|coefficient| {
+            !program::is_real_expression(coefficient, &payload.runtime_parameters)
+        })
     {
         return Err(failure("complex exact offset in real output layout"));
     }

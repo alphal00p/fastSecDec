@@ -1777,3 +1777,37 @@ only the public dependency pin/lock sources, reexports and generated stubs/tests
 Locked metadata, unique native-owner checks, ten bridge/stub controls and
 Python 3.9 stub/signature validation pass against that public source. This final
 pin check does not claim an additional wheel rebuild.
+
+## Runtime complex coefficient routing (2026-10-07)
+
+Independent source review accepts the final native repair after scoped Rust,
+strict Clippy and complete release-wheel numerical controls pass. Realness classification reuses native Symbolica
+`replace_map` and `is_real`, with distinct input proxies and conservative
+fixed-point alias proofs. Runtime inputs remain real without sign assumptions;
+unit-cube coordinate positivity retains endpoint errors. Narrow immutable
+Euler and exact fixed-polygamma domain facts preserve the native Gamma vector
+without evaluating callbacks for proof. Evaluators, complex branches, exact endpoint offsets,
+precision rescue and caller-owned integration remain native; no alias expansion,
+CAS, alternate evaluator or sampler is added. Reviewed regressions cover runtime
+sqrt/log branches, exact `sqrt(p)/eps`, alias attributes, batches, reload and real
+polynomial routing, with a genuine pole retained as an error.
+
+Historical real sqrt/log/fractional-power sampled artifacts are rejected by a
+version-8 producer boundary and narrow legacy native-IR admission gate; safe
+polynomial and complex fixtures remain readable. Nine scoped new controls, 19
+existing integration controls, and the final 38-test kernel-unit scope (including
+eleven new controls; eight existing diagnostics ignored) pass in
+inspected logs. Final real-backend admission proves every actual operation,
+including alias bodies: a real result such as `abs(sqrt(-p))` cannot hide its
+complex intermediate. Stability certificates use the same conservative proof.
+The strengthened source also passes the existing 19 controls and strict library
+Clippy. On the final complete wheel (Community `80e23e6a`, RustFlow `21edf80`,
+final local FastSecDec), ten notebook controls pass in 159.42 seconds, including
+full-vector matched QMC against `gghh.py` for the 1PI one-loop box, two-loop
+double box and separately requested reducible triangle, native cold reload and
+runtime rebinding. Two installed shared-package checks also pass. The native
+numerical deployment gate is passed; the review does not claim that the live
+server has already been replaced or that the local source has been published.
+This review makes no convergence, new causal continuation or actual Wasm
+execution claim. See the [independent routing review](reviews/2026-10-07-runtime-complex-routing.md)
+for proof boundaries and final acceptance evidence.

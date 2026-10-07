@@ -6,6 +6,7 @@ use super::*;
 use crate::kernel::{PrecisionPolicy, SectorKernel};
 use std::{fs, fs::File, path::Path, time::Instant};
 use symbolica::{
+    atom::AtomView,
     coefficient::Coefficient,
     domains::float::{Float, Real, RealLike},
 };

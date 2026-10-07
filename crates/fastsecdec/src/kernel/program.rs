@@ -1,11 +1,15 @@
 //! Native symbolic-to-numeric boundary. One exact program owns every numeric path.
 #[cfg(test)]
 mod captured;
+#[cfg(test)]
+mod runtime_branch;
 use super::{CompilationSettings, KernelError, cancellation::Cancellation};
+use std::collections::HashMap;
 use symbolica::{
     atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::ExpressionEvaluator,
+    evaluate::{ExportedInstructions, ExpressionEvaluator, Instruction},
+    function, symbol,
 };
 
 pub(super) type ExactProgram = ExpressionEvaluator<Complex<Rational>>;
@@ -104,28 +108,222 @@ pub(super) fn build_with_settings(
     let exact = builder
         .build()
         .map_err(|error| KernelError::Compilation(error.to_string()))?;
+    let real_coefficients = coefficients
+        .iter()
+        .map(|coefficient| is_real_with_parameters(coefficient, &parameters, runtime_parameters))
+        .collect();
     Ok(SectorProgram {
         parameters,
         runtime_parameters: runtime_parameters.to_vec(),
         exact,
         cancellation,
         exact_zero: roots.iter().map(|root| root.is_zero()).collect(),
-        real_coefficients: coefficients.iter().map(is_real).collect(),
+        real_coefficients,
     })
 }
 
-/// Native literal coefficients plus the caller-chosen real domain provide
-/// this sufficient test. Only definitions used by the root contribute.
+/// Real literal coefficients alone do not certify real-valued square roots,
+/// logarithms or fractional powers. Ask Symbolica under the real input domain.
+#[cfg(test)]
 pub(super) fn is_real(coefficient: &AliasedAtom) -> bool {
-    let symbols = coefficient.get_root().get_all_symbols(true);
-    !super::has_complex_coefficients(coefficient.get_root())
-        && coefficient.get_aliases().iter().all(|(handle, body)| {
-            let used = match handle.as_view() {
-                AtomView::Var(handle) => symbols.contains(&handle.get_symbol()),
-                _ => true,
-            };
-            !used || !super::has_complex_coefficients(body)
+    is_real_with_parameters(coefficient, &[], &[])
+}
+
+pub(super) fn is_real_with_parameters(
+    coefficient: &AliasedAtom,
+    coordinates: &[Symbol],
+    runtime: &[Symbol],
+) -> bool {
+    let mut assumptions = RealInputs::with_coordinates(coordinates, runtime);
+    let first_alias = assumptions.replacements.len();
+    let mut unresolved = coefficient
+        .get_aliases()
+        .iter()
+        .enumerate()
+        .map(|(index, (handle, body))| {
+            let index = first_alias + index;
+            // Strip any attributes of an opaque handle: its body, including
+            // indirect dependencies, determines whether it is real.
+            assumptions
+                .replacements
+                .insert(handle.clone(), proxy(index, false));
+            (handle, body, index)
         })
+        .collect::<Vec<_>>();
+    loop {
+        let before = unresolved.len();
+        unresolved.retain(|(handle, body, index)| {
+            let body = assumptions.apply(body);
+            if real_operations(&body) {
+                let replacement = if body.is_positive().is_true() {
+                    positive_proxy(*index)
+                } else {
+                    proxy(*index, true)
+                };
+                assumptions
+                    .replacements
+                    .insert((*handle).clone(), replacement);
+                false
+            } else {
+                true
+            }
+        });
+        if before == unresolved.len() {
+            break;
+        }
+    }
+    // Retain the compact alias graph. Inconclusive bodies stay opaque and
+    // select the complex evaluator; no coefficient is expanded to prove it.
+    assumptions.is_real(coefficient.get_root())
+}
+
+pub(super) fn is_real_expression(expression: &Atom, inputs: &[Symbol]) -> bool {
+    RealInputs::new(inputs.iter()).is_real(expression)
+}
+
+pub(super) fn is_real_coordinate_expression(expression: &Atom, coordinates: &[Symbol]) -> bool {
+    RealInputs::with_coordinates(coordinates, &[]).is_real(expression)
+}
+
+struct RealInputs {
+    replacements: HashMap<Atom, Atom>,
+}
+
+impl RealInputs {
+    fn new<'a>(inputs: impl Iterator<Item = &'a Symbol>) -> Self {
+        Self {
+            replacements: inputs
+                .enumerate()
+                .map(|(index, input)| (Atom::var(*input), proxy(index, true)))
+                .collect(),
+        }
+    }
+
+    fn with_coordinates(coordinates: &[Symbol], runtime: &[Symbol]) -> Self {
+        let mut assumptions = Self::new(coordinates.iter().chain(runtime));
+        // Numerical coordinates are confined to the closed unit cube. They
+        // are positive in its interior; a logarithm at zero remains a native
+        // nonfinite endpoint error rather than a new complex branch.
+        for (index, coordinate) in coordinates.iter().enumerate() {
+            assumptions
+                .replacements
+                .insert(Atom::var(*coordinate), positive_proxy(index));
+        }
+        assumptions
+    }
+
+    fn is_real(&self, expression: &Atom) -> bool {
+        real_operations(&self.apply(expression))
+    }
+
+    fn apply(&self, expression: &Atom) -> Atom {
+        expression.replace_map(|atom, _, out| {
+            if let Some(replacement) = self.replacements.get::<[u8]>(atom.get_data()) {
+                out.set_from_view(&replacement.as_view());
+            } else if let Some(positive) = fixed_native_constant(atom) {
+                let symbol = if positive {
+                    symbol!("fastsecdec::kernel_realness::positive_fixed_constant"; Positive)
+                } else {
+                    symbol!("fastsecdec::kernel_realness::real_fixed_constant"; Real)
+                };
+                // Retain the exact original identity: unrelated constants must
+                // not cancel just because both are known to be real.
+                out.set_from_view(&function!(symbol, atom.to_owned()).as_view());
+            }
+        })
+    }
+}
+
+fn real_operations(expression: &Atom) -> bool {
+    let proxies = [
+        symbol!("fastsecdec::kernel_realness::real_input"; Real),
+        symbol!("fastsecdec::kernel_realness::positive_coordinate"; Positive),
+        symbol!("fastsecdec::kernel_realness::real_fixed_constant"; Real),
+        symbol!("fastsecdec::kernel_realness::positive_fixed_constant"; Positive),
+    ];
+    let mut real = true;
+    expression.visitor(&mut |atom| {
+        if !real || !atom.is_real().is_true() {
+            real = false;
+            return false;
+        }
+        // A real result such as abs(sqrt(-p)) can still require a complex
+        // intermediate. Prove each actual operation; only already-proven
+        // inputs, alias bodies and immutable constants remain opaque.
+        !matches!(atom, AtomView::Fun(function) if proxies.contains(&function.get_symbol()))
+    });
+    real
+}
+
+fn fixed_native_constant(atom: AtomView<'_>) -> Option<bool> {
+    match atom {
+        AtomView::Var(variable)
+            if variable.get_symbol() == symbolica::transcendental::euler_gamma() =>
+        {
+            // The native owner constructs Constant::Euler with an exact zero
+            // imaginary part, but its symbol currently lacks Real. Euler's
+            // immutable constant is positive; no callback value is sampled.
+            Some(true)
+        }
+        AtomView::Fun(function)
+            if function.get_symbol() == symbolica::transcendental::polygamma()
+                && function.get_nargs() == 2 =>
+        {
+            let mut arguments = function.iter();
+            let order = Rational::try_from(arguments.next()?).ok()?;
+            let argument = Rational::try_from(arguments.next()?).ok()?;
+            // The canonical polygamma is real for an exact nonnegative integer
+            // order at a positive real argument. This domain excludes its
+            // poles and all unconstrained runtime or complex arguments. Its
+            // sign is not fixed (in particular digamma need not be positive).
+            (order.is_integer()
+                && !order.is_negative()
+                && !argument.is_negative()
+                && !argument.is_zero())
+            .then_some(false)
+        }
+        _ => None,
+    }
+}
+
+fn positive_proxy(index: usize) -> Atom {
+    function!(
+        symbol!("fastsecdec::kernel_realness::positive_coordinate"; Positive),
+        Atom::num(index as i64)
+    )
+}
+
+fn proxy(index: usize, real: bool) -> Atom {
+    let symbol = if real {
+        symbol!("fastsecdec::kernel_realness::real_input"; Real)
+    } else {
+        symbol!("fastsecdec::kernel_realness::unknown_alias")
+    };
+    // Distinct inputs must remain distinct. Replacing x and y by one symbol
+    // could cancel x-y and falsely certify sqrt(x-y) as real.
+    function!(symbol, Atom::num(index as i64))
+}
+
+/// Historical real layouts did not prove branch domains. Read native exported
+/// instruction kinds only; do not reconstruct or interpret the saved program.
+pub(super) fn legacy_real_branch(program: &ExactProgram) -> bool {
+    fn ambiguous(instructions: &ExportedInstructions<Complex<Rational>>) -> bool {
+        instructions
+            .instructions
+            .iter()
+            .any(|instruction| match instruction {
+                Instruction::Powf(..) => true,
+                Instruction::Fun(_, function, _) => {
+                    function.0 == Symbol::SQRT || function.0 == Symbol::LOG
+                }
+                _ => false,
+            })
+            || instructions
+                .sub_evaluators
+                .iter()
+                .any(|body| ambiguous(&body.instructions))
+    }
+    ambiguous(&program.export_instructions())
 }
 
 pub(super) fn encode(program: &ExactProgram) -> Result<Vec<u8>, KernelError> {

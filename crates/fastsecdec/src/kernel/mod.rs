@@ -35,7 +35,7 @@ mod weighted;
 mod function_map_probe;
 pub use precision::{PrecisionPolicy, PrecisionReport};
 use symbolica::{
-    atom::{Atom, AtomCore, AtomView, Symbol},
+    atom::{Atom, AtomCore, Symbol},
     domains::{
         float::{Complex, DoubleFloat, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
@@ -534,10 +534,11 @@ impl KernelSet {
     }
 }
 
+#[cfg(test)]
 fn has_complex_coefficients(expression: &Atom) -> bool {
     let mut found = false;
     expression.visitor(&mut |term| {
-        if let AtomView::Num(number) = term {
+        if let symbolica::atom::AtomView::Num(number) = term {
             found |= !number.get_coeff_view().is_real();
         }
         !found

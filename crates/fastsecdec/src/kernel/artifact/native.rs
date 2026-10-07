@@ -245,6 +245,11 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
             parameters.len(),
         )?;
         let exact = program::decode(&sector.program)?;
+        if !use_complex && program::legacy_real_branch(&exact) {
+            return Err(KernelError::Artifact(
+                "historical real layout has an unproved branch domain; regenerate with the current compiler".into(),
+            ));
+        }
         if exact.get_input_len() != parameters.len()
             || exact.get_output_len() != payload.orders.len()
         {
@@ -276,7 +281,11 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         .into_iter()
         .map(atom)
         .collect::<Result<Vec<_>, _>>()?;
-    if !use_complex && exact.iter().any(crate::kernel::has_complex_coefficients) {
+    if !use_complex
+        && exact
+            .iter()
+            .any(|coefficient| !program::is_real_expression(coefficient, &[]))
+    {
         return Err(KernelError::Artifact(
             "complex exact offset in real output layout".into(),
         ));

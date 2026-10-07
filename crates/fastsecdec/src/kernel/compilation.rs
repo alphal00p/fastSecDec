@@ -14,6 +14,17 @@ use symbolica::{
 mod session;
 pub use session::CompilationSession;
 
+pub(super) fn requires_complex(generated: &GeneratedIntegral, runtime: &[Symbol]) -> bool {
+    generated.sectors().iter().any(|sector| {
+        sector.aliased_coefficients().iter().any(|coefficient| {
+            !program::is_real_with_parameters(coefficient, sector.parameters(), runtime)
+        })
+    }) || generated
+        .exact_coefficients()
+        .iter()
+        .any(|coefficient| !program::is_real_expression(coefficient, runtime))
+}
+
 /// Caller-owned native sector compilation; jobs are tied to one compilation call.
 pub type CompilationDispatch<'a> = dyn FnMut(
         &mut dyn ExactSizeIterator<Item = CompilationJob>,
@@ -141,15 +152,7 @@ impl GeneratedIntegral {
         settings.validate()?;
         let started = Instant::now();
         let total = self.sectors().len();
-        let use_complex = self.sectors().iter().any(|sector| {
-            sector
-                .aliased_coefficients()
-                .iter()
-                .any(|value| !program::is_real(value))
-        }) || self
-            .exact_coefficients()
-            .iter()
-            .any(super::has_complex_coefficients);
+        let use_complex = requires_complex(self, runtime_parameters);
         // Build each exact IR lazily inside the same callback interval as its
         // native host compilation. Initial cancellation precedes symbolic work.
         let mut emit = |completed| emit(&mut progress, started, completed, total);
@@ -235,15 +238,7 @@ impl GeneratedIntegral {
         let started = Instant::now();
         let total = self.sectors().len();
         emit(&mut progress, started, 0, total)?;
-        let use_complex = self.sectors().iter().any(|sector| {
-            sector
-                .aliased_coefficients()
-                .iter()
-                .any(|value| !program::is_real(value))
-        }) || self
-            .exact_coefficients()
-            .iter()
-            .any(super::has_complex_coefficients);
+        let use_complex = requires_complex(self, runtime_parameters);
         let owner = std::sync::Arc::new(());
         let runtime = std::sync::Arc::new(runtime_parameters.to_vec());
         let mut jobs = self
@@ -432,11 +427,13 @@ impl KernelSet {
         precision: PrecisionPolicy,
         metadata: Option<GenerationMetadata>,
     ) -> Result<Self, KernelError> {
-        let use_complex = expressions
+        let use_complex = expressions.iter().any(|sector| {
+            sector.coefficients.iter().any(|coefficient| {
+                !program::is_real_coordinate_expression(coefficient, &sector.parameters)
+            })
+        }) || exact_expressions
             .iter()
-            .flat_map(|sector| &sector.coefficients)
-            .chain(&exact_expressions)
-            .any(super::has_complex_coefficients);
+            .any(|coefficient| !program::is_real_expression(coefficient, &[]));
         let programs = expressions
             .into_iter()
             .map(|sector| {

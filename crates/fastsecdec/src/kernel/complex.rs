@@ -155,7 +155,7 @@ impl ComplexKernel {
             coefficients.iter().map(|value| value.is_zero()).collect(),
             coefficients
                 .iter()
-                .map(|value| !super::has_complex_coefficients(value))
+                .map(|value| super::program::is_real_coordinate_expression(value, parameters))
                 .collect(),
             super::EvaluatorBackend::Auto,
         )
@@ -204,9 +204,9 @@ impl ComplexKernel {
             cancellation,
             precision,
             exact_zero,
-            // Phase-one coordinates and residual functions are real. Native
-            // real constants therefore certify an identically zero imaginary
-            // component without inventing a symbolic real/imaginary splitter.
+            // Only native symbolic proofs under the real input domain certify
+            // an identically zero imaginary component. Real literals alone
+            // do not establish a square-root or logarithm branch.
             real_coefficients,
         })
     }

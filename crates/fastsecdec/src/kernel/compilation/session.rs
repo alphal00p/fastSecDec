@@ -25,15 +25,7 @@ impl CompilationSession {
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         settings.validate()?;
-        let use_complex = generated.sectors().iter().any(|sector| {
-            sector
-                .aliased_coefficients()
-                .iter()
-                .any(|value| !program::is_real(value))
-        }) || generated
-            .exact_coefficients()
-            .iter()
-            .any(super::super::has_complex_coefficients);
+        let use_complex = requires_complex(&generated, &runtime_parameters);
         Ok(Self {
             generated,
             runtime: Arc::new(runtime_parameters),
