@@ -47,3 +47,19 @@ community extension, so deployment requires a rebuilt wheel and a fresh Python
 kernel. No shared notebook server or installed environment was modified during
 these checks. Packaged-wheel validation is tracked separately by the community
 delivery, rather than inferred from a source-level renderer override.
+
+## Progress callback follow-up
+
+The live notebook had received the contraction fix, but its first progress
+callback exposed a presentation regression: reading `generation_session.complete`
+inside the callback attempted to borrow the native session while `step` already
+held it mutably. This produced `Already mutably borrowed` and paused generation
+before sectors were reported. Source-only presentation tests and native tests
+without the display callback had missed this combination.
+
+Generation presentation now uses the Python-owned `RunState.kernels` field,
+which is updated after the native step returns. It performs no native session
+inspection from a progress callback. This preserves the distinction between an
+incomplete compilation and an integration failure after successful generation.
+The regression runs the real native generation loop with the notebook's display
+observer attached, in addition to the presentation controls.

@@ -63,3 +63,56 @@ def test_later_integration_failure_keeps_completed_generation_valid():
     rendered = generation_view(mo, study.run).text
     assert "completed generation is retained" in rendered
     assert "Generation failed" not in rendered
+
+
+def test_generation_progress_rendering_never_reenters_borrowed_session():
+    phases = ("input", "parametrization", "domain", "geometry", "mapping", "symmetry",
+              "subtraction", "laurent", "coefficient_expansion", "compilation", "total")
+    event = SimpleNamespace(stage="complete", elapsed_seconds=1.0,
+        completed=4, total=4, sectors=4, kernels=4, detail="Eager evaluators ready",
+        timings=SimpleNamespace(**{name + "_seconds": 0.0 for name in phases}),
+        coefficient_expansion=None)
+
+    class BorrowCheckedSession:
+        borrowed = False
+        done = False
+        failed = None
+
+        def __init__(self):
+            self.owners = {"generated": object(), "kernels": object()}
+
+        def owner(self, name):
+            assert not self.borrowed, "Progress presentation re-entered the native session"
+            return self.owners[name] if self.done else None
+
+        @property
+        def complete(self):
+            return self.owner("kernels") is not None
+
+        @property
+        def generated(self):
+            return self.owner("generated")
+
+        @property
+        def kernels(self):
+            return self.owner("kernels")
+
+        def step(self, *, max_units, observer):
+            assert max_units == 1
+            self.borrowed = True
+            try:
+                observer(event)
+            finally:
+                self.borrowed = False
+            self.done = True
+
+    study = Study()
+    study.run.generation_session = BorrowCheckedSession()
+    study.run.generation_active = True
+    study.run.phase = "generating"
+    rendered = []
+    study.run.generation_display = lambda: rendered.append(study.monitor(mo).text)
+    study.run.advance_generation()
+    assert rendered and "Eager evaluators ready" in rendered[0]
+    assert study.run.error is None
+    assert study.run.phase == "ready" and study.run.kernels is not None
