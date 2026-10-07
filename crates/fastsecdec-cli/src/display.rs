@@ -1,5 +1,6 @@
 //! Terminal rendering consumes public status snapshots, never computation state.
 mod diagnostic_summary;
+mod generation_view;
 pub(crate) use diagnostic_summary::diagnostic_summary;
 mod integration_activity;
 mod integration_view;
@@ -22,10 +23,9 @@ use fastsecdec::status::{GenerationSnapshot, IntegrationSnapshot};
 use ratatui::{
     Terminal,
     backend::CrosstermBackend,
-    layout::{Constraint, Layout},
     style::{Color, Modifier},
     text::{Line, Span},
-    widgets::{Block, Borders, Gauge, Paragraph, Row, Table},
+    widgets::{Block, Borders, Paragraph},
 };
 
 use crate::{CliResult, terminal_policy::ColorPolicy};
@@ -43,6 +43,7 @@ pub struct Dashboard {
     generation_boundary: Option<crate::status_policy::GenerationBoundary>,
     color: ColorPolicy,
     generation_workers: Option<crate::generate::dispatch::Progress>,
+    generation_plan: generation_view::Plan,
     generation_worker_offset: std::cell::Cell<usize>,
     integration_workers: Vec<IntegrationWorkerActivity>,
     cached_integration: Option<integration_view::Cached>,
@@ -83,6 +84,7 @@ impl Dashboard {
             generation_boundary: None,
             color: ColorPolicy::for_stream(false, io::stderr().is_terminal()),
             generation_workers: None,
+            generation_plan: Default::default(),
             generation_worker_offset: std::cell::Cell::new(0),
             integration_workers: Vec::new(),
             cached_integration: None,
@@ -104,7 +106,25 @@ impl Dashboard {
         self.generation_workers = None;
     }
 
+    pub(crate) fn configure_generation(
+        &mut self,
+        mode: fastsecdec::generation::GenerationMode,
+        method: fastsecdec::generation::CoefficientExpansionMethod,
+    ) {
+        self.generation_plan.configure(mode, method);
+        self.generation_boundary = None;
+    }
+
+    pub(crate) fn generation_saving(&mut self) {
+        self.generation_plan.saving();
+        self.generation_boundary = None;
+    }
+
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
+        self.generation_plan.observe(snapshot.stage);
+        if let Some(formulas) = &snapshot.formula_preparation {
+            self.generation_plan.formula_count(formulas.total);
+        }
         self.cached_generation = Some(snapshot.clone());
         let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
         let force = self.generation_boundary != Some(boundary)
@@ -149,67 +169,15 @@ impl Dashboard {
                 return Ok(());
             }
             terminal.draw(|frame| {
-                if frame.area().width < 72 || frame.area().height < 22 {
-                    compact(frame, "Generation", format!("{}\n{}\n{snapshot}", memory.process_line(), memory.system_line()), self.color);
-                    return;
-                }
-                let chunks = Layout::vertical([
-                    Constraint::Length(3),
-                    Constraint::Length(3),
-                    Constraint::Length(4),
-                    Constraint::Length(4),
-                    Constraint::Min(5),
-                    Constraint::Length(1),
-                ]).split(frame.area());
-                frame.render_widget(title("Generation", self.color), chunks[0]);
-                let ratio = snapshot.total.filter(|n| *n > 0).map_or(0.0, |n| (snapshot.completed as f64 / n as f64).min(1.0));
-                let workload = self.generation_workers.as_ref();
-                let formula_phase = snapshot.stage == fastsecdec::status::GenerationStage::FormulaPreparation;
-                let units = if formula_phase { "formulas" } else { "jobs" };
-                let eta = workload.filter(|work| snapshot.total == Some(work.total) && snapshot.completed == work.completed)
-                    .and_then(|work| work.eta_seconds())
-                    .map_or_else(|| "unavailable".into(), |seconds| format!("{seconds:.1} s"));
-                frame.render_widget(
-                    Gauge::default().block(panel(&format!("{} · aggregate stage progress", snapshot.stage.label()), self.color))
-                        .gauge_style(self.color.foreground(TEAL).add_modifier(Modifier::BOLD))
-                        .ratio(ratio).label(if formula_phase && snapshot.total == Some(0) {
-                            format!("No subtraction formulas required · elapsed {:.1} s", snapshot.elapsed_seconds)
-                        } else if let Some(total) = snapshot.total {
-                            format!("{:5.1}%  ·  {} / {} {units}  ·  elapsed {:.1} s  ·  stage ETA ≈ {}", ratio * 100.0, snapshot.completed, total, snapshot.elapsed_seconds, eta)
-                        } else { format!("Coordinator in progress  ·  elapsed {:.1} s  ·  ETA unavailable", snapshot.elapsed_seconds) }),
-                    chunks[1],
+                generation_view::render(
+                    frame,
+                    snapshot,
+                    self.generation_workers.as_ref(),
+                    &memory,
+                    &self.generation_plan,
+                    self.generation_worker_offset.get(),
+                    self.color,
                 );
-                let running = workload.map_or(0, |work| work.running());
-                let cores = workload.map_or(0, |work| work.workers.len());
-                let rows = [
-                    Row::new(vec!["Sectors".into(), snapshot.sectors.to_string(), "Kernels".into(), snapshot.kernels.to_string(), "Workers".into(), format!("{running} / {cores} busy")])
-                        .style(self.color.foreground(GOLD)),
-                    Row::new(vec!["Activity".into(), snapshot.detail.clone(), String::new(), String::new(), String::new(), String::new()]),
-                ];
-                frame.render_widget(Table::new(rows, [Constraint::Length(9), Constraint::Percentage(40), Constraint::Length(8), Constraint::Length(8), Constraint::Length(9), Constraint::Min(10)])
-                    .block(panel("Coordinator", self.color)).column_spacing(1), chunks[2]);
-                frame.render_widget(Paragraph::new(vec![
-                    Line::styled(memory.process_line(), self.color.foreground(TEAL)),
-                    Line::styled(memory.system_line(), self.color.foreground(GOLD)),
-                ]).block(panel("Memory · entire process · sampled at most 2 Hz", self.color)), chunks[3]);
-                let visible_workers = chunks[4].height.saturating_sub(3) as usize;
-                let worker_offset = self.generation_worker_offset.get().min(cores.saturating_sub(visible_workers));
-                let rows = workload.into_iter().flat_map(|work| &work.workers).skip(worker_offset).take(visible_workers).map(|worker| {
-                    let color = if worker.busy { TEAL } else if worker.completed > 0 { Color::Rgb(126, 163, 243) } else { Color::DarkGray };
-                    Row::new(vec![
-                        format!("{:02}", worker.index + 1),
-                        if worker.busy { "● running".into() } else { "○ idle".into() },
-                        worker.completed.to_string(),
-                        format!("{:.1} s", worker.active_seconds),
-                        format!("{:.1} s", worker.busy_seconds + worker.active_seconds),
-                        worker.activity.clone(),
-                    ]).style(self.color.foreground(color))
-                });
-                frame.render_widget(Table::new(rows, [Constraint::Length(5), Constraint::Length(10), Constraint::Length(6), Constraint::Length(9), Constraint::Length(9), Constraint::Min(20)])
-                    .header(Row::new(["Core", "State", "Done", "Job time", "Busy time", "Native activity"]).style(self.color.foreground(GOLD).add_modifier(Modifier::BOLD)))
-                    .block(panel(&format!("Worker activity · cores {}–{} / {} · ↑/↓ scroll", (worker_offset + 1).min(cores), (worker_offset + visible_workers).min(cores), cores), self.color)).column_spacing(1), chunks[4]);
-                frame.render_widget(Paragraph::new("  Ctrl-C / q / Esc  cancel safely · ETA covers this stage; later work is discovered dynamically")
-                    .style(self.color.foreground(Color::Rgb(163, 143, 220))), chunks[5]);
             })?;
         } else {
             eprintln!(
@@ -431,25 +399,6 @@ fn title(stage: &str, color: ColorPolicy) -> Paragraph<'_> {
         Span::raw(format!(" · {stage}")),
     ]))
     .block(panel("", color))
-}
-
-/// Reuse the public status display when panels would crowd out their contents.
-fn compact(frame: &mut ratatui::Frame<'_>, stage: &str, status: String, color: ColorPolicy) {
-    let mut lines = vec![Line::from(vec![
-        Span::styled(
-            "FastSecDec",
-            color.foreground(TEAL).add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(format!(" · {stage}")),
-    ])];
-    lines.extend(status.lines().map(|line| Line::raw(line.to_owned())));
-    lines.push(Line::raw(
-        "Ctrl-C / q / Esc cancels; second Ctrl-C forces exit",
-    ));
-    frame.render_widget(
-        Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: true }),
-        frame.area(),
-    );
 }
 
 #[derive(serde::Serialize)]

@@ -1,5 +1,15 @@
 # FastSecDec first-phase implementation plan
 
+## Persistent generation step list (2026-10-07)
+
+Keep the applicable generation steps visible in the CLI dashboard, highlighting
+the current step and distinguishing completed and pending work. Configure the
+plan from the parsed card before expensive input preparation. Group repeated
+per-sector operations honestly for the selected generation mode, include artifact
+delivery, and retain the aggregate stage gauge, memory and worker activity.
+This is caller-owned presentation; numerical execution and status schemas stay
+unchanged.
+
 ## QMC dashboard uncertainty labels (2026-10-07)
 
 Use the compact `(σ n/a)` label while a central value has no sampling-error

@@ -1,5 +1,15 @@
 # Ecosystem reuse evidence
 
+## Persistent generation step list (2026-10-07)
+
+The CLI's configured phase list reuses native generation options and status
+events, with Ratatui handling layout and styling. Repeated endpoint/Laurent
+operations remain grouped under their actual parent phase; no new execution
+loop or library-owned UI is introduced. Existing card-read and preparation
+boundaries configure the list before expensive work, and successful artifact
+delivery is an explicit caller-owned boundary. The [focused review](reviews/generation-step-list.md)
+records pipeline tracing, behavior and validation.
+
 ## QMC dashboard uncertainty width (2026-10-07)
 
 The compact `(σ n/a)` label and dynamic exponent/status columns reuse Ratatui's

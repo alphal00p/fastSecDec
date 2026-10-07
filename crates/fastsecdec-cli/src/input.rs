@@ -85,7 +85,19 @@ pub fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     }
 }
 
+pub enum LoadProgress<'a> {
+    Parsed(&'a RunCard),
+    Parametrization,
+}
+
 pub fn load(path: &Path) -> CliResult<LoadedInput> {
+    load_observed(path, |_| Ok(()))
+}
+
+pub fn load_observed(
+    path: &Path,
+    mut observe: impl FnMut(LoadProgress<'_>) -> CliResult<()>,
+) -> CliResult<LoadedInput> {
     let started = Instant::now();
     let mut sources = Vec::new();
     let base = path.parent().unwrap_or_else(|| Path::new("."));
@@ -104,6 +116,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
     sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardWithoutReference;
     sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
     let card: RunCard = toml::from_str(&text)?;
+    observe(LoadProgress::Parsed(&card))?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let mut values = BTreeMap::new();
     for (name, value) in &card.parameters {
@@ -227,6 +240,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
                 );
             }
             let input_seconds = started.elapsed().as_secs_f64();
+            observe(LoadProgress::Parametrization)?;
             let parametrization_started = Instant::now();
             let policy = card.generation.family_preparation;
             let dimension = bind(&expression(&card.integral.dimension)?, &values);
@@ -370,6 +384,7 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             }
             let propagators = parameters.len();
             let input_seconds = started.elapsed().as_secs_f64();
+            observe(LoadProgress::Parametrization)?;
             let parametrization_started = Instant::now();
             let integrand = ParametricIntegrand::new(parameters, regulator, domain, terms)?;
             Ok(LoadedInput {

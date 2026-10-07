@@ -57,7 +57,27 @@ pub fn generate_with_workers(
         detail: format!("Reading {}", crate::artifact::relative_display(path)),
     };
     dashboard.generation(&status)?;
-    let loaded = input::load(path)?;
+    let loaded = input::load_observed(path, |progress| {
+        match progress {
+            input::LoadProgress::Parsed(card) => dashboard.configure_generation(
+                card.generation.mode,
+                card.generation.coefficient_expansion.method,
+            ),
+            input::LoadProgress::Parametrization => {
+                status.stage = GenerationStage::Parametrization;
+                status.completed = 0;
+                status.total = None;
+                status.detail = "Preparing the native integral".into();
+            }
+        }
+        status.elapsed_seconds = started.elapsed().as_secs_f64();
+        dashboard.generation(&status)?;
+        if dashboard.cancelled() {
+            Err("generation cancelled".into())
+        } else {
+            Ok(())
+        }
+    })?;
     let evaluator_settings = loaded.card.generation.evaluator;
     evaluator_settings.validate()?;
     status.timings.input_seconds = loaded.input_seconds;
@@ -335,6 +355,7 @@ pub fn generate_with_workers(
     dashboard.generation_coordinator();
     status.completed = 0;
     status.total = None;
+    dashboard.generation_saving();
     status.detail = "Preparing portable artifact; all kernels compiled".into();
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
