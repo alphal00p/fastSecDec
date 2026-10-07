@@ -10,13 +10,19 @@ with `--parameters` and repeated `--parameter NAME=VALUE` remain evaluator input
 The reusable [QMC settings](../examples/integration/qmc.toml) target 0.1% on the
 complex epsilon-zero coefficient; the [discrete Havana settings](../examples/integration/discrete_mc.toml)
 target 1%. Both use eight workers, explicit seeds and evaluator chunks of 256.
-Select either method and keep the integration command identical:
+Each ggHH example contains its own `qmc.toml` and `discrete_mc.toml` copies for
+local tuning. From the repository root, choose the example and method with
+`./integrate.sh gghh_double_box qmc` or
+`./integrate.sh gghh_double_box discrete_mc`. Further arguments, such as
+`--workers 4 --points 8192`, are forwarded unchanged to the end of the CLI
+command. The wrapper loads that example's settings and uses separate checkpoint
+and result paths for each method. Its equivalent direct invocation is:
 
 ```sh
 method=qmc # Or: method=discrete_mc
 ./target/release/fastsecdec integrate output/gghh_double_box.fsd \
   --full-integral --parameters examples/gghh_double_box/point.toml \
-  --integration-settings "examples/integration/${method}.toml" \
+  --integration-settings "examples/gghh_double_box/${method}.toml" \
   --checkpoint "output/gghh_double_box.${method}.checkpoint.json" \
   --save-result "output/gghh_double_box.${method}.result.json"
 ```

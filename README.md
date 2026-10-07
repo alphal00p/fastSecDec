@@ -94,9 +94,19 @@ color-singlet gluon pair and uses native `to_dots` contraction; the
 top-quark loop with two gluon rungs and keeps minimal contraction. Their guides
 include separate generation and integration commands; neither has a validated
 integral yet.
-Each ggHH example directory contains only its README, `graph.dot`, `model.json`,
-`parameters.json`, `run.toml` and `point.toml`. The graph carries the complete
-numerator and factors; runtime point values are decimal floats.
+Each ggHH example directory contains its README, `graph.dot`, `model.json`,
+`parameters.json`, `run.toml`, `point.toml`, `qmc.toml` and `discrete_mc.toml`.
+The graph carries the complete numerator and factors; runtime point values are
+decimal floats. From the repository root, the command scripts select an example
+and forward any additional arguments to the CLI:
+
+```sh
+./generate.sh gghh_double_box --workers 8
+./inspect.sh gghh_double_box --sector 0
+./integrate.sh gghh_double_box qmc --workers 8
+./integrate.sh gghh_triple_box_bis discrete_mc --workers 8
+```
+
 The [runtime integration guide](docs/RUNTIME_INTEGRATION.md) explains precision
 routing, live estimates and timing diagnostics.
 

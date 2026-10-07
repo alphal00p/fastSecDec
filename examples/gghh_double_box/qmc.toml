@@ -1,0 +1,14 @@
+# Runtime overlay: randomized lattice QMC, targeting 0.1% on complex epsilon^0.
+[integration]
+method = "qmc"
+workers = 8
+seed = 20261008
+points = 4096          # Points per shifted lattice, per numerical sector.
+shifts = 32           # Independent random shifts.
+max_rounds = 8        # Stop earlier if the accuracy target is reached.
+evaluation_batch_size = 256 # Evaluator/SIMD chunk size, not a statistical count.
+lattice = "kuo33002"
+periodization = "korobov3"
+accuracy_target = { target = "laurent_order", order = 0 }
+relative_tolerance = 0.001
+absolute_tolerance = 0.0

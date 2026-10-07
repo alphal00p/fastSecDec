@@ -33,7 +33,19 @@ included point has `sqrt(s)=300`, `mH=125`, `MT=ymt=172.5`, zero widths and
 momentum conservation, on-shell conditions and polarization Gram products.
 
 Generation retains the default SymJIT evaluator backend at optimization level O2.
-Run these commands from the repository root when ready:
+From the repository root, the helpers select this example's input cards:
+
+```sh
+./generate.sh gghh_triple_box_bis --workers 8
+./inspect.sh gghh_triple_box_bis --sector 0
+./integrate.sh gghh_triple_box_bis qmc --workers 8
+```
+
+Use `discrete_mc` in place of `qmc` for Havana. The integration helper reads
+[qmc.toml](qmc.toml) or [discrete_mc.toml](discrete_mc.toml); edit these local
+runtime settings as needed. Extra arguments are forwarded to `fastsecdec`.
+
+For direct CLI usage:
 
 ```sh
 ./target/release/fastsecdec generate examples/gghh_triple_box_bis/run.toml \
@@ -95,8 +107,9 @@ The artifact base `output/gghh_triple_box_bis.fsd` will identify adjacent human
 metadata `.fsd.json` and binary evaluator/expression `.fsd.dat` files. Move the
 pair together. Paths in this example are relative.
 
-The directory contains `README.md`, `run.toml`, `graph.dot`, `model.json`,
-`parameters.json` and `point.toml`. The complete native diagram and factors are
+The directory contains eight files: `README.md`, `run.toml`, `graph.dot`,
+`model.json`, `parameters.json`, `point.toml`, `qmc.toml` and
+`discrete_mc.toml`. The complete native diagram and factors are
 in `graph.dot`; separate numerator and graph snapshots are not required.
 A native payload comparison verifies that applying the physical model card
 changes only the model fingerprint and derived diagram ID, preserving every

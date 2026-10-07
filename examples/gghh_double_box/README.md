@@ -37,7 +37,19 @@ This consumes the color delta once; the remaining projector contains the two
 Lorentz wavefunctions. A native exact check compares this result with the
 symbolic-Casimir policy followed by the existing invariant conversion.
 
-From the repository root:
+From the repository root, the helpers select this example's input cards:
+
+```sh
+./generate.sh gghh_double_box --workers 8
+./inspect.sh gghh_double_box --sector 0
+./integrate.sh gghh_double_box qmc --workers 8
+```
+
+Use `discrete_mc` in place of `qmc` for Havana. The integration helper reads
+[qmc.toml](qmc.toml) or [discrete_mc.toml](discrete_mc.toml); edit these local
+runtime settings as needed. Extra arguments are forwarded to `fastsecdec`.
+
+For direct CLI usage:
 
 ```sh
 ./target/release/fastsecdec generate examples/gghh_double_box/run.toml --output output/gghh_double_box.fsd --workers 8
@@ -192,9 +204,9 @@ defaults; explicit CLI options take precedence. These settings do not recompile
 the generated expressions. See the [runtime settings guide](../../docs/RUNTIME_INTEGRATION.md)
 for precision settings and live diagnostics.
 
-The directory contains the six files needed to document, generate and integrate
-this example: `README.md`, `run.toml`, `graph.dot`, `model.json`,
-`parameters.json` and `point.toml`. The complete graph, color-projected tensor
+The directory contains eight files: `README.md`, `run.toml`, `graph.dot`,
+`model.json`, `parameters.json`, `point.toml`, `qmc.toml` and
+`discrete_mc.toml`. The complete graph, color-projected tensor
 numerator, Lorentz projector and native evaluated overall factor are in
 `graph.dot`. These factors enter exactly once; the diagnostic symmetry factor
 is not multiplied again. Separate numerator snapshots are not required.

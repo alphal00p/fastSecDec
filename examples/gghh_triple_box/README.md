@@ -56,7 +56,19 @@ these inputs to zero only at integration time cannot restore sectors or poles
 missing from generic generation. The new point card omits these fixed keys and
 is intended for freshly generated on-shell artifacts.
 
-From the repository root:
+From the repository root, the helpers select this example's input cards:
+
+```sh
+./generate.sh gghh_triple_box --workers 8
+./inspect.sh gghh_triple_box --sector 0
+./integrate.sh gghh_triple_box qmc --workers 8
+```
+
+Use `discrete_mc` in place of `qmc` for Havana. The integration helper reads
+[qmc.toml](qmc.toml) or [discrete_mc.toml](discrete_mc.toml); edit these local
+runtime settings as needed. Extra arguments are forwarded to `fastsecdec`.
+
+For direct CLI usage:
 
 ```sh
 ./target/release/fastsecdec generate examples/gghh_triple_box/run.toml \
@@ -108,8 +120,9 @@ color tensors and delta are processed by the configured numerator contraction.
 This differs from `_bis`, whose color delta has already been consumed once by
 native color reduction.
 
-The directory contains `README.md`, `run.toml`, `graph.dot`, `model.json`,
-`parameters.json` and `point.toml`; no separate numerator snapshots are needed.
+The directory contains eight files: `README.md`, `run.toml`, `graph.dot`,
+`model.json`, `parameters.json`, `point.toml`, `qmc.toml` and
+`discrete_mc.toml`; no separate numerator snapshots are needed.
 In `graph.dot`, the complete tensor numerator is stored once in the native
 graph-level `numerator_prefactor`; the global and
 local numerators are `1`. The original prefactor is `1`, and the native

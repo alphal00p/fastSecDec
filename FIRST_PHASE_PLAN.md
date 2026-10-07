@@ -1,5 +1,18 @@
 # FastSecDec first-phase implementation plan
 
+## Example command scripts and local integration settings (2026-10-07)
+
+Add executable root `generate.sh`, `inspect.sh` and `integrate.sh` wrappers.
+Their first argument selects the example; integration also takes a method.
+Forward all remaining arguments unchanged at the end of the native CLI command,
+retaining caller-relative paths, exit status and cancellation behavior.
+Each ggHH example now also includes `qmc.toml` and `discrete_mc.toml`, copied
+from the reusable runtime settings examples. This explicitly extends the
+previous six-file cleanup to eight useful files per example. Integration uses
+these local settings and distinct method-specific checkpoint/result paths.
+Validate shell syntax, argument forwarding and TOML cards without running
+three-loop generation or integration, then commit and push.
+
 ## Minimal ggHH example inputs (2026-10-07)
 
 Reduce the double-box and both triple-box run directories to their README,
