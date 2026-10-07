@@ -1,5 +1,47 @@
 # Ecosystem reuse evidence
 
+## Three-loop input publication and numerical-dual notebook defaults (2026-10-07)
+
+The user now authorizes publishing both ggHH three-loop examples, superseding
+the earlier exclusion of `examples/gghh_triple_box/`. Native strict graph import,
+Linnet cycle/connected-component queries and routing identify its supplied D020
+as two four-top fermion loops joined by two gluons. D068 in `_bis` instead has
+one eight-top outer cycle and two gluon rungs. Both have three loops and ten
+internal propagators. D020's copied two-loop snapshots and provenance were
+replaced with native serializations of its actual supplied graph; unavailable
+enumeration history is explicitly unavailable. Native Atom equality verifies
+that storing its tensor once in the global prefactor preserves the complete
+weighted expression, including its existing color/polarization projector.
+No alternate graph parser, tensor algebra or factor convention is introduced.
+
+Both three-loop cards select `numerical_dual`; D020 selects native `dots` and
+D068 keeps `minimal`. All three CLI ggHH inputs impose exact incoming-gluon
+mass shells before native support discovery and retain thirteen runtime Gram
+entries plus six model values in their point cards. The modular and standalone
+ggHH notebooks now forward their `numerical_dual`/Taylor defaults into the
+existing caller-owned eager generation session, and use native dots contraction
+for numerator preparation and display. The notebook regression verifies exact
+incoming mass shells before session construction, absence from the runtime
+schema, and continued symbolic ownership of the remaining nonzero Gram entries.
+Scalar showcase and native API defaults remain unchanged.
+
+The expanded native CLI card regression and the triangle support/pole regression
+pass; the full CLI suite passes 53 tests with one ignored, together with strict
+workspace all-target Clippy and formatting. A fresh isolated native Python host
+passes all 102 notebook tests and all three Marimo entrypoint checks, including
+complete eager numerical-dual one-loop generation and the two problematic
+triple-gluon numerator controls through native parameterization/geometry.
+The relocated standalone notebook is also exercised through actual Marimo cell
+compilation, explicit generation, pause/resume and binding two physical points.
+This caught and fixed private-helper renaming in compiled class methods and a
+presentation callback re-entering the mutably borrowed native generation owner.
+The native algebra is unchanged; progress now reads retained caller state.
+Independent source, topology, factor and resource checks are recorded in
+the [publication review](reviews/gghh-three-loop-cards-and-notebook.md), together
+with notebook validation and its native host identities. No three-loop numerator
+contraction, parameterization, sector generation or integration was run. Existing
+one-loop master/reduction owners and all numerical algorithms remain unchanged.
+
 ## Exact incoming-gluon mass shells (2026-10-07)
 
 The ggHH double-box and triple-box-bis generation cards now declare the two

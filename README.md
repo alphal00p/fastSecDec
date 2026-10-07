@@ -9,8 +9,9 @@ scope, milestone gates, and original requirements are in
 alongside the library. The optional [Python bindings](bindings/python/README.md)
 live in an isolated FastSecDec crate; HEPKit registers their public module through
 [merged PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
-The [eager notebook bridge update](https://github.com/symbolica-dev/symbolica-community/pull/22)
-pins the APIs used by the notebooks below.
+The original [eager notebook bridge update](https://github.com/symbolica-dev/symbolica-community/pull/22)
+predates numerical-dual generation. Build the notebooks below with a host linking
+this FastSecDec revision, as described in the [build guide](examples/hepkit/BUILD.md).
 The numerical workspace and default CLI remain independent of Python.
 
 The [gg→HH marimo notebook](examples/hepkit/gghh.py) starts with native
@@ -26,7 +27,10 @@ helpers in the notebook and needs no neighboring Python files or input fixtures.
 Both notebooks use one caller-driven thread and native eager evaluators, including
 local runs. Generation and integration retain completed work across pauses;
 individual native algebra operations finish before a pause takes effect.
-Model inputs and kinematic dot products remain runtime evaluator parameters.
+The ggHH notebooks default to `numerical_dual` generation and native `to_dots`
+numerator simplification. Incoming gluon mass shells are exact generation-time
+constraints; the remaining declared kinematics and contributing model inputs
+remain runtime evaluator parameters.
 The [notebook guide](examples/hepkit/README.md) and
 [build guide](examples/hepkit/BUILD.md) explain native and Pyodide execution.
 Historical wheel validation remains recorded with its original source identities
@@ -83,8 +87,11 @@ See the [CLI guide](crates/fastsecdec-cli/README.md)
 for scope, checkpoint and reference-export rules.
 The [gg→HH double-box guide](examples/gghh_double_box/README.md) includes
 eight-worker Havana and QMC commands targeting respectively 1% and 0.1% in ε⁰.
-The [gg→HH triple-box ladder](examples/gghh_triple_box_bis/README.md) supplies
-a single outer top-quark loop with two gluon rungs and minimal contraction.
+Two three-loop inputs use `numerical_dual` and exact incoming-gluon mass shells:
+the [two-fermion-loop triple box](examples/gghh_triple_box/README.md) uses native
+`to_dots` contraction, and the [outer-loop triple-box ladder](examples/gghh_triple_box_bis/README.md)
+has two gluon rungs and keeps minimal contraction. Their guides include separate
+generation and integration commands; neither has a validated integral yet.
 The [runtime integration guide](docs/RUNTIME_INTEGRATION.md) explains precision
 routing, live estimates and timing diagnostics.
 

@@ -94,7 +94,7 @@ def _(runtime_ready):
                     * self.diagram.numerator_prefactor_expression()
                     * self.diagram.overall_factor_expression()
                 ).with_lorentz_dimension(self.kinematics.dimension)
-                numerator = numerator.simplify_algebra(contract="minimal").to_dots()
+                numerator = numerator.simplify_algebra(contract="dots").to_dots()
                 if not numerator.is_scalar:
                     raise ValueError("The prepared numerator still has free tensor indices")
                 return self.kinematics.apply(numerator).to_expression()
@@ -327,17 +327,18 @@ def _(ShowcaseInput, runtime_ready):
 
             def runtime_point(self, point):
                 """Bind the native physical Gram matrix without regenerating sectors."""
-                named, _ = _external_data(self.raw_diagram, point)
+                named, _ = external_data(self.raw_diagram, point)
                 result = {}
                 for left, right, symbol in self.gram_symbols:
-                    value = complex(_dot(named[left][1], named[right][1]))
+                    value = complex(scalar_dot(named[left][1], named[right][1]))
                     if value.imag != 0:
                         raise ValueError("The chosen scattering plane requires real Gram values")
                     result[symbol] = value.real
                 return result
 
             def generation_arguments(self):
-                return {"coefficient_expansion": "coefficient_series"}
+                return {"mode": "numerical_dual", "subtraction": "taylor",
+                        "coefficient_expansion": "coefficient_series"}
 
             def gram_legend(self):
                 """Describe runtime Gram inputs using this diagram's native leg routing."""
@@ -357,17 +358,19 @@ def _(ShowcaseInput, runtime_ready):
                              for left, right, symbol in self.gram_symbols)
 
 
-        def _tensor(name, components):
+        # Non-private names also remain valid closure references when this source is
+        # embedded in a Marimo cell: cell-private names are rewritten inside methods.
+        def tensor_vector(name, components):
             return Tensor.dense(TensorName.vector(name)(Representation.mink(4)), components)
 
 
-        def _dot(left, right):
+        def scalar_dot(left, right):
             product = dot(left, right)
             product.execute()
             return product.result_scalar().expand()
 
 
-        def _external_data(raw, point):
+        def external_data(raw, point):
             import math
             if point is None:
                 e, mass, cosine = S("gghh_point::energy", "gghh_point::higgs_mass", "gghh_point::cos_theta")
@@ -395,9 +398,9 @@ def _(ShowcaseInput, runtime_ready):
             polarizations = [TensorName.vector(f"gghh::eps{i+1}") for i in range(2)]
             states = [hep.FourMomentum(energy, 0, 0, z).wavefunction("epsilon", hep.Helicity.PLUS)
                       for z in (energy, -energy)]
-            named = [(P(i), _tensor(f"gghh_data::p{i}", physical[external[edge]]))
+            named = [(P(i), tensor_vector(f"gghh_data::p{i}", physical[external[edge]]))
                      for i, edge in enumerate(basis.external_edges) if edge not in basis.dependent_externals]
-            named += [(name.to_expression(), _tensor(f"gghh_data::epsilon{i}", [exact(z) for z in state.components]))
+            named += [(name.to_expression(), tensor_vector(f"gghh_data::epsilon{i}", [exact(z) for z in state.components]))
                       for i, (name, state) in enumerate(zip(polarizations, states))]
             return named, polarizations
 
@@ -421,14 +424,14 @@ def _(ShowcaseInput, runtime_ready):
                 raise ValueError("Expected native gg → HH external ports")
             K = hep.Kinematics.loop_momentum()
             regulator, dimension = S("gghh::eps", "gghh::D")
-            named, polarization_names = _external_data(raw, None)
+            named, polarization_names = external_data(raw, None)
             auxiliary = tuple(name.to_expression() for name in polarization_names)
             kinematics = hep.Kinematics(dimension,
                 momenta=[K(i) for i in range(raw.loop_count)] + [name for name, _ in named])
             gram_symbols = []
             for i, (left, a) in enumerate(named):
                 for j, (right, b) in enumerate(named[i:], i):
-                    value = _dot(a, b)
+                    value = scalar_dot(a, b)
                     # Preserve only native exact structural zeros. Even dimensionless
                     # polarization products are runtime inputs: their numerical native
                     # wavefunctions must not freeze binary64 normalizations into algebra.
@@ -462,7 +465,7 @@ def _(ShowcaseInput, runtime_ready):
                 auxiliary, raw, raw_numerator, simplified, tuple(gram_symbols),
             )
 
-        return SimpleNamespace(exact=exact, standard_model=standard_model, process=process, Catalogue=Catalogue, catalogue=catalogue, GGHHInput=GGHHInput, _tensor=_tensor, _dot=_dot, _external_data=_external_data, prepare=prepare)
+        return SimpleNamespace(exact=exact, standard_model=standard_model, process=process, Catalogue=Catalogue, catalogue=catalogue, GGHHInput=GGHHInput, tensor_vector=tensor_vector, scalar_dot=scalar_dot, external_data=external_data, prepare=prepare)
 
     gghh_inputs = _definitions()
     return (gghh_inputs,)
@@ -478,9 +481,15 @@ def _(runtime_ready):
 
         def generation(prepared, configuration):
             integral = sd.Integral(**prepared.integral_arguments())
+            options = {"coefficient_expansion": "coefficient_series"}
+            if hasattr(prepared, "generation_arguments"):
+                options.update(prepared.generation_arguments())
+            for name in ("mode", "subtraction", "coefficient_expansion"):
+                if name in configuration:
+                    options[name] = configuration[name]
             return integral.generation_session(
                 max_order=configuration.get("max_order", 0),
-                coefficient_expansion="coefficient_series",
+                **options,
                 compilation_settings=sd.CompilationSettings(backend="eager"),
             )
 
@@ -550,8 +559,9 @@ def _(formatting):
             return rows
 
         def timing_rows(event):
-            names = ["input", "parametrization", "domain", "geometry", "mapping", "symmetry", "subtraction", "laurent", "coefficient_expansion", "compilation", "total"]
-            return [{"native phase": name, "seconds": getattr(event.timings, f"{name}_seconds")} for name in names]
+            names = ["input", "parametrization", "domain", "geometry", "mapping", "formula_preparation", "symmetry", "subtraction", "laurent", "coefficient_expansion", "compilation", "total"]
+            return [{"native phase": name, "seconds": value} for name in names
+                    if (value := getattr(event.timings, f"{name}_seconds", None)) is not None]
 
         def generation_view(mo, state):
             # Progress observers run inside a mutable native session borrow. Read only
@@ -579,6 +589,12 @@ def _(formatting):
                 content.append(mo.Html(f'<progress value="{last.completed}" max="{last.total}" style="width:100%;accent-color:#5b5bc4"></progress>'))
             detail = {"Observed phase timeline": table(mo, phase_rows(state.events)),
                       "Native phase timings": table(mo, timing_rows(last))}
+            formulas = getattr(last, "formula_preparation", None)
+            if formulas is not None:
+                detail["Subtraction formulas"] = table(mo, [{
+                    "completed": formulas.completed, "unique formulas": formulas.total,
+                    "eligible sector uses": formulas.sectors, "shared uses": formulas.reused,
+                }])
             coefficient = last.coefficient_expansion
             if coefficient is not None:
                 # The native detail above supplies stage-valid request/piece counts.

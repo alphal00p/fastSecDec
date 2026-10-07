@@ -57,7 +57,7 @@ class ShowcaseInput:
             * self.diagram.numerator_prefactor_expression()
             * self.diagram.overall_factor_expression()
         ).with_lorentz_dimension(self.kinematics.dimension)
-        numerator = numerator.simplify_algebra(contract="minimal").to_dots()
+        numerator = numerator.simplify_algebra(contract="dots").to_dots()
         if not numerator.is_scalar:
             raise ValueError("The prepared numerator still has free tensor indices")
         return self.kinematics.apply(numerator).to_expression()

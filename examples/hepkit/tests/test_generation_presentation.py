@@ -6,8 +6,26 @@ import sys
 import marimo as mo
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from showcase.generation import generation_view
+from showcase.generation import generation_view, timing_rows
 from showcase.notebook import Study
+
+
+def test_formula_preparation_preserves_known_zero_and_absent_historical_timings():
+    timings = SimpleNamespace(input_seconds=0.1, total_seconds=0.2)
+    event = SimpleNamespace(timings=timings)
+    assert timing_rows(event) == [{"native phase": "input", "seconds": 0.1},
+                                  {"native phase": "total", "seconds": 0.2}]
+    timings.formula_preparation_seconds = 0.0
+    assert {"native phase": "formula_preparation", "seconds": 0.0} in timing_rows(event)
+    event = SimpleNamespace(stage="formula_preparation", elapsed_seconds=0.2,
+        completed=1, total=2, sectors=3, kernels=0, detail="Precomputing subtraction formulas",
+        timings=timings, coefficient_expansion=None,
+        formula_preparation=SimpleNamespace(completed=1, total=2, sectors=3, reused=1))
+    study = Study()
+    study.run.events = [event]
+    rendered = generation_view(mo, study.run).text
+    assert "Subtraction formulas" in rendered and "unique formulas" in rendered
+    assert "eligible sector uses" in rendered and "shared uses" in rendered
 
 
 def test_failed_preparation_explains_that_zero_counters_are_not_a_result():

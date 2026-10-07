@@ -4,9 +4,15 @@ from symbolica.community.hepkit import sector_decomposition as sd
 
 def generation(prepared, configuration):
     integral = sd.Integral(**prepared.integral_arguments())
+    options = {"coefficient_expansion": "coefficient_series"}
+    if hasattr(prepared, "generation_arguments"):
+        options.update(prepared.generation_arguments())
+    for name in ("mode", "subtraction", "coefficient_expansion"):
+        if name in configuration:
+            options[name] = configuration[name]
     return integral.generation_session(
         max_order=configuration.get("max_order", 0),
-        coefficient_expansion="coefficient_series",
+        **options,
         compilation_settings=sd.CompilationSettings(backend="eager"),
     )
 

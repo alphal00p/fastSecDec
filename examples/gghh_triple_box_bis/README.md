@@ -2,9 +2,11 @@
 
 This is the planar `g g -> H H` ladder with **one outer top-quark loop and two
 internal gluon rungs**. Its eight massive top edges form the outside boundary
-of three adjacent boxes. The two incoming gluons attach to the left end box;
-the two outgoing Higgs legs attach to the right end box. The middle box has
-no external leg.
+of three adjacent boxes. This differs from
+[`gghh_triple_box`](../gghh_triple_box/README.md), whose eight top edges form two
+separate four-edge loops joined by two gluons. The two incoming gluons attach
+to the left end box; the two outgoing Higgs legs attach to the right end box.
+The middle box has no external leg.
 
 ![Native D068 triple-box diagram](diagram.svg)
 
@@ -16,7 +18,8 @@ Standard-Model amplitude. The top edges are `4,5,6,7,8,9,10,13`; the gluon rungs
 are `11,12`. Native routing uses loop edges `4,8,10` and independent external
 coordinates `P(0),P(1),P(2)`, with `P(3)=P(0)+P(1)-P(2)`.
 
-`run.toml` requests `contraction_mode = "minimal"`. Lorentz and Dirac tensors,
+`run.toml` requests `mode = "numerical_dual"` and
+`contraction_mode = "minimal"` in `[generation]`. Lorentz and Dirac tensors,
 top masses and model couplings remain symbolic. Only color is reduced before
 export: HEPKit/Idenso closes one **unnormalized external `delta_ab`** with native
 SU(3) conventions, `T_F=1/2`. A second native reduction using symbolic Casimirs

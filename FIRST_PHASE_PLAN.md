@@ -1,5 +1,30 @@
 # FastSecDec first-phase implementation plan
 
+## Publish both three-loop inputs and align the notebook (2026-10-07)
+
+The user now authorizes including the previously untracked
+`examples/gghh_triple_box/` alongside `examples/gghh_triple_box_bis/` in the
+next validated push. Audit their native graph identities and replace any copied
+two-loop source snapshots, documentation or provenance with evidence from the
+actual three-loop inputs. Record unavailable enumeration history as unavailable;
+do not invent completed generation or integration results. Keep all resources
+portable, and do not run three-loop sector generation.
+
+All ggHH cards must impose the incoming gluon mass shells before native support
+discovery while retaining the other declared kinematics and contributing model
+inputs as runtime parameters. Both three-loop cards use `numerical_dual`.
+The original triple box uses `contraction_mode = "dots"` (native `to_dots`),
+while the outer-loop ladder with the `_bis` suffix keeps `minimal`.
+The modular and self-contained Marimo ggHH notebooks default to `numerical_dual`
+and native `to_dots` numerator simplification, preserving eager evaluation,
+explicit generation/integration actions and lazy expression inspection.
+Validate native imports, card/schema consistency and notebook controls before
+publishing, with an independent native-reuse and provenance review.
+Commit and push the validated FastSecDec milestone, then update the community
+bridge PR or create a new one if the previous PR has closed or merged. Preserve
+the host's intervening native dependency fixes while exposing the current
+numerical-dual session API and linking the updated notebooks/examples.
+
 ## Exact external-gluon mass shells (2026-10-07)
 
 Declare the incoming gluon virtualities as exact zero scalar products in the

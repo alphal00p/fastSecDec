@@ -201,6 +201,14 @@ fn native_gghh_cards_fix_the_incoming_gluon_virtualities_before_generation() {
             include_str!("../../../../examples/gghh_double_box/point.toml"),
         ),
         (
+            "D020",
+            include_str!("../../../../examples/gghh_triple_box/model.json"),
+            include_str!("../../../../examples/gghh_triple_box/parameters.json"),
+            include_str!("../../../../examples/gghh_triple_box/graph.dot"),
+            include_str!("../../../../examples/gghh_triple_box/run.toml"),
+            include_str!("../../../../examples/gghh_triple_box/point.toml"),
+        ),
+        (
             "D068",
             include_str!("../../../../examples/gghh_triple_box_bis/model.json"),
             include_str!("../../../../examples/gghh_triple_box_bis/parameters.json"),
@@ -218,6 +226,34 @@ fn native_gghh_cards_fix_the_incoming_gluon_virtualities_before_generation() {
         let run: RunCard = toml::from_str(run_toml).unwrap();
         let point: toml::Value = toml::from_str(point_toml).unwrap();
         let point = point["parameters"].as_table().unwrap();
+        assert_eq!(diagram.loop_count(), if name == "D05" { 2 } else { 3 });
+        if name != "D05" {
+            assert_eq!(run.generation.mode, GenerationMode::NumericalDual, "{name}");
+            assert_eq!(
+                run.generation.contraction_mode,
+                if name == "D020" {
+                    fastsecdec::input::NumeratorContraction::Dots
+                } else {
+                    fastsecdec::input::NumeratorContraction::Minimal
+                },
+                "{name}"
+            );
+        }
+        let gram_inputs = run
+            .kinematics
+            .products
+            .iter()
+            .filter_map(|product| product.symbol.as_ref())
+            .collect::<Vec<_>>();
+        assert_eq!(gram_inputs.len(), 13, "{name}");
+        for input in gram_inputs {
+            assert!(point.contains_key(input), "{name}: missing runtime {input}");
+        }
+        assert_eq!(
+            point.len(),
+            19,
+            "{name}: thirteen Gram and six model inputs"
+        );
         let basis = diagram.loop_momentum_basis();
         for index in [0, 1] {
             let edge_id = basis.external_edges[index];

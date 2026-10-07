@@ -156,6 +156,14 @@ the exact on-shell input now reaches the support analysis, and the separate
 massless-triangle regression demonstrates a case where it changes the endpoint
 pole structure. No particular sector-count increase is an acceptance condition.
 
+The immediately preceding generic-virtuality numerical-dual Taylor run took
+23.302 seconds with the same eight-worker/SymJIT O2 settings. The corrected run
+was about 14% faster in these single measurements, a modest observed change
+rather than a controlled attribution benchmark. Its largest phases remain
+native evaluator construction/compilation (10.664 seconds) and map/valuation
+discovery (7.620 seconds). No fresh on-shell evaluator throughput measurement
+is inferred from these generation timings.
+
 Evidence is retained under ignored `output/on-shell-generation/`, including
 the copied run card, status log, final JSON and `.fsd` artifact pair. The final
 workspace all-target strict Clippy and formatting checks passed. The complete

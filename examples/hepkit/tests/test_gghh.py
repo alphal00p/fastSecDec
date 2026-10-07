@@ -46,6 +46,29 @@ def test_box_preparation_retains_native_gram_symbols_for_later_point_binding(cat
     assert arguments["model_parameters"] == "runtime"
     assert set(arguments["scalar_values"]) == {value.model.parameter(name).symbol for name in ("WT", "WH")}
     assert arguments["runtime_parameters"] and value.raw_diagram.id == box.id
+    assert value.generation_arguments() == {
+        "mode": "numerical_dual", "subtraction": "taylor",
+        "coefficient_expansion": "coefficient_series",
+    }
+    # The incoming native ports determine which independent momenta are gluons.
+    # Their mass shells must already be exact Kinematics rules, before the
+    # first native parametrization/geometry unit and without any runtime point.
+    legs = {leg.index: leg for leg in hep.Amplitude.from_diagram(box).legs}
+    external = {edge.id: edge.external_index for edge in box.external_edges}
+    basis = box.loop_momentum_basis
+    independent = [edge for edge in basis.external_edges if edge not in basis.dependent_externals]
+    incoming = [i for i, edge in enumerate(independent)
+                if legs[external[edge]].state == "incoming"]
+    assert len(incoming) == 2
+    assert all(legs[external[independent[i]]].particle.pdg_code == 21 for i in incoming)
+    named, _ = gghh.external_data(box, None)
+    for i in incoming:
+        momentum = named[i][0]
+        assert value.kinematics.scalar_product(momentum, momentum) == E("0")
+        assert (i, i) not in {(left, right) for left, right, _ in value.gram_symbols}
+    # Every other nonzero Gram product, including polarizations, is symbolic.
+    for left, right, symbol in value.gram_symbols:
+        assert value.kinematics.scalar_product(named[left][0], named[right][0]) == symbol
     # Admission checks the native Real attribute; symbolic names alone do not
     # establish that the runtime f64 input schema is real.
     hep.sector_decomposition.Integral(**arguments)
@@ -85,6 +108,7 @@ def test_triple_gluon_numerators_are_contracted_before_native_parametrization(ca
     prepared = gghh.prepare(selected=identity, source=catalogue)
     assert prepared.simplified_numerator != E("0")
     owner = science.generation(prepared, {"max_order": 0})
+    assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
     # A tensor may be structurally scalar while retaining indexed contractions
     # across sums. The previous minimal policy failed on this first native unit.
     snapshot = owner.step(max_units=1)
@@ -140,9 +164,12 @@ def test_box_eager_schema_retains_model_leaves_and_polarization_normalization(ca
                and all(abs(e.particle.pdg_code) == 6 for e in d.internal_edges))
     prepared = gghh.prepare(selected=box.id, source=catalogue)
     owner = science.generation(prepared, {"max_order": 0})
+    assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
     while not owner.complete:
         owner.step(max_units=1)
     names = {str(symbol.formatted(show_namespaces=True)) for symbol in owner.kernels.runtime_parameters}
     assert {"model::MT", "model::aS", "model::ymt", "gghh_kinematics::dot_3_4"} <= names
     assert owner.kernels.backend == "symbolica_interpreter"
     assert all(stat.symjit_ir_bytes is None for stat in owner.kernels.sector_statistics)
+    assert not {"gghh_kinematics::dot_0_0", "gghh_kinematics::dot_1_1"} & names
+    assert owner.generated.mode == "numerical_dual"

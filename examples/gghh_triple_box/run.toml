@@ -1,5 +1,5 @@
-# Native three-loop D068; outer top loop and two gluon rungs.
-# Unnormalized color delta_ab; two incoming (+,+) Lorentz polarizations.
+# Supplied native three-loop D020; two top-quark loops joined by gluons.
+# One diagram; unnormalized delta_ab contraction, incoming (+,+) helicities.
 [input]
 graph = "graph.dot"
 model = "model.json"
@@ -35,7 +35,7 @@ measure_multiplier = "1"
 [generation]
 mode = "numerical_dual"
 order = 0
-contraction_mode = "minimal"
+contraction_mode = "dots"
 
 [generation.coefficient_expansion]
 method = "coefficient_series"

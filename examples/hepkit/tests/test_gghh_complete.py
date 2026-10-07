@@ -27,9 +27,11 @@ def test_complete_notebook_keeps_preparation_and_presentation_fixes_in_sync():
 
     complete = NormalizeDocstrings().visit(ast.parse(NOTEBOOK.read_text()))
     for filename, names in {
-        "gghh.py": {"GGHHInput", "prepare"},
+        "inputs.py": {"ShowcaseInput"},
+        "gghh.py": {"GGHHInput", "prepare", "external_data", "scalar_dot", "tensor_vector"},
         "notebook.py": {"monitor", "prepared_view"},
-        "generation.py": {"generation_view"},
+        "science.py": {"generation"},
+        "generation.py": {"generation_view", "timing_rows"},
     }.items():
         shared = NormalizeDocstrings().visit(ast.parse((NOTEBOOK.parent / "showcase" / filename).read_text()))
         for name in names:
@@ -147,3 +149,69 @@ def test_copy_only_notebook_starts_without_scientific_work(tmp_path):
         "phase": "draft", "scientific_calls": [],
         "native_model": True, "native_integral": True,
     }
+
+
+def test_compiled_relocated_notebook_generates_and_binds_runtime_points(tmp_path):
+    """Exercise retained class methods after Marimo has renamed/compiled cells."""
+    pytest.importorskip("marimo")
+    pytest.importorskip("symbolica.community.hepkit.sector_decomposition")
+    copied = tmp_path / NOTEBOOK.name
+    shutil.copyfile(NOTEBOOK, copied)
+    probe = textwrap.dedent("""
+        import math
+        import runpy
+        import sys
+
+        app = runpy.run_path(sys.argv[1], run_name="notebook_check")["app"]
+        _, notebook = app.run()
+        study, mo, science = notebook["study"], notebook["mo"], notebook["science"]
+        assert study.run.phase == "draft" and not study.run.work_active
+        assert study.catalogue is None and study.run.prepared is None
+        source = study.build(1, mo)
+        box = next(diagram for diagram in source.diagrams
+                   if diagram.loop_count == 1 and len(diagram.internal_edges) == 4
+                   and all(abs(edge.particle.pdg_code) == 6 for edge in diagram.internal_edges))
+        actions = dict(study.seen, generate=1)
+        study.dispatch(actions, None, box.id, {}, mo)
+        assert study.run.error is None, study.run.error
+        owner = study.run.generation_session
+        assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
+        assert study.run.session is None
+        actions["pause"] = 1
+        study.dispatch(actions, None, box.id, {}, mo)
+        assert study.run.phase == "generation_paused"
+        assert study.run.generation_session is owner and not study.run.work_active
+        actions["resume"] = 1
+        study.dispatch(actions, None, box.id, {}, mo)
+        for tick in range(1000):
+            if not study.run.work_active:
+                break
+            study.dispatch(actions, tick, box.id, {}, mo)
+            assert study.run.error is None, study.run.error
+        assert study.run.phase == "ready" and owner.complete
+        assert study.run.generation_session is owner and study.run.session is None
+        assert study.run.generated.mode == "numerical_dual"
+        assert study.run.kernels.backend == "symbolica_interpreter"
+        assert all(stat.symjit_ir_bytes is None for stat in study.run.kernels.sector_statistics)
+        prepared = study.run.prepared
+        first = {"sqrt_s": 300, "higgs_mass": 125, "top_mass": 172.5, "cos_theta": 0.8}
+        second = {"sqrt_s": 400, "higgs_mass": 125, "top_mass": 170, "cos_theta": 0.4}
+        gram_first, gram_second = prepared.runtime_point(first), prepared.runtime_point(second)
+        assert set(gram_first) == set(gram_second) == {symbol for _, _, symbol in prepared.gram_symbols}
+        assert gram_first != gram_second
+        assert all(math.isfinite(value) for point in (gram_first, gram_second) for value in point.values())
+        template = study.run.kernels.to_bytes()
+        bound_first, values_first = science.bind(study.run.generated, study.run.kernels, prepared, first)
+        bound_second, values_second = science.bind(study.run.generated, study.run.kernels, prepared, second)
+        assert values_first != values_second
+        assert set(values_first) == set(values_second) == set(study.run.kernels.runtime_parameters)
+        assert bound_first is not study.run.kernels and bound_second is not study.run.kernels
+        assert study.run.kernels.to_bytes() == template and study.run.session is None
+        print("COMPILED_NOTEBOOK_RUNTIME_POINTS=ok")
+    """)
+    completed = subprocess.run(
+        [sys.executable, "-I", "-c", probe, str(copied)], cwd=tmp_path,
+        capture_output=True, text=True, timeout=120,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "COMPILED_NOTEBOOK_RUNTIME_POINTS=ok" in completed.stdout

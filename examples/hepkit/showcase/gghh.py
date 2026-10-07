@@ -99,17 +99,18 @@ class GGHHInput(ShowcaseInput):
 
     def runtime_point(self, point):
         """Bind the native physical Gram matrix without regenerating sectors."""
-        named, _ = _external_data(self.raw_diagram, point)
+        named, _ = external_data(self.raw_diagram, point)
         result = {}
         for left, right, symbol in self.gram_symbols:
-            value = complex(_dot(named[left][1], named[right][1]))
+            value = complex(scalar_dot(named[left][1], named[right][1]))
             if value.imag != 0:
                 raise ValueError("The chosen scattering plane requires real Gram values")
             result[symbol] = value.real
         return result
 
     def generation_arguments(self):
-        return {"coefficient_expansion": "coefficient_series"}
+        return {"mode": "numerical_dual", "subtraction": "taylor",
+                "coefficient_expansion": "coefficient_series"}
 
     def gram_legend(self):
         """Describe runtime Gram inputs using this diagram's native leg routing."""
@@ -129,17 +130,19 @@ class GGHHInput(ShowcaseInput):
                      for left, right, symbol in self.gram_symbols)
 
 
-def _tensor(name, components):
+# Non-private names also remain valid closure references when this source is
+# embedded in a Marimo cell: cell-private names are rewritten inside methods.
+def tensor_vector(name, components):
     return Tensor.dense(TensorName.vector(name)(Representation.mink(4)), components)
 
 
-def _dot(left, right):
+def scalar_dot(left, right):
     product = dot(left, right)
     product.execute()
     return product.result_scalar().expand()
 
 
-def _external_data(raw, point):
+def external_data(raw, point):
     import math
     if point is None:
         e, mass, cosine = S("gghh_point::energy", "gghh_point::higgs_mass", "gghh_point::cos_theta")
@@ -167,9 +170,9 @@ def _external_data(raw, point):
     polarizations = [TensorName.vector(f"gghh::eps{i+1}") for i in range(2)]
     states = [hep.FourMomentum(energy, 0, 0, z).wavefunction("epsilon", hep.Helicity.PLUS)
               for z in (energy, -energy)]
-    named = [(P(i), _tensor(f"gghh_data::p{i}", physical[external[edge]]))
+    named = [(P(i), tensor_vector(f"gghh_data::p{i}", physical[external[edge]]))
              for i, edge in enumerate(basis.external_edges) if edge not in basis.dependent_externals]
-    named += [(name.to_expression(), _tensor(f"gghh_data::epsilon{i}", [exact(z) for z in state.components]))
+    named += [(name.to_expression(), tensor_vector(f"gghh_data::epsilon{i}", [exact(z) for z in state.components]))
               for i, (name, state) in enumerate(zip(polarizations, states))]
     return named, polarizations
 
@@ -193,14 +196,14 @@ def prepare(*, selected=None, source=None, observer=None):
         raise ValueError("Expected native gg → HH external ports")
     K = hep.Kinematics.loop_momentum()
     regulator, dimension = S("gghh::eps", "gghh::D")
-    named, polarization_names = _external_data(raw, None)
+    named, polarization_names = external_data(raw, None)
     auxiliary = tuple(name.to_expression() for name in polarization_names)
     kinematics = hep.Kinematics(dimension,
         momenta=[K(i) for i in range(raw.loop_count)] + [name for name, _ in named])
     gram_symbols = []
     for i, (left, a) in enumerate(named):
         for j, (right, b) in enumerate(named[i:], i):
-            value = _dot(a, b)
+            value = scalar_dot(a, b)
             # Preserve only native exact structural zeros. Even dimensionless
             # polarization products are runtime inputs: their numerical native
             # wavefunctions must not freeze binary64 normalizations into algebra.

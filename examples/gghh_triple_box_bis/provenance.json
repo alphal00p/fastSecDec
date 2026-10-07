@@ -311,5 +311,17 @@
   "tensor_storage": "global numerator_prefactor = raw numerator_prefactor times color-projected tensor; aggregate, vertex and edge numerators are 1 to avoid duplicating the tensor at v0",
   "threshold_admission": "caller responsibility; no threshold certification",
   "version": 1,
-  "weighted_product_exact_check": true
+  "weighted_product_exact_check": true,
+  "generation_request": {
+    "run_card": "run.toml",
+    "mode": "numerical_dual",
+    "contraction_mode": "minimal",
+    "generation_fixed_scalar_products": {
+      "P(0)^2": "0",
+      "P(1)^2": "0"
+    },
+    "runtime_scalar_product_count": 13,
+    "point_card": "point.toml",
+    "sector_generation_performed": false
+  }
 }

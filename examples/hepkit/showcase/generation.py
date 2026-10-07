@@ -14,8 +14,9 @@ def phase_rows(events):
     return rows
 
 def timing_rows(event):
-    names = ["input", "parametrization", "domain", "geometry", "mapping", "symmetry", "subtraction", "laurent", "coefficient_expansion", "compilation", "total"]
-    return [{"native phase": name, "seconds": getattr(event.timings, f"{name}_seconds")} for name in names]
+    names = ["input", "parametrization", "domain", "geometry", "mapping", "formula_preparation", "symmetry", "subtraction", "laurent", "coefficient_expansion", "compilation", "total"]
+    return [{"native phase": name, "seconds": value} for name in names
+            if (value := getattr(event.timings, f"{name}_seconds", None)) is not None]
 
 def generation_view(mo, state):
     # Progress observers run inside a mutable native session borrow. Read only
@@ -43,6 +44,12 @@ def generation_view(mo, state):
         content.append(mo.Html(f'<progress value="{last.completed}" max="{last.total}" style="width:100%;accent-color:#5b5bc4"></progress>'))
     detail = {"Observed phase timeline": table(mo, phase_rows(state.events)),
               "Native phase timings": table(mo, timing_rows(last))}
+    formulas = getattr(last, "formula_preparation", None)
+    if formulas is not None:
+        detail["Subtraction formulas"] = table(mo, [{
+            "completed": formulas.completed, "unique formulas": formulas.total,
+            "eligible sector uses": formulas.sectors, "shared uses": formulas.reused,
+        }])
     coefficient = last.coefficient_expansion
     if coefficient is not None:
         # The native detail above supplies stage-valid request/piece counts.

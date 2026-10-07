@@ -58,8 +58,10 @@ implemented; choosing an admissible physical point remains the caller's task.
 The visible native diagram rendering follows the HEPKit
 [four-loop numerator notebook](https://hepkit.org/gallery/notebooks/four_loop_numerator.html).
 Generate explicitly constructs the projector and performs native tensor/color
-contraction with HEPKit's `contract="dots"` mode. A tensor expression can have no
-free indices while still containing unevaluated contractions; those must be
+contraction with HEPKit's `contract="dots"` mode followed by native `to_dots()`.
+The weighted scalar-numerator display uses the same contraction policy. A tensor
+expression can have no free indices while still containing unevaluated
+contractions; those must be
 resolved to scalar products before FastSecDec parametrization.
 The raw native tensor numerator and simplified scalar numerator
 then appear in separate native lazy-paging panels. Both viewers are retained and
@@ -87,7 +89,11 @@ optional explicit exports; closing/resetting the Python or Pyodide kernel releas
 its in-memory owners.
 
 1. **Generate sectors** prepares the selected input and creates an inert native
-   generation session. Each UI tick spends a 50 ms caller work budget on retained
+   generation session. gg → HH defaults to **`numerical_dual` with Taylor subtraction**:
+   the native owner prepares shared subtraction formulas, composes deferred sector
+   maps and endpoint jets, then builds eager evaluators. Formula counts and timings
+   remain visible separately. Scalar showcase examples retain their native symbolic
+   default. Each UI tick spends a 50 ms caller work budget on retained
    native units, including eager compilation. Progress opens automatically and shows typed
    phases, counts and timings. Completion creates no integration session and
    samples no points.
@@ -126,6 +132,10 @@ input; either Integrate action explicitly starts a new allocation.
 
 Model inputs remain runtime parameters. The gg → HH Gram matrix is constructed
 from native symbolic COM vectors: only native exact structural zeros are fixed.
+In particular, both incoming gluon virtualities are exact zero in native
+Kinematics **before parametrization and sector discovery**; they are absent from
+the runtime input schema. Setting those virtualities to zero only at integration
+would describe a different generated endpoint structure.
 Every nonzero momentum or polarization Gram product is an evaluator parameter,
 so numerical wavefunction normalizations never become frozen large binary
 rationals in symbolic numerators. At Integrate, native contractions compute their values from the
