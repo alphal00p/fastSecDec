@@ -1,5 +1,48 @@
 # FastSecDec first-phase implementation plan
 
+## Runtime stability and live integration follow-up (2026-10-07)
+
+Implement the approved runtime/dashboard plan. Refresh dashboard, plain and JSON
+observations on one configurable schedule, defaulting to one second, with
+independent responsive cancellation and cached table interaction. Show the full
+integral and sortable, scrollable sector estimates using normalized Unicode
+scientific notation, two significant uncertainty digits and explicit exponents.
+MC previews may use current-iteration point statistics, including implicit zeros
+for discrete-sector marginals; accepted estimates retain complete-allocation
+semantics. QMC means require a complete shifted lattice and errors require at
+least two independent shifts. Never admit preview work to checkpoints or stopping.
+
+Default runtime stability routing uses existing cancellation profiles after
+coordinate transformations: f64 above effective distance 1e-3, native 106-bit
+DoubleFloat above 1e-8, and arbitrary precision at 1000 decimal digits otherwise.
+Retain the old validated policy explicitly. Preserve exact original endpoint
+powers for optional per-power distance thresholds and normalized logarithmic
+loss budgets; do not infer powers from Taylor orders. Allow an explicit distance
+cutoff to return zero, disabled by default, with zero counts and bias limitations
+recorded. Nonfinite results escalate and persistent numerical failures are errors.
+Use previous per-sector, per-complex-Laurent weighted maxima for optional
+whole-vector escalation (default f64 fraction 0.9); only final finite values
+update maxima and only admitted complete work updates checkpoint state.
+
+Report the final fractions f64, DoubleFloat, Arb<1000> and Unstable separately
+from attempted calls. Measure evaluator time, integrand overhead and integrator
+overhead with non-overlapping elapsed spans, excluding coordinator waiting.
+Report wall time, aggregate worker time, actual process CPU time, overall mean
+primary-f64 evaluator time and the slowest sector mean. Include pilot/discarded
+work in operational timing, separate from accepted statistics.
+
+Add runtime TOML settings overlays, explicit epsilon-order accuracy targeting
+and maximum refinement rounds. Effective precedence is artifact defaults,
+runtime overlay, explicit CLI arguments. Targeted complex accuracy uses the
+full-total magnitude and sqrt(C_RR + C_II); retain all coefficients and covariance.
+Persist effective policy and accuracy target, reject incompatible checkpoint
+resumes, and retain historical checkpoints under their original policy. Retain
+portable eager arithmetic and local SymJIT O2. Update only the ggHH example
+README with eight-worker Havana (1%) and QMC (0.1%) epsilon-zero commands and
+document work limits. Validate routing, weighted maxima, preview statistics,
+formatting, timing and interrupt cleanup; independently review native ecosystem
+reuse. Other examples and permanent test/gate migration remain deferred.
+
 ## Discrete MC responsiveness follow-up (2026-10-07)
 
 Diagnose and fix the apparent hang of ggHH `integrate --method discrete_mc`

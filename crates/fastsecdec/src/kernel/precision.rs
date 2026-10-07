@@ -50,11 +50,13 @@ impl PrecisionPolicy {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PrecisionReport {
     pub rescued: bool,
     pub checked: bool,
     pub bits: u32,
+    pub class: super::PrecisionClass,
+    pub timings: super::EvaluationTimings,
 }
 
 pub(super) fn rescue(
@@ -163,6 +165,8 @@ fn converge(
                 rescued: true,
                 checked: true,
                 bits,
+                class: super::PrecisionClass::Arbitrary,
+                timings: Default::default(),
             });
         }
         if bits == policy.max_bits {

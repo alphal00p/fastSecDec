@@ -17,6 +17,8 @@ pub(super) struct Snapshot {
     /// Native OS accounting: this need not equal total minus used.
     pub system_available_bytes: Option<u64>,
     pub sample_interval_ms: u64,
+    /// OS user+system CPU across all process threads, since this invocation.
+    pub process_cpu_seconds: Option<f64>,
     pub sample_age_ms: Option<u64>,
 }
 
@@ -25,6 +27,8 @@ pub(super) struct Monitor {
     pid: Option<Pid>,
     sampled_at: Option<Instant>,
     snapshot: Snapshot,
+    cpu_baseline_ms: Option<u64>,
+    last_cpu_ms: Option<u64>,
 }
 
 impl Monitor {
@@ -33,11 +37,24 @@ impl Monitor {
             system: sysinfo::IS_SUPPORTED_SYSTEM.then(System::new),
             pid: sysinfo::get_current_pid().ok(),
             sampled_at: None,
+            cpu_baseline_ms: None,
+            last_cpu_ms: None,
             snapshot: Snapshot {
                 sample_interval_ms: SAMPLE_INTERVAL.as_millis() as u64,
                 ..Snapshot::default()
             },
         }
+    }
+
+    pub fn begin_integration(&mut self) {
+        self.refresh();
+        self.cpu_baseline_ms = self.last_cpu_ms;
+        self.snapshot.process_cpu_seconds = self.cpu_baseline_ms.map(|_| 0.0);
+    }
+
+    pub fn finish(&mut self) -> Snapshot {
+        self.refresh();
+        self.sample()
     }
 
     /// Called by the dashboard's existing polling loop; no background threads,
@@ -70,13 +87,26 @@ impl Monitor {
             let updated = system.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&[pid]),
                 true,
-                ProcessRefreshKind::nothing().with_memory().without_tasks(),
+                ProcessRefreshKind::nothing()
+                    .with_memory()
+                    .with_cpu()
+                    .without_tasks(),
             );
             // A failed current-process query must not appear as a zero reading
             // or retain a stale process entry after an unsuccessful refresh.
-            (updated > 0)
-                .then(|| system.process(pid).map(|process| process.memory()))
-                .flatten()
+            let process = (updated > 0).then(|| system.process(pid)).flatten();
+            let cpu = process.map(|process| process.accumulated_cpu_time());
+            let monotonic = cpu.filter(|value| self.last_cpu_ms.is_none_or(|last| *value >= last));
+            self.snapshot.process_cpu_seconds = self
+                .cpu_baseline_ms
+                .zip(monotonic)
+                .and_then(|(baseline, current)| current.checked_sub(baseline))
+                .map(|milliseconds| milliseconds as f64 / 1000.0);
+            if monotonic.is_some() {
+                self.last_cpu_ms = monotonic;
+            }
+            process
+                .map(|process| process.memory())
                 .filter(|&rss| rss > 0)
         });
         if let Some(rss) = self.snapshot.process_rss_bytes {

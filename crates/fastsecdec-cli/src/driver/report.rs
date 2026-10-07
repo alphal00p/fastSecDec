@@ -8,6 +8,10 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct IntegrationReport {
+    pub stability_mode: fastsecdec::kernel::StabilityMode,
+    pub process_cpu_seconds: Option<f64>,
+    pub accuracy_target: fastsecdec::integration::AccuracyTarget,
+    pub operational: fastsecdec::integration::OperationalMetrics,
     pub content_id: String,
     pub elapsed_seconds: f64,
     pub loading_seconds: f64,
@@ -44,6 +48,9 @@ pub(super) fn with_diagnostics(
 }
 
 pub(super) struct ExecutionOutcome {
+    pub stability_mode: fastsecdec::kernel::StabilityMode,
+    pub accuracy_target: fastsecdec::integration::AccuracyTarget,
+    pub operational: fastsecdec::integration::OperationalMetrics,
     pub scope: fastsecdec::results::ResultScope,
     pub cancelled: bool,
     pub failure: Option<String>,
@@ -70,7 +77,7 @@ pub(super) fn finish(
         && snapshot
             .estimate
             .as_ref()
-            .map(|estimate| estimate.meets(tolerance))
+            .map(|estimate| estimate.meets_target(outcome.accuracy_target, tolerance))
             .transpose()?
             .unwrap_or(false);
     let (stop, stopping_reason) = if let Some(message) = outcome.failure {
@@ -95,6 +102,10 @@ pub(super) fn finish(
     };
     snapshot.stop_reason = Some(stop);
     Ok(IntegrationReport {
+        stability_mode: outcome.stability_mode,
+        process_cpu_seconds: None,
+        accuracy_target: outcome.accuracy_target,
+        operational: outcome.operational,
         content_id: artifact.content_id.clone(),
         elapsed_seconds,
         loading_seconds: artifact.loading_seconds,

@@ -22,6 +22,7 @@ struct Entry<T> {
 pub(super) struct PrecisionCache<T> {
     entries: Vec<Entry<T>>,
     requirements: Arc<MappingRequirements>,
+    pub(super) timing: super::EvaluatorTiming,
 }
 
 impl<T> PrecisionCache<T> {
@@ -29,6 +30,7 @@ impl<T> PrecisionCache<T> {
         Self {
             entries: Vec::new(),
             requirements,
+            timing: Default::default(),
         }
     }
 
@@ -68,7 +70,9 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
         for (target, value) in entry.input.iter_mut().zip(point) {
             *target = number(*value);
         }
+        let started = std::time::Instant::now();
         entry.evaluator.evaluate(&entry.input, &mut entry.output);
+        self.timing.record(started);
         Ok(&entry.output)
     }
 }

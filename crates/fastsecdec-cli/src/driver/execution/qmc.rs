@@ -29,7 +29,9 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         restored,
         mut diagnostics,
         mut replay,
+        operations,
     } = context;
+    let initialization = operations.coordinator(false);
     let options = settings.qmc_settings()?;
     let mut session = if let Some(checkpoint) = &restored {
         let session = QmcSession::restore(&checkpoint.session, &problem)?;
@@ -57,13 +59,16 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
     let mut round = restored
         .as_ref()
         .map_or(0, |checkpoint| checkpoint.round_index);
+    drop(initialization);
     'rounds: loop {
+        dashboard.set_live_observation(None);
         observe(
             dashboard,
+            &operations,
             &diagnostics,
             started,
             true,
-            || session.snapshot(),
+            || session.diagnostic_observation(),
             &mut failure,
         )?;
         if failure.is_some() {
@@ -76,16 +81,22 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             workers: settings.workers,
             diagnostics: &mut diagnostics,
             replay: &mut replay,
+            operations: &operations,
         }
         .run(|session, diagnostics, replay, force| {
+            dashboard.integration_work(operations.activities());
+
             let cancelled = dashboard.cancelled();
             let mut failure = None;
-            observe(
+            let bookkeeping = operations.coordinator(false);
+            super::observe_live(
                 dashboard,
+                &operations,
                 diagnostics,
                 started,
                 force || cancelled,
-                || session.snapshot(),
+                || session.live_observation(),
+                || session.diagnostic_observation(),
                 &mut failure,
             )?;
             if last_checkpoint.elapsed().as_secs() >= 5 {
@@ -100,13 +111,16 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                 )?;
                 last_checkpoint = Instant::now();
             }
+            drop(bookkeeping);
             Ok(queue::Outcome { cancelled, failure })
         })?;
+        dashboard.integration_work(Vec::new());
         cancelled = outcome.cancelled;
         failure = outcome.failure;
         if cancelled || failure.is_some() {
             break 'rounds;
         }
+        let _refinement_span = operations.coordinator(false);
         if session.stage() == IntegrationStage::Pilot {
             let (seconds, minimum_shifts) = adaptive_budget(settings, round)?;
             let allocation = match session.recommend_allocation(
@@ -125,7 +139,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         }
         let meets = match session
             .estimate()
-            .and_then(|estimate| estimate.meets(tolerance))
+            .and_then(|estimate| estimate.meets_target(settings.accuracy_target, tolerance))
         {
             Ok(meets) => meets,
             Err(error) => {
@@ -145,6 +159,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             QmcSession::democratic(problem.clone(), next)?
         };
     }
+    let checkpoint_span = operations.coordinator(false);
     save_checkpoint(
         checkpoint,
         artifact,
@@ -154,6 +169,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         &diagnostics,
         &replay,
     )?;
+    drop(checkpoint_span);
     let report = finish(
         artifact,
         session.diagnostic_observation()?,
@@ -161,6 +177,9 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         tolerance,
         started.elapsed().as_secs_f64(),
         ExecutionOutcome {
+            stability_mode: settings.stability.mode,
+            accuracy_target: settings.accuracy_target,
+            operational: operations.snapshot()?,
             scope: settings.scope.clone(),
             cancelled,
             failure,

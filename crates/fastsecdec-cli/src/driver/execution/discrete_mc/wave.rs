@@ -16,10 +16,11 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc::{self, RecvTimeoutError},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 pub(super) struct Completed {
+    pub batch: u32,
     pub result: Result<HavanaDiscreteReturn, IntegrationError>,
     pub diagnostics: EvaluationDiagnostics,
     pub states: Option<Vec<(usize, ReplayState)>>,
@@ -54,13 +55,19 @@ impl Drop for StopOnDrop<'_> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn run(
     pool: &rayon::ThreadPool,
     slots: &mut [Slot],
     tasks: Vec<HavanaDiscreteTask>,
     kernels: &KernelSet,
     replay: &AcceptedReplay,
-    mut poll: impl FnMut(Vec<IntegrationWorkerActivity>) -> CliResult<bool>,
+    frozen_replay: &AcceptedReplay,
+    mut poll: impl FnMut(
+        Vec<IntegrationWorkerActivity>,
+        &dyn Fn() -> Vec<fastsecdec::integration::McLiveBatch>,
+        bool,
+    ) -> CliResult<bool>,
 ) -> CliResult<Vec<Result<Completed, String>>> {
     if slots.len() < tasks.len() {
         return Err("discrete MC wave has more batches than worker slots".into());
@@ -76,6 +83,16 @@ pub(super) fn run(
         })
         .collect::<Vec<_>>();
     let stop = AtomicBool::new(false);
+    let meters = slots
+        .iter()
+        .map(|slot| slot.meter.clone())
+        .collect::<Vec<_>>();
+    for meter in &meters {
+        meter.clear_live();
+    }
+    // Native moment vectors are cloned only when the coordinator requests an
+    // observation, or once when this wave finishes before slots are reused.
+    let collect_live = || meters.iter().filter_map(|meter| meter.live()).collect();
     pool.in_place_scope(|scope| {
         let _stop_on_exit = StopOnDrop(&stop);
         let (send, receive) = mpsc::channel();
@@ -88,6 +105,8 @@ pub(super) fn run(
                 .enumerate()
                 .map(|(id, p)| p.snapshot(id))
                 .collect(),
+            &collect_live,
+            false,
         )? {
             return Ok(Vec::new());
         }
@@ -97,7 +116,7 @@ pub(super) fn run(
             let progress = &progress[index];
             scope.spawn(move |_| {
                 let result = catch_unwind(AssertUnwindSafe(|| {
-                    evaluate(slot, task, kernels, replay, stop, progress)
+                    evaluate(slot, task, kernels, replay, frozen_replay, stop, progress)
                 }))
                 .map_err(|payload| {
                     payload
@@ -121,6 +140,8 @@ pub(super) fn run(
                     .enumerate()
                     .map(|(id, p)| p.snapshot(id))
                     .collect(),
+                &collect_live,
+                false,
             )? {
                 stop.store(true, Ordering::Relaxed);
             }
@@ -141,6 +162,15 @@ pub(super) fn run(
                 }
             }
         }
+        poll(
+            progress
+                .iter()
+                .enumerate()
+                .map(|(id, p)| p.snapshot(id))
+                .collect(),
+            &collect_live,
+            true,
+        )?;
         Ok(returned
             .into_iter()
             .map(|value| value.expect("one completion per submitted batch"))
@@ -153,42 +183,68 @@ fn evaluate(
     task: HavanaDiscreteTask,
     kernels: &KernelSet,
     replay: &AcceptedReplay,
+    frozen_replay: &AcceptedReplay,
     stop: &AtomicBool,
     progress: &Progress,
 ) -> Completed {
+    let _span = slot.meter.task(None);
+    let batch = task.batch();
+    let planned = task.point_count() as u64;
+    let mut last_publish = Instant::now();
+    let publication_interval = slot.meter.publication_interval();
     let mut diagnostics = EvaluationDiagnostics::default();
     let mut aborted_prefix = false;
-    let result = slot
-        .worker
-        .evaluate_weighted(task, |id, point, weight, output| {
+    let result = slot.worker.evaluate_weighted_observed(
+        task,
+        |id, point, weight, output| {
             if stop.load(Ordering::Relaxed) {
                 aborted_prefix = true;
                 return Err("discrete MC batch stopped by caller".to_owned());
             }
             progress.sector.store(id, Ordering::Relaxed);
             if let std::collections::btree_map::Entry::Vacant(entry) = slot.contexts.entry(id) {
+                let prepare_started = Instant::now();
                 progress.preparing.store(true, Ordering::Relaxed);
-                entry.insert(
-                    replay
-                        .context(kernels, id)
-                        .map_err(|error| error.to_string())?,
-                );
+                let mut context = replay
+                    .context(kernels, id)
+                    .map_err(|error| error.to_string())?;
+                context
+                    .set_reference_state(frozen_replay.state(id as usize))
+                    .map_err(|e| e.to_string())?;
+                entry.insert(context);
+                slot.meter
+                    .preparation(id, prepare_started.elapsed().as_secs_f64());
             }
             progress.preparing.store(false, Ordering::Relaxed);
             if stop.load(Ordering::Relaxed) {
                 aborted_prefix = true;
                 return Err("discrete MC batch stopped by caller".to_owned());
             }
-            super::super::evaluate_tracked(
+            super::super::evaluate_observed(
                 slot.contexts.get_mut(&id).expect("native selected sector"),
+                id,
                 point,
                 weight,
                 output,
                 &mut diagnostics,
+                &slot.meter,
             )?;
             progress.completed.fetch_add(1, Ordering::Relaxed);
             Ok::<(), String>(())
-        });
+        },
+        |view| {
+            if let Some(timing) = view.last_point_timing() {
+                slot.meter.add_sector_times(std::iter::once(timing));
+            }
+            if view.points() == planned || last_publish.elapsed() >= publication_interval {
+                slot.meter.publish(view.snapshot());
+                last_publish = Instant::now();
+            }
+        },
+    );
+    if result.is_err() {
+        slot.meter.clear_live();
+    }
     let states = result.as_ref().ok().map(|_| {
         slot.contexts
             .iter()
@@ -196,6 +252,7 @@ fn evaluate(
             .collect()
     });
     Completed {
+        batch,
         result,
         diagnostics,
         states,

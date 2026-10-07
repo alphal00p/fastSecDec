@@ -1,5 +1,58 @@
 # Ecosystem reuse evidence
 
+## Runtime stability and live observations (2026-10-07)
+
+The default runtime stack reuses native Symbolica evaluators and Numerica numeric
+domains: f64/SymJIT O2, 106-bit DoubleFloat, and Float at 1000 decimal digits
+(3322 bits). Higher levels map the retained exact evaluator through its existing
+numeric-domain API and cache the resulting eager evaluator. GammaLoop's public
+runtime settings and Pathfinder's endpoint-distance/max-weight behavior informed
+the policy; their private momentum-rotation checker is not transplanted. The
+explicit validated policy retains the earlier checks. Distance routing deliberately
+does not interpret a zero real component as an underflow certificate or failure.
+
+Original endpoint powers come from the existing native Rational affine-exponent
+admission. They remain associated with retained subtraction pieces through IBP;
+mapped conservative bounds retain source alternatives before normalizing by
+per-power thresholds. Format 7 extends the existing context-aware binserde
+artifact with this provenance; explicit version-5/6 readers preserve historical
+bytes and identities. No new algebra, DOT parser, graph representation or
+phase-analysis helper was introduced. See the independent
+[endpoint provenance review](reviews/runtime-endpoint-profiles.md) and
+[stability/codec review](reviews/runtime-stability-review.md), with supporting
+[native stack evidence](reviews/runtime-stability-stack.md).
+
+MC preview statistics reuse Numerica `StatisticsAccumulator<DoubleFloat>`.
+The missing public operation is merging differently centered live prefixes with
+implicit zero draws for discrete-sector marginals. A focused observation adapter
+pools native means and standard errors without replacing accepted full-vector
+covariance or training. QMC previews use complete native shifted-lattice rows and
+the existing authoritative common-shift/independent-sector reduction. One
+complete shift has a mean but no uncertainty. Caller-owned dispatch, complete
+work admission, RNG ownership and checkpoint semantics remain unchanged.
+Independent dense/native controls and old/new complete-statistics equivalence
+are recorded in the [observation implementation review](reviews/live-integration-observations.md)
+and [independent numerical review](reviews/runtime-live-numerics.md).
+
+The CLI uses Ratatui's native table/selection, Tabled's report layout, Spenso's
+Unicode superscripts and Numerica's uncertainty formatter where its policy
+matches the requested notation. A presentation adapter supplies fixed normalized
+exponents, dominant-error handling and strict last-digit parentheses. OS CPU time
+uses the existing sysinfo process counter, independently of summed instrumented
+worker/coordinator elapsed spans. No library owns a worker pool or refresh loop.
+The [dashboard review](reviews/runtime-dashboard-display.md) records native
+formatter/API probes, cadence and terminal controls, CPU-counter validation,
+and an independent review of the displayed numerical quantities.
+
+Focused portable-host execution passed fresh eager generation, cold format-7
+loading, DoubleFloat/3322-bit evaluation, runtime bindings, cutoff/replay controls,
+and a complete 4096-point complex QMC calculation with full covariance. This
+does not establish actual Wasm/Pyodide execution. Native one-loop master and
+reduction reference APIs remain the existing owners; no new reference formula
+was needed for this runtime-only change. Other examples and permanent test/gate
+migration remain deferred. Final executable checks are recorded in the
+[runtime acceptance record](reviews/runtime-dashboard-results.md).
+
 ## Discrete MC responsiveness and terminal ownership (2026-10-07)
 
 The CLI reuses its caller-owned Rayon pool and existing scoped QMC dispatch

@@ -332,6 +332,15 @@ pub(crate) fn duration(seconds: f64) -> String {
 /// Table widths include padding and borders. Assign column budgets explicitly:
 /// a whole-table Width::wrap can otherwise shrink the label column to zero.
 pub(crate) fn facts_table(rows: Vec<[String; 2]>, width: usize, colors: ColorPolicy) -> String {
+    facts_table_with_labels(rows, width, 14.min(width / 3), colors)
+}
+
+pub(crate) fn facts_table_with_labels(
+    rows: Vec<[String; 2]>,
+    width: usize,
+    labels: usize,
+    colors: ColorPolicy,
+) -> String {
     if width < 32 {
         let mut table = Builder::from_iter(
             rows.into_iter()
@@ -344,7 +353,7 @@ pub(crate) fn facts_table(rows: Vec<[String; 2]>, width: usize, colors: ColorPol
             .modify(Columns::first(), Width::wrap(width).keep_words(true));
         return table.to_string();
     }
-    let labels = 14.min(width / 3);
+    let labels = labels.min((width - 7) / 2);
     let values = width - labels - 7;
     let mut table = Builder::from_iter(rows).build();
     table

@@ -59,8 +59,14 @@ fn physical(
         total,
     } = representative;
     let started = Instant::now();
-    let (expression, terms, rows) = subtraction::subtract(mapped, parameters, regulator, options)?;
-    let conditioning = Profile::retained(rows, parameters.len())?;
+    let subtracted = subtraction::subtract_profiled(mapped, parameters, regulator, options)?;
+    let expression = subtracted.expression;
+    let terms = subtracted.count;
+    let conditioning = Profile::retained(
+        subtracted.cancellation_terms,
+        subtracted.endpoint_profiles,
+        parameters.len(),
+    )?;
     emit(
         progress,
         GenerationProgress::PhaseTiming {
@@ -242,7 +248,11 @@ fn named(
             debug_assert!(cancellation_terms.len() <= pieces);
             // This is an actual physical piece count, not a named formal count.
             observation.formal_pieces = 0;
-            Profile::retained(cancellation_terms, representative.parameters.len())?
+            Profile::retained(
+                cancellation_terms,
+                completed.endpoint_profiles,
+                representative.parameters.len(),
+            )?
         }
     };
     emit(

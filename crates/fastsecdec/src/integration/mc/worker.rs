@@ -1,12 +1,9 @@
 use std::{fmt::Display, time::Instant};
 
-use numerica::{
-    domains::float::{DoubleFloat, RealLike},
-    numerical_integration::{ContinuousGrid, MonteCarloRng, Sample, StatisticsAccumulator},
-};
+use numerica::numerical_integration::{ContinuousGrid, MonteCarloRng, Sample};
 use serde::{Deserialize, Serialize};
 
-use crate::integration::{IntegrationError, Result};
+use crate::integration::{IntegrationError, McLiveView, Result, mc_live::CenteredAccumulator};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HavanaTask {
@@ -78,7 +75,7 @@ impl HavanaWorker {
         task: HavanaTask,
         evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaReturn> {
-        self.evaluate_inner(task, false, evaluate)
+        self.evaluate_inner(task, false, evaluate, |_| {})
     }
 
     /// Accumulate final importance-weighted coefficients from the callback.
@@ -94,14 +91,24 @@ impl HavanaWorker {
         task: HavanaTask,
         evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaReturn> {
-        self.evaluate_inner(task, true, evaluate)
+        self.evaluate_inner(task, true, evaluate, |_| {})
     }
 
+    /// Observe native prefix statistics without admitting an incomplete batch.
+    pub fn evaluate_weighted_observed<E: Display>(
+        &mut self,
+        task: HavanaTask,
+        evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+        observe: impl FnMut(McLiveView<'_>),
+    ) -> Result<HavanaReturn> {
+        self.evaluate_inner(task, true, evaluate, observe)
+    }
     fn evaluate_inner<E: Display>(
         &mut self,
         task: HavanaTask,
         already_weighted: bool,
         mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+        mut observe: impl FnMut(McLiveView<'_>),
     ) -> Result<HavanaReturn> {
         if task.sector_id != self.sector_id
             || task.grid_id != self.grid_id
@@ -115,8 +122,8 @@ impl HavanaWorker {
         let started = Instant::now();
         let mut grid = self.grid.clone_without_samples();
         let mut rng = MonteCarloRng::import(task.rng_state);
-        let mut accumulators = vec![StatisticsAccumulator::<DoubleFloat>::new(); self.outputs];
-        let mut origin = vec![0.0; self.outputs];
+        let mut accumulator = CenteredAccumulator::new(self.outputs);
+        let mut weighted_values = vec![0.0; self.outputs];
         self.values.resize(self.outputs, f64::NAN);
         for index in 0..task.points {
             grid.sample(&mut rng, &mut self.sample);
@@ -140,20 +147,14 @@ impl HavanaWorker {
                     "nonfinite importance-weighted coefficient".into(),
                 ));
             }
-            for (j, (value, accumulator)) in self.values.iter().zip(&mut accumulators).enumerate() {
-                let weighted = if already_weighted {
+            for (out, value) in weighted_values.iter_mut().zip(&self.values) {
+                *out = if already_weighted {
                     *value
                 } else {
                     value * weight
                 };
-                if index == 0 {
-                    origin[j] = weighted;
-                }
-                accumulator.add_sample(
-                    DoubleFloat::from(weighted) - DoubleFloat::from(origin[j]),
-                    None,
-                );
             }
+            accumulator.add(&weighted_values);
             if self.training {
                 let mut envelope = self.values.iter().map(|v| v.abs()).fold(0.0, f64::max);
                 if already_weighted {
@@ -162,15 +163,17 @@ impl HavanaWorker {
                 grid.add_training_sample(&self.sample, envelope)
                     .map_err(IntegrationError::Evaluation)?;
             }
+            observe(McLiveView {
+                batch: task.batch,
+                sector_id: Some(self.sector_id),
+                points: index as u64 + 1,
+                total: None,
+                last_point_timing: None,
+                sectors: std::slice::from_ref(&accumulator),
+                sector_ids: &[self.sector_id],
+            });
         }
-        let mean = accumulators
-            .iter_mut()
-            .zip(origin)
-            .map(|(accumulator, origin)| {
-                accumulator.update_iter(false);
-                (DoubleFloat::from(origin) + accumulator.avg).to_f64()
-            })
-            .collect::<Vec<_>>();
+        let mean = accumulator.conditional_mean();
         if mean.iter().any(|v| !v.is_finite()) {
             return Err(IntegrationError::Evaluation(
                 "nonfinite Monte Carlo batch mean".into(),

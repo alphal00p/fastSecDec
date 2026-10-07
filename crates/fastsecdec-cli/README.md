@@ -80,14 +80,13 @@ Clap owns argument-validation and help formatting; use `NO_COLOR` to request
 monochrome output before argument parsing as well.
 `--json` writes one final JSON
 document to stdout; `--status-json` streams public status snapshots to stderr.
-Named coefficient and integration JSON snapshots default to a minimum 100 ms interval. Set
+Dashboard, plain and JSON observations default to a minimum 1000 ms interval. Set
 `--status-interval-ms 0` for every update, or choose a longer interval to
 reduce observation work. This option affects neither numerical settings nor
-checkpoint identity; terminal/plain intervals remain 40 ms/1 s. Initial,
+checkpoint identity. Cancellation polling remains independent, approximately every 50 ms. Initial,
 stage/round-boundary and final states are always emitted, including cancelled or
-failed integration outcomes. Named progress also emits attempt changes, exact
-fallback decisions and completed representatives. Other generation JSON,
-including chart/cone admission and final saved state, remains unthrottled.
+failed integration outcomes. Generation progress counts, coefficient attempts
+and representative completions are coalesced at the same configured interval.
 Generation failures keep their final error report and do not emit completion.
 Standalone diagnostic progress is unchanged.
 
@@ -287,16 +286,37 @@ unchanged but changes sampling/checkpoint identity. Editing integration settings
 in a source run card still follows the artifact's existing source-fingerprint
 checks; it is not equivalent to overriding a saved artifact at integration time.
 
-Precision diagnostics count cumulative evaluation attempts, conditioning
-checks, and rescues across pilots and refinement rounds. Checkpoints preserve
-these counters. They differ from the current stage's completed-point count.
-Weighted checks examine complete coefficients after the known sampling weight
-is applied. A new or sufficiently larger weighted value is checked at higher
-precision; the `additional_replays` counter distinguishes a new whole-vector
-evaluation from a check already satisfied by ordinary precision rescue.
-`[integration.replay]` accepts `growth_factor` (default 16) and `minimum_bits`
-(default 128). The weight is applied once, before conversion from rescue
-precision to binary64.
+Runtime precision defaults to cancellation-distance routing through f64, native
+106-bit DoubleFloat, and 1000-decimal-digit arbitrary precision. The dashboard
+shows the final fraction in each class, plus Unstable, and distinguishes explicit
+cutoff zeros from failures. The cutoff is disabled by default. Attempted native
+evaluator calls and their timing are separate from final point classifications.
+Weighted checks compare each complete complex coefficient with its previous
+sector maximum and can advance the entire Laurent vector. The default f64
+large-weight fraction is 0.9; higher levels disable this additional test.
+
+Use `--integration-settings PATH` for a runtime TOML overlay. Select
+`[stability] mode = "validated"` to retain the previous validation policy;
+only that policy uses `[integration.replay]` with `growth_factor` (default 16)
+and `minimum_bits` (default 128). Higher precision applies the sampling weight
+before converting to binary64. See the
+[runtime guide](../../docs/RUNTIME_INTEGRATION.md) for complete level settings,
+exact endpoint-power overrides and the limitations of distance routing.
+
+`--target-order 0` selects the full ε⁰ complex coefficient's RMS error as the
+accuracy target; all coefficients and covariance remain stored. `--max-rounds N`
+bounds refinement, independently of reaching the target. The
+[ggHH guide](../../examples/gghh_double_box/README.md) includes eight-worker
+Havana and QMC commands targeting 1% and 0.1% respectively.
+
+The sector table supports arrows/PageUp/PageDown/Home/End for selection,
+Left/Right for epsilon order, Tab or `s` to choose a sort column, and `r` to
+reverse sorting. These actions redraw cached observations. The total stays
+visible above the table. Havana previews update during batches; QMC means
+require a complete lattice and errors require two complete independent shifts.
+Operational timing includes pilots and discarded prefixes and separates
+integrator overhead, integrand overhead and evaluator calls. Wall time, summed
+worker time and actual operating-system process CPU time are separate quantities.
 
 Replay maxima advance only for complete work packages accepted by the session.
 Checkpoints preserve that accepted state and policy across worker-count changes,

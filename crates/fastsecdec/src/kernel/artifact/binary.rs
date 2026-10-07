@@ -16,7 +16,8 @@ use symbolica::{
 };
 
 pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
-pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x06";
+pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x07";
+const MAGIC_V6: &[u8] = b"FastSecDec\0binserde\x06";
 const MAGIC_V5: &[u8] = b"FastSecDec\0binserde\x05";
 const CODEC: &str = "symbolica-3:context-binserde-atoms-v1:serde-binserde-evaluators-v1";
 #[derive(Encode, Decode)]
@@ -42,6 +43,38 @@ struct Payload {
     sectors: Vec<Sector>,
     metadata: Option<PortableMetadata>,
 }
+#[derive(Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV6 {
+    codec: String,
+    compiler_policy: String,
+    orders: Vec<i32>,
+    #[bincode(with_serde)]
+    components: Vec<CoefficientComponent>,
+    exact: Vec<Atom>,
+    runtime_parameters: Vec<Symbol>,
+    runtime_mass_constraints: Vec<MassConstraint>,
+    #[bincode(with_serde)]
+    precision: PrecisionPolicy,
+    sectors: Vec<LegacySector>,
+    metadata: Option<PortableMetadata>,
+}
+impl From<PayloadV6> for Payload {
+    fn from(value: PayloadV6) -> Self {
+        Self {
+            codec: value.codec,
+            compiler_policy: value.compiler_policy,
+            orders: value.orders,
+            components: value.components,
+            exact: value.exact,
+            runtime_parameters: value.runtime_parameters,
+            runtime_mass_constraints: value.runtime_mass_constraints,
+            precision: value.precision,
+            sectors: value.sectors.into_iter().map(Into::into).collect(),
+            metadata: value.metadata,
+        }
+    }
+}
 #[derive(Encode, Decode)]
 #[bincode(decode_context = "StateMap")]
 struct MassConstraint {
@@ -62,7 +95,7 @@ struct PayloadV5 {
     runtime_parameters: Vec<Symbol>,
     #[bincode(with_serde)]
     precision: PrecisionPolicy,
-    sectors: Vec<Sector>,
+    sectors: Vec<LegacySector>,
     metadata: Option<PortableMetadata>,
 }
 impl From<PayloadV5> for Payload {
@@ -76,7 +109,7 @@ impl From<PayloadV5> for Payload {
             runtime_parameters: value.runtime_parameters,
             runtime_mass_constraints: Vec::new(),
             precision: value.precision,
-            sectors: value.sectors,
+            sectors: value.sectors.into_iter().map(Into::into).collect(),
             metadata: value.metadata,
         }
     }
@@ -91,6 +124,30 @@ struct Sector {
     program: Vec<u8>,
     cancellation_degree: usize,
     cancellation_terms: Option<Vec<Vec<usize>>>,
+    #[bincode(with_serde)]
+    endpoint_profiles: Option<Vec<crate::generation::EndpointProfileRow>>,
+}
+#[derive(Decode)]
+#[bincode(decode_context = "StateMap")]
+struct LegacySector {
+    parameters: Vec<Symbol>,
+    // Reuse the native evaluator's established serde/bincode codec. Numerica
+    // 3.0.1 GMP Integer::Large native Encode drops a negative sign; its serde
+    // codec preserves it. Explicit Atom fields still use native StateMap Decode.
+    program: Vec<u8>,
+    cancellation_degree: usize,
+    cancellation_terms: Option<Vec<Vec<usize>>>,
+}
+impl From<LegacySector> for Sector {
+    fn from(value: LegacySector) -> Self {
+        Self {
+            parameters: value.parameters,
+            program: value.program,
+            cancellation_degree: value.cancellation_degree,
+            cancellation_terms: value.cancellation_terms,
+            endpoint_profiles: None,
+        }
+    }
 }
 fn failure(error: impl std::fmt::Display) -> KernelError {
     KernelError::Artifact(format!("native binserde cache: {error}"))
@@ -103,13 +160,15 @@ fn digest(magic: &[u8], state: &[u8], payload: &[u8]) -> blake3::Hash {
     hash.update(payload);
     hash.finalize()
 }
-fn semantic_id(payload: &Payload, legacy_v5: bool) -> Result<String, KernelError> {
+fn semantic_id(payload: &Payload, version: u8) -> Result<String, KernelError> {
     #[derive(serde::Serialize)]
     struct SemanticSector<'a> {
         parameters: Vec<String>,
         program: &'a [u8],
         cancellation_degree: usize,
         cancellation_terms: &'a Option<Vec<Vec<usize>>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        endpoint_profiles: &'a Option<Vec<crate::generation::EndpointProfileRow>>,
     }
     #[derive(serde::Serialize)]
     struct SemanticPayload<'a> {
@@ -159,22 +218,23 @@ fn semantic_id(payload: &Payload, legacy_v5: bool) -> Result<String, KernelError
                     program: &s.program,
                     cancellation_degree: s.cancellation_degree,
                     cancellation_terms: &s.cancellation_terms,
+                    endpoint_profiles: &s.endpoint_profiles,
                 })
             })
             .collect::<Result<_, KernelError>>()?,
         metadata: &payload.metadata,
     };
     let mut hash = blake3::Hasher::new();
-    hash.update(if legacy_v5 {
-        b"fastsecdec-native-semantic-v5"
-    } else {
-        b"fastsecdec-native-semantic-v6"
+    hash.update(match version {
+        5 => b"fastsecdec-native-semantic-v5",
+        6 => b"fastsecdec-native-semantic-v6",
+        _ => b"fastsecdec-native-semantic-v7",
     });
     serde_json::to_writer(&mut hash, &semantic)?;
     Ok(hash.finalize().to_hex().to_string())
 }
 fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
-    let content_id = semantic_id(&payload, false)?;
+    let content_id = semantic_id(&payload, 7)?;
     let mut symbols = Atom::Zero.get_all_symbols(true);
     let mut collect = |atom: &Atom| {
         symbols.extend(atom.get_all_symbols(true));
@@ -235,6 +295,7 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
                     program: sector.program_bytes.to_vec(),
                     cancellation_degree: sector.cancellation.degree(),
                     cancellation_terms: sector.cancellation.terms().map(<[Vec<usize>]>::to_vec),
+                    endpoint_profiles: sector.cancellation.endpoint_profiles().map(<[_]>::to_vec),
                 })
             })
             .collect::<Result<_, KernelError>>()?,
@@ -266,13 +327,15 @@ pub(super) fn generated(
                     sector.cancellation_degree(),
                     Some(sector.cancellation_terms().to_vec()),
                     sector.dimension(),
-                )?,
+                )?
+                .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
             )?;
             Ok(Sector {
                 parameters: program.parameters,
                 program: program::encode(&program.exact)?,
                 cancellation_degree: program.cancellation.degree(),
                 cancellation_terms: program.cancellation.terms().map(<[Vec<usize>]>::to_vec),
+                endpoint_profiles: program.cancellation.endpoint_profiles().map(<[_]>::to_vec),
             })
         })
         .collect::<Result<_, KernelError>>()?;
@@ -291,10 +354,12 @@ pub(super) fn generated(
     .1)
 }
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
-    let (wire, magic, legacy_v5) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
-        (wire, MAGIC, false)
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
+        (wire, MAGIC, 7)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V6) {
+        (wire, MAGIC_V6, 6)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V5) {
-        (wire, MAGIC_V5, true)
+        (wire, MAGIC_V5, 5)
     } else {
         return Err(failure("unsupported header"));
     };
@@ -313,8 +378,16 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     if !state_source.is_empty() {
         return Err(failure("trailing symbol context bytes"));
     }
-    let (payload, used): (Payload, usize) = if legacy_v5 {
+    let (payload, used): (Payload, usize) = if version == 5 {
         let (payload, used): (PayloadV5, usize) = bincode::decode_from_slice_with_context(
+            &envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?;
+        (payload.into(), used)
+    } else if version == 6 {
+        let (payload, used): (PayloadV6, usize) = bincode::decode_from_slice_with_context(
             &envelope.payload,
             bincode::config::standard(),
             context,
@@ -332,7 +405,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     if used != envelope.payload.len() {
         return Err(failure("trailing payload bytes"));
     }
-    if semantic_id(&payload, legacy_v5)? != envelope.content_id {
+    if semantic_id(&payload, version)? != envelope.content_id {
         return Err(failure("semantic content identity mismatch"));
     }
     if payload.codec != CODEC || payload.compiler_policy != native::compiler_policy() {
@@ -373,11 +446,14 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         {
             return Err(failure("native program input/output layout mismatch"));
         }
-        let cancellation = Cancellation::new(
+        let mut cancellation = Cancellation::new(
             sector.cancellation_degree,
             sector.cancellation_terms,
             sector.parameters.len(),
         )?;
+        if let Some(profiles) = sector.endpoint_profiles {
+            cancellation = cancellation.with_endpoint_profiles(profiles)?;
+        }
         programs.push(SectorProgram {
             parameters: sector.parameters,
             runtime_parameters: payload.runtime_parameters.clone(),

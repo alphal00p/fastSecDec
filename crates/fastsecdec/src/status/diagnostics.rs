@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::kernel::{PrecisionReport, ReplayReport};
+use crate::kernel::{EvaluatorTiming, PrecisionClass, PrecisionReport, ReplayReport};
 
 /// Caller-aggregated numerical kernel diagnostics. Evaluations include failed
 /// attempts; conditioning checks and rescues count successful reports.
@@ -14,6 +14,14 @@ pub struct EvaluationDiagnostics {
     pub failures: u64,
     pub weighted_checks: u64,
     pub additional_replays: u64,
+    pub f64_points: u64,
+    pub double_float_points: u64,
+    pub arbitrary_points: u64,
+    pub unstable_points: u64,
+    pub cutoff_zero_points: u64,
+    pub f64_timing: EvaluatorTiming,
+    pub double_float_timing: EvaluatorTiming,
+    pub arbitrary_timing: EvaluatorTiming,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
@@ -44,6 +52,14 @@ impl EvaluationDiagnostics {
             rescues: u64::from(report.rescued),
             max_precision_bits: report.bits,
             failures: 0,
+            f64_points: u64::from(report.class == PrecisionClass::F64),
+            double_float_points: u64::from(report.class == PrecisionClass::DoubleFloat),
+            arbitrary_points: u64::from(report.class == PrecisionClass::Arbitrary),
+            unstable_points: u64::from(report.class == PrecisionClass::Unstable),
+            cutoff_zero_points: u64::from(report.class == PrecisionClass::Unstable),
+            f64_timing: report.timings.f64,
+            double_float_timing: report.timings.double_float,
+            arbitrary_timing: report.timings.arbitrary,
             ..Self::default()
         })
     }
@@ -58,21 +74,58 @@ impl EvaluationDiagnostics {
             max_precision_bits: report.precision.bits,
             weighted_checks: u64::from(report.weighted_check),
             additional_replays: u64::from(report.replayed),
+            f64_points: u64::from(report.precision.class == PrecisionClass::F64),
+            double_float_points: u64::from(report.precision.class == PrecisionClass::DoubleFloat),
+            arbitrary_points: u64::from(report.precision.class == PrecisionClass::Arbitrary),
+            unstable_points: u64::from(report.precision.class == PrecisionClass::Unstable),
+            cutoff_zero_points: u64::from(report.precision.class == PrecisionClass::Unstable),
+            f64_timing: report.precision.timings.f64,
+            double_float_timing: report.precision.timings.double_float,
+            arbitrary_timing: report.precision.timings.arbitrary,
             ..Self::default()
         })
     }
 
     pub fn record_failure(&mut self) -> Result<(), DiagnosticsOverflow> {
+        self.record_failure_with_timings(Default::default())
+    }
+
+    pub fn record_failure_with_timings(
+        &mut self,
+        timings: crate::kernel::EvaluationTimings,
+    ) -> Result<(), DiagnosticsOverflow> {
         self.merge(&Self {
             evaluations: 1,
             failures: 1,
+            unstable_points: 1,
+            f64_timing: timings.f64,
+            double_float_timing: timings.double_float,
+            arbitrary_timing: timings.arbitrary,
             ..Self::default()
         })
+    }
+
+    pub fn classified_points(&self) -> u64 {
+        self.f64_points
+            .saturating_add(self.double_float_points)
+            .saturating_add(self.arbitrary_points)
+            .saturating_add(self.unstable_points)
+    }
+
+    /// Legacy records did not retain class counts; these remain explicitly unknown.
+    pub fn unclassified_points(&self) -> u64 {
+        self.evaluations.saturating_sub(self.classified_points())
     }
 
     /// Merge atomically: an overflow leaves all counters unchanged.
     pub fn merge(&mut self, other: &Self) -> Result<(), DiagnosticsOverflow> {
         let sum = |a: u64, b: u64| a.checked_add(b).ok_or(DiagnosticsOverflow);
+        let timing = |a: EvaluatorTiming, b: EvaluatorTiming| {
+            Ok::<_, DiagnosticsOverflow>(EvaluatorTiming {
+                calls: sum(a.calls, b.calls)?,
+                nanoseconds: sum(a.nanoseconds, b.nanoseconds)?,
+            })
+        };
         let combined = Self {
             evaluations: sum(self.evaluations, other.evaluations)?,
             conditioning_checks: sum(self.conditioning_checks, other.conditioning_checks)?,
@@ -81,6 +134,14 @@ impl EvaluationDiagnostics {
             failures: sum(self.failures, other.failures)?,
             weighted_checks: sum(self.weighted_checks, other.weighted_checks)?,
             additional_replays: sum(self.additional_replays, other.additional_replays)?,
+            f64_points: sum(self.f64_points, other.f64_points)?,
+            double_float_points: sum(self.double_float_points, other.double_float_points)?,
+            arbitrary_points: sum(self.arbitrary_points, other.arbitrary_points)?,
+            unstable_points: sum(self.unstable_points, other.unstable_points)?,
+            cutoff_zero_points: sum(self.cutoff_zero_points, other.cutoff_zero_points)?,
+            f64_timing: timing(self.f64_timing, other.f64_timing)?,
+            double_float_timing: timing(self.double_float_timing, other.double_float_timing)?,
+            arbitrary_timing: timing(self.arbitrary_timing, other.arbitrary_timing)?,
         };
         *self = combined;
         Ok(())

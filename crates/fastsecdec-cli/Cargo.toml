@@ -13,6 +13,7 @@ path = "src/main.rs"
 feynkit-model.workspace = true
 fastsecdec = { workspace = true, features = ["native"] }
 symbolica.workspace = true
+spenso.workspace = true
 feynkit-graph.workspace = true
 clap.workspace = true
 serde.workspace = true
@@ -32,4 +33,3 @@ toml.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
-spenso.workspace = true

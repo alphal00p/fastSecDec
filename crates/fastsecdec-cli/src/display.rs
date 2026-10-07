@@ -1,6 +1,10 @@
 //! Terminal rendering consumes public status snapshots, never computation state.
+mod diagnostic_summary;
+pub(crate) use diagnostic_summary::diagnostic_summary;
 mod integration_activity;
+mod integration_view;
 mod memory;
+pub(crate) mod number;
 mod terminal;
 pub(crate) use integration_activity::IntegrationWorkerActivity;
 
@@ -10,7 +14,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
@@ -32,8 +36,6 @@ const GOLD: Color = Color::Rgb(243, 195, 91);
 pub struct Dashboard {
     interrupt: terminal::Control,
     terminal: Option<Terminal<CrosstermBackend<io::Stderr>>>,
-    last_frame: Instant,
-    last_log: Instant,
     json_status: bool,
     scope: fastsecdec::results::ResultScope,
     integration_cadence: crate::status_policy::StatusCadence,
@@ -43,19 +45,24 @@ pub struct Dashboard {
     generation_workers: Option<crate::generate::dispatch::Progress>,
     generation_worker_offset: std::cell::Cell<usize>,
     integration_workers: Vec<IntegrationWorkerActivity>,
-    integration_worker_offset: std::cell::Cell<usize>,
+    cached_integration: Option<integration_view::Cached>,
+    cached_generation: Option<GenerationSnapshot>,
+    integration_view: integration_view::View,
+    live: Option<fastsecdec::integration::LiveObservation>,
+    operational: fastsecdec::integration::OperationalMetrics,
+    stability_mode: fastsecdec::kernel::StabilityMode,
     memory: memory::Monitor,
 }
 
 impl Dashboard {
     pub fn new(enabled: bool, json_status: bool) -> CliResult<Self> {
-        Self::with_status_interval(enabled, json_status, 100)
+        Self::with_status_interval(enabled, json_status, 1000)
     }
 
     pub fn with_status_interval(
         enabled: bool,
         json_status: bool,
-        json_interval_ms: u64,
+        interval_ms: u64,
     ) -> CliResult<Self> {
         let interrupt = terminal::Control::new()?;
         let terminal = if enabled && !json_status && io::stderr().is_terminal() {
@@ -64,18 +71,10 @@ impl Dashboard {
         } else {
             None
         };
-        let interval = if json_status {
-            Duration::from_millis(json_interval_ms)
-        } else if terminal.is_some() {
-            Duration::from_millis(40)
-        } else {
-            Duration::from_secs(1)
-        };
+        let interval = Duration::from_millis(interval_ms);
         Ok(Self {
             interrupt,
             terminal,
-            last_frame: Instant::now() - Duration::from_secs(2),
-            last_log: Instant::now() - Duration::from_secs(2),
             json_status,
             scope: Default::default(),
             integration_cadence: crate::status_policy::StatusCadence::new(interval),
@@ -85,7 +84,12 @@ impl Dashboard {
             generation_workers: None,
             generation_worker_offset: std::cell::Cell::new(0),
             integration_workers: Vec::new(),
-            integration_worker_offset: std::cell::Cell::new(0),
+            cached_integration: None,
+            cached_generation: None,
+            integration_view: Default::default(),
+            live: None,
+            operational: Default::default(),
+            stability_mode: Default::default(),
             memory: memory::Monitor::new(),
         })
     }
@@ -99,23 +103,26 @@ impl Dashboard {
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
+        self.cached_generation = Some(snapshot.clone());
+        let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
+        let force = self.generation_boundary != Some(boundary)
+            || snapshot.stage == fastsecdec::status::GenerationStage::Complete;
+        self.generation_boundary = Some(boundary);
+        if self
+            .generation_cadence
+            .due(Duration::from_secs_f64(snapshot.elapsed_seconds), force)
+        {
+            self.render_generation(snapshot)?;
+        }
+        Ok(())
+    }
+
+    fn render_generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
         if !self.interrupt.terminal_active() {
             self.terminal = None;
         }
         let memory = self.memory.sample();
         if self.json_status {
-            let boundary = crate::status_policy::GenerationBoundary::from(snapshot);
-            let force = self.generation_boundary != Some(boundary);
-            self.generation_boundary = Some(boundary);
-            // Existing geometry and compilation events have their own semantic
-            // boundaries. Coalesce only the new frequent coefficient polls.
-            if snapshot.stage == fastsecdec::status::GenerationStage::CoefficientExpansion
-                && !self
-                    .generation_cadence
-                    .due(Duration::from_secs_f64(snapshot.elapsed_seconds), force)
-            {
-                return Ok(());
-            }
             #[derive(serde::Serialize)]
             struct GenerationStatus<'a> {
                 #[serde(flatten)]
@@ -139,12 +146,6 @@ impl Dashboard {
             if !self.interrupt.terminal_active() {
                 return Ok(());
             }
-            if self.last_frame.elapsed() < Duration::from_millis(40)
-                && snapshot.stage != fastsecdec::status::GenerationStage::Complete
-            {
-                return Ok(());
-            }
-            self.last_frame = Instant::now();
             terminal.draw(|frame| {
                 if frame.area().width < 72 || frame.area().height < 22 {
                     compact(frame, "Generation", format!("{}\n{}\n{snapshot}", memory.process_line(), memory.system_line()), self.color);
@@ -204,15 +205,12 @@ impl Dashboard {
                 frame.render_widget(Paragraph::new("  Ctrl-C / q / Esc  cancel safely · ETA covers this stage; later work is discovered dynamically")
                     .style(self.color.foreground(Color::Rgb(163, 143, 220))), chunks[5]);
             })?;
-        } else if self.last_log.elapsed() >= Duration::from_secs(1)
-            || snapshot.stage == fastsecdec::status::GenerationStage::Complete
-        {
+        } else {
             eprintln!(
                 "{snapshot}\n  {} · {}",
                 memory.process_line(),
                 memory.system_line()
             );
-            self.last_log = Instant::now();
         }
         Ok(())
     }
@@ -227,195 +225,143 @@ impl Dashboard {
 
     /// Call before constructing the native integration snapshot. Forced events
     /// include stage/round boundaries and every final/cancelled/failed report.
+    pub fn integration_interval(&self) -> Duration {
+        self.integration_cadence.interval()
+    }
+
     pub fn integration_due(&mut self, elapsed: Duration, force: bool) -> bool {
         self.integration_cadence.due(elapsed, force)
     }
 
+    pub fn begin_integration(&mut self) {
+        self.memory.begin_integration();
+        self.cached_generation = None;
+    }
+
+    pub fn set_stability_mode(&mut self, mode: fastsecdec::kernel::StabilityMode) {
+        self.stability_mode = mode;
+    }
+
+    pub fn set_target_order(&mut self, order: Option<i32>) {
+        self.integration_view.order = order;
+    }
+
+    pub fn set_live_observation(&mut self, live: Option<fastsecdec::integration::LiveObservation>) {
+        self.live = live;
+    }
+
+    pub fn set_operational(&mut self, operational: fastsecdec::integration::OperationalMetrics) {
+        self.operational = operational;
+    }
+
+    pub fn process_cpu_seconds(&mut self) -> Option<f64> {
+        self.memory.finish().process_cpu_seconds
+    }
+
+    /// Compatibility view when a caller only has an accepted progress snapshot.
+    /// Sector estimates unavailable in that snapshot remain unavailable.
+    #[cfg(test)]
     pub fn integration(&mut self, snapshot: &IntegrationSnapshot, elapsed: f64) -> CliResult<()> {
+        use fastsecdec::integration::{
+            ContributionReport, IntegrationObservation, ReplicaRelation, SectorContribution,
+        };
+        let layout = snapshot.estimate.as_ref();
+        let contributions = ContributionReport {
+            method: snapshot.method,
+            stage: snapshot.stage,
+            orders: layout.map(|e| e.orders.clone()).unwrap_or_default(),
+            components: layout.map(|e| e.components.clone()).unwrap_or_default(),
+            exact_coefficients: vec![],
+            replica_relation: ReplicaRelation::SharedAcrossSectors,
+            sectors: snapshot
+                .sectors
+                .iter()
+                .map(|s| SectorContribution {
+                    progress: s.clone(),
+                    used_replicas: s.complete_replicas,
+                    used_points: s.completed_points,
+                    uncertainty: snapshot.uncertainty.clone(),
+                    estimate: None,
+                })
+                .collect(),
+            uncertainty: snapshot.uncertainty.clone(),
+            total: snapshot.estimate.clone(),
+        };
+        self.integration_observation(
+            &IntegrationObservation {
+                snapshot: snapshot.clone(),
+                contributions,
+            },
+            elapsed,
+        )
+    }
+
+    pub fn integration_observation(
+        &mut self,
+        observation: &fastsecdec::integration::IntegrationObservation,
+        elapsed: f64,
+    ) -> CliResult<()> {
         if !self.interrupt.terminal_active() {
             self.terminal = None;
         }
-        let activity = integration_activity::summary(&self.integration_workers);
+        let memory = if observation.snapshot.stop_reason.is_some() {
+            self.memory.finish()
+        } else {
+            self.memory.sample()
+        };
+        let cached = integration_view::Cached {
+            observation: observation.clone(),
+            live: self.live.clone(),
+            operational: self.operational.clone(),
+            stability_mode: self.stability_mode,
+            memory,
+            elapsed,
+            scope: self.scope.clone(),
+        };
         if self.json_status {
             eprintln!(
                 "{}",
                 serde_json::to_string(&ScopedStatus {
-                    snapshot,
+                    snapshot: &observation.snapshot,
+                    elapsed_seconds: elapsed,
                     scope: &self.scope,
                     in_flight_unaccepted: &self.integration_workers,
+                    contributions: &observation.contributions,
+                    live: self.live.as_ref(),
+                    operational: &self.operational,
+                    memory,
                 })?
             );
-            return Ok(());
+        } else if self.terminal.is_none() {
+            eprintln!(
+                "{}",
+                integration_view::plain(&cached, &self.integration_view)
+            );
         }
-        if let Some(terminal) = &mut self.terminal {
+        self.cached_integration = Some(cached);
+        self.redraw_cached()
+    }
+
+    fn redraw_cached(&mut self) -> CliResult<()> {
+        if let (Some(terminal), Some(cached)) = (&mut self.terminal, &self.cached_integration) {
             let _output = io::stderr().lock();
             if !self.interrupt.terminal_active() {
                 return Ok(());
             }
             terminal.draw(|frame| {
-                if frame.area().width < 72 || frame.area().height < 22 {
-                    compact(
-                        frame,
-                        "Integration",
-                        format!("{} · {elapsed:.2} s\n{activity}\n{snapshot}", self.scope),
-                        self.color,
-                    );
-                    return;
-                }
-                let chunks = Layout::vertical([
-                    Constraint::Length(3),
-                    Constraint::Length(3),
-                    Constraint::Min(6),
-                    Constraint::Min(5),
-                    Constraint::Length(3),
-                ])
-                .split(frame.area());
-                frame.render_widget(
-                    title(&format!("Integration · {}", self.scope), self.color),
-                    chunks[0],
-                );
-                let ratio = if snapshot.planned_points == 0 {
-                    1.0
-                } else {
-                    (snapshot.completed_points as f64 / snapshot.planned_points as f64).min(1.0)
-                };
-                frame.render_widget(
-                    Gauge::default()
-                        .block(panel(
-                            &format!("{:?} · {:?}", snapshot.method, snapshot.stage),
-                            self.color,
-                        ))
-                        .gauge_style(self.color.foreground(TEAL))
-                        .ratio(ratio)
-                        .label(format!(
-                            "{} / {} accepted points    {:.2} s",
-                            snapshot.completed_points, snapshot.planned_points, elapsed
-                        )),
-                    chunks[1],
-                );
-                let rows = snapshot
-                    .estimate
-                    .as_ref()
-                    .map(|estimate| {
-                        estimate
-                            .orders
-                            .iter()
-                            .enumerate()
-                            .map(|(i, order)| {
-                                let value = estimate.mean[i];
-                                let error = estimate.standard_error[i];
-                                Row::new(vec![
-                                    format!("ε^{order} {:?}", estimate.components[i]),
-                                    format!("{value:+.10e}"),
-                                    format!("{error:.3e}"),
-                                    if value == 0.0 {
-                                        "—".into()
-                                    } else {
-                                        format!("{:.2}%", 100.0 * error / value.abs())
-                                    },
-                                ])
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
-                frame.render_widget(
-                    Table::new(
-                        rows,
-                        [
-                            Constraint::Length(10),
-                            Constraint::Percentage(42),
-                            Constraint::Percentage(25),
-                            Constraint::Min(8),
-                        ],
-                    )
-                    .header(
-                        Row::new(["Order", "Value", "Std. error", "Relative"])
-                            .style(self.color.foreground(GOLD).add_modifier(Modifier::BOLD)),
-                    )
-                    .block(panel(
-                        &format!("Laurent coefficients · {:?}", snapshot.uncertainty),
-                        self.color,
-                    ))
-                    .column_spacing(2),
-                    chunks[2],
-                );
-                if !self.integration_workers.is_empty() {
-                    let visible = chunks[3].height.saturating_sub(3) as usize;
-                    let offset = self.integration_worker_offset.get()
-                        .min(self.integration_workers.len().saturating_sub(visible));
-                    let rows = self.integration_workers.iter().skip(offset).take(visible).map(|worker| {
-                        Row::new(vec![
-                            (worker.worker + 1).to_string(),
-                            worker.batch.to_string(),
-                            format!("{} / {}", worker.completed_points, worker.planned_points),
-                            worker.sector.map_or_else(|| "—".into(), |id| id.to_string()),
-                            if worker.completed_points == worker.planned_points { "Awaiting admission" }
-                            else if worker.preparing_context { "Preparing evaluator" } else { "Evaluating" }.into(),
-                        ]).style(self.color.foreground(if worker.preparing_context { GOLD } else { TEAL }))
-                    });
-                    frame.render_widget(Table::new(rows, [
-                        Constraint::Length(7), Constraint::Length(8), Constraint::Percentage(30),
-                        Constraint::Length(8), Constraint::Min(20),
-                    ])
-                    .header(Row::new(["Worker", "Batch", "Points", "Sector", "Activity"]).style(self.color.foreground(GOLD)))
-                    .block(panel("In-flight batches · not yet accepted · ↑/↓ scroll", self.color)), chunks[3]);
-                } else {
-                let rows = snapshot.sectors.iter().map(|sector| {
-                    Row::new(vec![
-                        sector.id.to_string(),
-                        sector.dimension.to_string(),
-                        format!("{} / {}", sector.completed_points, sector.planned_points.map_or_else(|| "as allocated".into(), |points| points.to_string())),
-                        format!("{} / {}", sector.complete_replicas, sector.planned_replicas),
-                        format!("{:.2}", sector.worker_seconds),
-                    ])
-                });
-                frame.render_widget(
-                    Table::new(
-                        rows,
-                        [
-                            Constraint::Length(8),
-                            Constraint::Length(6),
-                            Constraint::Percentage(40),
-                            Constraint::Percentage(22),
-                            Constraint::Min(8),
-                        ],
-                    )
-                    .header(
-                        Row::new(["Sector", "Dim.", "Points", "Replicas", "CPU s"])
-                            .style(self.color.foreground(GOLD)),
-                    )
-                    .block(panel("Sector coverage", self.color))
-                    .column_spacing(2),
-                    chunks[3],
-                );
-                }
-                frame.render_widget(
-                    Paragraph::new(format!(
-                        "  Accepted worker time {:.2} s · recorded checks {} · rescues {} · max {} bits{}\n  {}\n  Ctrl-C / q / Esc stops{} · second Ctrl-C exits immediately",
-                        snapshot.worker_seconds,
-                        snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.conditioning_checks),
-                        snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.rescues),
-                        snapshot.evaluation_diagnostics.as_ref().map_or(53, |d|d.max_precision_bits),
-                        if activity.is_empty() { "" } else { " · in-flight diagnostics pending" },
-                        if self.interrupt.flag.load(Ordering::Relaxed) { "Cancelling: waiting for current evaluations to return".to_owned() }
-                        else if activity.is_empty() { format!("Weighted checks {} · additional replays {}",
-                            snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.weighted_checks),
-                            snapshot.evaluation_diagnostics.as_ref().map_or(0, |d|d.additional_replays)) }
-                        else { activity.clone() },
-                        if matches!(snapshot.method, fastsecdec::status::IntegrationMethod::HavanaMc | fastsecdec::status::IntegrationMethod::HavanaDiscreteMc)
-                            && snapshot.stage == fastsecdec::status::IntegrationStage::Pilot {
-                            "; restart this MC pilot to continue"
-                        } else {" and saves a checkpoint"}
-                    ))
-                    .style(self.color.foreground(Color::DarkGray)),
-                    chunks[4],
-                );
+                integration_view::render(
+                    frame,
+                    cached,
+                    &mut self.integration_view,
+                    self.color,
+                    self.interrupt.flag.load(Ordering::Relaxed),
+                    &self.integration_workers,
+                )
             })?;
-        } else {
-            eprintln!("{} · {snapshot}", self.scope);
-            if !activity.is_empty() {
-                eprintln!("  {activity}");
-            }
+        } else if self.terminal.is_some()
+            && let Some(snapshot) = self.cached_generation.clone()
+        {
+            self.render_generation(&snapshot)?;
         }
         Ok(())
     }
@@ -428,49 +374,55 @@ impl Dashboard {
         Arc::clone(&self.interrupt.flag)
     }
 
-    pub fn cancelled(&self) -> bool {
+    pub fn cancelled(&mut self) -> bool {
         self.interrupt.poll_interrupt();
-        // Keep reading even after cancellation: the coordinator can be waiting
-        // for a native point evaluation, and a second Ctrl-C must still work.
+        let mut redraw = false;
+        // Input polling stays independent of the observation/reduction cadence.
         for _ in 0..32 {
             if !self.interrupt.terminal_active() || !event::poll(Duration::ZERO).unwrap_or(false) {
                 break;
             }
-            if let Ok(Event::Key(key)) = event::read()
-                && key.kind == KeyEventKind::Press
-            {
-                match key.code {
-                    KeyCode::Up | KeyCode::PageUp => {
-                        let offset = if self.integration_workers.is_empty() {
-                            &self.generation_worker_offset
-                        } else {
-                            &self.integration_worker_offset
-                        };
-                        offset.set(offset.get().saturating_sub(1));
-                    }
-                    KeyCode::Down | KeyCode::PageDown => {
-                        let (offset, maximum) = if self.integration_workers.is_empty() {
-                            (
-                                &self.generation_worker_offset,
-                                self.generation_workers
-                                    .as_ref()
-                                    .map_or(0, |work| work.workers.len().saturating_sub(1)),
-                            )
-                        } else {
-                            (
-                                &self.integration_worker_offset,
-                                self.integration_workers.len().saturating_sub(1),
-                            )
-                        };
-                        offset.set(offset.get().saturating_add(1).min(maximum));
-                    }
+            match event::read() {
+                Ok(Event::Resize(_, _)) => redraw = true,
+                Ok(Event::Key(key)) if key.kind == KeyEventKind::Press => match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        self.interrupt.keyboard_interrupt()
+                        self.interrupt.keyboard_interrupt();
+                        redraw = true;
                     }
-                    KeyCode::Esc | KeyCode::Char('q') => self.request_cancel(),
-                    _ => (),
-                }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        self.request_cancel();
+                        redraw = true;
+                    }
+                    code => {
+                        if let Some(cached) = &self.cached_integration {
+                            redraw |= self.integration_view.key(code, cached);
+                        } else {
+                            let offset = &self.generation_worker_offset;
+                            match code {
+                                KeyCode::Up | KeyCode::PageUp => {
+                                    offset.set(offset.get().saturating_sub(1));
+                                    redraw = true;
+                                }
+                                KeyCode::Down | KeyCode::PageDown => {
+                                    offset.set(
+                                        (offset.get() + 1).min(
+                                            self.generation_workers
+                                                .as_ref()
+                                                .map_or(0, |w| w.workers.len().saturating_sub(1)),
+                                        ),
+                                    );
+                                    redraw = true;
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+                },
+                _ => (),
             }
+        }
+        if redraw && self.redraw_cached().is_err() {
+            self.request_cancel();
         }
         self.interrupt.flag.load(Ordering::Relaxed)
     }
@@ -521,9 +473,15 @@ fn compact(frame: &mut ratatui::Frame<'_>, stage: &str, status: String, color: C
 
 #[derive(serde::Serialize)]
 struct ScopedStatus<'a> {
+    elapsed_seconds: f64,
     #[serde(flatten)]
     snapshot: &'a IntegrationSnapshot,
     scope: &'a fastsecdec::results::ResultScope,
     #[serde(skip_serializing_if = "<[IntegrationWorkerActivity]>::is_empty")]
     in_flight_unaccepted: &'a [IntegrationWorkerActivity],
+    contributions: &'a fastsecdec::integration::ContributionReport,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    live: Option<&'a fastsecdec::integration::LiveObservation>,
+    operational: &'a fastsecdec::integration::OperationalMetrics,
+    memory: memory::Snapshot,
 }

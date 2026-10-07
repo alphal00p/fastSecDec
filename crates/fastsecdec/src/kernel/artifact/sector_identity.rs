@@ -23,6 +23,8 @@ struct SectorIdentity<'a> {
     precision: &'a PrecisionPolicy,
     cancellation_degree: usize,
     cancellation_terms: Option<&'a [Vec<usize>]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    endpoint_profiles: Option<&'a [crate::generation::EndpointProfileRow]>,
     // None explicitly distinguishes old artifacts without retained semantics.
     metadata: Option<PortableMetadata>,
 }
@@ -66,6 +68,7 @@ impl KernelSet {
             precision: &sector.precision,
             cancellation_degree: sector.cancellation.degree(),
             cancellation_terms: sector.cancellation.terms(),
+            endpoint_profiles: sector.cancellation.endpoint_profiles(),
             metadata: self
                 .metadata
                 .as_ref()

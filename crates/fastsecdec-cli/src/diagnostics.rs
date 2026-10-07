@@ -7,7 +7,7 @@ use fastsecdec::diagnostics::{BoundaryScanProgress, BoundaryScanReport, Diagnost
 use crate::display::Dashboard;
 
 pub fn observe(
-    dashboard: &Dashboard,
+    dashboard: &mut Dashboard,
     json_status: bool,
     progress: &DiagnosticProgress,
 ) -> ControlFlow<()> {
@@ -25,7 +25,7 @@ pub fn observe(
 }
 
 pub fn observe_scan(
-    dashboard: &Dashboard,
+    dashboard: &mut Dashboard,
     json_status: bool,
     progress: &BoundaryScanProgress,
 ) -> ControlFlow<()> {

@@ -133,6 +133,7 @@ pub(super) struct Completed {
     pub coefficients: BTreeMap<i32, AliasedAtom>,
     pub route: Route,
     pub requests: RequestCounts,
+    pub endpoint_profiles: Vec<super::EndpointProfileRow>,
 }
 
 fn notify(
@@ -187,7 +188,7 @@ pub(super) fn expand(
     }
     if needs_exact_admission {
         notify(poll, Progress::PhysicalFallback)?;
-        let (expression, pieces, cancellation_terms) = subtraction::subtract(
+        let subtracted = subtraction::subtract_profiled(
             terms
                 .iter()
                 .map(|term| MappedTerm {
@@ -200,6 +201,9 @@ pub(super) fn expand(
             regulator,
             options,
         )?;
+        let expression = subtracted.expression;
+        let pieces = subtracted.count;
+        let cancellation_terms = subtracted.cancellation_terms;
         notify(poll, Progress::PhysicalFallback)?;
         let coefficients = laurent::expand(
             &expression,
@@ -216,6 +220,7 @@ pub(super) fn expand(
                 cancellation_terms,
             },
             requests: RequestCounts::default(),
+            endpoint_profiles: subtracted.endpoint_profiles,
         });
     }
 
@@ -302,6 +307,7 @@ pub(super) fn expand(
                     formal_pieces: pieces,
                 },
                 requests: lowered.counts,
+                endpoint_profiles: Vec::new(),
             });
         }
         let deficit = (Rational::from(i64::from(options.max_order) + 1) - bound)

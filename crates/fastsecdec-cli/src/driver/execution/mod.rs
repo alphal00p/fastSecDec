@@ -1,5 +1,6 @@
 mod discrete_mc;
 mod mc;
+mod observations;
 mod qmc;
 use super::{
     IntegrationReport,
@@ -10,7 +11,7 @@ use crate::{CliResult, artifact::Artifact, config::IntegrationInput, display::Da
 use fastsecdec::{
     integration::{IntegrationError, IntegrationProblem, Tolerance},
     kernel::{KernelSet, ReplayState, WeightedEvaluationContext},
-    status::{EvaluationDiagnostics, IntegrationSnapshot},
+    status::EvaluationDiagnostics,
 };
 use std::{path::Path, time::Instant};
 
@@ -28,6 +29,7 @@ struct Context<'a> {
     restored: Option<RestoredCheckpoint>,
     diagnostics: EvaluationDiagnostics,
     replay: AcceptedReplay,
+    operations: observations::Operations,
 }
 
 /// Snapshot/reduction is observational and can be expensive for many sectors.
@@ -35,18 +37,21 @@ struct Context<'a> {
 /// completion and bounded wait poll (or each batch for the MC path).
 fn observe(
     dashboard: &mut Dashboard,
+    operations: &observations::Operations,
     diagnostics: &EvaluationDiagnostics,
     started: Instant,
     force: bool,
-    snapshot: impl FnOnce() -> Result<IntegrationSnapshot, IntegrationError>,
+    snapshot: impl FnOnce() -> Result<fastsecdec::integration::IntegrationObservation, IntegrationError>,
     failure: &mut Option<String>,
 ) -> CliResult<()> {
     if dashboard.integration_due(started.elapsed(), force) {
+        dashboard.set_operational(operations.snapshot()?);
         match snapshot() {
-            Ok(snapshot) => dashboard.integration(
-                &super::report::with_diagnostics(snapshot, diagnostics),
-                started.elapsed().as_secs_f64(),
-            )?,
+            Ok(mut observation) => {
+                observation.snapshot =
+                    super::report::with_diagnostics(observation.snapshot, diagnostics);
+                dashboard.integration_observation(&observation, started.elapsed().as_secs_f64())?;
+            }
             Err(error) => {
                 failure.get_or_insert_with(|| error.to_string());
             }
@@ -55,18 +60,62 @@ fn observe(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
+fn observe_live(
+    dashboard: &mut Dashboard,
+    operations: &observations::Operations,
+    diagnostics: &EvaluationDiagnostics,
+    started: Instant,
+    force: bool,
+    live: impl FnOnce() -> Result<fastsecdec::integration::LiveObservation, IntegrationError>,
+    snapshot: impl FnOnce() -> Result<fastsecdec::integration::IntegrationObservation, IntegrationError>,
+    failure: &mut Option<String>,
+) -> CliResult<()> {
+    if !dashboard.integration_due(started.elapsed(), force) {
+        return Ok(());
+    }
+    dashboard.set_operational(operations.snapshot()?);
+    match live() {
+        Ok(live) => dashboard.set_live_observation(Some(live)),
+        Err(error) if error.is_statistical_range() => dashboard.set_live_observation(None),
+        Err(error) => {
+            failure.get_or_insert_with(|| error.to_string());
+        }
+    }
+    match snapshot() {
+        Ok(mut value) => {
+            value.snapshot = super::report::with_diagnostics(value.snapshot, diagnostics);
+            dashboard.integration_observation(&value, started.elapsed().as_secs_f64())?;
+        }
+        Err(error) => {
+            failure.get_or_insert_with(|| error.to_string());
+        }
+    }
+    Ok(())
+}
+
 fn final_report(
     dashboard: &mut Dashboard,
-    report: IntegrationReport,
+    mut report: IntegrationReport,
 ) -> CliResult<IntegrationReport> {
+    report.process_cpu_seconds = dashboard.process_cpu_seconds();
+    dashboard.set_live_observation(None);
+    dashboard.set_operational(report.operational.clone());
     dashboard.integration_due(
         std::time::Duration::from_secs_f64(report.elapsed_seconds),
         true,
     );
-    dashboard.integration(&report.snapshot, report.elapsed_seconds)?;
+    dashboard.integration_observation(
+        &fastsecdec::integration::IntegrationObservation {
+            snapshot: report.snapshot.clone(),
+            contributions: report.contributions.clone(),
+        },
+        report.elapsed_seconds,
+    )?;
     Ok(report)
 }
 
+#[cfg(test)]
 fn evaluate_tracked(
     kernel: &mut WeightedEvaluationContext,
     point: &[f64],
@@ -85,6 +134,38 @@ fn evaluate_tracked(
             Err(error.to_string())
         }
     }
+}
+
+fn evaluate_observed(
+    kernel: &mut WeightedEvaluationContext,
+    sector: u64,
+    point: &[f64],
+    weight: f64,
+    output: &mut [f64],
+    diagnostics: &mut EvaluationDiagnostics,
+    meter: &observations::WorkerMeter,
+) -> Result<(), String> {
+    let before = kernel.evaluation_metrics();
+    let started = Instant::now();
+    let result = kernel.evaluate_weighted(point, weight, output);
+    let elapsed = started.elapsed().as_secs_f64();
+    let timings = kernel.evaluation_metrics().since(before);
+    let seconds = timings.total_nanoseconds() as f64 / 1e9;
+    let mut local = EvaluationDiagnostics::default();
+    match &result {
+        Ok(report) => local.record_replay(*report),
+        Err(_) => local.record_failure_with_timings(timings),
+    }
+    .map_err(|e| e.to_string())?;
+    meter.record(
+        sector,
+        elapsed,
+        seconds,
+        &local,
+        result.is_ok().then_some(&*output),
+    )?;
+    diagnostics.merge(&local).map_err(|e| e.to_string())?;
+    result.map(|_| ()).map_err(|e| e.to_string())
 }
 
 /// Evaluation failure or rejected numerical submission must not advance the
@@ -131,14 +212,27 @@ pub fn integrate(
     if settings.workers == 0 || settings.max_rounds == 0 {
         return Err("workers and max_rounds must be positive".into());
     }
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(settings.workers)
-        .build()?;
     let problem = problem(artifact, kernels, &settings.scope)?;
+    settings.accuracy_target.validate_layout(&problem.orders)?;
     dashboard.set_scope(settings.scope.clone());
     let tolerance = Tolerance::new(settings.absolute_tolerance, settings.relative_tolerance)?;
     let started = Instant::now();
+    dashboard.begin_integration();
+    dashboard.set_stability_mode(settings.stability.mode);
+    dashboard.set_target_order(match settings.accuracy_target {
+        fastsecdec::integration::AccuracyTarget::AllComponents => None,
+        fastsecdec::integration::AccuracyTarget::LaurentOrder(order) => Some(order),
+    });
     let last_checkpoint = Instant::now();
+    let operations = observations::Operations::new(
+        settings.workers,
+        &problem.orders,
+        dashboard.integration_interval(),
+    );
+    let setup = operations.coordinator(false);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(settings.workers)
+        .build()?;
     let method = settings.method.replace('-', "_");
     let restored = if resume {
         Some(restore_checkpoint(checkpoint, artifact, settings)?)
@@ -155,6 +249,7 @@ pub fn integrate(
     } else {
         AcceptedReplay::new(kernels, settings.replay.clone())?
     };
+    drop(setup);
     let context = Context {
         artifact,
         kernels,
@@ -169,6 +264,7 @@ pub fn integrate(
         restored,
         diagnostics,
         replay,
+        operations,
     };
     match method.as_str() {
         "mc" | "adaptive_mc" => mc::run(context, &method),

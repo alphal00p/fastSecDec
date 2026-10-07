@@ -73,8 +73,12 @@ pub(super) fn restore_checkpoint(
         return Err("unsupported checkpoint version; restart integration to create a weighted-replay checkpoint".into());
     }
     let checkpoint: Checkpoint = serde_json::from_value(value)?;
+    let mut historical: IntegrationInput = serde_json::from_value(checkpoint.settings.clone())?;
+    if checkpoint.settings.get("stability").is_none() {
+        historical.stability = fastsecdec::kernel::StabilitySettings::validated();
+    }
     if checkpoint.content_id != artifact.content_id
-        || checkpoint.settings != settings_identity(settings)?
+        || settings_identity(&historical)? != settings_identity(settings)?
         || checkpoint.round_index >= settings.max_rounds
     {
         return Err("checkpoint input identity or integration settings differ; only the worker count may change during resume".into());

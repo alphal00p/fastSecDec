@@ -134,16 +134,18 @@ impl SavedIntegrationResult {
         if let Some(tolerance) = self.requested_tolerance {
             tolerance.validate()?;
         }
+        self.requested_accuracy_target
+            .validate_layout(&manifest.orders)?;
         match &self.stopping_reason {
             StoppingReason::TargetReached => {
                 let tolerance = self.requested_tolerance.ok_or_else(|| {
                     ResultError::Invalid("target stop requires recorded tolerance".into())
                 })?;
                 require(
-                    report
-                        .total
-                        .as_ref()
-                        .is_some_and(|v| v.meets(tolerance).unwrap_or(false)),
+                    report.total.as_ref().is_some_and(|v| {
+                        v.meets_target(self.requested_accuracy_target, tolerance)
+                            .unwrap_or(false)
+                    }),
                     "target stop is unsupported by the native complete estimate",
                 )?;
             }

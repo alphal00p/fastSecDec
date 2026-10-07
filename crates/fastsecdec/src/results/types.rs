@@ -94,6 +94,11 @@ pub struct SavedIntegrationResult {
     pub contributions: ContributionReport,
     pub stopping_reason: StoppingReason,
     pub requested_tolerance: Option<Tolerance>,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::integration::AccuracyTarget::is_default"
+    )]
+    pub requested_accuracy_target: crate::integration::AccuracyTarget,
     pub evaluation_diagnostics: Option<EvaluationDiagnostics>,
     pub qmc_design: Option<QmcDesign>,
     pub provenance: ReferenceProvenance,

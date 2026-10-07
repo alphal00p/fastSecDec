@@ -1,8 +1,7 @@
-use crate::integration::{IntegrationError, Result, mc::training_envelope};
-use numerica::{
-    domains::float::{DoubleFloat, RealLike},
-    numerical_integration::{DiscreteGrid, MonteCarloRng, Sample, StatisticsAccumulator},
+use crate::integration::{
+    IntegrationError, McLiveView, Result, mc::training_envelope, mc_live::CenteredAccumulator,
 };
+use numerica::numerical_integration::{DiscreteGrid, MonteCarloRng, Sample};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Display, time::Instant};
 
@@ -45,6 +44,9 @@ impl HavanaDiscreteReturn {
     pub fn worker_seconds(&self) -> f64 {
         self.worker_seconds
     }
+    pub fn sector_worker_seconds(&self) -> &[f64] {
+        &self.sector_seconds
+    }
 }
 #[derive(Clone, Debug)]
 pub struct HavanaDiscreteWorker {
@@ -55,51 +57,16 @@ pub struct HavanaDiscreteWorker {
     pub(crate) outputs: usize,
     pub(crate) training: bool,
 }
-struct Accumulator {
-    values: Vec<StatisticsAccumulator<DoubleFloat>>,
-    origin: Vec<f64>,
-    count: u64,
-}
-impl Accumulator {
-    fn new(outputs: usize) -> Self {
-        Self {
-            values: vec![StatisticsAccumulator::new(); outputs],
-            origin: vec![0.0; outputs],
-            count: 0,
-        }
-    }
-    fn add(&mut self, values: &[f64]) {
-        if self.count == 0 {
-            self.origin.copy_from_slice(values);
-        }
-        for ((acc, origin), value) in self.values.iter_mut().zip(&self.origin).zip(values) {
-            acc.add_sample(DoubleFloat::from(*value) - DoubleFloat::from(*origin), None);
-        }
-        self.count += 1;
-    }
-    fn mean(mut self, global_count: usize) -> Vec<f64> {
-        if self.count == 0 {
-            return vec![0.0; self.origin.len()];
-        }
-        self.values
-            .iter_mut()
-            .zip(self.origin)
-            .map(|(acc, origin)| {
-                acc.update_iter(false);
-                ((DoubleFloat::from(origin) + acc.avg) * DoubleFloat::from(self.count as f64)
-                    / DoubleFloat::from(global_count as f64))
-                .to_f64()
-            })
-            .collect()
-    }
-}
 impl HavanaDiscreteWorker {
+    pub fn sector_ids(&self) -> &[u64] {
+        &self.sector_ids
+    }
     pub fn evaluate<E: Display>(
         &mut self,
         task: HavanaDiscreteTask,
         mut evaluate: impl FnMut(u64, &[f64], &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaDiscreteReturn> {
-        self.evaluate_inner(task, false, |id, x, _, out| evaluate(id, x, out))
+        self.evaluate_inner(task, false, |id, x, _, out| evaluate(id, x, out), |_| {})
     }
     /// The callback receives the full inverse sector/coordinate probability.
     /// It writes unweighted coefficients; this worker applies the weight once.
@@ -108,7 +75,7 @@ impl HavanaDiscreteWorker {
         task: HavanaDiscreteTask,
         evaluate: impl FnMut(u64, &[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaDiscreteReturn> {
-        self.evaluate_inner(task, false, evaluate)
+        self.evaluate_inner(task, false, evaluate, |_| {})
     }
     /// The callback writes final importance-weighted coefficients. The root
     /// native sampling weight is never applied to these values again.
@@ -117,13 +84,23 @@ impl HavanaDiscreteWorker {
         task: HavanaDiscreteTask,
         evaluate: impl FnMut(u64, &[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<HavanaDiscreteReturn> {
-        self.evaluate_inner(task, true, evaluate)
+        self.evaluate_inner(task, true, evaluate, |_| {})
+    }
+    /// Observe native prefix statistics without admitting an incomplete batch.
+    pub fn evaluate_weighted_observed<E: Display>(
+        &mut self,
+        task: HavanaDiscreteTask,
+        evaluate: impl FnMut(u64, &[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+        observe: impl FnMut(McLiveView<'_>),
+    ) -> Result<HavanaDiscreteReturn> {
+        self.evaluate_inner(task, true, evaluate, observe)
     }
     fn evaluate_inner<E: Display>(
         &mut self,
         task: HavanaDiscreteTask,
         weighted: bool,
         mut evaluate: impl FnMut(u64, &[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
+        mut observe: impl FnMut(McLiveView<'_>),
     ) -> Result<HavanaDiscreteReturn> {
         if task.grid_id != self.grid_id || task.points != self.points || task.rng_state == [0; 32] {
             return Err(IntegrationError::InvalidReturn(
@@ -135,13 +112,13 @@ impl HavanaDiscreteWorker {
         let mut rng = MonteCarloRng::import(task.rng_state);
         let mut sample = Sample::new();
         let mut values = vec![f64::NAN; self.outputs];
-        let mut total = Accumulator::new(self.outputs);
+        let mut total = CenteredAccumulator::new(self.outputs);
         let mut sectors = (0..self.sector_ids.len())
-            .map(|_| Accumulator::new(self.outputs))
+            .map(|_| CenteredAccumulator::new(self.outputs))
             .collect::<Vec<_>>();
         let mut counts = vec![0u64; self.sector_ids.len()];
         let mut seconds = vec![0.0; self.sector_ids.len()];
-        for _ in 0..task.points {
+        for point_index in 0..task.points {
             let point_started = Instant::now();
             grid.sample(&mut rng, &mut sample);
             let Sample::Discrete(weight, index, Some(child)) = &sample else {
@@ -186,7 +163,17 @@ impl HavanaDiscreteWorker {
             total.add(&values);
             sectors[*index].add(&values);
             counts[*index] += 1;
-            seconds[*index] += point_started.elapsed().as_secs_f64();
+            let point_seconds = point_started.elapsed().as_secs_f64();
+            seconds[*index] += point_seconds;
+            observe(McLiveView {
+                batch: task.batch,
+                sector_id: None,
+                points: point_index as u64 + 1,
+                total: Some(&total),
+                last_point_timing: Some((self.sector_ids[*index], point_seconds)),
+                sectors: &sectors,
+                sector_ids: &self.sector_ids,
+            });
         }
         let mean = total.mean(task.points);
         let sector_means = sectors

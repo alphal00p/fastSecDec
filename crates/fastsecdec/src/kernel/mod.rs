@@ -8,6 +8,7 @@ mod cancellation;
 mod compilation;
 pub use compilation::{CompilationCompletion, CompilationDispatch, CompilationJob};
 mod complex;
+mod distance;
 mod evaluator;
 mod metadata;
 mod model_constraints;
@@ -16,8 +17,14 @@ pub use model_constraints::RuntimeMassConstraint;
 mod precision;
 mod precision_cache;
 mod program;
+mod stability;
 mod statistics;
+mod timing;
+pub use stability::{
+    ARBITRARY_DECIMAL_DIGITS, PrecisionClass, StabilityLevel, StabilityMode, StabilitySettings,
+};
 pub use statistics::{EvaluatorOperations, EvaluatorStatistics};
+pub use timing::{EvaluationTimings, EvaluatorTiming};
 mod weighted;
 
 #[cfg(all(test, feature = "native"))]
@@ -26,7 +33,7 @@ pub use precision::{PrecisionPolicy, PrecisionReport};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
     domains::{
-        float::{Complex, ErrorPropagatingFloat, Float, RealLike},
+        float::{Complex, DoubleFloat, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
     evaluate::ExpressionEvaluator,
@@ -45,6 +52,8 @@ pub enum KernelError {
     Artifact(String),
     #[error("invalid precision rescue policy")]
     PrecisionPolicy,
+    #[error("invalid stability settings: {0}")]
+    Stability(String),
     #[error("precision rescue failed: {0}")]
     PrecisionEvaluation(String),
     #[error("precision rescue did not converge within {bits} bits")]
@@ -77,6 +86,8 @@ pub struct CompilationProgress {
 pub struct SectorKernel {
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
+    stability: StabilitySettings,
+    routing: stability::Routing,
     parameters: Vec<Symbol>,
     runtime_parameters: Vec<Symbol>,
     parameters_bound: bool,
@@ -94,6 +105,10 @@ struct SectorExpressions {
     cancellation: cancellation::Cancellation,
 }
 
+// Both variants own large evaluator workspaces with heap-backed numeric buffers.
+// Keep the selected workspace inline in its worker-owned sector rather than
+// adding a separate allocation and indirection solely to shrink this enum.
+#[allow(clippy::large_enum_variant)]
 enum Backend {
     Real(RealKernel),
     Complex(complex::ComplexKernel),
@@ -101,6 +116,9 @@ enum Backend {
 
 struct RealKernel {
     precision_cache: precision_cache::PrecisionCache<Float>,
+    double_cache: precision_cache::PrecisionCache<DoubleFloat>,
+    f64_timing: EvaluatorTiming,
+    conditioning_timing: EvaluatorTiming,
     evaluator: evaluator::RealEvaluator,
     exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
     conditioning: Option<ExpressionEvaluator<ErrorPropagatingFloat<f64>>>,
@@ -116,6 +134,9 @@ impl SectorKernel {
     }
     pub fn dimension(&self) -> usize {
         self.parameters.len()
+    }
+    pub fn endpoint_profiles(&self) -> Option<&[crate::generation::EndpointProfileRow]> {
+        self.cancellation.endpoint_profiles()
     }
     pub fn output_count(&self) -> usize {
         self.exact_zero.len()
@@ -144,6 +165,18 @@ impl SectorKernel {
         output: &mut [f64],
         weight: f64,
     ) -> Result<PrecisionReport, KernelError> {
+        let before = self.evaluation_metrics();
+        let mut report = self.evaluate_scaled_inner(point, output, weight)?;
+        report.timings = self.evaluation_metrics().since(before);
+        Ok(report)
+    }
+
+    fn evaluate_scaled_inner(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+    ) -> Result<PrecisionReport, KernelError> {
         if point.len() != self.dimension() {
             return Err(KernelError::Dimension {
                 expected: self.dimension(),
@@ -166,12 +199,18 @@ impl SectorKernel {
             return Err(KernelError::UnboundParameters);
         }
         self.input[..point.len()].copy_from_slice(point);
+        if self.stability.mode == StabilityMode::Distance {
+            let class = self.routing.class(point);
+            return self.evaluate_distance_class(output, weight, class);
+        }
         let point = self.input.as_slice();
         let backend = match &mut self.backend {
             Backend::Complex(kernel) => return kernel.evaluate_scaled(point, output, weight),
             Backend::Real(kernel) => kernel,
         };
+        let started = std::time::Instant::now();
         backend.evaluator.evaluate(point, output);
+        backend.f64_timing.record(started);
         // Native replay must scale before conversion: an amplifying weight can
         // make a raw zero/subnormal result materially inaccurate.
         let range_loss = weight > 1.0
@@ -194,7 +233,9 @@ impl SectorKernel {
             for (target, value) in backend.check_input.iter_mut().zip(point) {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
             }
+            let started = std::time::Instant::now();
             conditioning.evaluate(&backend.check_input, &mut backend.check_output);
+            backend.conditioning_timing.record(started);
             let stable = backend
                 .check_output
                 .iter()
@@ -216,6 +257,7 @@ impl SectorKernel {
                     rescued: false,
                     checked: true,
                     bits: 53,
+                    ..Default::default()
                 });
             }
         }
@@ -234,6 +276,7 @@ impl SectorKernel {
             rescued: false,
             checked: false,
             bits: 53,
+            ..Default::default()
         })
     }
 
@@ -276,6 +319,8 @@ impl SectorKernel {
         Ok(Self {
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
+            stability: self.stability.clone(),
+            routing: self.routing.clone(),
             parameters: self.parameters.clone(),
             runtime_parameters: self.runtime_parameters.clone(),
             parameters_bound: self.parameters_bound,
@@ -287,6 +332,9 @@ impl SectorKernel {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
                     precision_cache: kernel.precision_cache.empty_clone(),
+                    double_cache: kernel.double_cache.empty_clone(),
+                    f64_timing: Default::default(),
+                    conditioning_timing: Default::default(),
                     evaluator: kernel.evaluator.clone(),
                     exact_evaluator: kernel.exact_evaluator.clone(),
                     conditioning: kernel.conditioning.clone(),
@@ -299,6 +347,7 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
     runtime_mass_constraints: Vec<RuntimeMassConstraint>,
     exact_kernel: Option<SectorKernel>,

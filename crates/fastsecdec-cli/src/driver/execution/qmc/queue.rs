@@ -42,6 +42,7 @@ pub(super) struct Phase<'a> {
     pub(super) workers: usize,
     pub(super) diagnostics: &'a mut EvaluationDiagnostics,
     pub(super) replay: &'a mut AcceptedReplay,
+    pub(super) operations: &'a super::super::observations::Operations,
 }
 
 struct Completed {
@@ -55,6 +56,12 @@ struct Completed {
 
 fn evaluate(mut slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
     let sector = task.sector_id() as usize;
+    let _span = slot.meter.task(Some(sector as u64));
+    slot.meter.activity(
+        u32::try_from(task.work().start()).unwrap_or(u32::MAX),
+        task.point_count(),
+        sector as u64,
+    );
     let active = slot.active.as_mut().unwrap();
     let mut diagnostics = EvaluationDiagnostics::default();
     let mut aborted_prefix = false;
@@ -65,13 +72,17 @@ fn evaluate(mut slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
                 aborted_prefix = true;
                 return Err("QMC package stopped by caller".to_owned());
             }
-            super::super::evaluate_tracked(
+            super::super::evaluate_observed(
                 &mut active.context,
+                sector as u64,
                 point,
                 weight,
                 output,
                 &mut diagnostics,
-            )
+                &slot.meter,
+            )?;
+            slot.meter.point_completed();
+            Ok::<(), String>(())
         });
     let state = result.as_ref().ok().map(|_| active.context.state().clone());
     Completed {
@@ -119,10 +130,16 @@ impl Phase<'_> {
         execute: &(impl Fn(QmcSlot, QmcTask, &AtomicBool) -> Completed + Sync),
     ) -> CliResult<Outcome> {
         let stop = AtomicBool::new(false);
+        let frozen = self.replay.clone();
         self.pool.in_place_scope(|scope| {
             let _stop_on_exit = StopOnDrop(&stop);
             let (send, receive) = mpsc::channel();
-            let mut idle: Vec<_> = (0..self.workers).map(|_| QmcSlot::default()).collect();
+            let mut idle: Vec<_> = (0..self.workers)
+                .map(|id| QmcSlot {
+                    meter: self.operations.worker(id),
+                    ..Default::default()
+                })
+                .collect();
             let mut in_flight = 0;
             let mut outcome = Outcome::default();
             loop {
@@ -136,6 +153,7 @@ impl Phase<'_> {
                     stop.store(true, Ordering::Relaxed);
                 } else {
                     while let Some(mut slot) = idle.pop() {
+                        let schedule_span = self.operations.coordinator(false);
                         let task = match self.session.next_work() {
                             Ok(Some(task)) => task,
                             Ok(None) => {
@@ -147,12 +165,20 @@ impl Phase<'_> {
                                 break;
                             }
                         };
+                        drop(schedule_span);
+                        let preparation_span = self.operations.coordinator(true);
                         if let Err(error) =
                             slot.prepare(task.sector_id(), self.kernels, self.session, self.replay)
                         {
                             outcome.failure = Some(error.to_string());
                             break;
                         }
+                        slot.active
+                            .as_mut()
+                            .unwrap()
+                            .context
+                            .set_reference_state(frozen.state(task.sector_id() as usize))?;
+                        drop(preparation_span);
                         let send = send.clone();
                         let stop = &stop;
                         in_flight += 1;
@@ -187,6 +213,7 @@ impl Phase<'_> {
                 }
                 match receive.recv_timeout(Duration::from_millis(50)) {
                     Ok(returned) => {
+                        let _span = self.operations.coordinator(false);
                         in_flight -= 1;
                         match returned {
                             Ok(completed) => {

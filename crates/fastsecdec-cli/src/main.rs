@@ -7,6 +7,7 @@ mod generate;
 mod generation_report;
 mod input;
 mod inspect;
+mod integration_report;
 mod math_display;
 mod reference;
 mod results;
@@ -53,8 +54,8 @@ struct Cli {
         help = "Stream status snapshots as JSON lines to stderr"
     )]
     status_json: bool,
-    /// Minimum interval for JSON coefficient/integration status; zero emits every update.
-    #[arg(long, global = true, default_value_t = 100)]
+    /// Refresh interval for dashboard, plain and JSON status; cancellation polls independently.
+    #[arg(long, global = true, default_value_t = 1000)]
     status_interval_ms: u64,
     #[command(subcommand)]
     command: Action,
@@ -153,6 +154,9 @@ impl Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    /// TOML runtime settings overlay; explicit command-line flags take precedence.
+    #[arg(long)]
+    integration_settings: Option<PathBuf>,
     /// TOML file with [parameters] containing this integration point.
     #[arg(long)]
     parameters: Option<PathBuf>,
@@ -185,6 +189,12 @@ struct IntegrationArgs {
     absolute_tolerance: Option<f64>,
     #[arg(long)]
     relative_tolerance: Option<f64>,
+    /// Target one epsilon coefficient using the full complex mean and RMS error.
+    #[arg(long, allow_hyphen_values = true)]
+    target_order: Option<i32>,
+    /// Maximum number of successively refined production allocations.
+    #[arg(long)]
+    max_rounds: Option<usize>,
     #[arg(long)]
     checkpoint: Option<PathBuf>,
     #[arg(long)]
@@ -199,6 +209,11 @@ struct IntegrationArgs {
 
 impl IntegrationArgs {
     fn apply(&self, settings: &mut IntegrationInput) -> CliResult<()> {
+        settings.parameters =
+            config::canonical_parameter_names(std::mem::take(&mut settings.parameters))?;
+        if let Some(path) = &self.integration_settings {
+            settings.apply_overlay(path)?;
+        }
         let mut parameter_values = std::collections::BTreeMap::new();
         if let Some(path) = &self.parameters {
             #[derive(serde::Deserialize)]
@@ -207,7 +222,7 @@ impl IntegrationArgs {
                 parameters: std::collections::BTreeMap<String, toml::Value>,
             }
             let point: Point = toml::from_str(&std::fs::read_to_string(path)?)?;
-            parameter_values = point.parameters;
+            parameter_values = config::canonical_parameter_names(point.parameters)?;
             settings.parameters.clear();
         }
         for value in &self.parameter {
@@ -218,7 +233,7 @@ impl IntegrationArgs {
                 return Err("--parameter requires a nonempty name".into());
             }
             parameter_values.insert(
-                name.trim().to_string(),
+                fastsecdec::Atom::var(input::symbol(name.trim())?).to_canonical_string(),
                 toml::Value::String(value.to_string()),
             );
         }
@@ -299,6 +314,12 @@ impl IntegrationArgs {
         if let Some(value) = self.relative_tolerance {
             settings.relative_tolerance = value;
         }
+        if let Some(order) = self.target_order {
+            settings.accuracy_target = fastsecdec::integration::AccuracyTarget::LaurentOrder(order);
+        }
+        if let Some(rounds) = self.max_rounds {
+            settings.max_rounds = rounds;
+        }
         Ok(())
     }
 }
@@ -317,6 +338,7 @@ fn bind_parameters(
         .map(|(name, value)| Ok((input::symbol(name)?, *value)))
         .collect::<CliResult<std::collections::BTreeMap<_, _>>>()?;
     kernels.bind_parameters(&values)?;
+    kernels.set_stability_settings(&settings.stability)?;
     Ok(())
 }
 
@@ -433,6 +455,13 @@ fn run(cli: Cli) -> CliResult<()> {
             }
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
+            let checkpoint = integration
+                .checkpoint
+                .clone()
+                .unwrap_or_else(|| output.with_extension("checkpoint.json"));
+            if integration.resume {
+                settings.restore_historical_policy(&checkpoint)?;
+            }
             integration.apply(&mut settings)?;
             bind_parameters(&mut kernels, &settings)?;
             if let Some(reference) = &reference {
@@ -440,9 +469,6 @@ fn run(cli: Cli) -> CliResult<()> {
             }
             settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
                 .canonical_scope(&settings.scope)?;
-            let checkpoint = integration
-                .checkpoint
-                .unwrap_or_else(|| output.with_extension("checkpoint.json"));
             if let Some(path) = &integration.save_result {
                 results::check_destination(
                     path,
@@ -470,7 +496,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 .as_ref()
                 .map(|reference| reference.report_saved(&saved))
                 .transpose()?;
-            integration_report(&result, comparison.as_ref(), render_json)?;
+            integration_report::print(&result, comparison.as_ref(), cli.plain, render_json)?;
             if result.failed() {
                 return Err(ReportedFailure.into());
             }
@@ -490,6 +516,13 @@ fn run(cli: Cli) -> CliResult<()> {
                 })?;
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
+            let checkpoint = integration
+                .checkpoint
+                .clone()
+                .unwrap_or_else(|| path.with_extension("checkpoint.json"));
+            if integration.resume {
+                settings.restore_historical_policy(&checkpoint)?;
+            }
             integration.apply(&mut settings)?;
             bind_parameters(&mut kernels, &settings)?;
             if let Some(reference) = &reference {
@@ -497,9 +530,6 @@ fn run(cli: Cli) -> CliResult<()> {
             }
             settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
                 .canonical_scope(&settings.scope)?;
-            let checkpoint = integration
-                .checkpoint
-                .unwrap_or_else(|| path.with_extension("checkpoint.json"));
             if let Some(result_path) = &integration.save_result {
                 results::check_destination(
                     result_path,
@@ -528,7 +558,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 .as_ref()
                 .map(|reference| reference.report_saved(&saved))
                 .transpose()?;
-            integration_report(&result, comparison.as_ref(), render_json)?;
+            integration_report::print(&result, comparison.as_ref(), cli.plain, render_json)?;
             if result.failed() {
                 return Err(ReportedFailure.into());
             }
@@ -582,7 +612,7 @@ fn run(cli: Cli) -> CliResult<()> {
             repetitions,
         } => {
             let (artifact, mut kernels) = artifact::Artifact::load(&artifact)?;
-            let dashboard = display::Dashboard::new(false, false)?;
+            let mut dashboard = display::Dashboard::new(false, false)?;
             let benchmark = fastsecdec::diagnostics::benchmark(
                 &mut kernels,
                 &fastsecdec::diagnostics::BenchmarkOptions {
@@ -590,7 +620,7 @@ fn run(cli: Cli) -> CliResult<()> {
                     repetitions,
                     ..Default::default()
                 },
-                |progress| diagnostics::observe(&dashboard, cli.status_json, progress),
+                |progress| diagnostics::observe(&mut dashboard, cli.status_json, progress),
             )?;
             let failed =
                 benchmark.stop == fastsecdec::diagnostics::DiagnosticStop::EvaluationFailure;
@@ -611,7 +641,7 @@ fn run(cli: Cli) -> CliResult<()> {
             retry_scales,
         } => {
             let (_, mut kernels) = artifact::Artifact::load(&artifact)?;
-            let dashboard = display::Dashboard::new(false, false)?;
+            let mut dashboard = display::Dashboard::new(false, false)?;
             let boundaries = fastsecdec::diagnostics::scan_boundaries(
                 &mut kernels,
                 &fastsecdec::diagnostics::BoundaryScanOptions {
@@ -627,7 +657,7 @@ fn run(cli: Cli) -> CliResult<()> {
                     },
                     retry_scales,
                 },
-                |progress| diagnostics::observe_scan(&dashboard, cli.status_json, progress),
+                |progress| diagnostics::observe_scan(&mut dashboard, cli.status_json, progress),
             )?;
             let failed = boundaries.diagnostics.failures;
             if render_json {
@@ -663,45 +693,6 @@ fn report(value: &serde_json::Value, json: bool) -> CliResult<()> {
             println!("{}", serde_json::to_string_pretty(value)?);
         }
         println!("╰─────────────────────────────────────────────────────────────╯");
-    }
-    Ok(())
-}
-
-fn integration_report(
-    result: &driver::IntegrationReport,
-    comparison: Option<&reference::ReferenceReport>,
-    json: bool,
-) -> CliResult<()> {
-    if json {
-        let mut value = serde_json::to_value(result)?;
-        if let Some(comparison) = comparison {
-            value["reference"] = serde_json::to_value(comparison)?;
-        }
-        return report(&value, true);
-    }
-    println!("╭─ FastSecDec · Laurent coefficients ───────────────────────────────────╮");
-    println!("  Scope: {}", result.scope);
-    println!("  {:12} {:>23} {:>15}", "Order", "Value", "Std. error");
-    if let Some(estimate) = &result.estimate {
-        for (i, order) in estimate.orders.iter().enumerate() {
-            println!(
-                "  {:12} {:>+23.12e} {:>15.4e}",
-                format!("ε^{order} {:?}", estimate.components[i]),
-                estimate.mean[i],
-                estimate.standard_error[i]
-            );
-        }
-    }
-    println!(
-        "  {} · {:.2} s",
-        result.stopping_reason, result.elapsed_seconds
-    );
-    if let Some(design) = &result.qmc_design {
-        println!("  {design}");
-    }
-    println!("╰──────────────────────────────────────────────────────────────────────╯");
-    if let Some(comparison) = comparison {
-        print!("{comparison}");
     }
     Ok(())
 }

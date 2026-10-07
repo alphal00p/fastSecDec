@@ -88,6 +88,10 @@ generation and lists the ten largest sector evaluators. Add `--sector 5` to see
 that kernel's endpoint monomials, coordinate maps and evaluator statistics.
 See the [CLI guide](crates/fastsecdec-cli/README.md)
 for scope, checkpoint and reference-export rules.
+The [gg→HH double-box guide](examples/gghh_double_box/README.md) includes
+eight-worker Havana and QMC commands targeting respectively 1% and 0.1% in ε⁰.
+The [runtime integration guide](docs/RUNTIME_INTEGRATION.md) explains precision
+routing, live estimates and timing diagnostics.
 
 - [Development environment and dependency setup](docs/DEVELOPMENT.md)
 - [Reference regression traceability](docs/REGRESSION_MATRIX.md)
@@ -108,5 +112,5 @@ deliberately excluded from this repository.
 Library callers can retain a `GenerationContext` for exact geometry reuse.
 The sector crate also exposes [caller-scheduled chart and cone jobs](docs/reviews/parallel-geometry-implementation.md),
 with deterministic native merging and cancellation. `KernelSet::sector_content_id`
-provides an additional representation identity for diagnostics and reuse;
-existing artifact, checkpoint and sector-index conventions remain unchanged.
+provides an additional representation identity for diagnostics and reuse without
+changing the numerical kernel's sector-index mapping or accepted statistics.

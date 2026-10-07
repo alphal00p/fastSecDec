@@ -11,6 +11,7 @@ pub(super) struct Cancellation {
     degree: usize,
     terms: Option<Vec<Vec<usize>>>,
     dominant_terms: Vec<Vec<usize>>,
+    endpoint_profiles: Option<Vec<crate::generation::EndpointProfileRow>>,
 }
 
 impl Cancellation {
@@ -57,6 +58,7 @@ impl Cancellation {
             degree,
             terms,
             dominant_terms,
+            endpoint_profiles: None,
         })
     }
 
@@ -65,6 +67,67 @@ impl Cancellation {
     }
     pub fn terms(&self) -> Option<&[Vec<usize>]> {
         self.terms.as_deref()
+    }
+
+    pub fn endpoint_profiles(&self) -> Option<&[crate::generation::EndpointProfileRow]> {
+        self.endpoint_profiles.as_deref()
+    }
+
+    pub fn with_endpoint_profiles(
+        mut self,
+        profiles: Vec<crate::generation::EndpointProfileRow>,
+    ) -> Result<Self, KernelError> {
+        let mut projected = std::collections::BTreeSet::new();
+        for row in &profiles {
+            if row.axes.len() != self.dimension {
+                return Err(KernelError::Artifact(
+                    "endpoint profile dimension mismatch".into(),
+                ));
+            }
+            let mut orders = Vec::with_capacity(self.dimension);
+            for axis in &row.axes {
+                let mut maximum = 0;
+                for source in axis {
+                    super::stability::canonical_power(&source.original_power)?;
+                    if source.order == 0 {
+                        return Err(KernelError::Artifact(
+                            "zero-order endpoint cancellation source".into(),
+                        ));
+                    }
+                    maximum = maximum.max(source.order);
+                }
+                orders.push(maximum);
+            }
+            projected.insert(orders);
+        }
+        let expected = self
+            .terms
+            .as_ref()
+            .ok_or_else(|| {
+                KernelError::Artifact("endpoint profiles need cancellation rows".into())
+            })?
+            .iter()
+            .cloned()
+            .collect::<std::collections::BTreeSet<_>>();
+        if projected != expected {
+            return Err(KernelError::Artifact(
+                "endpoint profile coverage differs from cancellation rows".into(),
+            ));
+        }
+        self.endpoint_profiles = Some(profiles);
+        Ok(self)
+    }
+
+    pub fn routing_rows(&self) -> Vec<Vec<usize>> {
+        self.terms.clone().unwrap_or_else(|| {
+            (0..self.dimension)
+                .map(|axis| {
+                    let mut row = vec![0; self.dimension];
+                    row[axis] = self.degree;
+                    row
+                })
+                .collect()
+        })
     }
 
     pub fn lost_bits(&self, point: &[f64]) -> f64 {

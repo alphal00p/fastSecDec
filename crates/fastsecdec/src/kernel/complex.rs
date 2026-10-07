@@ -6,7 +6,7 @@ use super::{
 use symbolica::{
     atom::{Atom, AtomCore},
     domains::{
-        float::{Complex, ErrorPropagatingFloat, Float, RealLike},
+        float::{Complex, DoubleFloat, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
     evaluate::ExpressionEvaluator,
@@ -14,6 +14,9 @@ use symbolica::{
 
 pub(super) struct ComplexKernel {
     precision_cache: super::precision_cache::PrecisionCache<Complex<Float>>,
+    double_cache: super::precision_cache::PrecisionCache<Complex<DoubleFloat>>,
+    f64_timing: super::EvaluatorTiming,
+    conditioning_timing: super::EvaluatorTiming,
     exact: ExpressionEvaluator<Complex<Rational>>,
     evaluator: evaluator::ComplexEvaluator,
     conditioning: Option<ExpressionEvaluator<Complex<ErrorPropagatingFloat<f64>>>>,
@@ -29,6 +32,77 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    pub(super) fn evaluation_metrics(&self) -> super::EvaluationTimings {
+        super::EvaluationTimings {
+            f64: self.f64_timing,
+            double_float: self.double_cache.timing,
+            arbitrary: self.precision_cache.timing,
+            conditioning: self.conditioning_timing,
+        }
+    }
+
+    pub(super) fn evaluate_at_class(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+        class: super::PrecisionClass,
+    ) -> Result<(), KernelError> {
+        use super::PrecisionClass;
+        match class {
+            PrecisionClass::F64 => {
+                for (input, value) in self.input.iter_mut().zip(point) {
+                    *input = Complex::new(*value, 0.0);
+                }
+                let started = std::time::Instant::now();
+                self.evaluator.evaluate(&self.input, &mut self.output);
+                self.f64_timing.record(started);
+                for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(&self.output) {
+                    target.copy_from_slice(&[value.re * weight, value.im * weight]);
+                }
+            }
+            PrecisionClass::DoubleFloat => {
+                let scale = DoubleFloat::from(weight);
+                let values = self.double_cache.evaluate(
+                    &self.exact,
+                    point,
+                    106,
+                    |c| Complex::new(DoubleFloat::from(&c.re), DoubleFloat::from(&c.im)),
+                    |v| Complex::new(DoubleFloat::from(v), DoubleFloat::from(0.0)),
+                )?;
+                for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(values) {
+                    target.copy_from_slice(&[
+                        (value.re * scale).to_f64(),
+                        (value.im * scale).to_f64(),
+                    ]);
+                }
+            }
+            PrecisionClass::Arbitrary => {
+                let bits = class.bits();
+                let scale = Float::with_val(bits, weight);
+                let values = self.precision_cache.evaluate(
+                    &self.exact,
+                    point,
+                    bits,
+                    |c| {
+                        Complex::new(
+                            c.re.to_multi_prec_float(bits),
+                            c.im.to_multi_prec_float(bits),
+                        )
+                    },
+                    |v| Complex::new(Float::with_val(bits, v), Float::with_val(bits, 0)),
+                )?;
+                for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(values) {
+                    target.copy_from_slice(&[
+                        (value.re.clone() * &scale).to_f64(),
+                        (value.im.clone() * &scale).to_f64(),
+                    ]);
+                }
+            }
+            PrecisionClass::Unstable => output.fill(0.0),
+        }
+        Ok(())
+    }
     #[cfg(feature = "native")]
     pub(super) fn symjit_ir_bytes(&self) -> usize {
         self.evaluator.as_bytes().len()
@@ -87,6 +161,9 @@ impl ComplexKernel {
             )
             .ok();
         Ok(Self {
+            double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
+            f64_timing: Default::default(),
+            conditioning_timing: Default::default(),
             precision_cache: super::precision_cache::PrecisionCache::new(requirements),
             exact,
             evaluator,
@@ -143,7 +220,9 @@ impl ComplexKernel {
         for (input, value) in self.input.iter_mut().zip(point) {
             *input = Complex::new(*value, 0.0);
         }
+        let started = std::time::Instant::now();
         self.evaluator.evaluate(&self.input, &mut self.output);
+        self.f64_timing.record(started);
         for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(&self.output) {
             target.copy_from_slice(&[value.re, value.im]);
         }
@@ -173,7 +252,9 @@ impl ComplexKernel {
             for (input, value) in self.check_input.iter_mut().zip(point) {
                 *input = Complex::new(tracked(*value), tracked(0.0));
             }
+            let started = std::time::Instant::now();
             conditioning.evaluate(&self.check_input, &mut self.check_output);
+            self.conditioning_timing.record(started);
             // Relative accuracy applies to the complex coefficient's infinity
             // norm. An exactly zero imaginary component must not demand an
             // arbitrarily small relative error from native roundoff tracking.
@@ -198,6 +279,7 @@ impl ComplexKernel {
                     rescued: false,
                     checked: true,
                     bits: 53,
+                    ..Default::default()
                 });
             }
         }
@@ -216,6 +298,7 @@ impl ComplexKernel {
             rescued: false,
             checked: false,
             bits: 53,
+            ..Default::default()
         })
     }
 
@@ -240,6 +323,9 @@ impl ComplexKernel {
     pub(super) fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
             precision_cache: self.precision_cache.empty_clone(),
+            double_cache: self.double_cache.empty_clone(),
+            f64_timing: Default::default(),
+            conditioning_timing: Default::default(),
             exact: self.exact.clone(),
             evaluator: self.evaluator.clone(),
             conditioning: self.conditioning.clone(),

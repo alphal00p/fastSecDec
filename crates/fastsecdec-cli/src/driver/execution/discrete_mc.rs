@@ -20,6 +20,7 @@ use std::{collections::BTreeMap, time::Instant};
 struct Slot {
     contexts: BTreeMap<u64, WeightedEvaluationContext>,
     worker: HavanaDiscreteWorker,
+    meter: super::observations::WorkerMeter,
 }
 pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
     let Context {
@@ -36,7 +37,9 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
         restored,
         mut diagnostics,
         mut replay,
+        operations,
     } = context;
+    let initialization = operations.coordinator(false);
     let steering = settings.discrete_mc.clone().unwrap_or_default();
     if steering.pilot_iterations == 0
         || [
@@ -79,25 +82,38 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
     // Caches survive grid adaptation; their worst-case size is all visited
     // sectors per worker, not a claim of one evaluator context per worker.
     let mut slots: Vec<Slot> = Vec::new();
+    let mut resumed_phase = restored.is_some();
+    drop(initialization);
     'rounds: loop {
+        dashboard.set_live_observation(None);
+        let frozen_replay = replay.clone();
+        let mut live_ledger = super::observations::McLedger::default();
+        let live_source = if resumed_phase {
+            fastsecdec::integration::LiveSource::SinceResume
+        } else {
+            fastsecdec::integration::LiveSource::CurrentIteration
+        };
         observe(
             dashboard,
+            &operations,
             &diagnostics,
             started,
             true,
-            || session.snapshot(),
+            || session.diagnostic_observation(),
             &mut failure,
         )?;
         cancelled |= dashboard.cancelled();
         if failure.is_some() || cancelled {
             break;
         }
+        let grid_span = operations.coordinator(false);
         if slots.is_empty() && !problem.sectors.is_empty() {
             slots = (0..settings.workers)
-                .map(|_| {
+                .map(|id| {
                     Ok(Slot {
                         contexts: BTreeMap::new(),
                         worker: session.worker_context()?,
+                        meter: operations.worker(id),
                     })
                 })
                 .collect::<CliResult<Vec<_>>>()?;
@@ -106,36 +122,69 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 slot.worker = session.worker_context()?;
             }
         }
+        drop(grid_span);
         while !session.is_complete() {
             cancelled |= dashboard.cancelled();
             if cancelled {
                 break 'rounds;
             }
+            let schedule_span = operations.coordinator(false);
             let tasks = (0..settings.workers)
                 .filter_map(|_| session.next_work())
                 .collect::<Vec<_>>();
             if tasks.is_empty() {
                 return Err("discrete MC scheduler has no work before completion".into());
             }
+            drop(schedule_span);
+            let prepare_span = operations.coordinator(true);
             for slot in &mut slots {
                 for (id, context) in &mut slot.contexts {
                     context.merge_state(replay.state(*id as usize))?;
+                    context.set_reference_state(frozen_replay.state(*id as usize))?;
                 }
             }
-            let returns = wave::run(&pool, &mut slots, tasks, kernels, &replay, |activity| {
-                dashboard.integration_work(activity);
-                cancelled |= dashboard.cancelled();
-                observe(
-                    dashboard,
-                    &diagnostics,
-                    started,
-                    cancelled || failure.is_some(),
-                    || session.snapshot(),
-                    &mut failure,
-                )?;
-                Ok(cancelled || failure.is_some())
-            })?;
+            drop(prepare_span);
+            let returns = wave::run(
+                &pool,
+                &mut slots,
+                tasks,
+                kernels,
+                &replay,
+                &frozen_replay,
+                |activity, collect_live, completed| {
+                    dashboard.integration_work(activity);
+                    if completed {
+                        live_ledger.update(collect_live().into_iter());
+                    }
+
+                    cancelled |= dashboard.cancelled();
+                    let _span = operations.coordinator(false);
+                    super::observe_live(
+                        dashboard,
+                        &operations,
+                        &diagnostics,
+                        started,
+                        cancelled || failure.is_some(),
+                        || {
+                            if !completed {
+                                live_ledger.update(collect_live().into_iter());
+                            }
+                            fastsecdec::integration::mc_live_observation(
+                                &problem,
+                                session.stage(),
+                                live_source,
+                                &live_ledger.batches(),
+                                true,
+                            )
+                        },
+                        || session.diagnostic_observation(),
+                        &mut failure,
+                    )?;
+                    Ok(cancelled || failure.is_some())
+                },
+            )?;
             dashboard.integration_work(Vec::new());
+            let admission = operations.coordinator(false);
             for returned in returns {
                 let completed = match returned {
                     Ok(completed) => completed,
@@ -147,9 +196,15 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 };
                 diagnostics.merge(&completed.diagnostics)?;
                 if completed.aborted_prefix {
+                    live_ledger.discard(None, completed.batch);
                     continue;
                 }
-                let wave::Completed { result, states, .. } = completed;
+                let wave::Completed {
+                    result,
+                    states,
+                    batch,
+                    ..
+                } = completed;
                 let accepted = (|| -> CliResult<()> {
                     let value = result?;
                     let states = states.ok_or("successful global batch has no replay states")?;
@@ -164,16 +219,29 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                     Ok(())
                 })();
                 if let Err(error) = accepted {
+                    live_ledger.discard(None, batch);
                     failure.get_or_insert_with(|| error.to_string());
                 }
             }
+            drop(admission);
+
             cancelled = dashboard.cancelled();
-            observe(
+            super::observe_live(
                 dashboard,
+                &operations,
                 &diagnostics,
                 started,
                 cancelled || failure.is_some() || session.is_complete(),
-                || session.snapshot(),
+                || {
+                    fastsecdec::integration::mc_live_observation(
+                        &problem,
+                        session.stage(),
+                        live_source,
+                        &live_ledger.batches(),
+                        true,
+                    )
+                },
+                || session.diagnostic_observation(),
                 &mut failure,
             )?;
             if cancelled || failure.is_some() {
@@ -182,6 +250,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             if last_checkpoint.elapsed().as_secs() >= 5
                 && session.stage() == IntegrationStage::Production
             {
+                let _checkpoint_span = operations.coordinator(false);
                 save_checkpoint(
                     checkpoint,
                     artifact,
@@ -194,6 +263,8 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 last_checkpoint = Instant::now();
             }
         }
+        resumed_phase = false;
+        let _refinement_span = operations.coordinator(false);
         if session.stage() == IntegrationStage::Pilot {
             pilot_iteration += 1;
             if pilot_iteration < steering.pilot_iterations {
@@ -211,7 +282,10 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             }
             continue;
         }
-        let meets = match session.estimate().and_then(|e| e.meets(tolerance)) {
+        let meets = match session
+            .estimate()
+            .and_then(|e| e.meets_target(settings.accuracy_target, tolerance))
+        {
             Ok(v) => v,
             Err(error) => {
                 failure = Some(error.to_string());
@@ -225,6 +299,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
         session = HavanaDiscreteSession::pilot(problem.clone(), pilot.clone())?;
         pilot_iteration = 0;
     }
+    let checkpoint_span = operations.coordinator(false);
     let resume_status = if session.stage() == IntegrationStage::Pilot {
         ResumeStatus::PilotRestartRequired
     } else {
@@ -239,6 +314,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
         )?;
         ResumeStatus::CheckpointSaved
     };
+    drop(checkpoint_span);
     let report = finish(
         artifact,
         session.diagnostic_observation()?,
@@ -246,6 +322,9 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
         tolerance,
         started.elapsed().as_secs_f64(),
         ExecutionOutcome {
+            stability_mode: settings.stability.mode,
+            accuracy_target: settings.accuracy_target,
+            operational: operations.snapshot()?,
             scope: settings.scope.clone(),
             cancelled,
             failure,

@@ -1,6 +1,9 @@
 //! Caller-owned replay of suspicious weighted samples. This growth heuristic
 //! is a diagnostic safeguard, not a proof of accuracy or an integration rule.
-use super::{KernelError, KernelSet, PrecisionReport, SectorKernel};
+use super::{
+    KernelError, KernelSet, PrecisionClass, PrecisionReport, SectorKernel, StabilityMode,
+    StabilitySettings,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -45,6 +48,8 @@ pub struct ReplayState {
     content_id: String,
     sector: usize,
     policy: ReplayPolicy,
+    #[serde(default = "StabilitySettings::validated")]
+    stability: StabilitySettings,
     maximum_absolute_weighted: Vec<f64>,
     verified: bool,
 }
@@ -62,7 +67,13 @@ impl ReplayState {
 
     fn validate(&self) -> Result<(), KernelError> {
         self.policy.validate()?;
-        if self.version != 1
+        self.stability.validate()?;
+        if self.version
+            != if self.stability.mode == StabilityMode::Validated {
+                1
+            } else {
+                2
+            }
             || self.content_id.is_empty()
             || self.maximum_absolute_weighted.is_empty()
             || self.maximum_absolute_weighted.iter().any(|value| {
@@ -80,6 +91,7 @@ impl ReplayState {
         if self.content_id != other.content_id
             || self.sector != other.sector
             || self.policy != other.policy
+            || self.stability != other.stability
             || self.maximum_absolute_weighted.len() != other.maximum_absolute_weighted.len()
         {
             return Err(KernelError::Replay(
@@ -110,6 +122,7 @@ pub struct ReplayReport {
 pub struct WeightedEvaluationContext {
     kernel: SectorKernel,
     state: ReplayState,
+    reference_maxima: Vec<f64>,
 }
 
 impl WeightedEvaluationContext {
@@ -123,7 +136,24 @@ impl WeightedEvaluationContext {
         &self.state
     }
     pub fn merge_state(&mut self, state: &ReplayState) -> Result<(), KernelError> {
-        self.state.merge(state)
+        self.state.merge(state)?;
+        self.reference_maxima
+            .clone_from(&self.state.maximum_absolute_weighted);
+        Ok(())
+    }
+
+    pub fn evaluation_metrics(&self) -> super::EvaluationTimings {
+        self.kernel.evaluation_metrics()
+    }
+
+    /// Supply the caller's accepted baseline at a work-package boundary.
+    /// Subsequent local final values update the reference in sample order;
+    /// concurrent workers do not change it. Only complete work may be admitted.
+    pub fn set_reference_state(&mut self, state: &ReplayState) -> Result<(), KernelError> {
+        self.state.clone().merge(state)?;
+        self.reference_maxima
+            .clone_from(&state.maximum_absolute_weighted);
+        Ok(())
     }
 
     /// Return coefficients with `weight` already applied exactly once. Use an
@@ -135,10 +165,25 @@ impl WeightedEvaluationContext {
         weight: f64,
         output: &mut [f64],
     ) -> Result<ReplayReport, KernelError> {
+        let before = self.evaluation_metrics();
+        let mut report = self.evaluate_weighted_inner(point, weight, output)?;
+        report.precision.timings = self.evaluation_metrics().since(before);
+        Ok(report)
+    }
+
+    fn evaluate_weighted_inner(
+        &mut self,
+        point: &[f64],
+        weight: f64,
+        output: &mut [f64],
+    ) -> Result<ReplayReport, KernelError> {
         if !weight.is_finite() || weight < 0.0 {
             return Err(KernelError::InvalidWeight);
         }
         let mut precision = self.kernel.evaluate_scaled(point, output, weight)?;
+        if self.state.stability.mode == StabilityMode::Distance {
+            return self.distance_weight_check(weight, output, precision);
+        }
         if weight == 0.0 {
             return Ok(ReplayReport {
                 precision,
@@ -182,6 +227,85 @@ impl WeightedEvaluationContext {
             replayed,
         })
     }
+
+    fn distance_weight_check(
+        &mut self,
+        weight: f64,
+        output: &mut [f64],
+        mut precision: PrecisionReport,
+    ) -> Result<ReplayReport, KernelError> {
+        if weight == 0.0 || precision.class == PrecisionClass::Unstable {
+            return Ok(ReplayReport {
+                precision,
+                weighted_check: false,
+                replayed: false,
+            });
+        }
+        let width = if matches!(self.kernel.backend, super::Backend::Complex(_)) {
+            2
+        } else {
+            1
+        };
+        let magnitude = |value: &[f64]| {
+            if width == 2 {
+                value[0].hypot(value[1])
+            } else {
+                value[0].abs()
+            }
+        };
+        let mut weighted_check = false;
+        let mut replayed = false;
+        loop {
+            let index = match precision.class {
+                PrecisionClass::F64 => 0,
+                PrecisionClass::DoubleFloat => 1,
+                PrecisionClass::Arbitrary => 2,
+                PrecisionClass::Unstable => unreachable!(),
+            };
+            let fraction = self.state.stability.levels[index].escalate_for_large_weight_threshold;
+            let suspicious = fraction.is_some_and(|fraction| {
+                output
+                    .chunks_exact(width)
+                    .zip(&self.reference_maxima)
+                    .any(|(value, maximum)| {
+                        *maximum > 0.0 && magnitude(value) / *maximum >= fraction
+                    })
+            });
+            if !suspicious {
+                break;
+            }
+            weighted_check = true;
+            replayed = true;
+            precision = self.kernel.evaluate_distance_class(
+                output,
+                weight,
+                self.state.stability.levels[index + 1].precision,
+            )?;
+        }
+        if output
+            .chunks_exact(width)
+            .map(magnitude)
+            .any(|value| !value.is_finite())
+        {
+            return Err(KernelError::NonFinite);
+        }
+        for ((maximum, reference), value) in self
+            .state
+            .maximum_absolute_weighted
+            .iter_mut()
+            .zip(&mut self.reference_maxima)
+            .zip(output.chunks_exact(width).map(magnitude))
+        {
+            *maximum = maximum.max(value);
+            *reference = reference.max(value);
+        }
+        self.state.verified = true;
+        Ok(ReplayReport {
+            precision,
+            weighted_check,
+            replayed,
+        })
+    }
 }
 
 impl KernelSet {
@@ -199,17 +323,31 @@ impl KernelSet {
             .sectors
             .get(sector)
             .ok_or_else(|| KernelError::Replay("unknown sector".into()))?;
-        if policy.minimum_bits > kernel.precision.max_bits / 2 {
+        if self.stability.mode == StabilityMode::Validated
+            && policy.minimum_bits > kernel.precision.max_bits / 2
+        {
             return Err(KernelError::Replay(
                 "replay precision exceeds the kernel policy".into(),
             ));
         }
         Ok(ReplayState {
-            version: 1,
+            version: if self.stability.mode == StabilityMode::Validated {
+                1
+            } else {
+                2
+            },
             content_id: self.content_id.clone(),
             sector,
             policy,
-            maximum_absolute_weighted: vec![0.0; kernel.output_count()],
+            stability: self.stability.clone(),
+            maximum_absolute_weighted: vec![
+                0.0;
+                if self.stability.mode == StabilityMode::Validated {
+                    kernel.output_count()
+                } else {
+                    kernel.exact_zero.len()
+                }
+            ],
             verified: false,
         })
     }
@@ -228,8 +366,10 @@ impl KernelSet {
         sector: usize,
         policy: ReplayPolicy,
     ) -> Result<WeightedEvaluationContext, KernelError> {
+        let state = self.replay_state(sector, policy)?;
         Ok(WeightedEvaluationContext {
-            state: self.replay_state(sector, policy)?,
+            reference_maxima: state.maximum_absolute_weighted.clone(),
+            state,
             kernel: self.sectors[sector].try_clone()?,
         })
     }

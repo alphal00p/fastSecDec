@@ -97,20 +97,60 @@ is a smoke allocation, not a convergence or independent-reference claim.
 The [s-channel review](../../docs/reviews/gghh-s-channel-review.md) records the
 exact source comparison, fresh generation and bounded runtime verification.
 
-The same generated kernels also support ordinary Havana sampling:
+For Havana importance sampling over sectors, target **1% relative precision in
+the complex ε⁰ coefficient** with eight workers:
 
 ```sh
-fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+./target/release/fastsecdec integrate output/gghh_double_box.fsd --full-integral \
   --parameters examples/gghh_double_box/point.toml \
   --method discrete_mc --workers 8 --points 32768 --shifts 32 --seed 20261008 \
-  --relative-tolerance 0.001 \
+  --target-order 0 --relative-tolerance 0.01 --absolute-tolerance 0 --max-rounds 8 \
   --checkpoint output/gghh_double_box.mc.checkpoint.json \
   --save-result output/gghh_double_box.mc.result.json
 ```
 
-For this method, points and shifts mean global points per batch and independent
-batches. Pilot samples are excluded from the production estimate. Neither this
-command nor its work limit guarantees the requested statistical accuracy.
+For randomized lattice QMC, target **0.1% (one per mil)** in the same coefficient:
+
+```sh
+./target/release/fastsecdec integrate output/gghh_double_box.fsd --full-integral \
+  --parameters examples/gghh_double_box/point.toml \
+  --method qmc --workers 8 --points 4096 --shifts 32 --seed 20261008 \
+  --target-order 0 --relative-tolerance 0.001 --absolute-tolerance 0 --max-rounds 8 \
+  --checkpoint output/gghh_double_box.qmc.checkpoint.json \
+  --save-result output/gghh_double_box.qmc.result.json
+```
+
+For Havana, points and shifts mean global points per batch and independent
+batches. Pilot samples train importance sampling and are excluded from the
+production estimate. For QMC, they mean points per shifted lattice and the
+number of random shifts. The initial allocation is refined up to eight rounds:
+MC doubles points per batch, while QMC grows the lattice before adding shifts
+when the selected catalogue reaches its size limit. Reaching the work limit
+does not establish the requested accuracy; the final stopping reason distinguishes
+it from reaching the target. Only complete accepted production allocations can
+satisfy the target. All Laurent orders and the full covariance remain stored.
+The complex target compares `sqrt(C_RR + C_II)` to the relative tolerance times
+`hypot(mean_R, mean_I)`; zero absolute tolerance prevents an absolute-error
+fallback from satisfying these relative targets.
+
+The dashboard refreshes once per second by default. Change this with
+`--status-interval-ms`; cancellation remains responsive independently. Havana
+previews show current-iteration point statistics during batches. QMC updates a
+central value after a complete lattice and an uncertainty after at least two
+independent complete shifts. Preview coverage can differ between sector rows
+and the full sum, and previews are never checkpointed as accepted results.
+
+Runtime precision routing defaults to f64, native 106-bit DoubleFloat and
+1000-decimal-digit arbitrary precision, selected by effective cancellation
+distance. It also escalates large f64 weighted contributions against previous
+sector maxima. This distance policy is a numerical heuristic; persistent
+nonfinite results are errors. An optional distance cutoff that returns zero is
+disabled by default; its bias is not included in sampling errors. The explicit
+validated policy retains the earlier additional precision checks. Runtime
+settings can be supplied with `--integration-settings PATH`, overriding artifact
+defaults; explicit CLI options take precedence. These settings do not recompile
+the generated expressions. See the [runtime settings guide](../../docs/RUNTIME_INTEGRATION.md)
+for precision settings and live diagnostics.
 
 `raw-diagram.json`, `raw-diagram.dot` and the `raw-*.txt` files retain D05's native
 supplied numerator and its separate factors. `graph.dot` carries the native

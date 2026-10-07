@@ -1,6 +1,22 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
+use fastsecdec::AtomCore;
 use serde::Deserialize;
+
+/// Normalize one input layer before merging it with lower-priority values.
+pub(crate) fn canonical_parameter_names<T>(
+    values: BTreeMap<String, T>,
+) -> crate::CliResult<BTreeMap<String, T>> {
+    let mut canonical = BTreeMap::new();
+    for (name, value) in values {
+        let symbol = crate::input::symbol(&name)?;
+        let key = fastsecdec::Atom::var(symbol).to_canonical_string();
+        if canonical.insert(key, value).is_some() {
+            return Err(format!("duplicate runtime parameter {name}").into());
+        }
+    }
+    Ok(canonical)
+}
 
 #[cfg(test)]
 mod tests;
@@ -148,9 +164,12 @@ pub struct IntegrationInput {
     pub lattice: String,
     pub absolute_tolerance: f64,
     pub relative_tolerance: f64,
+    #[serde(skip_serializing_if = "fastsecdec::integration::AccuracyTarget::is_default")]
+    pub accuracy_target: fastsecdec::integration::AccuracyTarget,
     pub production_seconds: f64,
     pub max_rounds: usize,
     pub replay: fastsecdec::kernel::ReplayPolicy,
+    pub stability: fastsecdec::kernel::StabilitySettings,
     /// Explicit steering for the global discrete-sector Havana lane only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discrete_mc: Option<DiscreteMcInput>,
@@ -198,9 +217,11 @@ impl Default for IntegrationInput {
             lattice: "kuo33002".into(),
             absolute_tolerance: 1e-8,
             relative_tolerance: 1e-3,
+            accuracy_target: Default::default(),
             production_seconds: 10.0,
             max_rounds: 1,
             replay: Default::default(),
+            stability: Default::default(),
             discrete_mc: None,
         }
     }
@@ -211,6 +232,60 @@ fn is_legacy_lattice(value: &str) -> bool {
 }
 
 impl IntegrationInput {
+    /// Historical checkpoints predate distance routing and retain their policy.
+    /// Explicit overlays still apply afterwards and are checked for compatibility.
+    pub fn restore_historical_policy(&mut self, path: &std::path::Path) -> crate::CliResult<()> {
+        let checkpoint: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
+        if let Some(settings) = checkpoint
+            .get("settings")
+            .and_then(serde_json::Value::as_object)
+            && !settings.contains_key("stability")
+        {
+            self.stability = fastsecdec::kernel::StabilitySettings::validated();
+        }
+        Ok(())
+    }
+
+    /// Merge only explicitly supplied runtime keys, preserving artifact defaults.
+    /// Arrays (including stability levels) replace their entire previous value.
+    pub fn apply_overlay(&mut self, path: &std::path::Path) -> crate::CliResult<()> {
+        let overlay: toml::Value = toml::from_str(&std::fs::read_to_string(path)?)?;
+        let mut overlay = serde_json::to_value(overlay)?;
+        if let Some(table) = overlay.as_object_mut()
+            && table.contains_key("integration")
+        {
+            if table.len() != 1 {
+                return Err("runtime settings with an [integration] table cannot contain other top-level tables".into());
+            }
+            overlay = table.remove("integration").unwrap();
+        }
+        if !overlay.is_object() {
+            return Err("runtime integration settings must be a TOML table".into());
+        }
+        if let Some(parameters) = overlay.get_mut("parameters") {
+            let values = serde_json::from_value::<BTreeMap<String, f64>>(parameters.clone())?;
+            *parameters = serde_json::to_value(canonical_parameter_names(values)?)?;
+        }
+        fn merge(base: &mut serde_json::Value, overlay: serde_json::Value) {
+            match (base, overlay) {
+                (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
+                    for (key, value) in overlay {
+                        if let Some(existing) = base.get_mut(&key) {
+                            merge(existing, value);
+                        } else {
+                            base.insert(key, value);
+                        }
+                    }
+                }
+                (base, overlay) => *base = overlay,
+            }
+        }
+        let mut effective = serde_json::to_value(&*self)?;
+        merge(&mut effective, overlay);
+        *self = serde_json::from_value(effective)?;
+        Ok(())
+    }
+
     pub fn published_lattice(&self) -> crate::CliResult<fastsecdec::integration::PublishedLattice> {
         use fastsecdec::integration::PublishedLattice;
         match self.lattice.as_str() {

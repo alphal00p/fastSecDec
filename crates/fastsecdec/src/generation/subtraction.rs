@@ -1,4 +1,7 @@
-use super::{GenerationError, GenerationOptions, SubtractionStrategy, mapping::MappedTerm};
+use super::{
+    EndpointCancellationSource, EndpointProfileRow, GenerationError, GenerationOptions,
+    SubtractionStrategy, mapping::MappedTerm,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
@@ -18,26 +21,56 @@ struct Piece {
     prefactor: Atom,
     regular: Atom,
     cancellation: Vec<usize>,
+    original_powers: std::sync::Arc<[String]>,
+}
+
+pub(super) struct Subtracted {
+    pub expression: Atom,
+    pub count: usize,
+    pub cancellation_terms: Vec<Vec<usize>>,
+    pub endpoint_profiles: Vec<EndpointProfileRow>,
 }
 
 /// Taylor endpoint subtraction implements the meromorphic continuation exactly.
 /// Boundary terms remain embedded in the original cube so correlated Laurent
 /// coefficients are evaluated together at one point. No numerical term summing.
+#[cfg(test)]
 pub(super) fn subtract(
     terms: Vec<MappedTerm>,
     parameters: &[Symbol],
     regulator: Symbol,
     options: &GenerationOptions,
 ) -> Result<(Atom, usize, Vec<Vec<usize>>), GenerationError> {
+    let result = subtract_profiled(terms, parameters, regulator, options)?;
+    Ok((result.expression, result.count, result.cancellation_terms))
+}
+
+pub(super) fn subtract_profiled(
+    terms: Vec<MappedTerm>,
+    parameters: &[Symbol],
+    regulator: Symbol,
+    options: &GenerationOptions,
+) -> Result<Subtracted, GenerationError> {
     let mut pieces = terms
         .into_iter()
-        .map(|term| Piece {
-            powers: term.powers.into_iter().map(Some).collect(),
-            prefactor: term.prefactor,
-            regular: term.regular,
-            cancellation: vec![0; parameters.len()],
+        .map(|term| {
+            Ok(Piece {
+                original_powers: term
+                    .powers
+                    .iter()
+                    .map(|power| {
+                        endpoints::endpoint_power(power, regulator)
+                            .map(|(constant, _)| (-constant).to_string())
+                    })
+                    .collect::<Result<Vec<_>, GenerationError>>()?
+                    .into(),
+                powers: term.powers.into_iter().map(Some).collect(),
+                prefactor: term.prefactor,
+                regular: term.regular,
+                cancellation: vec![0; parameters.len()],
+            })
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, GenerationError>>()?;
     for (axis, parameter) in parameters.iter().enumerate() {
         let x = Atom::var(*parameter);
         let mut next = Vec::new();
@@ -63,6 +96,7 @@ pub(super) fn subtract(
                             prefactor: piece.prefactor.clone(),
                             regular: boundary / &denominator,
                             cancellation: piece.cancellation.clone(),
+                            original_powers: piece.original_powers.clone(),
                         };
                         boundary_piece.powers[axis] = None;
                         next.push(boundary_piece);
@@ -97,6 +131,7 @@ pub(super) fn subtract(
                         prefactor: piece.prefactor.clone(),
                         regular: coefficient / denominator,
                         cancellation: piece.cancellation.clone(),
+                        original_powers: piece.original_powers.clone(),
                     });
                 }
                 if degree + 1 < count {
@@ -131,6 +166,28 @@ pub(super) fn subtract(
         pieces = next;
     }
     let count = pieces.len();
+    let endpoint_profiles = pieces
+        .iter()
+        .map(|piece| EndpointProfileRow {
+            axes: piece
+                .cancellation
+                .iter()
+                .zip(piece.original_powers.iter())
+                .map(|(&order, power)| {
+                    if order == 0 {
+                        Vec::new()
+                    } else {
+                        vec![EndpointCancellationSource {
+                            order,
+                            original_power: power.clone(),
+                        }]
+                    }
+                })
+                .collect(),
+        })
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     let cancellation_terms = pieces
         .iter()
         .map(|piece| piece.cancellation.clone())
@@ -153,5 +210,10 @@ pub(super) fn subtract(
         .into_iter()
         .map(|(prefactor, regular)| prefactor * regular)
         .sum();
-    Ok((density, count, cancellation_terms))
+    Ok(Subtracted {
+        expression: density,
+        count,
+        cancellation_terms,
+        endpoint_profiles,
+    })
 }

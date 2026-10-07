@@ -35,8 +35,9 @@ pub use metadata::{
 };
 pub use types::{
     CoefficientExpansionMethod, CoefficientExpansionOptions, CoefficientExpansionStage,
-    CoefficientRequestCounts, ConditioningBasis, GeneratedIntegral, GeneratedSector,
-    GenerationError, GenerationOptions, GenerationPhase, GenerationProgress, SubtractionStrategy,
+    CoefficientRequestCounts, ConditioningBasis, EndpointCancellationSource, EndpointProfileRow,
+    GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationPhase,
+    GenerationProgress, SubtractionStrategy,
 };
 
 use crate::parametric::ParametricIntegrand;
@@ -405,6 +406,7 @@ fn generate_inner(
             |(map, parameters, coefficients, conditioning)| GeneratedSector {
                 cancellation_degree: conditioning.degree,
                 cancellation_terms: conditioning.rows,
+                endpoint_profiles: conditioning.endpoint_profiles,
                 conditioning_basis: conditioning.basis,
                 parameters,
                 map,

@@ -39,6 +39,14 @@ pub fn assemble(
         .attributes
         .insert("caller_settings".into(), serde_json::to_value(settings)?);
     provenance.attributes.insert(
+        "operational_timings".into(),
+        serde_json::to_value(&report.operational)?,
+    );
+    provenance.attributes.insert(
+        "process_cpu_seconds".into(),
+        serde_json::to_value(report.process_cpu_seconds)?,
+    );
+    provenance.attributes.insert(
         "resume_status".into(),
         serde_json::to_value(&report.resume_status)?,
     );
@@ -66,6 +74,7 @@ pub fn assemble(
             settings.absolute_tolerance,
             settings.relative_tolerance,
         )?),
+        requested_accuracy_target: settings.accuracy_target,
         evaluation_diagnostics: report.snapshot.evaluation_diagnostics.clone(),
         qmc_design: report.qmc_design.clone(),
         provenance,

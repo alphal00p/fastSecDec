@@ -33,6 +33,7 @@ impl AcceptedReplay {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn contexts(
         &self,
         kernels: &KernelSet,

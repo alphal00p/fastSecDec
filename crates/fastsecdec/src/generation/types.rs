@@ -166,11 +166,30 @@ pub enum ConditioningBasis {
     MappedEndpointBound,
 }
 
+/// Exact original endpoint provenance for one cancellation loss contribution.
+/// The power is a canonical native Rational string, independent of Atom state.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EndpointCancellationSource {
+    pub order: usize,
+    pub original_power: String,
+}
+
+/// A retained remainder has one source per active axis. A mapped endpoint bound
+/// retains alternatives from the original terms; each axis takes their maximum
+/// only after normalization by the chosen power-specific threshold.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EndpointProfileRow {
+    pub axes: Vec<Vec<EndpointCancellationSource>>,
+}
+
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
     pub(crate) cancellation_degree: usize,
     pub(crate) cancellation_terms: Vec<Vec<usize>>,
+    pub(crate) endpoint_profiles: Vec<EndpointProfileRow>,
     pub(crate) conditioning_basis: ConditioningBasis,
     pub(crate) parameters: Vec<Symbol>,
     pub(crate) coefficients: Vec<AliasedAtom>,
@@ -188,6 +207,9 @@ impl GeneratedSector {
     /// but does not record this fresh result's descriptive basis.
     pub fn cancellation_terms(&self) -> &[Vec<usize>] {
         &self.cancellation_terms
+    }
+    pub fn endpoint_profiles(&self) -> &[EndpointProfileRow] {
+        &self.endpoint_profiles
     }
     pub fn conditioning_basis(&self) -> ConditioningBasis {
         self.conditioning_basis

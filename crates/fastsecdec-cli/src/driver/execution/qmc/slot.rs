@@ -11,6 +11,7 @@ use fastsecdec::{
 #[derive(Default)]
 pub(super) struct QmcSlot {
     pub(super) active: Option<ActiveSector>,
+    pub(super) meter: super::super::observations::WorkerMeter,
 }
 
 pub(super) struct ActiveSector {

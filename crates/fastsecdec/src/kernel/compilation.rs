@@ -44,7 +44,8 @@ impl CompilationJob {
                 self.sector.cancellation_degree(),
                 Some(self.sector.cancellation_terms().to_vec()),
                 self.sector.dimension(),
-            )?,
+            )?
+            .with_endpoint_profiles(self.sector.endpoint_profiles().to_vec())?,
         )?;
         let sector = SectorKernel::from_program(program, &self.precision, self.use_complex)?;
         Ok(CompilationCompletion {
@@ -126,7 +127,8 @@ impl GeneratedIntegral {
                     sector.cancellation_degree(),
                     Some(sector.cancellation_terms().to_vec()),
                     sector.dimension(),
-                )?,
+                )?
+                .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
             )?;
             sectors.push(SectorKernel::from_program(
                 program,
@@ -292,6 +294,9 @@ impl SectorKernel {
                 )
                 .ok();
             Backend::Real(RealKernel {
+                double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
+                f64_timing: Default::default(),
+                conditioning_timing: Default::default(),
                 precision_cache: super::precision_cache::PrecisionCache::new(requirements),
                 exact_evaluator: exact,
                 evaluator,
@@ -327,6 +332,12 @@ impl SectorKernel {
             parameters_bound: runtime_parameters.is_empty(),
             runtime_parameters,
             parameters,
+            routing: super::stability::Routing::new(
+                &cancellation,
+                &super::StabilitySettings::default(),
+                None,
+            )?,
+            stability: super::StabilitySettings::default(),
             cancellation,
             precision: precision.clone(),
             exact_zero,
@@ -467,6 +478,7 @@ impl KernelSet {
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
             runtime_parameters,
+            stability: super::StabilitySettings::default(),
             runtime_mass_constraints: Vec::new(),
             exact_kernel,
             template_content_id: None,
