@@ -1,0 +1,39 @@
+# Native three-loop D068; outer top loop and two gluon rungs.
+# Unnormalized color delta_ab; two incoming (+,+) Lorentz polarizations.
+[input]
+graph = "graph.dot"
+model = "model.json"
+parameter_card = "parameters.json"
+model_parameters = "runtime"
+
+[kinematics]
+auxiliary_momenta = ["gghh::{spenso::tensor,spenso::rank1}::eps1","gghh::{spenso::tensor,spenso::rank1}::eps2"]
+products = [
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", symbol = "p0p0" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p0p1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p0p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p0eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p0eps2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p1p1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p1p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p1eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p1eps2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p2p2" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p2eps1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p2eps2" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "eps1eps1" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps1", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "eps1eps2" },
+  { left = "gghh::{spenso::tensor,spenso::rank1}::eps2", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "eps2eps2" },
+]
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 0
+contraction_mode = "minimal"
+
+[generation.coefficient_expansion]
+method = "coefficient_series"

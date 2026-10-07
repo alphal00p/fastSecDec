@@ -1,5 +1,27 @@
 # Ecosystem reuse evidence
 
+## Native gg → HH triple-box input (2026-10-07)
+
+The new `examples/gghh_triple_box_bis/` is selected from native HEPKit diagrams,
+not assembled by a second graph implementation. Independent pinned-Rust checks
+use Linnet's connectedness, cycle rank and complete circuit enumeration to
+verify one outer eight-top cycle, two uncrossed gluon rungs, and three adjacent
+four-edge faces with gluons and Higgs legs at opposite ends. Native strict DOT
+import, model-card identity, routing and the three-loop/ten-denominator family
+pass on the current CLI dependency version.
+
+Idenso performs color closure; native graph ports construct the external
+projector. Independent full weighted-expression equality verifies that storing
+the tensor once in the global native numerator prefactor preserves all factors
+while unit local numerators satisfy HEPKit's fragment invariant. Native scalar
+binding closure retains six contributing model inputs alongside fifteen runtime
+Gram symbols. No custom CAS, graph parser, color algebra, reference integral or
+numerical method is introduced. The [independent input review](reviews/gghh-triple-box-bis.md)
+records the exact topology, factor checks and limits. Full Dirac contraction,
+FastSecDec parameterization, sector generation, compilation and integration have
+not been run; no performance or convergence claim is made. The original
+`examples/gghh_triple_box/` remains untouched.
+
 ## Batched numerical execution (2026-10-07)
 
 The f64 runtime uses Symbolica's public real/complex

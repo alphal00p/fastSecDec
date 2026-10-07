@@ -1,0 +1,315 @@
+{
+  "color_projection": "unnormalized delta_ab, applied exactly once; no color/spin average",
+  "color_reduction": {
+    "lorentz_and_dirac_algebra": "uncontracted; retained for minimal native input contraction",
+    "owner": "Idenso SymbolicTensor::simplify_algebra, contraction None, with_cof_dimension_invariants",
+    "symbolic_to_explicit_exact_check": true
+  },
+  "external_dimension": 4,
+  "external_point": {
+    "dependent_coordinates": [
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(3)"
+    ],
+    "external_index_by_coordinate": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "independent_coordinates": [
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)"
+    ],
+    "physical_momenta": {
+      "0": [
+        "150",
+        "0",
+        "0",
+        "150"
+      ],
+      "1": [
+        "150",
+        "0",
+        "0",
+        "-150"
+      ],
+      "2": [
+        "150",
+        "11^(1/2)*15",
+        "0",
+        "11^(1/2)*20"
+      ],
+      "3": [
+        "150",
+        "-15*11^(1/2)",
+        "0",
+        "-20*11^(1/2)"
+      ]
+    },
+    "polarization_components": [
+      [
+        [
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.7071067811865475,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.7071067811865475
+        ],
+        [
+          -0.0,
+          -0.0
+        ]
+      ],
+      [
+        [
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.7071067811865475,
+          -0.0
+        ],
+        [
+          -0.0,
+          0.7071067811865475
+        ],
+        [
+          -0.0,
+          -0.0
+        ]
+      ]
+    ],
+    "polarization_gram_checks_complete": true,
+    "products": [
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "value": "45000"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "-3000*11^(1/2)+22500"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "11^(1/2)*3000+22500"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "value": "15625"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "11^(1/2)*23883943771971645/2251799813685248"
+      },
+      {
+        "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "11^(1/2)*23883943771971645/2251799813685248"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "value": "0"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "-2535301200456458353478625262249/2535301200456458802993406410752"
+      },
+      {
+        "left": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+        "value": "0"
+      }
+    ]
+  },
+  "format": "native-generated-gghh-triple-box",
+  "gauge_invariant_sum": false,
+  "graph_blake3": "30d0109236aa31c42740278d1d0813af73bdb2d67b0b2095807644685e751c96",
+  "helicities": [
+    1,
+    1
+  ],
+  "internal_dimension": "4-2*eps",
+  "mass_constraints": [
+    {
+      "expression": "model::{real}::MT",
+      "name": "MT"
+    }
+  ],
+  "model_dependency_owner": "RuntimeModelBindings / Model::scalar_bindings; no scalar substitution or parametric contraction performed",
+  "model_parameter_defaults": {
+    "model::Gf": 0.0000116639,
+    "model::MT": 172.5,
+    "model::MZ": 91.188,
+    "model::aEWM1": 132.507,
+    "model::aS": 0.118,
+    "model::ymt": 172.5
+  },
+  "native_dot_round_trip": true,
+  "native_model_bindings": {
+    "UFO::GC_11": "(2𝑖)*model::{real}::aS^(1/2)*𝜋^(1/2)",
+    "UFO::GC_94": "((((1/2)^(1/2)*-1*model::{real}::Gf^(-1)*model::{real}::MZ^2*model::{real}::aEWM1^(-1)*𝜋+1/4*model::{real}::MZ^4)^(1/2)+1/2*model::{real}::MZ^2)*-1*model::{real}::MZ^(-2)+1)^(-1/2)*(((1/2)^(1/2)*-1*model::{real}::Gf^(-1)*model::{real}::MZ^2*model::{real}::aEWM1^(-1)*𝜋+1/4*model::{real}::MZ^4)^(1/2)+1/2*model::{real}::MZ^2)^(-1/2)*(-𝑖)*(1/2)^(1/2)*(model::{real}::aEWM1^(-1))^(1/2)*2^(1/2)*model::{real}::ymt*𝜋^(1/2)",
+    "UFO::MT": "model::{real}::MT"
+  },
+  "numerical_integral_complete": false,
+  "overall_factor": {
+    "evaluated": "-1",
+    "included": "once; diagnostic symmetry factor not multiplied again",
+    "raw": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)"
+  },
+  "parametric_generation_complete": false,
+  "routing_preserved": true,
+  "sector_generation_complete": false,
+  "selected_diagram": "D068",
+  "selected_diagram_id": "cced04ecc95ba7488574be8dc7bb689d",
+  "selection": {
+    "id": "d77f7e0c894002655d2bb58ee0846318",
+    "index": 68,
+    "name": "D068",
+    "topology": {
+      "cycle_basis": [
+        [
+          4,
+          5,
+          9,
+          10,
+          12,
+          13
+        ],
+        [
+          6,
+          7,
+          8,
+          12
+        ],
+        [
+          10,
+          11,
+          12,
+          13
+        ]
+      ],
+      "external_edges": [
+        {
+          "id": 0,
+          "index": 0,
+          "pdg": 21,
+          "state": "incoming",
+          "vertex": 3
+        },
+        {
+          "id": 1,
+          "index": 1,
+          "pdg": 21,
+          "state": "incoming",
+          "vertex": 0
+        },
+        {
+          "id": 2,
+          "index": 2,
+          "pdg": 25,
+          "state": "outgoing",
+          "vertex": 2
+        },
+        {
+          "id": 3,
+          "index": 3,
+          "pdg": 25,
+          "state": "outgoing",
+          "vertex": 1
+        }
+      ],
+      "gluon_edges": [
+        11,
+        12
+      ],
+      "ring_vertices": [
+        3,
+        0,
+        7,
+        5,
+        2,
+        1,
+        6,
+        4
+      ],
+      "top_cycle_edges": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        13
+      ],
+      "top_edges": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        13
+      ]
+    }
+  },
+  "selection_rule": "unique targeted native ttg/ttH QCD6 QED2 three-loop diagram with one eight-edge top cycle, two gluon rungs, and external pairs gg and HH on the opposite end boxes",
+  "source": {
+    "blake3": "b27891b956a95e958ab9264e9239b5cb3b145d84ef6241de55ae40e1ec3747d9",
+    "complete_native_payload_preserved": true,
+    "model": "source-model.json",
+    "model_adaptation": "native physical parameter card; only native DOT model fingerprint and derived diagram ID change",
+    "original_diagram_id": "d77f7e0c894002655d2bb58ee0846318",
+    "original_model_fingerprint": "834ba7b318f45413c0e10d1c4462c3c2598b92999c23dc366cafbd82a45a87d5",
+    "path": "source-diagram.dot",
+    "physical_model_fingerprint": "1408ea162eab3d6c6d4bd68bc0f01c97525464a8cf3ad93248d03ddf5b17e390"
+  },
+  "tensor_storage": "global numerator_prefactor = raw numerator_prefactor times color-projected tensor; aggregate, vertex and edge numerators are 1 to avoid duplicating the tensor at v0",
+  "threshold_admission": "caller responsibility; no threshold certification",
+  "version": 1,
+  "weighted_product_exact_check": true
+}

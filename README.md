@@ -81,6 +81,8 @@ See the [CLI guide](crates/fastsecdec-cli/README.md)
 for scope, checkpoint and reference-export rules.
 The [gg→HH double-box guide](examples/gghh_double_box/README.md) includes
 eight-worker Havana and QMC commands targeting respectively 1% and 0.1% in ε⁰.
+The [gg→HH triple-box ladder](examples/gghh_triple_box_bis/README.md) supplies
+a single outer top-quark loop with two gluon rungs and minimal contraction.
 The [runtime integration guide](docs/RUNTIME_INTEGRATION.md) explains precision
 routing, live estimates and timing diagnostics.
 
