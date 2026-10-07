@@ -1771,3 +1771,19 @@ discarding its newer modules or dependency owners, then publish the reviewed
 HEPKit changes directly to community main using the authorized account. This
 supersedes the earlier requirement to retain the compatibility namespace and
 the earlier PR-only publication restriction for these changes.
+
+### Self-contained copy of the current gg → HH notebook (2026-10-07)
+
+Latest request, verbatim:
+
+> Create a self-contained gghh.py (no local Python imports) , name it gghh_complete.py.
+
+Add `examples/hepkit/gghh_complete.py` and a copy in community's `examples/hep`.
+Keep the current notebook's native Standard Model catalogue, parameter binding,
+explicit caller-stepped generation/integration, rich inspection, pause/resume
+and citations. Inline only the necessary example helpers as readable notebook
+cells, with no local Python imports, source-path injection or fixture files.
+Installed marimo and HEPKit/Symbolica remain library dependencies. Its browser
+export requires the matching community wheel but no helper/input-data archive.
+Check relocation by running the single notebook from a fresh directory; keep
+scientific/runtime validation limits separate from packaging and startup checks.

@@ -20,6 +20,8 @@ selection is the first one-loop diagram. Separate buttons build the catalogue,
 generate the selected integral, inspect sectors, and integrate with QMC or
 Havana. The [scalar showcase](examples/hepkit/fastsecdec_showcase.py) uses the
 same controls for a smaller triangle example.
+The [self-contained gg→HH copy](examples/hepkit/gghh_complete.py) includes its
+helpers in the notebook and needs no neighboring Python files or input fixtures.
 
 Both notebooks use one caller-driven thread and native eager evaluators, including
 local runs. Generation and integration retain completed work across pauses;

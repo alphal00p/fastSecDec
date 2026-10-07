@@ -1,4 +1,4 @@
-"""Both exports carry exactly the current portable helper bundle, without execution."""
+"""Exports preserve their declared standalone or shared asset boundaries."""
 import hashlib
 import importlib.util
 import json
@@ -9,8 +9,8 @@ import zipfile
 import pytest
 
 
-@pytest.mark.parametrize("notebook", ["gghh", "dashboard"])
-def test_current_helpers_are_hash_bound_for_both_run_exports(tmp_path, monkeypatch, notebook):
+@pytest.mark.parametrize("notebook", ["gghh", "dashboard", "gghh_complete"])
+def test_current_helpers_are_hash_bound_for_run_exports(tmp_path, monkeypatch, notebook):
     source = Path(__file__).resolve().parents[1] / "export.py"
     spec = importlib.util.spec_from_file_location("showcase_export_control", source)
     module = importlib.util.module_from_spec(spec)
@@ -29,6 +29,12 @@ def test_current_helpers_are_hash_bound_for_both_run_exports(tmp_path, monkeypat
     assert commands[0][commands[0].index("--mode") + 1] == "run"
     public = destination / "public/fastsecdec"
     manifest = json.loads((public / "manifest.json").read_text())
+    assert hashlib.sha256((public / wheel.name).read_bytes()).hexdigest() == manifest["wheel"]["sha256"]
+    if notebook == "gghh_complete":
+        assert "assets" not in manifest
+        assert {path.name for path in public.iterdir()} == {wheel.name, "manifest.json"}
+        assert Path(commands[0][5]).name == "gghh_complete.py"
+        return
     archive = public / manifest["assets"]["filename"]
     assert hashlib.sha256(archive.read_bytes()).hexdigest() == manifest["assets"]["sha256"]
     with zipfile.ZipFile(archive) as bundle:

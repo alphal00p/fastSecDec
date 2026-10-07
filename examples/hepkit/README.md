@@ -7,6 +7,20 @@ FastSecDec bindings:
 python -m marimo run examples/hepkit/gghh.py
 ```
 
+For the same workflow in one transferable file, use
+[gghh_complete.py](gghh_complete.py):
+
+```sh
+python -m marimo run examples/hepkit/gghh_complete.py
+```
+
+This version includes the input, presentation and lifecycle helpers in folded
+notebook cells. It imports only the standard library and installed packages;
+no neighboring Python scripts, graph fixtures or parameter cards are needed.
+Generation and integration still run only after explicit button presses.
+The browser exporter accepts `--notebook gghh_complete` and packages only the
+community wheel and its manifest, without a helper or input-data archive.
+
 The smaller scalar examples use the same controls:
 
 ```sh

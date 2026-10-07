@@ -22,10 +22,10 @@ def digest(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--notebook", choices=("dashboard", "gghh"), default="dashboard", help="Scalar examples, or the native gg → HH workflow")
+    parser.add_argument("--notebook", choices=("dashboard", "gghh", "gghh_complete"), default="dashboard", help="Scalar examples, the shared gg → HH workflow, or its self-contained version")
     parser.add_argument("--wheel", type=Path, required=True, help="Community cp314 pyemscripten_2026_0 wasm32 wheel with FastSecDec")
     parser.add_argument("--output", type=Path, required=True, help="New export directory, served over HTTP")
-    parser.add_argument("--mode", choices=("run", "edit"), help="Both notebooks default to run mode; edit exposes source cells")
+    parser.add_argument("--mode", choices=("run", "edit"), help="Notebooks default to run mode; edit exposes source cells")
     args = parser.parse_args()
     mode = args.mode or "run"
     wheel = args.wheel.resolve()
@@ -35,12 +35,15 @@ def main():
     if output.exists():
         parser.error("Use a new output directory; existing exports are preserved")
     here = Path(__file__).resolve().parent
-    notebook = here / ("gghh.py" if args.notebook == "gghh" else "fastsecdec_showcase.py")
-    files = sorted((here / "showcase").glob("*.py"))
-    files += [here / "fixtures/fastsecdec" / name for name in (
-        "README.md", "scalar.json", "triangle.dot", "box.dot",
-        "box_rank2_numerator.dot", "sunset_2loop_numerator.dot",
-    )]
+    notebook = here / {"dashboard": "fastsecdec_showcase.py", "gghh": "gghh.py",
+                       "gghh_complete": "gghh_complete.py"}[args.notebook]
+    files = []
+    if args.notebook != "gghh_complete":
+        files = sorted((here / "showcase").glob("*.py"))
+        files += [here / "fixtures/fastsecdec" / name for name in (
+            "README.md", "scalar.json", "triangle.dot", "box.dot",
+            "box_rank2_numerator.dot", "sunset_2loop_numerator.dot",
+        )]
     if not all(path.is_file() for path in files):
         parser.error("Missing required local example assets")
     with tempfile.TemporaryDirectory(prefix="fastsecdec-showcase-export-") as temporary:
