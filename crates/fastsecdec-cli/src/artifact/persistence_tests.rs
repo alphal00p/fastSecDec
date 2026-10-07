@@ -183,10 +183,12 @@ fn generation_choices_roundtrip_without_inventing_historical_settings() {
     assert!(historical.mode.is_none());
     assert!(historical.subtraction.is_none());
     assert!(historical.source_chart_modes.is_none());
+    assert!(historical.formula_preparation.is_none());
     let old_encoded = serde_json::to_value(&historical).unwrap();
     assert!(old_encoded.get("mode").is_none());
     assert!(old_encoded.get("subtraction").is_none());
     assert!(old_encoded.get("source_chart_modes").is_none());
+    assert!(old_encoded.get("formula_preparation").is_none());
 
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("generation-choices.fsd");
@@ -202,11 +204,29 @@ fn generation_choices_roundtrip_without_inventing_historical_settings() {
             ]
             .into(),
         ),
+        formula_preparation: Some(fastsecdec::status::FormulaPreparationSnapshot {
+            completed: 2,
+            total: 2,
+            sectors: 5,
+            reused: 3,
+        }),
         ..historical
+    });
+    artifact.generation_timings = Some(GenerationTimings {
+        formula_preparation_seconds: Some(0.25),
+        ..Default::default()
     });
     artifact.save(&path).unwrap();
     let (loaded, _) = Artifact::load(&path).unwrap();
     assert_eq!(loaded.content_id, id);
+    assert_eq!(
+        loaded
+            .generation_timings
+            .as_ref()
+            .unwrap()
+            .formula_preparation_seconds,
+        Some(0.25)
+    );
     let record = loaded.generation.unwrap();
     assert_eq!(record.mode, Some(GenerationMode::NumericalDual));
     assert_eq!(
@@ -224,6 +244,23 @@ fn generation_choices_roundtrip_without_inventing_historical_settings() {
     let rows = crate::generation_report::generation_method_rows(record.mode, record.subtraction);
     assert_eq!(rows[0][1], "numerical_dual");
     assert_eq!(rows[1][1], "integrate_by_parts");
+    let formulas = record.formula_preparation.unwrap();
+    assert_eq!(
+        (
+            formulas.completed,
+            formulas.total,
+            formulas.sectors,
+            formulas.reused
+        ),
+        (2, 2, 5, 3)
+    );
+    let rows = crate::generation_report::formula_preparation_rows(Some(formulas));
+    assert_eq!(rows[0][1], "2 / 2 unique ready");
+    assert_eq!(rows[1][1], "5 eligible sectors · 3 shared uses");
+    assert_eq!(
+        crate::generation_report::formula_preparation_rows(None)[0][1],
+        "Not recorded"
+    );
     assert!(
         crate::generation_report::generation_method_rows(None, None)
             .iter()

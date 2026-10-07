@@ -1,5 +1,33 @@
 # FastSecDec first-phase implementation plan
 
+## Dynamic subtraction-formula preparation (2026-10-07)
+
+Retain the smallest native ancestor-closed dual shape needed by each individual
+sector request, including exact valuation shifts. Never union maximum orders
+across sectors merely to create a universal jet. Reuse native source/dual
+evaluators only for identical exact effective requirements, including ordered
+inputs, compilation settings and structural-zero assumptions. Keep cache
+construction generation-owned and permit unrelated keys to build concurrently.
+
+Add a dynamic in-memory subtraction-formula cache to numerical-dual generation.
+First discover all required exact recipe signatures from the sector maps and
+endpoint data, then build the distinct formulas in parallel through the existing
+caller-owned executor before constructing sector evaluators. Reuse completed
+formulas without repeating formal coefficient expansion. Preserve complete
+epsilon-dependent prefactors, cancellations, Laurent coverage, resource limits,
+Taylor/IBP behavior and deterministic admission. Retained generation sessions
+must preserve completed templates across pauses.
+
+Expose this as a distinct measured preparation phase in progress, the generation
+summary, saved metadata and inspection. Distinguish unique formulas, completed
+builds, eligible sector uses and reuse; absent historical counters remain absent.
+Report its wall time separately from map/valuation discovery, sector assembly
+and evaluator construction. Structure the cache and phase boundary for later
+reuse through I/O, but do not implement external cache loading or saving now.
+Validate native/portable scientific parity, exact cache-key separation, parallel
+construction, cancellation/session behavior, deterministic outputs and measured
+ggHH reuse and timings. Record independent native-reuse reviews before delivery.
+
 ## Deferred numerical maps and dual endpoint jets (2026-10-07)
 
 Keep the existing symbolic implementation as the default and add an explicit

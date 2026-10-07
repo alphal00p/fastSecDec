@@ -114,6 +114,10 @@ metadata, geometry, mapping, verified symmetry, subtraction, Laurent expansion,
 and compilation times. The opt-in named route uses one separate
 `coefficient_expansion_seconds` duration, including exact physical fallback;
 its work is not counted again under subtraction or Laurent expansion.
+Numerical-dual runs separately record `formula_preparation_seconds`: the wall
+interval for building distinct subtraction formulas before sector instantiation.
+Parallel worker durations are not summed into this phase. Historical artifacts
+omit this observation instead of claiming that it took zero time.
 Generation total ends after preparing artifact metadata,
 before the final file write. Artifact commands also report cold loading and
 recompilation time. These observations are excluded from scientific content
@@ -177,6 +181,17 @@ modes are also saved by stable source-chart ID; `inspect --sector` joins those
 IDs to the loaded kernel, retaining the distinction after exact-sector folding.
 For deferred charts, regular-body storage describes the unmapped source Atom;
 explicit symbolic fallback reports mapped-body storage.
+
+After discovering endpoint requirements, numerical-dual generation precomputes
+each distinct subtraction formula on the caller's worker pool. Its own dashboard
+phase reports completed unique formulas, eligible sectors, and shared uses
+(eligible sectors minus distinct formulas). Sector instantiation then applies
+the prepared formulas to each sector's retained source expressions. Native
+source and dual evaluators are reused only when all their exact inputs and
+settings match; derivative shapes remain specific to each request. This is an
+in-memory generation cache, with no additional run-card option or cache file.
+Final `generate` output, saved JSON and `inspect` show the same formula counts
+and separate preparation time; these observations do not affect kernel identity.
 
 The coefficient-expansion method is selected in the run card:
 

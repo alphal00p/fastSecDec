@@ -8,40 +8,15 @@ impl GenerationSession {
     ) -> Result<(), GenerationError> {
         let stage = std::mem::replace(&mut self.stage, Stage::Failed);
         self.stage = match stage {
-            Stage::NumericalDual {
-                mut maps,
-                parameters,
-                programs,
-                valuations,
-                mut completed,
-            } => {
-                if let Some(map) = maps.pop_front() {
-                    completed.push(super::super::numerical_dual::prepare(
-                        super::super::numerical_dual::Sources {
-                            input: &self.input,
-                            options: &self.options,
-                            programs: &programs,
-                            valuations: &valuations,
-                        },
-                        map,
-                        parameters.clone(),
-                        completed.len(),
-                        self.chart_count,
-                        &mut self.supports,
-                        progress,
-                    )?);
-                    self.completed_representatives += 1;
-                    Stage::NumericalDual {
-                        maps,
-                        parameters,
-                        programs,
-                        valuations,
-                        completed,
-                    }
+            Stage::NumericalDual(mut pipeline) => {
+                if !pipeline.is_complete() {
+                    pipeline.step(&mut self.supports, progress)?;
+                    self.completed_representatives = pipeline.completed_charts();
+                    Stage::NumericalDual(pipeline)
                 } else {
                     let result = super::super::numerical_dual::finish(
                         self.domain.take().expect("admitted domain"),
-                        completed,
+                        pipeline.take_result(),
                         self.options.max_order,
                     );
                     let _ = progress(
@@ -205,17 +180,19 @@ impl GenerationSession {
                     .into(),
                 );
                 if self.options.mode == super::super::GenerationMode::NumericalDual {
-                    Stage::NumericalDual {
-                        maps: result.sectors.into(),
-                        parameters,
-                        programs: Default::default(),
-                        valuations: std::sync::Arc::new(
-                            super::super::numerical_dual::ValuationCache::new(
-                                self.input.parameters(),
+                    Stage::NumericalDual(Box::new(
+                        super::super::numerical_dual::pipeline::Pipeline::new(
+                            std::sync::Arc::new(
+                                super::super::numerical_dual::pipeline::Context::prepare(
+                                    &self.input,
+                                    &self.options,
+                                    parameters,
+                                    progress,
+                                )?,
                             ),
+                            result.sectors,
                         ),
-                        completed: Vec::new(),
-                    }
+                    ))
                 } else {
                     Stage::Mapping {
                         maps: result.sectors.into(),

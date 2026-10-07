@@ -1,7 +1,8 @@
 use fastsecdec::{
     generation::{CoefficientExpansionMethod, CoefficientExpansionStage, CoefficientRequestCounts},
     status::{
-        CoefficientExpansionSnapshot, GenerationSnapshot, GenerationStage, GenerationTimings,
+        CoefficientExpansionSnapshot, FormulaPreparationSnapshot, GenerationSnapshot,
+        GenerationStage, GenerationTimings,
     },
 };
 use pyo3::prelude::*;
@@ -30,6 +31,7 @@ impl PyGenerationSnapshot {
             GenerationStage::Parametrization => "parametrization",
             GenerationStage::Geometry => "geometry",
             GenerationStage::Mapping => "mapping",
+            GenerationStage::FormulaPreparation => "formula_preparation",
             GenerationStage::Symmetry => "symmetry",
             GenerationStage::Subtraction => "subtraction",
             GenerationStage::Expansion => "expansion",
@@ -78,6 +80,14 @@ impl PyGenerationSnapshot {
             .coefficient_expansion
             .clone()
             .map(|inner| PyCoefficientExpansionSnapshot { inner })
+    }
+
+    /// Known unique-formula counts; None before discovery or without this phase.
+    #[getter]
+    fn formula_preparation(&self) -> Option<PyFormulaPreparationSnapshot> {
+        self.inner
+            .formula_preparation
+            .map(|inner| PyFormulaPreparationSnapshot { inner })
     }
 
     #[getter]
@@ -133,6 +143,13 @@ impl PyGenerationTimings {
         self.inner.mapping_seconds
     }
 
+    /// Distinct precomputation wall time, excluding paused session time.
+    /// None means the phase was not observed, not a zero-duration measurement.
+    #[getter]
+    fn formula_preparation_seconds(&self) -> Option<f64> {
+        self.inner.formula_preparation_seconds
+    }
+
     #[getter]
     fn symmetry_seconds(&self) -> f64 {
         self.inner.symmetry_seconds
@@ -162,6 +179,47 @@ impl PyGenerationTimings {
     #[getter]
     fn total_seconds(&self) -> f64 {
         self.inner.total_seconds
+    }
+}
+
+/// Coordinator-owned counts for unique subtraction-formula precomputation.
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(
+    frozen,
+    from_py_object,
+    module = "symbolica.community.hepkit.sector_decomposition",
+    name = "FormulaPreparationSnapshot"
+)]
+#[derive(Clone)]
+pub(crate) struct PyFormulaPreparationSnapshot {
+    inner: FormulaPreparationSnapshot,
+}
+
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyFormulaPreparationSnapshot {
+    /// Successfully completed unique formula builds.
+    #[getter]
+    fn completed(&self) -> usize {
+        self.inner.completed
+    }
+
+    /// Distinct formula keys discovered for this generation.
+    #[getter]
+    fn total(&self) -> usize {
+        self.inner.total
+    }
+
+    /// Eligible sectors which use these formulas.
+    #[getter]
+    fn sectors(&self) -> usize {
+        self.inner.sectors
+    }
+
+    /// Shared uses (eligible sectors minus distinct keys), not cache lookups.
+    #[getter]
+    fn reused(&self) -> usize {
+        self.inner.reused
     }
 }
 

@@ -142,6 +142,7 @@ pub enum GenerationStage {
     Parametrization,
     Geometry,
     Mapping,
+    FormulaPreparation,
     Symmetry,
     Subtraction,
     Expansion,
@@ -164,7 +165,22 @@ pub struct GenerationSnapshot {
     /// last completed representative's per-attempt observations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub coefficient_expansion: Option<CoefficientExpansionSnapshot>,
+    /// Discovered numerical-dual formula requirements and completed unique
+    /// builds. Absent before discovery and for older or symbolic-only runs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formula_preparation: Option<FormulaPreparationSnapshot>,
     pub detail: String,
+}
+
+/// Coordinator-owned counts for the distinct subtraction-formula phase.
+/// Reused counts shared formula uses, not completed cache lookup operations.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FormulaPreparationSnapshot {
+    pub completed: usize,
+    pub total: usize,
+    pub sectors: usize,
+    pub reused: usize,
 }
 
 impl fmt::Display for GenerationSnapshot {

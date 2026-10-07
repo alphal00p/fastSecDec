@@ -5,7 +5,7 @@ mod progress;
 #[cfg(test)]
 mod record_tests;
 
-use progress::{observe_generation, publish_generation};
+use progress::{observe_generation, publish_generation, worker_activity};
 
 use std::{cell::RefCell, ops::ControlFlow, path::Path, sync::atomic::Ordering, time::Instant};
 
@@ -53,6 +53,7 @@ pub fn generate_with_workers(
         elapsed_seconds: 0.0,
         timings: Default::default(),
         coefficient_expansion: None,
+        formula_preparation: None,
         detail: format!("Reading {}", crate::artifact::relative_display(path)),
     };
     dashboard.generation(&status)?;
@@ -152,10 +153,16 @@ pub fn generate_with_workers(
             };
         let mut symbolic_dispatch =
             |jobs: &mut dyn ExactSizeIterator<Item = generation::SymbolicJob>| {
+                if jobs.len() == 0 {
+                    return Ok(Vec::new());
+                }
                 // The first job identifies the homogeneous native stage without
                 // pre-running or collecting its remaining lazy work.
                 let mut jobs = jobs.peekable();
                 let stage = match jobs.peek().map(|job| job.id().stage) {
+                    Some(generation::SymbolicStage::FormulaPreparation) => {
+                        GenerationStage::FormulaPreparation
+                    }
                     Some(generation::SymbolicStage::Symmetry) => GenerationStage::Symmetry,
                     Some(generation::SymbolicStage::Coefficients) => {
                         GenerationStage::CoefficientExpansion
@@ -163,62 +170,75 @@ pub fn generate_with_workers(
                     _ => GenerationStage::Mapping,
                 };
                 dispatch::run(
-                    &pool,
-                    &mut jobs,
-                    &cancelled,
-                    |job| match job.id().stage {
-                        generation::SymbolicStage::Symmetry => {
-                            format!("Finding equivalent sectors · sector {}", job.id().index)
-                        }
-                        stage => format!("{stage:?} · sector {}", job.id().index),
-                    },
-                    |job, observe| {
-                        let id = job.id();
-                        job.run(|progress| {
-                            let mut snapshot = GenerationSnapshot {
-                                stage,
-                                completed: 0,
-                                total: None,
-                                sectors: 0,
-                                kernels: 0,
-                                elapsed_seconds: 0.0,
-                                timings: Default::default(),
-                                coefficient_expansion: None,
-                                detail: String::new(),
-                            };
-                            snapshot.observe_generation(options.max_order, progress);
-                            observe(format!("sector {} · {}", id.index, snapshot.detail))
-                        })
-                        .map_err(|error| error.to_string())
-                    },
-                    |progress| {
-                        let mut ui = ui.borrow_mut();
-                        let (dashboard, status, error) = &mut *ui;
-                        status.stage = stage;
-                        status.completed = progress.completed;
-                        status.total = Some(progress.total);
-                        status.elapsed_seconds = started.elapsed().as_secs_f64();
-                        status.detail = format!(
-                            "{workers} workers · {} running · {} queued",
-                            progress.running(),
-                            progress
-                                .total
-                                .saturating_sub(progress.completed + progress.running())
-                        );
-                        if stage == GenerationStage::Symmetry {
-                            status.detail = format!("Preparing comparisons · {}", status.detail);
-                        }
-                        dashboard.generation_workers(progress);
-                        publish_generation(dashboard, status, error)
-                    },
-                )
-                .map_err(|error| {
-                    if error == "generation cancelled" {
-                        generation::GenerationError::Cancelled
-                    } else {
-                        generation::GenerationError::Invariant(error)
+                &pool,
+                &mut jobs,
+                &cancelled,
+                |job| match job.id().stage {
+                    generation::SymbolicStage::FormulaPreparation => {
+                        format!("Subtraction formula {}", job.id().index)
                     }
-                })
+                    generation::SymbolicStage::Symmetry => {
+                        format!("Finding equivalent sectors · sector {}", job.id().index)
+                    }
+                    stage => format!("{stage:?} · sector {}", job.id().index),
+                },
+                |job, observe| {
+                    let id = job.id();
+                    job.run(|progress| {
+                        let mut snapshot = GenerationSnapshot {
+                            stage,
+                            completed: 0,
+                            total: None,
+                            sectors: 0,
+                            kernels: 0,
+                            elapsed_seconds: 0.0,
+                            timings: Default::default(),
+                            coefficient_expansion: None,
+                            formula_preparation: None,
+                            detail: String::new(),
+                        };
+                        snapshot.observe_generation(options.max_order, progress);
+                        observe(worker_activity(id, &snapshot.detail))
+                    })
+                    .map_err(|error| error.to_string())
+                },
+                |progress| {
+                    let mut ui = ui.borrow_mut();
+                    let (dashboard, status, error) = &mut *ui;
+                    status.stage = stage;
+                    status.completed = progress.completed;
+                    status.total = Some(progress.total);
+                    status.elapsed_seconds = started.elapsed().as_secs_f64();
+                    status.detail = format!(
+                        "{workers} workers · {} running · {} queued",
+                        progress.running(),
+                        progress
+                            .total
+                            .saturating_sub(progress.completed + progress.running())
+                    );
+                    if stage == GenerationStage::Symmetry {
+                        status.detail = format!("Preparing comparisons · {}", status.detail);
+                    } else if stage == GenerationStage::FormulaPreparation {
+                        status.coefficient_expansion = None;
+                        if let Some(formulas) = &mut status.formula_preparation {
+                            formulas.completed = progress.completed;
+                            status.detail = format!(
+                                "{} unique formulas · {} eligible sectors · {} shared uses · {}",
+                                formulas.total, formulas.sectors, formulas.reused, status.detail
+                            );
+                        }
+                    }
+                    dashboard.generation_workers(progress);
+                    publish_generation(dashboard, status, error)
+                },
+            )
+            .map_err(|error| {
+                if error == "generation cancelled" {
+                    generation::GenerationError::Cancelled
+                } else {
+                    generation::GenerationError::Invariant(error)
+                }
+            })
             };
         GenerationContext::new(0).generate_with_all_dispatch(
             &loaded.integrand,
@@ -329,6 +349,7 @@ pub fn generate_with_workers(
         mode: Some(options.mode),
         subtraction: Some(options.subtraction),
         source_chart_modes: Some(source_chart_modes),
+        formula_preparation: status.formula_preparation,
         contraction_mode: loaded
             .loops
             .map(|_| loaded.card.generation.contraction_mode),

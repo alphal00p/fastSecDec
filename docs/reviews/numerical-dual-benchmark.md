@@ -5,6 +5,12 @@ This record compares the two generation modes on the current D05 s-channel
 not a three-loop or cluster performance claim. The original symbolic mode remains
 the default.
 
+These initial measurements precede generation-scoped subtraction-formula
+preparation and concurrent per-key evaluator caching. The subsequent
+[formula-cache benchmark](numerical-dual-formula-benchmark.md) records that
+follow-up with separate discovery, formula and sector-assembly timings. Keep the
+two protocols distinct when interpreting the figures below.
+
 ## Protocol
 
 The host is an Apple M3 Pro with 12 CPU cores and 36 GiB RAM. The optimized Rust
@@ -123,10 +129,12 @@ while retaining exact support/valuation work and smaller formal subtraction
 algebra. Most remaining time is therefore chart preparation plus construction
 of the larger numerical programs. More detailed profiling is needed before
 choosing the next optimization; these single runs do not isolate cache effects.
-Chart and evaluator jobs use the caller's worker pool. Shared valuation and
-source-program caches currently serialize construction on cache misses; their
-waiting time is not separately measured, so these stage totals do not establish
-the remaining serial fraction.
+Chart and evaluator jobs use the caller's worker pool. In these original runs,
+shared valuation and source-program caches serialized construction on cache
+misses; their waiting time was not separately measured, so these stage totals
+do not establish the serial fraction. The follow-up replaces the source/jet
+cache's construction lock with per-key native owners; the valuation cache is
+unchanged.
 
 ## Numerical parity and runtime cost
 

@@ -1,9 +1,22 @@
 //! Presentation-only bridge for the library's typed progress events.
 use std::{ops::ControlFlow, time::Instant};
 
-use fastsecdec::{generation::GenerationProgress, status::GenerationSnapshot};
+use fastsecdec::{
+    generation::{GenerationProgress, SymbolicJobId, SymbolicStage},
+    status::GenerationSnapshot,
+};
 
 use crate::display::Dashboard;
+
+pub(super) fn worker_activity(id: SymbolicJobId, detail: &str) -> String {
+    if id.stage == SymbolicStage::FormulaPreparation {
+        // Native polls identify this formula, not globally admitted work. Only
+        // the coordinator can report how many concurrent formulas are ready.
+        format!("Building subtraction formula {}", id.index)
+    } else {
+        format!("sector {} · {detail}", id.index)
+    }
+}
 
 pub(super) fn observe_generation(
     dashboard: &mut Dashboard,

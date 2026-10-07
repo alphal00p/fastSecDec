@@ -13,6 +13,7 @@ use symbolica::atom::Symbol;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SymbolicStage {
     Mapping,
+    FormulaPreparation,
     Symmetry,
     Coefficients,
 }
@@ -38,16 +39,7 @@ pub struct SymbolicCompletion {
     result: Output,
 }
 enum Work {
-    NumericalDual {
-        input: Arc<ParametricIntegrand>,
-        options: Arc<GenerationOptions>,
-        map: SectorMap,
-        parameters: Vec<Symbol>,
-        supports: SupportCache,
-        total: usize,
-        programs: Arc<super::numerical_dual::native::SourcePrograms>,
-        valuations: Arc<super::numerical_dual::ValuationCache>,
-    },
+    NumericalDual(super::numerical_dual::pipeline::Task),
     Mapping {
         input: Arc<ParametricIntegrand>,
         options: Arc<GenerationOptions>,
@@ -71,7 +63,7 @@ enum Work {
     },
 }
 enum Output {
-    NumericalDual(Box<super::numerical_dual::PreparedChart>),
+    NumericalDual(super::numerical_dual::pipeline::TaskResult),
     Mapping(MappedChart),
     Symmetry(Box<PreparedChart>),
     Coefficients(ExpandedChart),
@@ -104,30 +96,7 @@ impl SymbolicJob {
             GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
         };
         let result = (|| match self.work {
-            Work::NumericalDual {
-                input,
-                options,
-                map,
-                parameters,
-                mut supports,
-                total,
-                programs,
-                valuations,
-            } => super::numerical_dual::prepare(
-                super::numerical_dual::Sources {
-                    input: &input,
-                    options: &options,
-                    programs: &programs,
-                    valuations: &valuations,
-                },
-                map,
-                parameters,
-                self.id.index,
-                total,
-                &mut supports,
-                &mut observe,
-            )
-            .map(|chart| Output::NumericalDual(Box::new(chart))),
+            Work::NumericalDual(task) => task.run(&mut observe).map(Output::NumericalDual),
             Work::Mapping {
                 input,
                 options,
@@ -213,61 +182,29 @@ impl SymbolicJob {
     }
 }
 
-pub(super) fn numerical_dual_dispatched(
-    input: &ParametricIntegrand,
-    options: &GenerationOptions,
-    maps: Vec<SectorMap>,
-    parameters: &[Symbol],
-    supports: &SupportCache,
+pub(super) fn numerical_dual_tasks(
+    tasks: Vec<super::numerical_dual::pipeline::Task>,
+    stage: SymbolicStage,
     dispatch: &mut SymbolicDispatch<'_>,
-    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
-) -> Result<Vec<super::numerical_dual::PreparedChart>, GenerationError> {
+) -> Result<Vec<super::numerical_dual::pipeline::TaskResult>, GenerationError> {
+    // Empty phases have known zero work and do not require an executor call.
+    if tasks.is_empty() {
+        return Ok(Vec::new());
+    }
     let owner = Arc::new(());
-    let input = Arc::new(input.clone());
-    let options = Arc::new(options.clone());
-    let total = maps.len();
-    let programs = Arc::new(super::numerical_dual::native::SourcePrograms::default());
-    let valuations = Arc::new(super::numerical_dual::ValuationCache::new(
-        input.parameters(),
-    ));
-    let mut jobs = maps
+    let total = tasks.len();
+    let mut jobs = tasks
         .into_iter()
         .enumerate()
-        .map(|(index, map)| SymbolicJob {
+        .map(|(index, task)| SymbolicJob {
             owner: owner.clone(),
-            id: SymbolicJobId {
-                stage: SymbolicStage::Coefficients,
-                index,
-            },
-            work: Work::NumericalDual {
-                input: input.clone(),
-                options: options.clone(),
-                map,
-                parameters: parameters.to_vec(),
-                supports: supports.clone(),
-                total,
-                programs: programs.clone(),
-                valuations: valuations.clone(),
-            },
+            id: SymbolicJobId { stage, index },
+            work: Work::NumericalDual(task),
         });
-    let started = Instant::now();
-    let completed = admit(
-        &owner,
-        SymbolicStage::Coefficients,
-        total,
-        dispatch(&mut jobs)?,
-    )?;
-    emit(
-        progress,
-        GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::CoefficientExpansion,
-            seconds: started.elapsed().as_secs_f64(),
-        },
-    )?;
-    completed
+    admit(&owner, stage, total, dispatch(&mut jobs)?)?
         .into_iter()
         .map(|output| match output {
-            Output::NumericalDual(chart) => Ok(*chart),
+            Output::NumericalDual(result) => Ok(result),
             _ => Err(GenerationError::Invariant(
                 "wrong numerical dual completion kind".into(),
             )),
@@ -495,4 +432,54 @@ pub(super) fn expand_dispatched(
             )),
         })
         .collect()
+}
+
+#[cfg(test)]
+mod formula_admission_tests {
+    use super::super::numerical_dual::{pipeline::TaskResult, subtraction::Recipe};
+    use super::*;
+
+    fn completion(owner: &Arc<()>, stage: SymbolicStage, index: usize) -> SymbolicCompletion {
+        SymbolicCompletion {
+            owner: owner.clone(),
+            id: SymbolicJobId { stage, index },
+            result: Output::NumericalDual(TaskResult::Formula(Arc::new(Recipe {
+                coefficients: BTreeMap::new(),
+                requests: Vec::new(),
+            }))),
+        }
+    }
+
+    #[test]
+    fn formula_admission_requires_exact_owner_stage_and_index_coverage() {
+        let owner = Arc::new(());
+        let stage = SymbolicStage::FormulaPreparation;
+        assert!(
+            admit(
+                &owner,
+                stage,
+                2,
+                vec![completion(&owner, stage, 1), completion(&owner, stage, 0)]
+            )
+            .is_ok()
+        );
+        for rejected in [
+            vec![completion(&owner, stage, 0)],
+            vec![completion(&owner, stage, 0), completion(&owner, stage, 0)],
+            vec![
+                completion(&owner, stage, 0),
+                completion(&owner, SymbolicStage::Coefficients, 1),
+            ],
+            vec![
+                completion(&owner, stage, 0),
+                completion(&Arc::new(()), stage, 1),
+            ],
+            vec![completion(&owner, stage, 0), completion(&owner, stage, 2)],
+        ] {
+            assert!(matches!(
+                admit(&owner, stage, 2, rejected),
+                Err(GenerationError::Invariant(_))
+            ));
+        }
+    }
 }

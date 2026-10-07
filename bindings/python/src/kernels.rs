@@ -145,6 +145,7 @@ impl PyKernels {
                 ..GenerationTimings::default()
             },
             coefficient_expansion: None,
+            formula_preparation: None,
             detail: "Native artifact loaded; original generation timings unavailable".into(),
         };
         Ok(Self {

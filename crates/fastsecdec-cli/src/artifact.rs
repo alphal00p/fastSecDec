@@ -150,6 +150,10 @@ pub struct GenerationRecord {
     /// Actual route for retained source charts, before exact-sector folding or kernel renumbering.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_chart_modes: Option<BTreeMap<usize, fastsecdec::generation::GenerationMode>>,
+    /// Observed unique subtraction-formula preparation, excluded from identity.
+    /// Missing on historical artifacts and runs without this phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formula_preparation: Option<fastsecdec::status::FormulaPreparationSnapshot>,
     /// Graph-numerator policy; absent for direct inputs and historical artifacts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contraction_mode: Option<fastsecdec::input::NumeratorContraction>,

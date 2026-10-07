@@ -129,6 +129,7 @@ pub(crate) fn generate_native(
             elapsed_seconds: 0.0,
             timings: GenerationTimings::default(),
             coefficient_expansion: None,
+            formula_preparation: None,
             detail: detail.into(),
         };
         if !progress.observe(py, &status)? {

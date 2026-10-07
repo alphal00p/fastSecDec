@@ -31,13 +31,7 @@ type Representative = (SectorMap, Vec<Symbol>, Vec<MappedTerm>, usize);
 type Representatives = BTreeMap<usize, Representative>;
 
 enum Stage {
-    NumericalDual {
-        maps: VecDeque<SectorMap>,
-        parameters: Vec<Symbol>,
-        programs: std::sync::Arc<super::numerical_dual::native::SourcePrograms>,
-        valuations: std::sync::Arc<super::numerical_dual::ValuationCache>,
-        completed: Vec<super::numerical_dual::PreparedChart>,
-    },
+    NumericalDual(Box<super::numerical_dual::pipeline::Pipeline>),
     Admission,
     GeometryCharts {
         plan: GeometryPlan,
@@ -138,6 +132,7 @@ impl GenerationSession {
                 elapsed_seconds: 0.0,
                 timings: Default::default(),
                 coefficient_expansion: None,
+                formula_preparation: None,
                 detail: "Ready to generate".into(),
             },
             completed_units: 0,

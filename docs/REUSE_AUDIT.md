@@ -1893,3 +1893,64 @@ covariance remain asserted. Workspace all-target Clippy, binding/stub Clippy,
 formatting and optimized CLI compilation pass. The numerical-dual prerequisite
 is fetched from its public revision without source-root overrides. No new wheel,
 browser run or three-loop generation is claimed.
+
+## Generation-owned subtraction-formula reuse (2026-10-07)
+
+Numerical-dual generation now separates native map/valuation discovery, distinct
+subtraction-formula preparation, and sector instantiation. Formula construction
+continues to use the existing complete-chart coefficient-first Taylor/IBP and
+Laurent composer. Exact native Atom and Rational identities, ordered endpoint
+powers and prefactors, strategy, requested order and resource limits form the
+generation-local key. The regulator, coordinate order and reserved-symbol context
+belong to the shared generation owner. Regular source functions remain opaque
+until each sector attaches its own maps and native evaluator requests; they do
+not enter a new symbolic-substitution path.
+
+The caller's existing executor builds distinct formulas before any sector uses
+them. Admission retains stable IDs and rejects foreign, duplicate or incomplete
+work. Cooperative sessions retain completed formula owners across pauses. There
+is no library-owned pool, process-global cache or cache-file format. Future
+external reuse will require explicitly encoding the presently shared symbol
+context; the in-memory key is not claimed to be a portable serialization key.
+
+Native source and jet caches retain the smallest requested ancestor-closed dual
+shapes, including valuation shifts, rather than unioning demands across sectors.
+Exact structural-zero masks remain part of specialized-program identity. Brief
+index locks publish per-key standard-library OnceLock cells, allowing unrelated
+native builds to proceed on existing workers while identical keys share one
+immutable native program. Construction errors remain errors. See the
+[native cache review](reviews/numerical-dual-native-cache.md) and
+[formula pipeline review](reviews/numerical-dual-formula-cache.md).
+
+Formula progress and wall time are additive human observations, separate from
+the native artifact identity and codec. Historical missing observations remain
+unavailable. The measured follow-up and integrated validation are recorded in
+the [formula-cache benchmark](reviews/numerical-dual-formula-benchmark.md).
+
+The integrated gate passes all 544 native tests (26 deliberately ignored
+diagnostics), 72 portable host tests, strict workspace all-target Clippy and
+isolated Python binding/stub Clippy. Taylor and IBP scientific controls cover
+shared formulas with asymmetric chart values, complete complex Laurent vectors,
+serial/reordered/resumed artifact identity and formula-stage cancellation and
+admission. A cold CLI check preserves counts, exclusive phase times and identical
+binary payloads with one and four workers. Formatting passes in all three
+workspaces. Portable host arithmetic and binding compilation do not establish
+execution of a rebuilt notebook wheel or an actual Wasm consumer.
+
+A final presentation review removed worker-local formula indices from wording
+that claimed global completion. Only the coordinator reports admitted totals;
+worker rows identify the formula being built. The subsequent CLI binary gate
+passes all 51 tests, including the added label regression, and strict all-target
+Clippy passes again. Together with the unchanged full gate this validates 545
+distinct native tests; the final edit changes no numerical or leaf-consumer code.
+
+The current eight-worker double-box runs build four formulas for 30 sectors,
+with 26 reused uses, in 0.176/0.178 seconds for Taylor/IBP. Whole generation takes
+23.302/21.199 seconds; discovery and evaluator construction dominate. Taylor's
+one/eight-worker payloads are byte-identical, and all per-sector evaluator
+statistics match the earlier uncached output. A new four-artifact comparison
+stops at the preserved source-provenance guard: the old local Symbolica checkout
+and current public Git pin have the same revision but different recorded source
+states. The guard and old artifacts remain unchanged. Earlier full-vector ggHH
+parity and current native/portable scientific controls are the numerical evidence;
+no fresh four-artifact parity or runtime measurement is claimed for this update.

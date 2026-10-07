@@ -290,3 +290,51 @@ infer its result from the focused target. Executing the new Python option
 controls and the numerical-dual notebook/browser workflow against a rebuilt
 installed wheel remains pending. No Python wheel or browser runtime validation
 is claimed by the binding compilation gate.
+
+## Dynamic formula preparation observations (2026-10-07)
+
+The numerical-dual owner now emits a distinct FormulaPreparation stage after
+map/valuation discovery and before sector assembly. Status, CLI JSON/TUI/plain
+views and Python reuse its typed aggregate counters: completed unique formulas,
+total unique formulas, eligible sector uses and known shared uses. Shared uses
+mean eligible uses minus unique formulas, not successful native evaluator-cache
+hits. Worker rows identify formula jobs separately from sector jobs. No new
+configuration switch or external cache I/O was introduced.
+
+`GenerationRecord.formula_preparation` and
+`GenerationTimings.formula_preparation_seconds` are optional. Missing historical
+values stay absent/“Not recorded”; an observed zero-formula phase remains a
+measured zero-work phase. Saved observations do not enter the native v8 binary
+or semantic identity. Generation and cold inspection share counter and timing
+formatters. In this lane the following coefficient-phase duration is displayed
+as “Sector assembly”; symbolic/historical records retain “Coefficient expansion”.
+Preparation records coordinator wall time for dispatched runs and active-unit
+time for retained sessions, excluding caller pauses.
+
+The core author independently accepted this status/persistence boundary. The
+independent core/native review is recorded in
+[numerical-dual-formula-cache.md](numerical-dual-formula-cache.md), with a
+separate cache-owner review in
+[numerical-dual-native-cache.md](numerical-dual-native-cache.md). The extended
+scientific target passes all 13 controls natively and portably, including shared
+formulas with asymmetric regular sources, Taylor/IBP parity, retained sessions,
+reversed caller dispatch, identical artifacts, formula-phase cancellation and
+missing completion rejection. The complete portable consumer suite passes
+72 controls. Python binding strict all-target Clippy with `python_stubgen`
+passes in 9.41 s; the installed notebook wheel has not been rebuilt for the new
+status fields, so the extended Python runtime tests remain pending. The full
+native workspace passes 544 tests, with 26 ignored across 77 targets, including
+the CLI one/four-worker phase/persistence/identity control and historical human
+metadata compatibility. Logs are under ignored
+`output/numerical-dual-cache-study/`. Strict workspace Clippy and new ggHH timing
+results are recorded separately when those coordinated checks finish.
+
+### Final worker-label verification
+
+The final display-only correction was validated by rerunning the complete CLI
+binary unit suite: 51 passed and one ignored, including the new running-formula
+index regression. Strict workspace all-target Clippy then passed in 1.39 s.
+Together with the preceding complete workspace run (544 passed, 26 ignored),
+this validates 545 distinct native tests; it is not a fresh 545-test whole
+workspace run. The complete portable suite remains 72 passed. These reruns
+change no scientific code or benchmark protocol.

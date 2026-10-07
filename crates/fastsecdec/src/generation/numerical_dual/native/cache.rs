@@ -2,7 +2,7 @@ use super::{ExactProgram, compilation};
 use crate::kernel::{CompilationSettings, KernelError};
 use std::{
     collections::BTreeMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, OnceLock},
 };
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
@@ -13,15 +13,19 @@ use symbolica::{
 /// Shared compilation of unmapped source factors and their native jet lowering.
 /// The caller owns this cache; there is no pool or process-global program state.
 #[derive(Default)]
-pub(crate) struct SourcePrograms(Mutex<Vec<Source>>);
+pub(crate) struct SourcePrograms(Mutex<Vec<Arc<Source>>>);
 type JetKey = (Vec<Vec<usize>>, Vec<(usize, usize)>);
+type ProgramCell = OnceLock<Result<Arc<ExactProgram>, String>>;
+
+#[cfg(test)]
+mod tests;
 
 struct Source {
     polynomial: Atom,
     inputs: Vec<Symbol>,
     settings: CompilationSettings,
-    exact: Arc<ExactProgram>,
-    jets: BTreeMap<JetKey, Arc<ExactProgram>>,
+    exact: ProgramCell,
+    jets: Mutex<BTreeMap<JetKey, Arc<ProgramCell>>>,
 }
 impl std::fmt::Debug for SourcePrograms {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -37,49 +41,89 @@ impl SourcePrograms {
         zeros: &[(usize, usize)],
         settings: CompilationSettings,
     ) -> Result<Arc<ExactProgram>, KernelError> {
+        self.source(polynomial, inputs, settings)?
+            .jets(shape, zeros)
+    }
+
+    fn source(
+        &self,
+        polynomial: &Atom,
+        inputs: &[Symbol],
+        settings: CompilationSettings,
+    ) -> Result<Arc<Source>, KernelError> {
         let mut sources = self
             .0
             .lock()
             .map_err(|_| compilation("source evaluator cache lock poisoned"))?;
-        let index = if let Some(index) = sources.iter().position(|source| {
+        if let Some(source) = sources.iter().find(|source| {
             source.polynomial == *polynomial
                 && source.inputs == inputs
                 && source.settings == settings
         }) {
-            index
-        } else {
-            let params = inputs.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
-            let exact = polynomial
-                .evaluator(&params)
-                .optimization_settings(settings.native())
-                .build()
-                .map_err(compilation)?;
-            sources.push(Source {
-                polynomial: polynomial.clone(),
-                inputs: inputs.to_vec(),
-                settings,
-                exact: Arc::new(exact),
-                jets: BTreeMap::new(),
-            });
-            sources.len() - 1
-        };
-        let source = &mut sources[index];
-        let key = (shape.to_vec(), zeros.to_vec());
-        if let Some(jets) = source.jets.get(&key) {
-            return Ok(jets.clone());
+            return Ok(source.clone());
         }
-        let jets = Arc::new(
-            source
-                .exact
+        let source = Arc::new(Source {
+            polynomial: polynomial.clone(),
+            inputs: inputs.to_vec(),
+            settings,
+            exact: OnceLock::new(),
+            jets: Mutex::default(),
+        });
+        sources.push(source.clone());
+        Ok(source)
+    }
+}
+
+impl Source {
+    fn jets(
+        &self,
+        shape: &[Vec<usize>],
+        zeros: &[(usize, usize)],
+    ) -> Result<Arc<ExactProgram>, KernelError> {
+        // Index locks only publish cells. Native builds execute after their
+        // guards have been dropped, so unrelated source/jet keys can progress.
+        let exact = program(&self.exact, || {
+            let params = self
+                .inputs
+                .iter()
+                .map(|s| Atom::var(*s))
+                .collect::<Vec<_>>();
+            self.polynomial
+                .evaluator(&params)
+                .optimization_settings(self.settings.native())
+                .build()
+                .map_err(|error| error.to_string())
+        })?;
+        let cell = {
+            let mut jets = self
+                .jets
+                .lock()
+                .map_err(|_| compilation("source jet cache lock poisoned"))?;
+            jets.entry((shape.to_vec(), zeros.to_vec()))
+                .or_default()
+                .clone()
+        };
+        program(&cell, || {
+            exact
                 .as_ref()
                 .clone()
                 .vectorize(&Dualizer::new(
                     HyperDual::<Complex<Rational>>::new(shape.to_vec()),
                     zeros.to_vec(),
                 ))
-                .map_err(compilation)?,
-        );
-        source.jets.insert(key, jets.clone());
-        Ok(jets)
+                .map_err(|error| error.to_string())
+        })
     }
+}
+
+fn program(
+    cell: &ProgramCell,
+    build: impl FnOnce() -> Result<ExactProgram, String>,
+) -> Result<Arc<ExactProgram>, KernelError> {
+    // Native construction failures are immutable for this exact key. A panic
+    // propagates without poisoning OnceLock; caller job handling owns unwind.
+    cell.get_or_init(|| build().map(Arc::new))
+        .as_ref()
+        .map(Arc::clone)
+        .map_err(compilation)
 }

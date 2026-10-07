@@ -92,6 +92,16 @@ the actual route. Compact roots remain cheap recipe views. Only the explicit
 `coefficient.expression()` request materializes the actual native expression,
 which can be expensive; passive displays do not call it.
 
+Numerical-dual work has a distinct `formula_preparation` progress stage between
+endpoint discovery and sector instantiation. `snapshot.formula_preparation`
+reports `.completed` and `.total` unique formulas, `.sectors` eligible uses, and
+`.reused` shared uses. It is `None` before discovery or without this phase;
+observed zero work is a real snapshot with zero counts. The optional
+`snapshot.timings.formula_preparation_seconds` records active preparation time,
+excluding pauses in retained sessions. Completed formulas survive subsequent
+`step()` calls. The cache stays with the native generation owner and creates no
+threads or files; ordinary generation remains caller-driven.
+
 `Integral` defaults to independent runtime model inputs. HEPKit resolves analytic
 dependencies; named masses remain symbolic before sector support analysis.
 Declare real Symbolica kinematic symbols with `runtime_parameters`; their

@@ -1,5 +1,7 @@
 //! Shared snapshot transitions for terminal and HEPKit observers.
-use super::{CoefficientExpansionSnapshot, GenerationSnapshot, GenerationStage};
+use super::{
+    CoefficientExpansionSnapshot, FormulaPreparationSnapshot, GenerationSnapshot, GenerationStage,
+};
 use crate::{
     generation::{
         CoefficientExpansionMethod, CoefficientExpansionStage, GenerationPhase, GenerationProgress,
@@ -14,6 +16,7 @@ impl GenerationStage {
             Self::Parametrization => "Preparing integral",
             Self::Geometry => "Building sectors",
             Self::Mapping => "Mapping sectors",
+            Self::FormulaPreparation => "Precomputing subtraction formulas",
             Self::Symmetry => "Finding equivalent sectors",
             Self::Subtraction => "Subtracting endpoints",
             Self::Expansion => "Expanding in epsilon",
@@ -60,6 +63,33 @@ impl GenerationSnapshot {
                 status.completed = *sector;
                 status.total = Some(*total);
                 status.detail = "Preparing numerical maps and exact endpoint powers".into();
+            }
+            GenerationProgress::FormulaPreparation {
+                completed,
+                total,
+                sectors,
+                reused,
+            } => {
+                status.stage = GenerationStage::FormulaPreparation;
+                status.completed = *completed;
+                status.total = Some(*total);
+                status.coefficient_expansion = None;
+                status.formula_preparation = Some(FormulaPreparationSnapshot {
+                    completed: *completed,
+                    total: *total,
+                    sectors: *sectors,
+                    reused: *reused,
+                });
+                status.detail = format!(
+                    "{completed}/{total} unique formulas ready · {sectors} eligible sectors · {reused} shared uses"
+                );
+            }
+            GenerationProgress::FormulaInstantiation { sector, total } => {
+                status.stage = GenerationStage::CoefficientExpansion;
+                status.completed = *sector;
+                status.total = Some(*total);
+                status.coefficient_expansion = None;
+                status.detail = "Instantiating prepared subtraction formulas".into();
             }
             GenerationProgress::SymmetryPreparation { sector, total } => {
                 status.stage = GenerationStage::Symmetry;
@@ -173,6 +203,10 @@ impl GenerationSnapshot {
                     GenerationPhase::Domain => &mut status.timings.domain_seconds,
                     GenerationPhase::Geometry => &mut status.timings.geometry_seconds,
                     GenerationPhase::Mapping => &mut status.timings.mapping_seconds,
+                    GenerationPhase::FormulaPreparation => status
+                        .timings
+                        .formula_preparation_seconds
+                        .get_or_insert(0.0),
                     GenerationPhase::Symmetry => &mut status.timings.symmetry_seconds,
                     GenerationPhase::Subtraction => &mut status.timings.subtraction_seconds,
                     GenerationPhase::Laurent => &mut status.timings.laurent_seconds,

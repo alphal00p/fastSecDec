@@ -14,6 +14,7 @@ fn snapshot() -> GenerationSnapshot {
         elapsed_seconds: 0.0,
         timings: Default::default(),
         coefficient_expansion: None,
+        formula_preparation: None,
         detail: String::new(),
     }
 }
@@ -56,4 +57,29 @@ fn suppressed_presentation_still_cancels_without_manufacturing_completion() {
     assert!(error.is_none());
     assert_eq!(status.completed, 0);
     assert_ne!(status.stage, GenerationStage::Complete);
+}
+
+#[test]
+fn running_formula_index_does_not_claim_global_completions() {
+    let mut status = snapshot();
+    status.observe_generation(
+        0,
+        &GenerationProgress::FormulaPreparation {
+            completed: 3,
+            total: 4,
+            sectors: 30,
+            reused: 26,
+        },
+    );
+    // Formula 3 can run first; the worker-local native poll is not proof that
+    // three other formulas have finished. Aggregate admission stays separate.
+    let activity = worker_activity(
+        SymbolicJobId {
+            stage: SymbolicStage::FormulaPreparation,
+            index: 3,
+        },
+        &status.detail,
+    );
+    assert_eq!(activity, "Building subtraction formula 3");
+    assert!(!activity.contains("ready"));
 }

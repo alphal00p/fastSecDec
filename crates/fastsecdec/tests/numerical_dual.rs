@@ -2,8 +2,8 @@
 use fastsecdec::{
     generation::{
         CoefficientExpansionMethod, GeneratedIntegral, GenerationContext, GenerationError,
-        GenerationMode, GenerationOptions, GenerationProgress, GenerationSession, GeometryJob,
-        SubtractionStrategy, SymbolicJob, generate,
+        GenerationEvent, GenerationMode, GenerationOptions, GenerationProgress, GenerationSession,
+        GeometryJob, SubtractionStrategy, SymbolicJob, SymbolicStage, generate,
     },
     kernel::{
         CompilationSession, CompilationSettings, EvaluatorBackend, KernelSet, PrecisionPolicy,
@@ -12,7 +12,7 @@ use fastsecdec::{
     parametric::{
         FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
     },
-    status::CoefficientComponent,
+    status::{CoefficientComponent, FormulaPreparationSnapshot},
 };
 use std::{collections::BTreeMap, ops::ControlFlow, sync::Arc};
 use symbolica::{
@@ -643,14 +643,38 @@ fn dispatch_input() -> ParametricIntegrand {
         vec![ParametricTerm::new(
             Atom::one(),
             vec![Atom::Zero, Atom::Zero],
-            vec![PolynomialFactor::new(
-                parse!("dual_dispatch::x+dual_dispatch::y"),
-                parse!("-1-dual_dispatch::eps"),
-                FactorRole::Singularity,
-            )],
+            vec![
+                PolynomialFactor::new(
+                    parse!("dual_dispatch::x+dual_dispatch::y"),
+                    parse!("-1-dual_dispatch::eps"),
+                    FactorRole::Singularity,
+                ),
+                PolynomialFactor::new(
+                    parse!("1+2*dual_dispatch::x+3*dual_dispatch::y"),
+                    Atom::one(),
+                    FactorRole::Polynomial,
+                ),
+            ],
         )],
     )
     .unwrap()
+}
+
+fn formula_counts(progress: &GenerationProgress) -> Option<FormulaPreparationSnapshot> {
+    match *progress {
+        GenerationProgress::FormulaPreparation {
+            completed,
+            total,
+            sectors,
+            reused,
+        } => Some(FormulaPreparationSnapshot {
+            completed,
+            total,
+            sectors,
+            reused,
+        }),
+        _ => None,
+    }
 }
 
 fn reverse_geometry(
@@ -665,14 +689,62 @@ fn reverse_geometry(
 
 #[test]
 fn retained_sessions_and_reversed_caller_dispatch_preserve_native_artifacts() {
+    for strategy in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        retained_session_and_dispatch(strategy);
+    }
+}
+
+fn retained_session_and_dispatch(strategy: SubtractionStrategy) {
     let input = dispatch_input();
     let options = GenerationOptions {
         mode: GenerationMode::NumericalDual,
+        subtraction: strategy,
         max_order: 1,
         ..Default::default()
     };
-    let serial = generate(&input, &options, |_| ControlFlow::Continue(())).unwrap();
+    let mut formulas = None;
+    let mut instantiation_started = false;
+    let serial = generate(&input, &options, |progress| {
+        if let Some(counts) = formula_counts(progress) {
+            assert!(
+                !instantiation_started,
+                "formula preparation must precede instantiation"
+            );
+            formulas = Some(counts);
+        }
+        instantiation_started |=
+            matches!(progress, GenerationProgress::FormulaInstantiation { .. });
+        ControlFlow::Continue(())
+    })
+    .unwrap();
     assert!(serial.sectors().len() > 1);
+    assert!(instantiation_started);
+    let formulas = formulas.expect("distinct formula phase must be observed");
+    assert_eq!(
+        formulas,
+        FormulaPreparationSnapshot {
+            completed: 1,
+            total: 1,
+            sectors: 2,
+            reused: 1
+        }
+    );
+    // The asymmetric regular source differs between charts, even though their
+    // opaque subtraction formula is shared. Reuse must not copy source values.
+    let reference = generated(&input, GenerationMode::Symbolic, strategy, 1);
+    let mut reference = compile(&reference, &[], EvaluatorBackend::Eager);
+    let mut candidate = compile(&serial, &[], EvaluatorBackend::Eager);
+    assert_eq!(laurent_orders(&candidate), laurent_orders(&reference));
+    for point in [[0.23, 0.67], [0.81, 0.34]] {
+        close(
+            &total_complex(&mut candidate, &point),
+            &total_complex(&mut reference, &point),
+            2e-11,
+        );
+    }
     let serial = compile(&serial, &[], EvaluatorBackend::Eager)
         .to_bytes()
         .unwrap();
@@ -685,6 +757,14 @@ fn retained_sessions_and_reversed_caller_dispatch_preserve_native_artifacts() {
             assert!(session.take_result().is_none());
         }
     }
+    assert_eq!(session.snapshot().formula_preparation, Some(formulas));
+    assert!(
+        session
+            .snapshot()
+            .timings
+            .formula_preparation_seconds
+            .is_some_and(|seconds| seconds > 0.0)
+    );
     let resumed = session.take_result().unwrap();
     assert_eq!(
         serial,
@@ -705,6 +785,7 @@ fn retained_sessions_and_reversed_caller_dispatch_preserve_native_artifacts() {
         completions.reverse();
         Ok(completions)
     };
+    let mut dispatched_formulas = None;
     let parallel = GenerationContext::new(0)
         .generate_with_all_dispatch(
             &input,
@@ -712,9 +793,15 @@ fn retained_sessions_and_reversed_caller_dispatch_preserve_native_artifacts() {
             &mut reverse_geometry,
             &mut dispatch,
             || false,
-            |_| ControlFlow::Continue(()),
+            |event| {
+                if let GenerationEvent::Progress(progress) = event {
+                    dispatched_formulas = formula_counts(progress).or(dispatched_formulas);
+                }
+                ControlFlow::Continue(())
+            },
         )
         .unwrap();
+    assert_eq!(dispatched_formulas, Some(formulas));
     assert_eq!(
         serial,
         compile(&parallel, &[], EvaluatorBackend::Eager)
@@ -738,6 +825,42 @@ fn cancellation_and_invalid_completion_admission_never_return_a_partial_integral
         }
     });
     assert!(matches!(cancelled, Err(GenerationError::Cancelled)));
+    let mut formula_seen = false;
+    let cancelled = generate(&input, &options, |event| {
+        if matches!(event, GenerationProgress::FormulaPreparation { .. }) {
+            formula_seen = true;
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    });
+    assert!(formula_seen);
+    assert!(matches!(cancelled, Err(GenerationError::Cancelled)));
+    let mut formula_jobs_seen = false;
+    let mut missing_formulas = |jobs: &mut dyn ExactSizeIterator<Item = SymbolicJob>| {
+        let jobs = jobs.collect::<Vec<_>>();
+        if jobs
+            .first()
+            .is_some_and(|job| job.id().stage == SymbolicStage::FormulaPreparation)
+        {
+            formula_jobs_seen = true;
+            Ok(Vec::new())
+        } else {
+            jobs.into_iter()
+                .map(|job| job.run(|_| ControlFlow::Continue(())))
+                .collect::<Result<Vec<_>, _>>()
+        }
+    };
+    let incomplete = GenerationContext::new(0).generate_with_all_dispatch(
+        &input,
+        &options,
+        &mut reverse_geometry,
+        &mut missing_formulas,
+        || false,
+        |_| ControlFlow::Continue(()),
+    );
+    assert!(formula_jobs_seen);
+    assert!(matches!(incomplete, Err(GenerationError::Invariant(_))));
     let mut missing = |_: &mut dyn ExactSizeIterator<Item = SymbolicJob>| Ok(Vec::new());
     assert!(matches!(
         GenerationContext::new(0).generate_with_all_dispatch(

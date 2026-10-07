@@ -95,6 +95,7 @@ impl<'a> GenerationProgress<'a> {
                     GenerationStage::Parametrization => "Parametrizing integral",
                     GenerationStage::Geometry => "Decomposing sectors",
                     GenerationStage::Mapping => "Mapping sectors",
+                    GenerationStage::FormulaPreparation => "Precomputing subtraction formulas",
                     GenerationStage::Symmetry => "Reducing sector symmetries",
                     GenerationStage::Subtraction => "Subtracting endpoints",
                     GenerationStage::Expansion => "Expanding Laurent coefficients",

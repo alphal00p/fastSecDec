@@ -6,7 +6,7 @@ use std::{collections::BTreeSet, io::IsTerminal, path::Path};
 use fastsecdec::{
     Atom, AtomCore,
     kernel::KernelSet,
-    status::{CoefficientComponent, GenerationTimings},
+    status::{CoefficientComponent, FormulaPreparationSnapshot, GenerationTimings},
 };
 use tabled::{
     Table,
@@ -36,6 +36,7 @@ pub struct Summary<'a> {
     pub regulator: Atom,
     pub outputs: Vec<(i32, CoefficientComponent)>,
     pub timings: Option<&'a GenerationTimings>,
+    pub formula_preparation: Option<FormulaPreparationSnapshot>,
 }
 
 pub fn print(
@@ -109,6 +110,10 @@ pub fn print(
             .zip(kernels.components().iter().copied())
             .collect(),
         timings: artifact.generation_timings.as_ref(),
+        formula_preparation: artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.formula_preparation),
     };
     print!(
         "{}",
@@ -132,6 +137,28 @@ pub(crate) fn generation_method_rows(
             subtraction.map_or("Not recorded", |v| v.name()).into(),
         ],
     ]
+}
+
+/// The same saved observations in the final report and cold inspection.
+pub(crate) fn formula_preparation_rows(
+    stats: Option<FormulaPreparationSnapshot>,
+) -> Vec<[String; 2]> {
+    match stats {
+        Some(stats) => vec![
+            [
+                "Subtraction formulas".into(),
+                format!("{} / {} unique ready", stats.completed, stats.total),
+            ],
+            [
+                "Formula reuse".into(),
+                format!(
+                    "{} eligible sectors · {} shared uses",
+                    stats.sectors, stats.reused
+                ),
+            ],
+        ],
+        None => vec![["Subtraction formulas".into(), "Not recorded".into()]],
+    }
 }
 
 /// Saved generation controls, not values inferred from this process's defaults.
@@ -227,6 +254,7 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
         ]);
     }
     facts.extend(generation_method_rows(summary.mode, summary.subtraction));
+    facts.extend(formula_preparation_rows(summary.formula_preparation));
     facts.extend(evaluator_rows(summary.evaluator.as_ref()));
     let mut result = heading("Generation complete", width, colors, Color::FG_GREEN);
     result.push_str(&facts_table_with_labels(facts, width, 20, colors));
@@ -335,27 +363,38 @@ fn coefficient_table(rows: Vec<[String; 3]>, width: usize, colors: ColorPolicy) 
 }
 
 pub(crate) fn timing_rows(timings: &GenerationTimings) -> Vec<[String; 2]> {
-    let mut rows = [
+    let mut phases = vec![
         ("Input", timings.input_seconds),
         ("Parametrization", timings.parametrization_seconds),
         ("Domain metadata", timings.domain_seconds),
         ("Geometry", timings.geometry_seconds),
         ("Sector mapping", timings.mapping_seconds),
+    ];
+    if let Some(seconds) = timings.formula_preparation_seconds {
+        // Unlike historical zero-default fields, Some(0) is an observed phase.
+        phases.push(("Formula preparation", seconds));
+    }
+    phases.extend([
         ("Sector equivalence", timings.symmetry_seconds),
         ("Subtraction", timings.subtraction_seconds),
         ("Laurent expansion", timings.laurent_seconds),
         (
-            "Coefficient expansion",
+            if timings.formula_preparation_seconds.is_some() {
+                "Sector assembly"
+            } else {
+                "Coefficient expansion"
+            },
             timings.coefficient_expansion_seconds,
         ),
         ("Compilation", timings.compilation_seconds),
-    ]
-    .into_iter()
-    // A zero field can mean an unmeasured/dispatched subphase. Do not
-    // present it as an independently measured zero-duration operation.
-    .filter(|(_, seconds)| *seconds > 0.0)
-    .map(|(label, seconds)| [label.to_owned(), duration(seconds)])
-    .collect::<Vec<_>>();
+    ]);
+    let mut rows = phases
+        .into_iter()
+        // A zero field can mean an unmeasured/dispatched subphase. Do not
+        // present it as an independently measured zero-duration operation.
+        .filter(|(label, seconds)| *seconds > 0.0 || *label == "Formula preparation")
+        .map(|(label, seconds)| [label.to_owned(), duration(seconds)])
+        .collect::<Vec<_>>();
     rows.push(["Generation total".into(), duration(timings.total_seconds)]);
     rows
 }

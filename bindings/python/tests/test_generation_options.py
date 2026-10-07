@@ -24,6 +24,8 @@ def test_generation_session_options_are_inert_and_inspectable(prepared, mode, su
     assert owner.subtraction == subtraction
     assert owner.generated is owner.kernels is None
     assert owner.snapshot().elapsed_seconds == 0
+    assert owner.snapshot().formula_preparation is None
+    assert owner.snapshot().timings.formula_preparation_seconds is None
     assert not owner.complete and owner.failed is None
     rendered = owner._repr_html_()
     assert mode in rendered and subtraction in rendered
@@ -64,6 +66,16 @@ def test_generation_choices_reach_sync_and_retained_native_owners(prepared, mode
     generated = integral.generate(mode=mode, subtraction=subtraction,
                                   coefficient_expansion="coefficient_series", progress=None)
     assert generated.mode == mode and generated.subtraction == subtraction
+    preparation = generated.snapshot().formula_preparation
+    if mode == "numerical_dual":
+        assert preparation is not None
+        assert preparation.completed == preparation.total
+        assert preparation.reused == preparation.sectors - preparation.total
+        assert generated.snapshot().timings.formula_preparation_seconds >= 0
+        assert "Shared uses" in preparation._repr_html_()
+    else:
+        assert preparation is None
+        assert generated.snapshot().timings.formula_preparation_seconds is None
     for sector in generated.sectors:
         assert sector.generation_mode in ("symbolic", "numerical_dual")
         for coefficient in sector.aliased_coefficients:
@@ -77,4 +89,8 @@ def test_generation_choices_reach_sync_and_retained_native_owners(prepared, mode
         owner.step(max_units=1)
     assert owner.failed is None
     assert owner.generated.mode == mode and owner.generated.subtraction == subtraction
+    if mode == "numerical_dual":
+        retained = owner.snapshot().formula_preparation
+        assert (retained.completed, retained.total, retained.sectors, retained.reused) == (
+            preparation.completed, preparation.total, preparation.sectors, preparation.reused)
     assert owner.kernels.to_bytes() == generated.compile(settings=settings, progress=None).to_bytes()

@@ -4,7 +4,8 @@ use crate::{
     artifact::Artifact,
     generation_report::{
         duration, evaluator_rows, expansion_method, facts_table, facts_table_with_labels,
-        generation_method_rows, heading, short_id, terminal_text, timing_rows,
+        formula_preparation_rows, generation_method_rows, heading, short_id, terminal_text,
+        timing_rows,
     },
     math_display,
     terminal_policy::ColorPolicy,
@@ -168,6 +169,12 @@ pub(super) fn render(
             .generation
             .as_ref()
             .and_then(|record| record.subtraction),
+    ));
+    generation_facts.extend(formula_preparation_rows(
+        artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.formula_preparation),
     ));
     if let Some(modes) = artifact
         .generation

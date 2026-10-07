@@ -164,14 +164,18 @@ impl Dashboard {
                 frame.render_widget(title("Generation", self.color), chunks[0]);
                 let ratio = snapshot.total.filter(|n| *n > 0).map_or(0.0, |n| (snapshot.completed as f64 / n as f64).min(1.0));
                 let workload = self.generation_workers.as_ref();
+                let formula_phase = snapshot.stage == fastsecdec::status::GenerationStage::FormulaPreparation;
+                let units = if formula_phase { "formulas" } else { "jobs" };
                 let eta = workload.filter(|work| snapshot.total == Some(work.total) && snapshot.completed == work.completed)
                     .and_then(|work| work.eta_seconds())
                     .map_or_else(|| "unavailable".into(), |seconds| format!("{seconds:.1} s"));
                 frame.render_widget(
                     Gauge::default().block(panel(&format!("{} · aggregate stage progress", snapshot.stage.label()), self.color))
                         .gauge_style(self.color.foreground(TEAL).add_modifier(Modifier::BOLD))
-                        .ratio(ratio).label(if let Some(total) = snapshot.total {
-                            format!("{:5.1}%  ·  {} / {} jobs  ·  elapsed {:.1} s  ·  stage ETA ≈ {}", ratio * 100.0, snapshot.completed, total, snapshot.elapsed_seconds, eta)
+                        .ratio(ratio).label(if formula_phase && snapshot.total == Some(0) {
+                            format!("No subtraction formulas required · elapsed {:.1} s", snapshot.elapsed_seconds)
+                        } else if let Some(total) = snapshot.total {
+                            format!("{:5.1}%  ·  {} / {} {units}  ·  elapsed {:.1} s  ·  stage ETA ≈ {}", ratio * 100.0, snapshot.completed, total, snapshot.elapsed_seconds, eta)
                         } else { format!("Coordinator in progress  ·  elapsed {:.1} s  ·  ETA unavailable", snapshot.elapsed_seconds) }),
                     chunks[1],
                 );

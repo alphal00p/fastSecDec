@@ -144,6 +144,18 @@ pub enum GenerationProgress {
         sector: usize,
         total: usize,
     },
+    /// Unique complete-chart formulas; `reused` counts planned shared uses.
+    FormulaPreparation {
+        completed: usize,
+        total: usize,
+        sectors: usize,
+        reused: usize,
+    },
+    /// Number of charts whose prepared formula or exact fallback is assembled.
+    FormulaInstantiation {
+        sector: usize,
+        total: usize,
+    },
     /// Per-chart preparation of a complete density and its native canonical graph.
     SymmetryPreparation {
         sector: usize,
@@ -190,6 +202,7 @@ pub enum GenerationPhase {
     Domain,
     Geometry,
     Mapping,
+    FormulaPreparation,
     Symmetry,
     Subtraction,
     Laurent,

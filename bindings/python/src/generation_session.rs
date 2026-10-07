@@ -86,6 +86,7 @@ impl PyIntegral {
                 elapsed_seconds: 0.0,
                 timings: GenerationTimings::default(),
                 coefficient_expansion: None,
+                formula_preparation: None,
                 detail: "Ready; call step to generate".into(),
             },
         })
