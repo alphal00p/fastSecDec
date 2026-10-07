@@ -16,6 +16,14 @@ expressions. Integration requires the declared values through `[integration.para
 `_im` components for complex leaves. Kinematic `symbol` declarations likewise
 require integration-time values; `value` declarations are fixed expressions.
 
+Structural on-shell conditions must be fixed during generation. For a massless
+external momentum `P(i)`, declare its self-product with `value = "0"`, rather
+than a runtime `symbol` whose integration-time value is zero. Native kinematics
+then removes the corresponding terms before Symanzik support and sector
+discovery, including in `numerical_dual` mode. Changing this specialization
+requires regenerating the artifact and starting new integration checkpoints.
+The remaining invariants can still be runtime symbols.
+
 Inline `[parameters]` values request exact fixed specializations. Setting
 `model_parameters = "fixed"` in `[input]` instead specializes the complete model
 with its card and inline overrides. All internal widths must be zero. Generic

@@ -5,6 +5,13 @@ per-key evaluator cache. The matched input remains the parametric gg → HH doub
 box with runtime kinematics and contributing model inputs. No three-loop run is
 part of this measurement.
 
+**Kinematic scope correction:** these historical cards kept the incoming gluon
+virtualities generic during generation and bound them to zero only at runtime.
+The timings and cache/worker comparisons remain measurements of that setup;
+they do not validate on-shell endpoint coverage or physical on-shell poles.
+Corrected cards now fix both virtualities before sector-support discovery and
+require new artifacts. See the [on-shell generation review](gghh-on-shell-generation.md).
+
 ## Protocol
 
 The prepared cards live at the same relative directory depth as the preceding

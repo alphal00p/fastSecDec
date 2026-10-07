@@ -408,6 +408,9 @@ pub fn artifact_path(card: &Path) -> PathBuf {
 }
 
 #[cfg(test)]
+mod on_shell_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

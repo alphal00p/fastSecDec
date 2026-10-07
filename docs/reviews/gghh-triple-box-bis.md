@@ -1,5 +1,10 @@
 # Independent review: native gg → HH triple-box input
 
+The subsequent [on-shell generation correction](gghh-on-shell-generation.md)
+fixes the two incoming-gluon self-products before sector finding, leaving
+thirteen runtime Gram entries. The fifteen-symbol setup recorded below is the
+original input validation; the graph, topology and projection remain unchanged.
+
 Scope: the new `examples/gghh_triple_box_bis/` input, its graph topology,
 serialization, model point and external projection. This review independently
 executed the current CLI/core's native Rust import path and native graph/color

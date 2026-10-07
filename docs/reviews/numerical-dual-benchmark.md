@@ -5,6 +5,13 @@ This record compares the two generation modes on the current D05 s-channel
 not a three-loop or cluster performance claim. The original symbolic mode remains
 the default.
 
+**Kinematic scope correction:** these historical runs generated generic gluon
+virtualities and supplied their zero values only at evaluation time. They verify
+interior evaluator agreement and the recorded performance, but do not establish
+on-shell endpoint coverage or the physical on-shell Laurent poles. The corrected
+cards impose both gluon mass shells before support discovery; those artifacts
+must be regenerated. See the [on-shell generation review](gghh-on-shell-generation.md).
+
 These initial measurements precede generation-scoped subtraction-formula
 preparation and concurrent per-key evaluator caching. The subsequent
 [formula-cache benchmark](numerical-dual-formula-benchmark.md) records that

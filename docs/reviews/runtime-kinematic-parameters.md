@@ -1,5 +1,10 @@
 # Runtime kinematic parameters — implementation evidence (2026-10-06–07)
 
+The later [on-shell generation correction](gghh-on-shell-generation.md) fixes
+the two incoming-gluon self-products to exact zero before sector finding.
+Current ggHH cards therefore have thirteen runtime Gram entries; the fifteen
+entries below describe the earlier generic-kinematics milestone.
+
 The ggHH run card now names fifteen external Gram entries with `symbol`.
 `point.toml` supplies their previous physical values at integration time through
 `--parameters`; repeated `--parameter NAME=VALUE` arguments override the file.

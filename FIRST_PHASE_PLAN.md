@@ -1,5 +1,18 @@
 # FastSecDec first-phase implementation plan
 
+## Exact external-gluon mass shells (2026-10-07)
+
+Declare the incoming gluon virtualities as exact zero scalar products in the
+ggHH generation cards, rather than runtime symbols whose point values happen
+to vanish. Apply the existing native Kinematics rules before parameterization
+and sector-support discovery, for both symbolic and numerical-dual generation.
+Keep the remaining kinematic invariants and model inputs parametric. Update
+the matching example emitter and runtime point cards, and verify with a native
+regression that on-shell specialization changes singular polynomial supports
+and exposes the additional endpoint poles. Old generic-kinematics artifacts
+must be regenerated. Preserve the separately owned untracked triple-box example
+and do not run three-loop generation.
+
 ## Dynamic subtraction-formula preparation (2026-10-07)
 
 Retain the smallest native ancestor-closed dual shape needed by each individual

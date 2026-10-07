@@ -72,8 +72,15 @@ points per shifted lattice and random shifts. All Laurent components and
 their covariance are retained. See the [runtime guide](../../docs/RUNTIME_INTEGRATION.md)
 for accuracy targets, refinement, stability and checkpoint options.
 
-The fifteen scalar products declared in the run card and six contributing
-model leaves (`model::Gf`, `model::MT`, `model::MZ`, `model::aEWM1`, `model::aS`,
+The incoming gluon self-products `P(0)^2 = P(1)^2 = 0` are fixed exactly in
+`run.toml` with `value = "0"`, before parametrization and sector finding. This
+allows generation to include the corresponding infrared boundaries. Regenerate
+any artifact built with generic runtime `p0p0` and `p1p1`: setting them to zero
+only during integration cannot restore missing sectors or poles. The updated
+point card omits those fixed inputs.
+
+The remaining thirteen scalar products and six contributing model leaves
+(`model::Gf`, `model::MT`, `model::MZ`, `model::aEWM1`, `model::aS`,
 `model::ymt`) are runtime inputs. Their numerical values come from `point.toml`
 at integration time. The native model resolves analytic dependent couplings;
 the numeric parameter card supplies metadata defaults and zero-width
@@ -109,4 +116,4 @@ its construction. Native graph/color/routing/model/Gram checks have passed.
 FastSecDec parameterization, sector generation, evaluator compilation and
 integration have deliberately **not** been run for this new example; no sector
 counts, timing forecast or numerical result is claimed. The original
-`examples/gghh_triple_box/` directory is untouched.
+`examples/gghh_triple_box/` remains a separate input.

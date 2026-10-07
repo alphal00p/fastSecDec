@@ -1,5 +1,43 @@
 # Ecosystem reuse evidence
 
+## Exact incoming-gluon mass shells (2026-10-07)
+
+The ggHH double-box and triple-box-bis generation cards now declare the two
+incoming gluon self-products with exact `value = "0"` entries. Native graph
+ports identify these as the independent incoming PDG-21 momenta `P(0)` and
+`P(1)`. The existing `Kinematics::with_scalar_product` rules enter the native
+propagator family and Symanzik construction before polynomial support and sector
+discovery. No new graph parser, algebra helper or sector algorithm is needed.
+Both generation modes use this same specialized input. Thirteen remaining Gram
+entries and the contributing model leaves stay runtime inputs; the matching
+point cards omit the fixed virtualities. The native example exporter preserves
+the same distinction. Notebook preparation already retains these exact zeros.
+
+The new native triangle regression verifies that fixed on-shell conditions
+reduce singular-polynomial support from three monomials to one and reveal a
+double infrared pole in both symbolic and numerical-dual generation. Runtime
+defaults of zero leave the generic support unchanged. Eager compilation retains
+only the remaining invariant input. Strict cold native graph/card checks pass
+for both actual ggHH inputs. The two focused tests, workspace all-target strict
+Clippy and formatting pass; no numerical library implementation was changed.
+The [independent review](reviews/gghh-on-shell-generation.md) records the native
+API path, exact constraints and test-process boundaries.
+
+The corrected D05 card also completes numerical-dual Taylor generation with
+eight workers and SymJIT O2: 30 numerical sectors, 19 runtime inputs, and the
+existing real/imaginary output layout at epsilon orders -1 and 0. Neither
+gluon virtuality remains an evaluator input, and the remaining input names
+exactly match the new point card. This is a generation/schema check, not a new
+on-shell integration or cross-mode numerical comparison.
+
+Earlier ggHH timing/interior-agreement reports used generic gluon virtualities
+at generation and supplied zeros later. They remain evidence of that setup,
+not validation of physical on-shell endpoint coverage or Laurent poles. Old
+artifacts and integration checkpoints require regeneration for the corrected
+specialization. The separately owned untracked triple-box cards received the
+same local correction but are excluded from publication; no three-loop
+parameterization or generation was run.
+
 ## Native gg → HH triple-box input (2026-10-07)
 
 The new `examples/gghh_triple_box_bis/` is selected from native HEPKit diagrams,

@@ -1,11 +1,10 @@
 # Values are bound only when integrating the generated template.
+# P(0)^2 = P(1)^2 = 0 is fixed in run.toml, not a runtime input.
 [parameters]
-p0p0 = "0"
 p0p1 = "45000"
 p0p2 = "-3000*11^(1/2)+22500"
 p0eps1 = "0"
 p0eps2 = "0"
-p1p1 = "0"
 p1p2 = "11^(1/2)*3000+22500"
 p1eps1 = "0"
 p1eps2 = "0"

@@ -6,14 +6,15 @@ model = "model.json"
 parameter_card = "parameters.json"
 
 [kinematics]
+# Exact incoming-gluon on-shell conditions, applied before sector finding.
 auxiliary_momenta = ["gghh::{spenso::tensor,spenso::rank1}::eps1","gghh::{spenso::tensor,spenso::rank1}::eps2"]
 products = [
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", symbol = "p0p0" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", value = "0" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p0p1" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p0p2" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p0eps1" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p0eps2" },
-  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", symbol = "p1p1" },
+  { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", value = "0" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)", symbol = "p1p2" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps1", symbol = "p1eps1" },
   { left = "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)", right = "gghh::{spenso::tensor,spenso::rank1}::eps2", symbol = "p1eps2" },

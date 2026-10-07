@@ -48,8 +48,16 @@ fastsecdec integrate output/gghh_double_box.fsd --full-integral \
   --save-result output/gghh_double_box.result.json
 ```
 
-The run card declares symbolic scalar products. Generation compiles these as
-ordered runtime inputs; `point.toml` supplies the numerical point when integrating.
+The run card fixes the incoming gluon self-products `P(0)^2 = P(1)^2 = 0`
+exactly with `value = "0"`. These conditions are applied before parametrization
+and sector finding, so their infrared boundaries are included in the generated
+Laurent expansion. The other thirteen scalar products remain symbolic runtime
+inputs; `point.toml` supplies their numerical values when integrating.
+
+Regenerate artifacts previously built with runtime `p0p0` and `p1p1`. Binding
+those generic inputs to zero only at integration time cannot recover sectors or
+poles absent from the generic generation. The new point card omits these two
+fixed inputs; it is intended for freshly generated on-shell artifacts.
 Use repeated `--parameter NAME=VALUE` options to override values in that file.
 Values can be finite real numbers or native Symbolica expressions such as
 `"22500-3000*sqrt(11)"`. Every declared symbol requires a value, including zeros;
@@ -116,8 +124,9 @@ generation and saving do not perform that restoration. See the
 [implementation review](../../docs/reviews/numerical-dual-evaluator.md) for the
 precise native ownership and limitations.
 The [double-box comparison](../../docs/reviews/numerical-dual-benchmark.md) records
-the measured generation speedup, full-Laurent parity and the substantially higher
-per-sample cost of the numerical-dual evaluators.
+historical generic-kinematics generation and evaluator measurements. Those
+artifacts kept the gluon self-products as runtime inputs, so their sector counts,
+pole structure and timings do not validate this on-shell specialization.
 
 The earlier example selected **FK018**, with one gluon and one Higgs on
 each box. Its numerical values, sector counts, timings and reference checks
