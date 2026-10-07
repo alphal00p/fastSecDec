@@ -11,11 +11,12 @@ from symbolica.community.hepkit import sector_decomposition as sd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
+from _fixtures import fixed_arguments
 
 
 @pytest.fixture(scope="module")
 def integral():
-    return sd.Integral(**inputs.massive_triangle().integral_arguments())
+    return sd.Integral(**fixed_arguments(inputs.massive_triangle()))
 
 
 class Presenter:
@@ -138,7 +139,7 @@ def test_both_callbacks_receive_full_native_events_in_order(integral, monkeypatc
 @pytest.mark.parametrize("owner", ["free_diagram", "diagram", "family", "legacy"])
 def test_progress_false_cancels_before_native_parametrization(owner, integral):
     value = inputs.massive_triangle()
-    kwargs = value.integral_arguments()
+    kwargs = fixed_arguments(value)
     kwargs.pop("diagram")
     family_kwargs = kwargs.copy()
     family_kwargs.pop("powers")

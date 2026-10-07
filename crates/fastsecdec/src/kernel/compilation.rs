@@ -11,6 +11,8 @@ use symbolica::{
     atom::{AliasedAtom, Atom, AtomCore, Symbol},
     domains::float::ErrorPropagatingFloat,
 };
+mod session;
+pub use session::CompilationSession;
 
 /// Caller-owned native sector compilation; jobs are tied to one compilation call.
 pub type CompilationDispatch<'a> = dyn FnMut(
@@ -49,7 +51,12 @@ impl CompilationJob {
             .with_endpoint_profiles(self.sector.endpoint_profiles().to_vec())?,
             self.settings,
         )?;
-        let sector = SectorKernel::from_program(program, &self.precision, self.use_complex)?;
+        let sector = SectorKernel::from_program_with_backend(
+            program,
+            &self.precision,
+            self.use_complex,
+            self.settings.backend,
+        )?;
         Ok(CompilationCompletion {
             owner: self.owner,
             index: self.index,
@@ -161,10 +168,11 @@ impl GeneratedIntegral {
                 .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
                 settings,
             )?;
-            sectors.push(SectorKernel::from_program(
+            sectors.push(SectorKernel::from_program_with_backend(
                 program,
                 &precision,
                 use_complex,
+                settings.backend,
             )?);
             emit(sectors.len())?;
         }
@@ -288,10 +296,25 @@ impl GeneratedIntegral {
 }
 
 impl SectorKernel {
+    #[cfg(test)]
     pub(super) fn from_program(
         program: program::SectorProgram,
         precision: &PrecisionPolicy,
         use_complex: bool,
+    ) -> Result<Self, KernelError> {
+        Self::from_program_with_backend(
+            program,
+            precision,
+            use_complex,
+            super::EvaluatorBackend::Auto,
+        )
+    }
+
+    pub(super) fn from_program_with_backend(
+        program: program::SectorProgram,
+        precision: &PrecisionPolicy,
+        use_complex: bool,
+        execution: super::EvaluatorBackend,
     ) -> Result<Self, KernelError> {
         let program::SectorProgram {
             parameters,
@@ -333,9 +356,10 @@ impl SectorKernel {
                 precision.clone(),
                 exact_zero.clone(),
                 real_coefficients,
+                execution,
             )?)
         } else {
-            let evaluator = evaluator::real(&exact)?;
+            let evaluator = evaluator::real(&exact, execution)?;
             let requirements =
                 evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
             let conditioning = requirements
@@ -357,16 +381,13 @@ impl SectorKernel {
                 check_output: vec![ErrorPropagatingFloat::new(0.0, 15.0); outputs],
             })
         };
-        #[cfg(feature = "native")]
-        let symjit_ir_bytes = Some(match &backend {
-            Backend::Real(kernel) => kernel.evaluator.as_bytes().len(),
+        let symjit_ir_bytes = match &backend {
+            Backend::Real(kernel) => kernel.evaluator.symjit_ir_bytes(),
             Backend::Complex(kernel) => kernel.symjit_ir_bytes(),
-        });
-        #[cfg(feature = "portable")]
-        let symjit_ir_bytes = None;
+        };
         let statistics = super::EvaluatorStatistics {
             version: 1,
-            backend: if cfg!(feature = "native") {
+            backend: if symjit_ir_bytes.is_some() {
                 "symjit_o2"
             } else {
                 "symbolica_interpreter"
@@ -464,10 +485,11 @@ impl KernelSet {
                     "native program Laurent output count differs".into(),
                 ));
             }
-            sectors.push(SectorKernel::from_program(
+            sectors.push(SectorKernel::from_program_with_backend(
                 program,
                 &precision,
                 use_complex,
+                settings.backend,
             )?);
         }
         // Loading restores programs; it is not a new user-requested optimizer
@@ -512,7 +534,7 @@ impl KernelSet {
         let exact_kernel = if runtime_parameters.is_empty() {
             None
         } else {
-            Some(SectorKernel::from_program(
+            Some(SectorKernel::from_program_with_backend(
                 program::build_with_settings(
                     Vec::new(),
                     &runtime_parameters,
@@ -526,6 +548,7 @@ impl KernelSet {
                 )?,
                 &precision,
                 use_complex,
+                compilation_settings.backend,
             )?)
         };
         let exact_coefficients = if exact_kernel.is_some() {

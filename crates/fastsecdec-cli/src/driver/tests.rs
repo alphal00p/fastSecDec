@@ -30,13 +30,17 @@ monomial_powers = ["1"]
 "#,
     )
     .unwrap();
-    let (artifact, kernels) = crate::generate::generate(
+    let (artifact, mut kernels) = crate::generate::generate(
         &card,
-        &dir.path().join("integral.json"),
+        &dir.path().join("integral.fsd"),
         &mut Dashboard::new(false, false).unwrap(),
         None,
     )
     .unwrap();
+    // These checkpoint controls exercise the validated weighted replay envelope.
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
     (dir, artifact, kernels)
 }
 
@@ -49,6 +53,7 @@ fn settings(method: &str) -> IntegrationInput {
         absolute_tolerance: 0.0,
         relative_tolerance: 0.0,
         max_rounds: 2,
+        stability: fastsecdec::kernel::StabilitySettings::validated(),
         ..IntegrationInput::default()
     }
 }

@@ -127,7 +127,12 @@ fn unrelated_small_coordinates_do_not_trigger_real_or_complex_rescue() {
         let report = kernels.sectors_mut()[0]
             .evaluate_with_diagnostics(&singular, &mut values)
             .unwrap();
-        assert!(report.checked);
+        assert!(
+            !report.checked,
+            "distance routing performs no comparison check"
+        );
+        assert!(report.rescued);
+        assert_eq!(report.class, fastsecdec::kernel::PrecisionClass::Arbitrary);
         let bytes = kernels.to_bytes().unwrap();
         let mut restored = fastsecdec::kernel::KernelSet::from_bytes(&bytes).unwrap();
         assert_eq!(kernels.content_id(), restored.content_id());

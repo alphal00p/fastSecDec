@@ -110,7 +110,7 @@ fn complete_vector_matches_independent_logarithmic_integral_with_gamma_prefactor
         session.submit(result).unwrap();
     }
     let value = session.estimate().unwrap();
-    let gamma = 0.577_215_664_901_532_9;
+    let gamma = std::f64::consts::EULER_GAMMA;
     let j0 = -2.0f64.ln() - 0.5;
     let j1 = std::f64::consts::PI.powi(2) / 12.0 + 2.0f64.ln();
     let expected = [
@@ -129,12 +129,14 @@ fn complete_vector_matches_independent_logarithmic_integral_with_gamma_prefactor
 }
 
 #[test]
-fn singularity_inside_a_boundary_face_cannot_lose_its_laurent_pole() {
+fn off_origin_boundary_poles_are_not_certified_by_formal_generation() {
     // P=(x-1/2)^2+y is positive at every interior point and every corner,
     // but vanishes at (1/2,0). Integrating y first gives
     // [int_0^1 ((x-1/2)^2+1)^(eps-1/2) dx - 2^(-2eps)/eps]
     // /(eps-1/2), whose Laurent residue is exactly +2.
-    // An origin-only fan sees P's constant support and would miss this pole.
+    // An origin-only fan sees P's constant support and misses this pole. The
+    // caller must resolve this geometry before using the formal coefficients;
+    // generation deliberately no longer certifies faces or interior points.
     let input = ParametricIntegrand::new(
         vec![symbol!("audit_boundary::x"), symbol!("audit_boundary::y")],
         symbol!("audit_boundary::eps"),
@@ -159,14 +161,16 @@ fn singularity_inside_a_boundary_face_cannot_lose_its_laurent_pole() {
         },
         |_| ControlFlow::Continue(()),
     );
-    assert!(
-        generated.is_err(),
-        "unresolved boundary geometry must be rejected; it cannot return a vector with a missing 2/eps pole"
+    let generated = generated.unwrap();
+    assert_user_responsibility(&generated);
+    assert_eq!(
+        generated.metadata().domain_assessment().factors()[0].polynomial(),
+        &parse!("(audit_boundary::x-1/2)^2+audit_boundary::y")
     );
 }
 
 #[test]
-fn mixed_sign_boundary_certificates_are_conservative_across_domains() {
+fn mixed_sign_boundaries_retain_uncertified_source_factors_across_domains() {
     let parameters = vec![
         symbol!("audit_faces::x"),
         symbol!("audit_faces::y"),
@@ -176,7 +180,7 @@ fn mixed_sign_boundary_certificates_are_conservative_across_domains() {
         (
             ParametricDomain::UnitCube,
             // The whole x=0 face vanishes; its leading coefficient has an
-            // affine boundary zero that an open-domain assertion cannot fix.
+            // affine boundary zero that remains the caller's responsibility.
             parse!("audit_faces::x*((audit_faces::y-1/2)^2+audit_faces::z)"),
             vec![Atom::num(0); 3],
             parse!("-3/2+audit_faces::eps"),
@@ -209,27 +213,31 @@ fn mixed_sign_boundary_certificates_are_conservative_across_domains() {
             )],
         )
         .unwrap();
-        assert!(
-            generate(
-                &input,
-                &GenerationOptions {
-                    assume_no_threshold: true,
-                    ..Default::default()
-                },
-                |_| ControlFlow::Continue(()),
-            )
-            .is_err(),
-            "uncertified mixed boundary accepted in {domain:?}"
+        let generated = generate(
+            &input,
+            &GenerationOptions {
+                assume_no_threshold: true,
+                ..Default::default()
+            },
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+        assert_user_responsibility(&generated);
+        assert_eq!(generated.metadata().domain_assessment().domain(), domain);
+        assert_eq!(
+            generated.metadata().domain_assessment().factors()[0].polynomial(),
+            input.terms()[0].factors()[0].polynomial()
         );
     }
 }
 
 #[test]
-fn positive_original_faces_do_not_certify_tangential_origin_resolution() {
+fn tangential_origin_geometry_has_no_implicit_regularity_certificate() {
     // The original coordinate faces are positive away from the origin. After
     // x=t*y the leading form contains (t-1)^2, which vanishes at the upper
     // endpoint t=1 on the exceptional face y=0. Certifying original faces
-    // alone therefore cannot certify regularity of sector residuals.
+    // alone therefore cannot certify regularity of sector residuals. No such
+    // certificate is attempted; these formal outputs are not an integral check.
     let input = ParametricIntegrand::new(
         vec![symbol!("audit_tangent::x"), symbol!("audit_tangent::y")],
         symbol!("audit_tangent::eps"),
@@ -244,15 +252,25 @@ fn positive_original_faces_do_not_certify_tangential_origin_resolution() {
             )],
         )],
     ).unwrap();
-    assert!(
-        generate(
-            &input,
-            &GenerationOptions {
-                assume_no_threshold: true,
-                ..Default::default()
-            },
-            |_| ControlFlow::Continue(()),
-        )
-        .is_err()
+    let generated = generate(
+        &input,
+        &GenerationOptions {
+            assume_no_threshold: true,
+            ..Default::default()
+        },
+        |_| ControlFlow::Continue(()),
+    )
+    .unwrap();
+    assert_user_responsibility(&generated);
+}
+
+fn assert_user_responsibility(generated: &fastsecdec::generation::GeneratedIntegral) {
+    let domain = generated.metadata().domain_assessment();
+    assert_eq!(
+        domain.branch_policy(),
+        fastsecdec::generation::BranchPolicy::UserResponsible
     );
+    assert!(!domain.relies_on_assertion());
+    assert!(domain.factors().iter().all(|factor| factor.certificate()
+        == fastsecdec::generation::FactorCertificate::UncheckedUserResponsibility));
 }

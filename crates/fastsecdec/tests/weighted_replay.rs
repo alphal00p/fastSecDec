@@ -33,7 +33,7 @@ fn kernels(complex: bool, scale: i64) -> KernelSet {
         )],
     )
     .unwrap();
-    generate(
+    let mut result = generate(
         &input,
         &GenerationOptions {
             max_order: 1,
@@ -43,7 +43,12 @@ fn kernels(complex: bool, scale: i64) -> KernelSet {
     )
     .unwrap()
     .compile()
-    .unwrap()
+    .unwrap();
+    // These controls exercise the explicitly retained validated replay policy.
+    result
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
+    result
 }
 
 #[test]
@@ -225,7 +230,7 @@ fn native_weighting_recovers_subnormal_and_underflowed_full_vectors() {
             )],
         )
         .unwrap();
-        let kernels = generate(
+        let mut kernels = generate(
             &input,
             &GenerationOptions {
                 max_order: 1,
@@ -236,6 +241,9 @@ fn native_weighting_recovers_subnormal_and_underflowed_full_vectors() {
         .unwrap()
         .compile()
         .unwrap();
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         let mut context = kernels
             .evaluation_context(0, ReplayPolicy::default())
             .unwrap();
@@ -279,12 +287,15 @@ fn native_weighting_recovers_an_unrepresentable_unweighted_value() {
         )],
     )
     .unwrap();
-    let kernels = generate(&input, &GenerationOptions::default(), |_| {
+    let mut kernels = generate(&input, &GenerationOptions::default(), |_| {
         ControlFlow::Continue(())
     })
     .unwrap()
     .compile()
     .unwrap();
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
     let mut context = kernels
         .evaluation_context(0, ReplayPolicy::default())
         .unwrap();
@@ -312,7 +323,7 @@ fn zero_weight_does_not_hide_a_singular_endpoint_evaluation() {
         )],
     )
     .unwrap();
-    let kernels = generate(
+    let mut kernels = generate(
         &input,
         &GenerationOptions {
             max_order: 1,
@@ -323,6 +334,9 @@ fn zero_weight_does_not_hide_a_singular_endpoint_evaluation() {
     .unwrap()
     .compile()
     .unwrap();
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
     let mut context = kernels
         .evaluation_context(0, ReplayPolicy::default())
         .unwrap();

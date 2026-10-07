@@ -4,7 +4,11 @@ use fastsecdec::{
     kernel::KernelSet,
     status::{GenerationSnapshot, GenerationStage, GenerationTimings},
 };
-use pyo3::{prelude::*, types::PyBytes};
+use pyo3::{
+    prelude::*,
+    types::{PyBytes, PyDict},
+};
+use symbolica::api::python::PythonExpression;
 
 use super::{
     error,
@@ -19,8 +23,10 @@ use super::{
 #[pyclass(
     name = "Kernels",
     module = "symbolica.community.hepkit.sector_decomposition",
-    unsendable
+    unsendable,
+    skip_from_py_object
 )]
+#[derive(Clone)]
 pub(crate) struct PyKernels {
     pub(crate) inner: Rc<KernelSet>,
     pub(crate) status: GenerationSnapshot,
@@ -29,6 +35,83 @@ pub(crate) struct PyKernels {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyKernels {
+    /// Bind an explicit complete physical point on independently owned native evaluators.
+    #[pyo3(signature=(values, *, stability=None))]
+    fn with_parameters(
+        &self,
+        py: Python<'_>,
+        values: &Bound<'_, PyDict>,
+        stability: Option<&crate::settings::PyStabilitySettings>,
+    ) -> PyResult<Self> {
+        let mut point = std::collections::BTreeMap::new();
+        for (key, value) in values.iter() {
+            let key = key.extract::<PyRef<'_, PythonExpression>>()?;
+            point.insert(
+                crate::input::symbol(py, &key, "parameter key")?,
+                value.extract::<f64>()?,
+            );
+        }
+        let mut inner = self
+            .inner
+            .try_clone()
+            .map_err(|e| error::native(py, "parameters", e))?;
+        inner
+            .bind_parameters(&point)
+            .map_err(|e| error::native(py, "parameters", e))?;
+        if let Some(settings) = stability {
+            inner
+                .set_stability_settings(&settings.inner)
+                .map_err(|e| error::native(py, "stability", e))?;
+        }
+        Ok(Self {
+            inner: Rc::new(inner),
+            status: self.status.clone(),
+        })
+    }
+    #[pyo3(signature=(settings))]
+    fn with_stability(
+        &self,
+        py: Python<'_>,
+        settings: &crate::settings::PyStabilitySettings,
+    ) -> PyResult<Self> {
+        let mut inner = self
+            .inner
+            .try_clone()
+            .map_err(|e| error::native(py, "stability", e))?;
+        inner
+            .set_stability_settings(&settings.inner)
+            .map_err(|e| error::native(py, "stability", e))?;
+        Ok(Self {
+            inner: Rc::new(inner),
+            status: self.status.clone(),
+        })
+    }
+    #[getter]
+    fn runtime_parameters(&self) -> Vec<PythonExpression> {
+        self.inner
+            .runtime_parameters()
+            .iter()
+            .map(|s| PythonExpression {
+                expr: fastsecdec::Atom::var(*s),
+            })
+            .collect()
+    }
+    #[getter]
+    fn parameters_bound(&self) -> bool {
+        self.inner.parameters_bound()
+    }
+    #[getter]
+    fn compilation_settings(&self) -> crate::settings::PyCompilationSettings {
+        crate::settings::PyCompilationSettings {
+            inner: *self.inner.compilation_settings(),
+        }
+    }
+    #[getter]
+    fn stability_settings(&self) -> crate::settings::PyStabilitySettings {
+        crate::settings::PyStabilitySettings {
+            inner: self.inner.stability_settings().clone(),
+        }
+    }
     /// Persist the library's native portable program/metadata codec, excluding machine code.
     fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let bytes = self
@@ -110,13 +193,10 @@ impl PyKernels {
     }
     #[getter]
     fn backend(&self) -> &'static str {
-        #[cfg(feature = "native")]
-        {
-            "native_o2"
-        }
-        #[cfg(not(feature = "native"))]
-        {
-            "portable_interpreted"
+        if self.inner.compilation_settings().backend.is_eager() {
+            "symbolica_interpreter"
+        } else {
+            "symjit_o2"
         }
     }
     fn snapshot(&self) -> PyGenerationSnapshot {

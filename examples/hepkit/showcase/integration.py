@@ -2,7 +2,7 @@
 
 from html import escape
 import math
-from .presentation import table,epsilon_label
+from .presentation import compact_count, epsilon_label, table, uncertainty
 
 def vector_rows(estimate):
     if estimate is None:
@@ -23,14 +23,14 @@ def highest_order_rows(estimate):
     highest = max((row["epsilon order"] for row in rows), default=None)
     return [row for row in rows if row["epsilon order"] == highest]
 
-def highest_order_target(estimate, relative=0.001):
-    """Display-only selected-order tolerance; native estimates remain untouched."""
-    if estimate is None or not estimate.production_complete:
-        return "Not assessed — complete production is required"
-    rows = highest_order_rows(estimate)
-    if not rows:
-        return "Unavailable"
-    return "Met" if all(row["standard error"] <= relative * abs(row["mean"]) for row in rows) else "Not met"
+
+def estimate_table(mo, estimate):
+    """Format a copy for display; raw vectors/history/export retain native floats."""
+    rows = [{"epsilon order": row["epsilon order"], "component": row["component"],
+             "estimate ± 1σ": uncertainty(row["mean"], row["standard error"]),
+             "relative error": row["relative error"]}
+            for row in vector_rows(estimate)]
+    return table(mo, rows)
 
 def sector_rows(snapshot):
     discrete = snapshot.method == "havana_discrete_mc"
@@ -91,7 +91,7 @@ def history_plot(mo, history):
             path.append(f"{xx:.2f},{yy:.2f}")
             marks.append(f'<path d="M {xx:.2f} {y(row["mean"] - row["standard error"]):.2f} V {y(row["mean"] + row["standard error"]):.2f}" stroke="#9276ce"/><circle cx="{xx:.2f}" cy="{yy:.2f}" r="3" fill="#6b46b0"><title>{escape(str(row))}</title></circle>')
         title = f"{epsilon_label(rows[-1]['epsilon order'])} {component}: mean ± 1 standard error"
-        plot = mo.Html(f'<svg viewBox="0 0 620 220" role="img" aria-label="{escape(title)}" style="width:100%;color:var(--text-primary)"><text x="76" y="18" fill="currentColor" font-size="13">{escape(title)}</text><text x="76" y="30" fill="currentColor" font-size="10">Vertical offset from {base:.17g}</text><path d="M76 32 V172 H580" fill="none" stroke="currentColor" opacity=".3"/><text x="4" y="42" fill="currentColor" font-size="10">{hi - base:.3g}</text><text x="4" y="172" fill="currentColor" font-size="10">{lo - base:.3g}</text><polyline points="{" ".join(path)}" fill="none" stroke="#6b46b0" opacity=".6"/>{"".join(marks)}<text x="76" y="194" fill="currentColor" font-size="11">{xmin:,}</text><text x="566" y="194" text-anchor="end" fill="currentColor" font-size="11">{xmax:,}</text><text x="320" y="213" text-anchor="middle" fill="currentColor" font-size="11">Accepted points in this phase</text></svg>')
+        plot = mo.Html(f'<svg viewBox="0 0 620 220" role="img" aria-label="{escape(title)}" style="width:100%;color:var(--text-primary)"><text x="76" y="18" fill="currentColor" font-size="13">{escape(title)}</text><text x="76" y="30" fill="currentColor" font-size="10">Vertical offset from {base:.17g}</text><path d="M76 32 V172 H580" fill="none" stroke="currentColor" opacity=".3"/><text x="4" y="42" fill="currentColor" font-size="10">{hi - base:.3g}</text><text x="4" y="172" fill="currentColor" font-size="10">{lo - base:.3g}</text><polyline points="{" ".join(path)}" fill="none" stroke="#6b46b0" opacity=".6"/>{"".join(marks)}<text x="76" y="194" fill="currentColor" font-size="11">{compact_count(xmin)}</text><text x="566" y="194" text-anchor="end" fill="currentColor" font-size="11">{compact_count(xmax)}</text><text x="320" y="213" text-anchor="middle" fill="currentColor" font-size="11">Accepted points in this phase</text></svg>')
         if all(row["mean"] == 0 and row["standard error"] == 0 for row in rows):
             recorded_zero.append(plot)
         else:
@@ -113,10 +113,8 @@ def result_view(mo, state):
     coverage = sector_rows(snapshot)
     coverage_label, complete, planned = coverage_summary(snapshot)
     worker_seconds = snapshot.worker_seconds
-    top = max(state.kernels.orders)
-    target = highest_order_target(estimate)
     diagnostic = snapshot.evaluation_diagnostics
-    details = {"Sector coverage": table(mo, coverage), "Full covariance of the mean": table(mo, covariance_rows(estimate))}
+    details = {"Sector coverage": table(mo, coverage), "Full covariance of the mean": table(mo, covariance_rows(estimate), scientific_values=True)}
     status_rows = [{"field": "backend", "value": state.kernels.backend},
                    {"field": "method", "value": snapshot.method},
                    {"field": "stage", "value": snapshot.stage},
@@ -132,13 +130,13 @@ def result_view(mo, state):
     if diagnostic is not None:
         details["Native evaluation diagnostics"] = table(mo, [{name: getattr(diagnostic, name) for name in ("evaluations", "conditioning_checks", "rescues", "max_precision_bits", "failures", "weighted_checks", "additional_replays")}])
     return mo.vstack([
-        mo.hstack([mo.stat(label="Accepted points", value=f"{snapshot.completed_points:,} / {snapshot.planned_points:,}"), mo.stat(label=coverage_label, value=f"{complete:,} / {planned:,}"), mo.stat(label=f"{epsilon_label(top)} · relative error ≤ 0.1%", value=target)], widths="equal"),
-        mo.callout("Pilot training only. After completion, adapt another epoch or Freeze production. Pilot pauses retain the same session in memory; downloadable checkpoints require frozen production.", kind="info") if snapshot.stage == "pilot" else mo.md(""),
+        mo.hstack([mo.stat(label="Accepted points", value=f"{compact_count(snapshot.completed_points)} / {compact_count(snapshot.planned_points)}"), mo.stat(label=coverage_label, value=f"{compact_count(complete)} / {compact_count(planned)}"), mo.stat(label="Allocation", value="Complete" if state.phase == "complete" else "In progress" if state.active else "Paused")], widths="equal"),
+        mo.callout("Pilot training only. This action freezes production after training; pilot samples stay excluded. Pause retains the same native pilot owner.", kind="info") if snapshot.stage == "pilot" else mo.md(""),
         mo.md(f"**Active wall time:** {state.integration_wall_seconds:.2f} s · **Native worker time:** {worker_seconds:.2f} s. Active time includes refresh waits and excludes caller-cancelled intervals."),
         mo.md(f"**Uncertainty:** {uncertainty_label} · **Native stop:** {stop_label} · **Backend:** {backend_label}"),
         mo.callout(snapshot.uncertainty_detail, kind="warn") if snapshot.uncertainty_detail else mo.md(""),
-        table(mo, vector_rows(estimate)) if estimate is not None else mo.callout("The native session has no valid full-vector estimate yet. Missing uncertainty is not zero uncertainty.", kind="info"),
-        mo.md(f"Native all-component target: **{'met' if estimate.meets(relative=0.001) else 'not met'}**. This is distinct from the selected highest-order target above.") if estimate is not None and snapshot.stage == "production" else mo.md(""),
+        estimate_table(mo, estimate) if estimate is not None else mo.callout("The native session has no valid full-vector estimate yet. Missing uncertainty is not zero uncertainty.", kind="info"),
+        mo.md("Allocation completion does not assert an accuracy target. All displayed uncertainties and covariance come from the native session."),
         history_plot(mo, state.history),
         mo.accordion(details),
     ])
@@ -151,6 +149,6 @@ def previous_result_view(mo, state):
     configuration = state.previous_configuration
     return mo.accordion({"Previous allocation · retained report": mo.vstack([
         mo.md(f"**{configuration['example']}** · {snapshot.method} · {snapshot.stage} · {state.previous_phase}. This is the saved prior allocation, not the current session."),
-        mo.md(f"Accepted points: **{snapshot.completed_points:,}**. Its full report is available below."),
-        table(mo, vector_rows(snapshot.estimate)) if snapshot.estimate is not None else mo.md("That allocation had no valid native estimate."),
+        mo.md(f"Accepted points: **{compact_count(snapshot.completed_points)}**. Its full report is available below."),
+        estimate_table(mo, snapshot.estimate) if snapshot.estimate is not None else mo.md("That allocation had no valid native estimate."),
     ])})

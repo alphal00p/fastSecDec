@@ -14,6 +14,8 @@ use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     state::{State, StateMap},
 };
+#[cfg(test)]
+mod tests;
 
 pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
 pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x07";

@@ -16,6 +16,15 @@ def test_no_session_report_keeps_estimate_absent():
     assert "estimate" not in report
 
 
+def test_runtime_parameter_names_preserve_native_namespaces():
+    from symbolica import S
+    left = S("report_left::mass", is_real=True)
+    right = S("report_right::mass", is_real=True)
+    state = RunState(parameter_point={left: 1.0, right: 2.0})
+    report = json.loads(report_bytes(state))
+    assert report["runtime_parameter_point"] == {"report_left::mass": 1.0, "report_right::mass": 2.0}
+
+
 def test_complex_signed_vector_roundtrips_without_reading_session():
     class NoSessionAccess:
         def __getattribute__(self, name):

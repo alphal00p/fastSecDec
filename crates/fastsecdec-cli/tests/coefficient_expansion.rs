@@ -48,7 +48,7 @@ fn explicit_named_card_reports_exclusive_timing_and_survives_status_coalescing()
     let directory = tempfile::tempdir().unwrap();
     let card = directory.path().join("input.toml");
     fs::write(&card, INPUT).unwrap();
-    let physical = generate(&card, &directory.path().join("physical.json"), "60000");
+    let physical = generate(&card, &directory.path().join("physical.fsd"), "60000");
     assert!(
         physical.status.success(),
         "{}",
@@ -60,17 +60,34 @@ fn explicit_named_card_reports_exclusive_timing_and_survives_status_coalescing()
             .iter()
             .all(|row| row.get("coefficient_expansion").is_none())
     );
+    // Caller-dispatched generation measures the complete representative jobs
+    // as one wall-time phase for either expression representation. It does not
+    // sum nested worker subtraction/Laurent timers into overlapping totals.
+    assert!(
+        physical_report["generation_timings"]["coefficient_expansion_seconds"]
+            .as_f64()
+            .unwrap()
+            > 0.0
+    );
     assert_eq!(
-        physical_report["generation_timings"]["coefficient_expansion_seconds"],
+        physical_report["generation_timings"]["subtraction_seconds"],
         0.0
     );
+    assert_eq!(
+        physical_report["generation_timings"]["laurent_seconds"],
+        0.0
+    );
+    assert_eq!(
+        physical_report["generation"]["requested_coefficient_expansion"],
+        "full_expression"
+    );
 
-    fs::write(&card, format!("{INPUT}\n[generation.coefficient_expansion]\nmethod='native_named'\nmax_series_attempts=12\nmax_relative_width=128\nmax_unique_requests=10000\n")).unwrap();
+    fs::write(&card, format!("{INPUT}\n[generation.coefficient_expansion]\nmethod='coefficient_series'\nmax_series_attempts=12\nmax_relative_width=128\nmax_unique_requests=10000\n")).unwrap();
     let mut counts = Vec::new();
     for interval in ["0", "60000"] {
         let output = generate(
             &card,
-            &directory.path().join(format!("named-{interval}.json")),
+            &directory.path().join(format!("named-{interval}.fsd")),
             interval,
         );
         assert!(
@@ -80,6 +97,10 @@ fn explicit_named_card_reports_exclusive_timing_and_survives_status_coalescing()
         );
         let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(report["orders"], physical_report["orders"]);
+        assert_eq!(
+            report["generation"]["requested_coefficient_expansion"],
+            "coefficient_series"
+        );
         let timing = &report["generation_timings"];
         assert!(timing["coefficient_expansion_seconds"].as_f64().unwrap() > 0.0);
         assert_eq!(timing["subtraction_seconds"], 0.0);
@@ -93,17 +114,26 @@ fn explicit_named_card_reports_exclusive_timing_and_survives_status_coalescing()
             .collect::<Vec<_>>();
         assert!(!coefficients.is_empty());
         for row in &coefficients {
-            let progress = &row["coefficient_expansion"];
-            assert_eq!(progress["requested_method"], "native_named");
-            assert_eq!(progress["effective_method"], "native_named");
-            let completed =
-                progress["sector"].as_u64().unwrap() + u64::from(progress["stage"] == "complete");
-            assert_eq!(row["completed"], completed);
+            // This is the master workload, not a fabricated single-sector
+            // coefficient pass shared between concurrently running workers.
+            assert!(row.get("coefficient_expansion").is_none());
+            assert_eq!(row["completed"], row["workload"]["completed"]);
+            assert_eq!(row["total"], row["workload"]["total"]);
+            assert!(row["completed"].as_u64().unwrap() <= row["total"].as_u64().unwrap());
+            assert!(!row["workload"]["workers"].as_array().unwrap().is_empty());
         }
-        assert!(
-            coefficients
-                .iter()
-                .any(|row| row["coefficient_expansion"]["stage"] == "complete")
+        if interval == "0" {
+            assert!(
+                coefficients
+                    .iter()
+                    .any(|row| row["completed"] == row["total"])
+            );
+        }
+        // Stage entry and the final result are forced. With a long observation
+        // interval an intermediate workload-completion snapshot may coalesce.
+        assert_eq!(
+            rows.last().unwrap()["completed"],
+            rows.last().unwrap()["total"]
         );
         counts.push(coefficients.len());
     }
@@ -114,8 +144,8 @@ fn explicit_named_card_reports_exclusive_timing_and_survives_status_coalescing()
 fn named_resource_error_remains_visible_without_completion_or_saved_artifact() {
     let directory = tempfile::tempdir().unwrap();
     let card = directory.path().join("input.toml");
-    let artifact = directory.path().join("failed.json");
-    fs::write(&card, format!("{INPUT}\n[generation.coefficient_expansion]\nmethod='native_named'\nmax_series_attempts=0\n")).unwrap();
+    let artifact = directory.path().join("failed.fsd");
+    fs::write(&card, format!("{INPUT}\n[generation.coefficient_expansion]\nmethod='coefficient_series'\nmax_series_attempts=0\n")).unwrap();
     let output = generate(&card, &artifact, "60000");
     assert!(!output.status.success());
     // --json preserves the CLI's final error document on stdout; stderr is the
@@ -139,5 +169,6 @@ fn named_resource_error_remains_visible_without_completion_or_saved_artifact() {
             .iter()
             .any(|row| row["stage"] == "Complete")
     );
-    assert!(!artifact.exists());
+    assert!(!artifact.with_extension("fsd.json").exists());
+    assert!(!artifact.with_extension("fsd.dat").exists());
 }

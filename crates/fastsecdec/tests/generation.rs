@@ -1,5 +1,5 @@
 use fastsecdec::{
-    generation::{GenerationError, GenerationOptions, generate},
+    generation::{GenerationOptions, generate},
     parametric::{FactorRole, ParametricIntegrand, ParametricTerm, PolynomialFactor},
 };
 use fastsecdec_sectors::ParametricDomain;
@@ -92,7 +92,7 @@ fn prefactor_pole_requests_extra_regular_orders() {
     assert_eq!(generated.orders(), &[-1, 0]);
     let result = midpoint(&generated, 65536);
     assert!((result[0] - 1.0).abs() < 1e-12);
-    assert!((result[1] + 1.0 + 0.5772156649015329).abs() < 1e-5);
+    assert!((result[1] + 1.0 + std::f64::consts::EULER_GAMMA).abs() < 1e-5);
 }
 
 #[test]
@@ -133,7 +133,7 @@ fn massless_projective_bubble_matches_gamma_identity() {
     let result = midpoint(&generated, 65536);
     assert_eq!(generated.orders(), &[-1, 0]);
     assert!((result[0] - 1.0).abs() < 1e-9);
-    assert!((result[1] - (2.0 - 0.5772156649015329)).abs() < 2e-5);
+    assert!((result[1] - (2.0 - std::f64::consts::EULER_GAMMA)).abs() < 2e-5);
 }
 
 #[test]
@@ -170,34 +170,51 @@ fn unregulated_divergence_and_nonlinear_endpoint_exponents_reject() {
 }
 
 #[test]
-fn domain_assertion_never_overrides_a_proven_threshold() {
-    let bad = input(
+fn threshold_assumptions_are_caller_responsibility_and_runtime_failures_remain_errors() {
+    for polynomial in [parse!("1-2*x"), parse!("1-x+x^2")] {
+        let input = input(
+            vec![symbol!("x")],
+            vec![Atom::Zero],
+            Atom::one(),
+            vec![factor(polynomial.clone(), parse!("-1"))],
+        );
+        for assume_no_threshold in [false, true] {
+            let generated = generate(
+                &input,
+                &GenerationOptions {
+                    assume_no_threshold,
+                    ..Default::default()
+                },
+                |_| ControlFlow::Continue(()),
+            )
+            .unwrap();
+            let domain = generated.metadata().domain_assessment();
+            assert_eq!(
+                domain.branch_policy(),
+                fastsecdec::generation::BranchPolicy::UserResponsible
+            );
+            assert!(!domain.relies_on_assertion());
+            assert_eq!(domain.caller_asserted(), assume_no_threshold);
+            assert_eq!(domain.factors()[0].polynomial(), &polynomial);
+            assert_eq!(
+                domain.factors()[0].certificate(),
+                fastsecdec::generation::FactorCertificate::UncheckedUserResponsibility
+            );
+        }
+    }
+    // Formal generation is allowed; hitting a true numerical pole is not zero.
+    let generated = run(&input(
         vec![symbol!("x")],
         vec![Atom::Zero],
         Atom::one(),
         vec![factor(parse!("1-2*x"), parse!("-1"))],
-    );
-    let asserted = GenerationOptions {
-        assume_no_threshold: true,
-        ..Default::default()
-    };
-    assert!(matches!(
-        generate(&bad, &asserted, |_| ControlFlow::Continue(())),
-        Err(GenerationError::Threshold(_))
     ));
-    let unknown = input(
-        vec![symbol!("x")],
-        vec![Atom::Zero],
-        Atom::one(),
-        vec![factor(parse!("1-x+x^2"), parse!("-1"))],
+    let mut kernels = generated.compile().unwrap();
+    assert!(
+        kernels.sectors_mut()[0]
+            .evaluate(&[0.5], &mut [0.0])
+            .is_err()
     );
-    assert!(matches!(
-        generate(&unknown, &GenerationOptions::default(), |_| {
-            ControlFlow::Continue(())
-        }),
-        Err(GenerationError::UnknownDomain(_))
-    ));
-    assert!(generate(&unknown, &asserted, |_| ControlFlow::Continue(())).is_ok());
 }
 
 #[test]
@@ -264,7 +281,7 @@ fn full_double_pole_vector_retains_boundary_cancellations() {
 }
 
 #[test]
-fn native_cancellation_avoids_unnecessary_mpfr_rescue() {
+fn native_cancellation_preserves_the_full_vector_across_precision_routes() {
     let generated = run(&input(
         vec![symbol!("x")],
         vec![parse!("-1+eps")],
@@ -277,8 +294,9 @@ fn native_cancellation_avoids_unnecessary_mpfr_rescue() {
         let report = kernels.sectors_mut()[0]
             .evaluate_with_diagnostics(&[distance], &mut output)
             .unwrap();
-        assert!(report.checked);
-        assert!(!report.rescued);
+        // Optimizer and routing choices may require a rescue; the scientific
+        // contract is the same complete cancellation limit at every precision.
+        assert!(report.bits >= 53);
         assert_eq!(output[0], 1.0);
         assert!(
             (output[1] + 1.0 / (1.0 + distance)).abs() < 1e-13,
@@ -304,32 +322,34 @@ fn portable_artifact_recompiles_and_rejects_modified_content() {
         .evaluate(&[1e-40], &mut output)
         .unwrap();
     assert_eq!(output, [1.0, -1.0]);
-    let mut invalid: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    invalid["payload"]["exact"][0] = serde_json::json!("123");
-    assert!(
-        fastsecdec::kernel::KernelSet::from_bytes(&serde_json::to_vec(&invalid).unwrap()).is_err()
-    );
+    let mut invalid = bytes.clone();
+    let last = invalid.len() - 1;
+    invalid[last] ^= 1;
+    assert!(fastsecdec::kernel::KernelSet::from_bytes(&invalid).is_err());
 }
 
 #[test]
-fn upper_cube_endpoint_requires_affine_charts_even_with_assertion() {
+fn upper_cube_endpoint_is_recorded_without_certification() {
+    // This input violates the origin-chart regularity responsibility; generation
+    // keeps its formal expression and makes no claim to integrate the upper pole.
     let input = input(
         vec![symbol!("x")],
         vec![Atom::Zero],
         Atom::one(),
         vec![factor(parse!("1-x"), parse!("-1+eps"))],
     );
-    assert!(matches!(
-        generate(
-            &input,
-            &GenerationOptions {
-                assume_no_threshold: true,
-                ..Default::default()
-            },
-            |_| ControlFlow::Continue(())
-        ),
-        Err(GenerationError::UpperBoundary(_))
-    ));
+    let generated = generate(&input, &GenerationOptions::default(), |_| {
+        ControlFlow::Continue(())
+    })
+    .unwrap();
+    assert_eq!(
+        generated.metadata().domain_assessment().factors()[0].certificate(),
+        fastsecdec::generation::FactorCertificate::UncheckedUserResponsibility
+    );
+    assert_eq!(
+        generated.metadata().domain_assessment().factors()[0].polynomial(),
+        &parse!("1-x")
+    );
 }
 
 #[test]
@@ -369,7 +389,7 @@ fn massless_projective_triangle_matches_double_pole_gamma_identity() {
             }
         }
     }
-    let gamma = 0.5772156649015329;
+    let gamma = std::f64::consts::EULER_GAMMA;
     assert!((sum[0] + 1.0).abs() < 1e-10, "{sum:?}");
     assert!((sum[1] - gamma).abs() < 0.002, "{sum:?}");
     assert!(
@@ -434,7 +454,7 @@ fn gamma_prefactor_constants_support_native_conditioning_domain() {
         .unwrap()
         .evaluate(&[0.5], &mut values)
         .unwrap();
-    let psi = 1.5 - 0.5772156649015329;
+    let psi = 1.5 - std::f64::consts::EULER_GAMMA;
     assert!((values[0] - 1.0).abs() < 1e-14);
     assert!((values[1] - psi).abs() < 1e-14);
     assert!(

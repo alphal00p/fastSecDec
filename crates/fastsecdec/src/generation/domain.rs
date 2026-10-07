@@ -2,13 +2,6 @@
 //! chosen domain and factors without testing signs, faces or interior points.
 #[cfg(test)]
 mod tests;
-// Retained only for the existing domain-test fixtures until their separately
-// requested migration. Production generation contains no sign certification.
-#[cfg(test)]
-mod sign;
-#[cfg(test)]
-use {sign::CoefficientSigns, std::cmp::Ordering};
-
 use super::{
     BranchPolicy, DomainAssessment, FactorAssessment, FactorCertificate, GenerationError,
     subtraction::rational,
@@ -23,22 +16,6 @@ use symbolica::{
 pub(super) fn is_singular(factor: &PolynomialFactor) -> bool {
     factor.role() == FactorRole::Singularity
         && !rational(factor.exponent()).is_some_and(|power| power.is_integer() && power >= 0)
-}
-
-#[cfg(test)]
-fn uniform_sign(
-    expression: &Atom,
-    variables: &[Atom],
-    signs: &mut CoefficientSigns,
-) -> Option<Ordering> {
-    let polynomial = expression.to_polynomial_in_vars_with_field::<u32>(
-        variables,
-        &AtomField {
-            statistical_zero_test: false,
-            ..AtomField::new()
-        },
-    );
-    signs.uniform((&polynomial).into_iter().map(|term| term.coefficient))
 }
 
 /// Check only the algebraic invariant guaranteed by monomial extraction.

@@ -10,13 +10,14 @@ from symbolica.community import hepkit as hep
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
+from _fixtures import fixed_arguments
 
 sd = getattr(hep, "sector_decomposition", None)
 pytestmark = pytest.mark.skipif(sd is None, reason="requires sector_decomposition wheel")
 
 
 def arguments(value):
-    result = value.integral_arguments()
+    result = fixed_arguments(value)
     result.pop("diagram")
     return result
 

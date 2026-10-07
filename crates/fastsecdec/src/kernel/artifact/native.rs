@@ -34,6 +34,12 @@ fn policy_prefix() -> String {
 
 pub(super) fn compiler_policy_with_settings(settings: CompilationSettings) -> String {
     let prefix = policy_prefix();
+    #[cfg(feature = "native")]
+    let prefix = if settings.backend.is_eager() {
+        EAGER_POLICY_PREFIX.into()
+    } else {
+        prefix
+    };
     if settings == CompilationSettings::legacy() {
         // Keep historical sector identities stable as well as the original envelope.
         #[cfg(feature = "portable")]
@@ -76,8 +82,19 @@ pub(super) fn settings_from_policy(policy: &str) -> Option<CompilationSettings> 
     {
         return Some(CompilationSettings::legacy());
     }
+    #[cfg(feature = "native")]
+    {
+        if let Some(settings) = parse_policy(policy, EAGER_POLICY_PREFIX) {
+            return settings.backend.is_eager().then_some(settings);
+        }
+        parse_policy(policy, &policy_prefix()).filter(|settings| !settings.backend.is_eager())
+    }
+    #[cfg(feature = "portable")]
     parse_policy(policy, &policy_prefix())
 }
+
+#[cfg(feature = "native")]
+const EAGER_POLICY_PREFIX: &str = "symbolica-3.0.1:interpreter:integer-gmp:float-mpfr";
 
 #[cfg(all(test, feature = "native"))]
 fn compiler_policy_matches(policy: &str, version_code: usize) -> bool {

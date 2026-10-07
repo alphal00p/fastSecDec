@@ -1,11 +1,11 @@
 //! Immutable views of retained generation records; inspection never reruns algebra.
-mod coefficient;
-mod domain;
-mod geometry;
-mod metadata;
-mod pre_subtraction;
-mod sector;
-mod statistics;
+pub(crate) mod coefficient;
+pub(crate) mod domain;
+pub(crate) mod geometry;
+pub(crate) mod metadata;
+pub(crate) mod pre_subtraction;
+pub(crate) mod sector;
+pub(crate) mod statistics;
 
 use std::sync::Arc;
 

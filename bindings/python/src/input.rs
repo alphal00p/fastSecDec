@@ -1,6 +1,11 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use fastsecdec::{Atom, EdgeId, Symbol, input::GraphIntegral};
+use fastsecdec::{
+    Atom, EdgeId, Symbol,
+    input::{GraphIntegral, RuntimeModelBindings},
+    kernel::RuntimeMassConstraint,
+    parametric::ParametricIntegrand,
+};
 use feynkit_py::{PyFeynmanDiagram, PyKinematics};
 use pyo3::{prelude::*, types::PyDict};
 use symbolica::{api::python::PythonExpression, atom::AtomView};
@@ -44,12 +49,60 @@ pub(crate) fn with_diagram_expressions(
 #[pyclass(
     name = "Integral",
     module = "symbolica.community.hepkit.sector_decomposition",
-    frozen
+    frozen,
+    skip_from_py_object
 )]
+#[derive(Clone)]
 pub(crate) struct PyIntegral {
     pub(crate) graph: GraphIntegral,
     pub(crate) regulator: Symbol,
     pub(crate) dimension: Atom,
+    pub(crate) runtime_parameters: Vec<Symbol>,
+    pub(crate) runtime_model: Option<RuntimeModelBindings>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct RuntimeInputs {
+    pub(crate) parameters: Vec<Symbol>,
+    pub(crate) masses: Vec<RuntimeMassConstraint>,
+    pub(crate) defaults: BTreeMap<String, f64>,
+}
+
+impl PyIntegral {
+    pub(crate) fn parametrize(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<(ParametricIntegrand, RuntimeInputs)> {
+        let parameters = (0..self.graph.powers().len())
+            .map(|i| symbolica::symbol!(format!("fastsecdec::hepkit::x{i}")))
+            .collect();
+        let input = ParametricIntegrand::from_graph(
+            &self.graph,
+            parameters,
+            self.regulator,
+            self.dimension.clone(),
+        )
+        .map_err(|e| error::native(py, "parametrization", e))?;
+        let mut runtime = RuntimeInputs {
+            parameters: self.runtime_parameters.clone(),
+            ..Default::default()
+        };
+        if let Some(mut model) = self.runtime_model.clone() {
+            model.retain_used(&input);
+            runtime.parameters.extend(model.symbols());
+            runtime.masses = model.mass_constraints().to_vec();
+            runtime.defaults = model.defaults();
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        if runtime
+            .parameters
+            .iter()
+            .any(|symbol| !seen.insert(*symbol))
+        {
+            return Err(error::native(py, "input", "runtime symbols must be unique"));
+        }
+        Ok((input, runtime))
+    }
 }
 
 pub(crate) fn symbol(py: Python<'_>, value: &PythonExpression, name: &str) -> PyResult<Symbol> {
@@ -85,7 +138,7 @@ pub(crate) fn scalar_bindings(
 impl PyIntegral {
     /// Kinematics retains its symbolic tensor dimension; dimension defaults to 4-2*regulator.
     #[new]
-    #[pyo3(signature = (diagram, kinematics, *, regulator, dimension=None, powers=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None))]
+    #[pyo3(signature = (diagram, kinematics, *, regulator, dimension=None, powers=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime"))]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         py: Python<'_>,
@@ -97,14 +150,40 @@ impl PyIntegral {
         scalar_values: Option<&Bound<'_, PyDict>>,
         auxiliary_momenta: Option<Vec<PythonExpression>>,
         measure_multiplier: Option<&PythonExpression>,
+        runtime_parameters: Option<Vec<PythonExpression>>,
+        model_parameters: &str,
     ) -> PyResult<Self> {
         let regulator = symbol(py, regulator, "regulator")?;
         let bindings = scalar_bindings(py, scalar_values)?;
-        // Guard partial selected subgraphs before borrowing the native owner.
-        let graph = GraphIntegral::new_with_scalar_values(
-            Arc::new(diagram.as_diagram()?.clone()),
+        let runtime_parameters = runtime_parameters
+            .unwrap_or_default()
+            .iter()
+            .map(|p| symbol(py, p, "runtime parameter"))
+            .collect::<PyResult<Vec<_>>>()?;
+        let diagram = Arc::new(diagram.as_diagram()?.clone());
+        let runtime_model = match model_parameters {
+            "runtime" => Some(
+                RuntimeModelBindings::new(&diagram, None, &bindings)
+                    .map_err(|e| error::native(py, "input", e))?,
+            ),
+            "fixed" => None,
+            _ => {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "model_parameters must be runtime or fixed",
+                ));
+            }
+        };
+        let mut declared = runtime_parameters.clone();
+        if let Some(model) = &runtime_model {
+            declared.extend(model.symbols());
+        }
+        let graph = GraphIntegral::new_with_runtime_scalar_values(
+            diagram,
             kinematics.as_kinematics(),
-            &bindings,
+            runtime_model
+                .as_ref()
+                .map_or(&bindings, RuntimeModelBindings::values),
+            &declared,
         )
         .map_err(|e| error::native(py, "input", e))?;
         let powers = powers
@@ -129,6 +208,8 @@ impl PyIntegral {
                 || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
                 |v| v.expr.clone(),
             ),
+            runtime_parameters,
+            runtime_model,
         })
     }
 

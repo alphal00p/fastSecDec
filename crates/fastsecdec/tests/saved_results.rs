@@ -96,6 +96,7 @@ fn fixture(selected: bool) -> SavedIntegrationResult {
         contributions: session.contributions().unwrap(),
         stopping_reason: StoppingReason::PlannedWorkComplete,
         requested_tolerance: None,
+        requested_accuracy_target: Default::default(),
         evaluation_diagnostics: Some(EvaluationDiagnostics {
             evaluations: 32,
             rescues: 1,

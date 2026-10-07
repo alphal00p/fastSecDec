@@ -8,40 +8,26 @@ scope, milestone gates, and original requirements are in
 [FIRST_PHASE_PLAN.md](FIRST_PHASE_PLAN.md). The standalone CLI is being developed
 alongside the library. The optional [Python bindings](bindings/python/README.md)
 live in an isolated FastSecDec crate; HEPKit registers their public module through
-[draft PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+[merged PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
 The numerical workspace and default CLI remain independent of Python.
 
-The [marimo showcase](examples/hepkit/README.md) uses native HEPKit inputs,
-separate Generate and Integrate actions, live status views and sector inspection.
-The scalar triangle is selected by default; the projected `g g -> H H`
-double box is an optional longer calculation in native and browser execution.
-Its [build guide](examples/hepkit/BUILD.md) documents the community build
-without local dependency patches. The updated local native wheel passes
-118 controls; the preceding published API milestone passed 95 in hosted native
-CI. The earlier `a3d09e` Wasm wheel passes generic
-smoke and all 58 collected portable controls. Actual triangle browser execution
-covers native metadata/math inspection, QMC checkpoint resume and same-kernel
-Havana pilot/production pause and resume. The final supplemental screenshot
-failure is retained separately from the accepted numerical lifecycle.
-See the [current portable review](docs/reviews/hepkit-metadata-mc-portable.md)
-for the bounded optional double-box outcome, exact source identities and
-single-thread browser interaction limits. These checks do not establish
-browser convergence or representative performance parity.
+The [gg→HH marimo notebook](examples/hepkit/gghh.py) starts with native
+HEPKit generation of all one- and two-loop diagrams at QED order two, with
+Higgs, gluon and top particles and symmetrized initial/final states. Its default
+selection is the first one-loop diagram. Separate buttons build the catalogue,
+generate the selected integral, inspect sectors, and integrate with QMC or
+Havana. The [scalar showcase](examples/hepkit/fastsecdec_showcase.py) uses the
+same controls for a smaller triangle example.
 
-The [standalone gg→HH notebook](examples/hepkit/gghh.py) builds its diagram from
-`Model.standard_model()` with inline masses and helicities, calls
-`diagram.sector_decompose(progress="auto")`, and uses ordinary marimo editor
-controls for its expensive cells. Generation shares HEPKit's progress presenter;
-the final bibliography uses `get_citations()` and offers a BibTeX download.
-The current Wasm wheel passes generic smoke and all 89 portable controls,
-including the new Model, progress and citation APIs. Native/editor and portable
-validation scope is recorded in
-the [notebook review](docs/reviews/gghh-single-notebook.md).
-
-Those wheel results precede the latest QMC relocation and upstream dependency
-migration. QMC now lives in `crates/fastsecdec-qmc`, alongside ordinary registry
-Numerica for Havana MC. The [dependency review](docs/reviews/regular-hepkit-build.md)
-records current validation separately from historical wheel results.
+Both notebooks use one caller-driven thread and native eager evaluators, including
+local runs. Generation and integration retain completed work across pauses;
+individual native algebra operations finish before a pause takes effect.
+Model inputs and kinematic dot products remain runtime evaluator parameters.
+The [notebook guide](examples/hepkit/README.md) and
+[build guide](examples/hepkit/BUILD.md) explain native and Pyodide execution.
+Historical wheel validation remains recorded with its original source identities
+in [the portable review](docs/reviews/hepkit-metadata-mc-portable.md); it does not
+certify the current notebook or a newly built wheel.
 
 Cargo fetches the public dependencies directly; no checkout or source-patching
 script is required. Enter the development shell and run:
@@ -62,8 +48,11 @@ consumers and the build/runtime validation boundaries.
 Interactive terminals show a live dashboard. `--plain` selects text progress;
 `--json` emits the final structured report, and `--status-json` streams status
 snapshots to stderr. Generated artifacts and checkpoints default to `output/`.
-SymJIT kernels use O2 even in a development build; performance comparisons also
-require a release build of the Rust orchestration code.
+The CLI uses SymJIT O2 by default. `[generation.evaluator] backend = "eager"`
+selects native eager evaluation; notebook compilation selects eager explicitly.
+Evaluator batches default to 256 points (`--evaluation-batch-size`), independently
+of statistical batches and QMC lattices. Performance comparisons also require a
+release build of the Rust orchestration code.
 
 Native HEPKit master and reduction comparisons now cover twelve scalar and
 eight numerator points, including rank five and a zero Gram determinant. An

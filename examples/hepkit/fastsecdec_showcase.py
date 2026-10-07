@@ -1,503 +1,245 @@
 import marimo
 
 __generated_with = "0.24.2"
-app = marimo.App(width="medium", app_title="FastSecDec · from graph to Laurent vector")
+app = marimo.App(width="full", app_title="FastSecDec · graph to Laurent vector")
 
 
 @app.cell(hide_code=True)
-def _():
+async def _():
     import marimo as mo
-    return (mo,)
+    import sys
+    from pathlib import Path
+    if sys.platform == "emscripten":
+        import hashlib
+        import io
+        import json
+        import zipfile
+        from importlib import import_module
+        # Browser-only packages must not enter native Marimo's static import
+        # registry: its missing-module probes run outside this platform branch.
+        _micropip = import_module("micropip")
+        _pyfetch = import_module("pyodide.http").pyfetch
+        _base = f"{str(mo.notebook_location()).rstrip('/')}/public/fastsecdec"
+        _response = await _pyfetch(f"{_base}/manifest.json")
+        if not _response.ok:
+            raise RuntimeError("Export this notebook with the tested HEPKit Pyodide wheel.")
+        _manifest = await _response.json()
+        _root = Path("/fastsecdec-showcase")
+        _root.mkdir(exist_ok=True)
+        for _kind in ("wheel", "assets"):
+            _entry = _manifest[_kind]
+            _response = await _pyfetch(f"{_base}/{_entry['filename']}")
+            if not _response.ok:
+                raise RuntimeError(f"Missing exported {_kind}")
+            _data = await _response.bytes()
+            if hashlib.sha256(_data).hexdigest() != _entry["sha256"]:
+                raise RuntimeError(f"Exported {_kind} hash differs")
+            if _kind == "wheel":
+                _wheel = _root / _entry["filename"]
+                _wheel.write_bytes(_data)
+                await _micropip.install(f"emfs:{_wheel}")
+            else:
+                with zipfile.ZipFile(io.BytesIO(_data)) as _archive:
+                    if set(_archive.namelist()) != set(_entry["files"]):
+                        raise RuntimeError("Asset manifest differs")
+                    for _name in _archive.namelist():
+                        _path = Path(_name)
+                        if _path.is_absolute() or ".." in _path.parts:
+                            raise RuntimeError("Invalid asset path")
+                        _bytes = _archive.read(_name)
+                        if hashlib.sha256(_bytes).hexdigest() != _entry["files"][_name]:
+                            raise RuntimeError("Asset hash differs")
+                        _destination = _root / _path
+                        _destination.parent.mkdir(parents=True, exist_ok=True)
+                        _destination.write_bytes(_bytes)
+    else:
+        _root = Path(mo.notebook_location())
+    sys.path.insert(0, str(_root))
+    from showcase.notebook import Study
+    return Study, mo
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    <div style="font-size:.78rem;letter-spacing:.16em;color:#7c699d">HEPKIT / FASTSECDEC</div>
+    # FastSecDec · graph to Laurent vector
 
-    # From a Feynman graph to a Laurent vector
+    Native scalar triangle, massless box, rank-two box and coupled two-loop sunset examples at spacelike kinematics. The measure is $\prod_l d^Dk_l/(i\pi^{D/2})$, with $D=4-2\epsilon$ and no implicit extra normalization.
 
-    Choose a native diagram, set its kinematics, and watch sector
-    decomposition turn it into a numerical expansion in $\epsilon$.
-    HEPKit and FastSecDec provide the native calculation. Every numerical value
-    below comes from your explicit calculation. **Generate** prepares sectors and kernels; **Integrate** starts sampling separately.
-
-    $D=4-2\epsilon$, with measure
-    $\prod_\ell d^Dk_\ell/(i\pi^{D/2})$. Native graph weights and the scalar
-    numerator enter **once**. There are no implicit Euler-gamma, scale or
-    $4\pi$ factors.
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-async def _(mo):
-    import hashlib
-    import io
-    import json
-    from pathlib import Path
-    import sys
-    import zipfile
-
-    # Native: explicitly use the checked-out examples/hepkit asset directory.
-    # Browser: explicitly fetch, verify and mount the exported assets before
-    # importing builders. A browser filesystem is never assumed to contain them.
-    notebook_location = mo.notebook_location()
-    browser_runtime = sys.platform == "emscripten"
-    interrupt_isolated = False
-    if browser_runtime:
-        import micropip
-        from js import globalThis
-
-        interrupt_isolated = bool(globalThis.crossOriginIsolated)
-        from pyodide.http import pyfetch
-
-        _base = str(notebook_location).rstrip("/")
-        _manifest_response = await pyfetch(f"{_base}/public/fastsecdec/manifest.json")
-        if not _manifest_response.ok:
-            raise RuntimeError("Missing FastSecDec asset manifest. Use the showcase export helper.")
-        _manifest = await _manifest_response.json()
-        asset_root = Path("/fastsecdec-showcase")
-        asset_root.mkdir(exist_ok=True)
-        for _kind in ("wheel", "assets"):
-            _entry = _manifest[_kind]
-            _response = await pyfetch(f"{_base}/public/fastsecdec/{_entry['filename']}")
-            if not _response.ok:
-                raise RuntimeError(f"Unable to fetch {_kind} from the explicit asset bundle")
-            _data = await _response.bytes()
-            if hashlib.sha256(_data).hexdigest() != _entry["sha256"]:
-                raise RuntimeError(f"FastSecDec {_kind} hash does not match the manifest")
-            if _kind == "wheel":
-                _wheel_path = asset_root / _entry["filename"]
-                _wheel_path.write_bytes(_data)
-                await micropip.install(f"emfs:{_wheel_path}")
-            else:
-                with zipfile.ZipFile(io.BytesIO(_data)) as _archive:
-                    if set(_archive.namelist()) != set(_entry["files"]):
-                        raise RuntimeError("Asset archive differs from its explicit file manifest")
-                    for _name in _archive.namelist():
-                        _relative = Path(_name)
-                        if _relative.is_absolute() or ".." in _relative.parts:
-                            raise RuntimeError("Invalid asset archive path")
-                        _destination = asset_root / _relative
-                        _destination.parent.mkdir(parents=True, exist_ok=True)
-                        _destination.write_bytes(_archive.read(_name))
-        asset_description = "Verified browser bundle, mounted at /fastsecdec-showcase"
-    else:
-        if notebook_location is None:
-            raise RuntimeError("Open this notebook with marimo so its asset location is explicit.")
-        asset_root = Path(notebook_location)
-        asset_description = f"Native assets: {asset_root}"
-    if not (asset_root / "showcase/inputs.py").is_file() or not (asset_root / "fixtures/fastsecdec/scalar.json").is_file():
-        raise RuntimeError(f"Incomplete FastSecDec assets at {asset_root}")
-    sys.path.insert(0, str(asset_root))
-    from showcase import inputs as builders
-    from showcase import state as workflow, generation, integration, sectors, presentation, report
-    from showcase import gghh as gghh_builder
-    from symbolica.community import hepkit as hep
-    return asset_description, browser_runtime, builders, gghh_builder, interrupt_isolated, workflow, generation, integration, sectors, presentation, report
-
-
-@app.cell
-def _(mo):
-    # The canonical HEPKit API. Importing it starts no scientific work.
-    from symbolica.community import hepkit as _hep
-    if hasattr(_hep, "sector_decomposition"):
-        import symbolica.community.hepkit.sector_decomposition as sd
-    else:
-        sd = None
-    mo.show_code()
-    return (sd,)
-
-
-@app.cell(hide_code=True)
-def _(mo, presentation):
-    _choices = dict(presentation.EXAMPLES)
-    _choices["gg → HH · extended run"] = "gghh"
-    problem = mo.ui.dropdown(_choices, value="Massive triangle", label="Integral", allow_select_none=False)
-    mo.vstack([mo.md("## 1 · Choose the input"), problem])
-    return (problem,)
-
-
-@app.cell(hide_code=True)
-def _(browser_runtime, mo, problem):
-    physics_controls = None
-    if problem.value == "gghh":
-        _input_panel = mo.vstack([
-            mo.md(r"""### $gg\to HH$ · fixed physical point
-One HEPKit-generated top double box with an internal gluon and $(+,+)$ helicities. This single projected diagram is not the full gauge-invariant amplitude."""),
-            mo.hstack([
-                mo.stat(label="Energy √s", value="300 GeV"), mo.stat(label="Higgs mass", value="125 GeV"),
-                mo.stat(label="Top mass", value="172.5 GeV"), mo.stat(label="cos θ", value="4/5"),
-            ], widths="equal", wrap=True),
-            mo.accordion({"Conventions": mo.md(r"""
-            Native HEPKit algebra closes the unnormalized color projection $\delta_{ab}$;
-            shared GammaLoop wavefunctions supply the incoming helicities. Internal
-            algebra retains $D=4-2\epsilon$ and external states are four-dimensional.
-            Feynman gauge, generated weights and couplings, no spin/color average.
-
-            The ordinary domain guard remains active. Generate prepares through the
-            finite coefficient. Choose integration settings separately below.
-            Completing an allocation need not meet the 0.1% target. Browser generation
-            and interpreted integration can be substantially slower than native execution.
-            """)}),
-            mo.callout("Optional extended browser run: one CPU, with portable interpreted integration. Generate may take several minutes; completion and browser cost are not yet validated. No calculation begins until you select Generate.", kind="warn") if browser_runtime else mo.md(""),
-        ])
-    else:
-        _fields = {"s": mo.ui.number(value=-1.0, step=0.1, label="s < 0")}
-        if problem.value == "triangle":
-            _fields["mass"] = mo.ui.number(start=0.0, value=1.0, step=0.1, label="Mass m")
-        if problem.value in {"box", "rank_two_box"}:
-            _fields["t"] = mo.ui.number(value=-1.0, step=0.1, label="t < 0")
-        _fields["max_order"] = mo.ui.dropdown({"Finite term · ε⁰": 0, "Through ε¹": 1}, value="Through ε¹", label="Highest requested order")
-        physics_controls = mo.ui.batch(mo.Html('<div style="display:flex;gap:1.5rem;flex-wrap:wrap">' + ''.join('<div>{' + name + '}</div>' for name in _fields) + '</div>'), _fields)
-        _input_panel = mo.vstack([physics_controls,
-                   mo.md("Editing these controls does not change an existing generated input or result. Select Generate to bind new physics; select Integrate separately to start sampling.")])
-    _input_panel
-    return (physics_controls,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    integration_method = mo.ui.dropdown({"Randomized lattice QMC": "qmc", "Havana Monte Carlo · sector importance": "havana_discrete_mc"}, value="Randomized lattice QMC", label="Integration method", allow_select_none=False)
-    integration_method
-    return (integration_method,)
-
-
-@app.cell(hide_code=True)
-def _(integration_method, mo, problem):
-    _presets = {"Quick exploration": "quick"}
-    if problem.value == "gghh":
-        _presets["Native gg→HH accuracy observation · 15.7M points"] = "gghh_accuracy"
-    allocation_preset = mo.ui.dropdown(_presets, value="Quick exploration", label="Integration preset", allow_select_none=False)
-    allocation_preset if integration_method.value == "qmc" else mo.md("Havana uses global batches with native sector and continuous-grid importance sampling. A completed pilot must be frozen explicitly before production.")
-    return (allocation_preset,)
-
-
-@app.cell(hide_code=True)
-def _(allocation_preset, browser_runtime, integration_method, mo, presentation):
-    _preset = presentation.QMC_PRESETS[allocation_preset.value]
-    _points = {f"{value:,}": value for value in (1024, 4096, 16384, 32768, 65536)}
-    _shifts = {str(value): value for value in (4, 8, 16, 32, 64)}
-    _rules = {"Kuo 33002": "kuo_33002", "Kuo 38005": "kuo_38005", "Kuo 39101": "kuo_39101", "HKKN α=3": "hkkn_alpha3"}
-    if integration_method.value == "qmc":
-        allocation_controls = mo.ui.batch(mo.Html('''
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">
-        <div>{points}</div><div>{shifts}</div><div>{package_points}</div><div>{rule}</div><div>{periodization}</div><div>{seed}</div>
-        </div>'''), {
-            "points": mo.ui.dropdown(_points, value=f"{_preset['points']:,}", label="Points per sector and shift"),
-            "shifts": mo.ui.dropdown(_shifts, value=str(_preset["shifts"]), label="Independent shifts"),
-            "package_points": mo.ui.dropdown({"256": 256, "1,024": 1024}, value="1,024", label="Points per caller step"),
-            "rule": mo.ui.dropdown(_rules, value=next(key for key, value in _rules.items() if value == _preset["rule"]), label="Published lattice"),
-            "periodization": mo.ui.dropdown({"Korobov-3": "korobov3", "Korobov-2": "korobov2", "None": "none"}, value="Korobov-3", label="Periodization"),
-            "seed": mo.ui.number(start=0, stop=2**32 - 1, step=1, value=_preset["seed"], label="Seed"),
-        })
-    else:
-        _mc_fields = {
-            "pilot_points": mo.ui.dropdown({"256": 256, "1,024": 1024, "4,096": 4096}, value="1,024", label="Global pilot points per batch"),
-            "pilot_batches": mo.ui.number(start=2, stop=1024, step=1, value=4, label="Pilot batches per epoch"),
-            "points_per_batch": mo.ui.dropdown({"1,024": 1024, "4,096": 4096, "16,384": 16384, "32,768": 32768}, value="4,096", label="Global production points per batch"),
-            "batches": mo.ui.number(start=2, stop=65536, step=1, value=64, label="Production batches"),
-            "seed": mo.ui.number(start=0, stop=2**32-1, step=1, value=20261007, label="Seed"),
-            "bins": mo.ui.number(start=2, stop=256, step=1, value=32, label="Continuous bins per axis"),
-            "minimum_probability_density": mo.ui.number(start=0.0001, stop=1, step=0.01, value=0.01, label="Minimum continuous probability density"),
-            "maximum_sector_probability_ratio": mo.ui.number(start=1, stop=10000, step=1, value=100, label="Maximum sector probability ratio"),
-        }
-        allocation_controls = mo.ui.batch(mo.Html('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem">' + ''.join('<div>{' + key + '}</div>' for key in _mc_fields) + '</div>'), _mc_fields)
-    _allocation_view = [mo.accordion({"Integration settings · edit the chosen allocation": allocation_controls})]
-    if integration_method.value == "qmc" and allocation_preset.value == "gghh_accuracy":
-        _allocation_view.append(mo.callout("This 15,728,640-point gg→HH allocation reached 0.00937% finite-term relative standard error in the native eight-worker CLI observation (377.530 s). That is an observed result, not guaranteed precision or a browser runtime. The notebook uses one caller worker; sampling starts only with Integrate.", kind="warn" if browser_runtime else "info"))
-    mo.vstack(_allocation_view)
-    return (allocation_controls,)
-
-
-@app.cell(hide_code=True)
-def _(allocation_controls, integration_method, physics_controls, problem):
-    if problem.value == "gghh":
-        draft = {"example": "gghh", "max_order": 0, "method": integration_method.value, **allocation_controls.value}
-    else:
-        draft = {"example": problem.value, "method": integration_method.value, **physics_controls.value, **allocation_controls.value}
-    return (draft,)
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ### The scientific calls
-
-    These visible functions are the code the controls execute. Defining them
-    performs no generation, compilation or sampling. **Generate** invokes the
-    diagram method and compiles its result; **Integrate** creates a session from
-    those same kernels. Native observers supply the live dashboard.
-
-    An explicit family member uses the same interface:
-    `family.sector_decompose(powers=[...], numerator=weighted_scalar, regulator=eps)`.
-    Its powers follow the native denominator order; zero powers omit a line and
-    negative powers put that denominator in the numerator. A family carries no
-    diagram weight or projector implicitly.
+    **Build diagrams → Generate → Inspect → Integrate QMC → Integrate Havana.**
+    Every calculation starts with a button. Pause retains the native owner;
+    Resume continues it. Changing a selection starts no calculation.
+    One caller, eager Symbolica arithmetic, no SymJIT — the same workflow on
+    native Python and Pyodide.
     """)
     return
 
 
 @app.cell
-def _(mo):
-    def decompose_input(prepared, max_order, observer):
-        # Native diagram, kinematics and Symbolica values are passed directly.
-        diagram = prepared.diagram
-        arguments = dict(prepared.integral_arguments())
-        for name in ("diagram", "kinematics", "regulator", "dimension"):
-            arguments.pop(name)
-        generation_options = getattr(prepared, "generation_arguments", lambda: {})()
-        return diagram.sector_decompose(
-            kinematics=prepared.kinematics,
-            regulator=prepared.regulator,
-            dimension=prepared.dimension,
-            max_order=max_order, observer=observer,
-            **arguments, **generation_options,
-        )
+def _(Study):
+    study = Study("examples")
+    study
+    return (study,)
 
-    def compile_sectors(generated, observer):
-        # Compilation completes before Integrate can create a session.
-        return generated.compile(observer=observer)
 
-    mo.show_code()
-    return compile_sectors, decompose_input
+@app.cell(hide_code=True)
+def _(mo, study):
+    build = mo.ui.button(value=0, on_click=lambda n: n + 1,
+                         label="Build diagrams", kind="success")
+    build if study.kind == "gghh" else mo.md("Choose one of the native scalar examples below.")
+    return (build,)
 
 
 @app.cell
-def _(mo, sd):
-    def create_session(kernels, configuration):
-        if configuration.get("method", "qmc") == "havana_discrete_mc":
-            settings = sd.HavanaDiscreteSettings(
-                points_per_batch=configuration["pilot_points"],
-                batches=configuration["pilot_batches"],
-                seed=configuration["seed"], bins=configuration["bins"],
-                minimum_probability_density=configuration["minimum_probability_density"],
-                maximum_sector_probability_ratio=configuration["maximum_sector_probability_ratio"],
-            )
-            # The pilot is trained explicitly, then frozen into production.
-            return kernels.mc_session(settings, pilot=True)
-        settings = sd.QmcSettings(
-            points=configuration["points"], shifts=configuration["shifts"],
-            seed=configuration["seed"], package_points=configuration["package_points"],
-            rule=configuration["rule"], periodization=configuration.get("periodization", "korobov3"),
-        )
-        return kernels.session(settings)
-
-    def advance_session(session, method):
-        # The notebook owns the loop; each active refresh accepts at most one unit.
-        if method == "havana_discrete_mc":
-            return session.step(max_batches=1)
-        return session.step(max_packages=1)
-
-    mo.show_code()
-    return advance_session, create_session
+def _(build, mo, study):
+    catalogue = study.build(build.value, mo) if study.kind == "gghh" else None
+    mo.md(f"**{len(catalogue.diagrams)} diagrams** · " + " · ".join(
+        f"{sum(d.loop_count == loops for d in catalogue.diagrams)} at {loops} loop(s)"
+        for loops in (1, 2))) if catalogue is not None else mo.md("")
+    return (catalogue,)
 
 
 @app.cell(hide_code=True)
-def _(mo, workflow):
-    run_state = workflow.RunState(message="Choose the input, then Generate. No scientific work starts automatically.")
-    get_sampling_active, set_sampling_active = mo.state(False)
-    generate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Generate", kind="success")
-    integrate_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Integrate", kind="success")
-    new_integration_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="New integration")
-    cancel_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Cancel", kind="danger")
-    resume_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Resume")
-    adapt_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Adapt another pilot")
-    freeze_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Freeze production", kind="success")
-    return adapt_button, cancel_button, freeze_button, generate_button, get_sampling_active, integrate_button, new_integration_button, resume_button, run_state, set_sampling_active
+def _(catalogue, mo, study):
+    catalogue
+    diagram = mo.ui.dropdown(study.choices(), value=study.default_choice(),
+                             allow_select_none=False, label="Native diagram / input")
+    diagram
+    return (diagram,)
+
+
+@app.cell
+def _(diagram, mo, study):
+    study.diagram_view(mo, diagram.value)
+    return
 
 
 @app.cell(hide_code=True)
-def _(get_sampling_active, mo):
-    # The browser must have no automatic timer while synchronous generation runs.
-    # Recreate this widget only when sampling starts or stops, never per package.
-    refresh = mo.ui.refresh(options=["250ms", "1s", "5s"], default_interval="250ms", label="Caller step / refresh") if get_sampling_active() else None
+def _(mo, study):
+    generate = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Generate sectors", kind="success")
+    inspect = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Inspect", kind="neutral")
+    qmc = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Integrate QMC", kind="success")
+    havana = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Integrate Havana", kind="success")
+    pause = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Pause", kind="warn")
+    resume = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Resume")
+    export = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Prepare downloads")
+    points = mo.ui.dropdown({str(n): n for n in (64, 256, 1024, 4096, 16384)}, value="1024", label="Points per shift / global MC batch")
+    replicas = mo.ui.number(start=2, stop=64, value=4, step=1, label="Shifts / global batches")
+    seed = mo.ui.number(start=0, stop=2**32-1, value=20261007, step=1, label="Seed")
+    sector = mo.ui.number(start=0, value=0, step=1, label="Sector ID")
+    epsilon_order = mo.ui.number(value=0, step=1, label="ε order")
+    sqrt_s = mo.ui.number(start=251, value=300, label="sqrt(s) [GeV]")
+    higgs_mass = mo.ui.number(start=1, value=125, label="mH [GeV]")
+    top_mass = mo.ui.number(start=1, value=172.5, label="mt = Yukawa mass [GeV]")
+    cos_theta = mo.ui.number(start=-0.999, stop=0.999, value=0.8, step=0.1, label="cos(theta)")
+    get_active, set_active = mo.state(False)
+    get_revision, set_revision = mo.state(0)
+    get_prepared_revision, set_prepared_revision = mo.state(0)
+    get_inspection_revision, set_inspection_revision = mo.state(0)
+    get_artifact_revision, set_artifact_revision = mo.state(0)
+    mo.vstack([
+        mo.hstack([generate, inspect, qmc, havana], justify="start", wrap=True),
+        mo.hstack([pause, resume, sector, epsilon_order], justify="start", wrap=True),
+        mo.accordion({"Optional exports": mo.vstack([export, mo.md("Prepare portable evaluator and run-report bytes on the notebook caller, then use the download links below.")])}),
+        mo.accordion({"Runtime physical point": mo.vstack([
+            mo.hstack([sqrt_s, higgs_mass, top_mass, cos_theta], justify="start", wrap=True),
+            mo.md("Bound only at Integrate. Native model leaves and momentum Gram products remain evaluator parameters; changing this point reuses generated sectors."),
+        ])}) if study.kind == "gghh" else mo.md(""),
+        mo.accordion({"Integration allocation": mo.vstack([
+            mo.hstack([points, replicas, seed], justify="start", wrap=True),
+            mo.md("QMC uses Kuo-33002 (at least 1024 points), Korobov-3 and independent shifted lattices. Havana trains two 64-point pilot batches, then freezes production; pilot samples are excluded. A complete allocation is not an accuracy guarantee."),
+        ])}),
+    ])
+    return cos_theta, epsilon_order, export, generate, get_active, get_artifact_revision, get_inspection_revision, get_prepared_revision, get_revision, havana, higgs_mass, inspect, pause, points, qmc, replicas, resume, sector, seed, set_active, set_artifact_revision, set_inspection_revision, set_prepared_revision, set_revision, sqrt_s, top_mass
+
+
+@app.cell(hide_code=True)
+def _(get_active, mo):
+    refresh = mo.ui.refresh(options=["125ms", "250ms", "1s"], default_interval="125ms", label="Caller steps") if get_active() else None
+    refresh
     return (refresh,)
 
 
 @app.cell(hide_code=True)
-def _(adapt_button, browser_runtime, cancel_button, freeze_button, generate_button, integrate_button, interrupt_isolated, mo, new_integration_button, refresh, resume_button):
-    mo.vstack([
-        mo.md("## 2 · Generate → inspect → integrate"),
-        mo.hstack([generate_button, integrate_button, cancel_button, resume_button, new_integration_button], justify="start", wrap=True),
-        refresh if refresh is not None else mo.md("Automatic stepping is off. Integrate or Resume starts it."),
-        mo.accordion({"Havana pilot actions": mo.vstack([
-            mo.md("Integrate starts a pilot. After its allocation completes, choose another adaptation epoch or freeze both grids and start production. Pilot statistics never enter the production estimate. These actions do nothing during an active allocation."),
-            mo.hstack([adapt_button, freeze_button], justify="start", wrap=True),
-        ])}),
-        mo.md("Generate includes native compilation and stops before sampling. Integrate starts the selected allocation from ready kernels. Cancel retains accepted coverage; Resume continues it. Havana pilots stay in memory until production is frozen."),
-        mo.accordion({"Execution and cancellation": mo.vstack([
-            mo.md("Cancel pauses integration between QMC packages or global Havana batches. Production coverage can be saved; pilots retain the same native session in memory. In marimo's editor, Stop (interrupt) / Ctrl-I (Cmd-I on macOS) requests KeyboardInterrupt. Generation checks it at native callback boundaries; integration checks every 256 points. Long algebra operations between checks can delay interruption. An interrupted package or batch does not enter accepted coverage. Only explicit Integrate, Resume or pilot actions enable further work; no allocation grows automatically."),
-            mo.callout(
-                "Browser interrupt is available in this isolated editor. Use Stop (interrupt) or Ctrl-I (Cmd-I on macOS); long native algebra calls may delay the response."
-                if interrupt_isolated and mo.app_meta().mode == "edit" else
-                "This view or host has no active KeyboardInterrupt control. Cancel is processed between integration packages. For browser interruption, export with --mode edit and use the documented isolated server. Reloading the page discards unsaved in-memory work.",
-                kind="info" if interrupt_isolated and mo.app_meta().mode == "edit" else "warn",
-            ) if browser_runtime else mo.md(""),
-        ])}),
-    ])
+def _(cos_theta, diagram, epsilon_order, export, generate, havana, higgs_mass, inspect, mo, pause, points, qmc, refresh, replicas, resume, sector, seed, set_active, set_artifact_revision, set_inspection_revision, set_prepared_revision, set_revision, sqrt_s, study, top_mass):
+    _before = study.run.work_active
+    _revision = study.dispatch(
+        {"generate": generate.value, "inspect": inspect.value, "qmc": qmc.value,
+         "havana": havana.value, "pause": pause.value, "resume": resume.value, "export": export.value},
+        refresh.value if refresh is not None else None,
+        diagram.value, {"points": points.value, "replicas": replicas.value,
+                        "seed": seed.value, "sector": sector.value, "epsilon_order": epsilon_order.value,
+                        "sqrt_s": sqrt_s.value, "higgs_mass": higgs_mass.value,
+                        "top_mass": top_mass.value, "cos_theta": cos_theta.value}, mo,
+    )
+    if study.run.work_active != _before:
+        set_active(study.run.work_active)
+    if _revision is not None:
+        set_revision(_revision)
+    _views = study.take_view_updates()
+    if "prepared" in _views:
+        set_prepared_revision(_views["prepared"])
+    if "inspection" in _views:
+        set_inspection_revision(_views["inspection"])
+    if "artifact" in _views:
+        set_artifact_revision(_views["artifact"])
     return
 
 
 @app.cell(hide_code=True)
-def _(adapt_button, advance_session, allocation_controls, builders, cancel_button, compile_sectors, create_session, decompose_input, draft, freeze_button, generate_button, generation, gghh_builder, integrate_button, integration, mo, new_integration_button, presentation, refresh, resume_button, run_state, sd, set_sampling_active):
-    _was_active = run_state.active
-    _actions = {"generate": generate_button.value, "integrate": integrate_button.value,
-                "cancel": cancel_button.value, "resume": resume_button.value,
-                "adapt": adapt_button.value, "freeze": freeze_button.value,
-                "new": new_integration_button.value, "tick": refresh.value if refresh is not None else ""}
-    _changed = {key for key, value in _actions.items() if value != run_state.seen[key]}
-    run_state.seen.update(_actions)
-    if "cancel" in _changed:
-        run_state.cancel()
-    elif "generate" in _changed:
-        _validation = None if draft["example"] == "gghh" else presentation.validate_configuration(draft)
-        if _validation:
-            run_state.message = _validation
-        elif sd is None:
-            run_state.message = "Install a community wheel with the FastSecDec API."
-        else:
-            _configuration = dict(draft)
-            _prepare = (lambda observer: gghh_builder.prepare(observer=observer)) if draft["example"] == "gghh" else (lambda observer: builders.prepare(_configuration))
-            run_state.generate(decompose_input, _prepare, _configuration, compile=compile_sectors,
-                display=lambda event: mo.output.replace(generation.generation_view(mo, run_state)),
-                input_display=lambda event: mo.output.replace(mo.vstack([
-                    mo.md("**HEPKit diagram generation**"), presentation.table(mo, [{"native stage": event.stage, "completed": event.completed, "total": event.total}]),
-                ])))
-            if run_state.prepared is not None:
-                try:
-                    run_state.drawing = mo.as_html(run_state.prepared.diagram.render())
-                except Exception as _drawing_error:
-                    run_state.drawing = mo.callout(f"Native graph rendering is unavailable: {_drawing_error}", kind="warn")
-    elif "new" in _changed:
-        run_state.new_integration()
-    elif "integrate" in _changed:
-        # Draft physics never replaces generated provenance. Only the matching
-        # case's explicit allocation controls are admitted at Integrate.
-        _settings = None
-        if run_state.configuration is not None and draft["example"] == run_state.configuration["example"]:
-            _settings = {"method": draft["method"], **allocation_controls.value}
-        run_state.integrate(create_session, _settings)
-    elif "resume" in _changed:
-        run_state.resume()
-    elif "adapt" in _changed:
-        run_state.pilot_action()
-    elif "freeze" in _changed:
-        run_state.pilot_action(freeze=True)
-    elif "tick" in _changed:
-        run_state.advance(advance_session)
-    if run_state.active != _was_active:
-        set_sampling_active(run_state.active)
-    _content = [mo.callout(run_state.message, kind="danger" if run_state.error else "info")]
-    if run_state.error:
-        _content.append(mo.md(f"`{run_state.error}`"))
-    if run_state.checkpoint_warning:
-        _content.append(mo.callout(run_state.checkpoint_warning, kind="warn"))
-    if run_state.configuration is not None:
-        _c = run_state.configuration
-        _content.append(mo.md(f"**Generated input:** {_c['example']} · requested $\\epsilon^{{{_c['max_order']}}}$. Draft edits do not alter this native owner."))
-    _content.extend([generation.generation_view(mo, run_state), integration.result_view(mo, run_state), integration.previous_result_view(mo, run_state)])
-    mo.output.replace(mo.vstack(_content))
-    run_revision = (run_state.phase, run_state.snapshot, len(run_state.events), run_state.generated)
-    return (run_revision,)
-
-
-@app.cell(hide_code=True)
-def _(generation, mo, run_revision, run_state, sectors):
-    run_revision
-    mo.vstack([
-        mo.md("## 3 · Native input and generated sectors"),
-        generation.input_view(mo, run_state),
-        sectors.overview(mo, run_state.generated, run_state.kernels),
-    ])
+def _(get_revision, mo, study):
+    get_revision()
+    study.monitor(mo)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    sector_index = mo.ui.number(start=0, value=0, step=1, label="Sector index")
-    coefficient_index = mo.ui.number(start=0, value=0, step=1, label="Coefficient index")
-    alias_page = mo.ui.number(start=0, value=0, step=1, label="Alias page")
-    chart_index = mo.ui.number(start=0, value=0, step=1, label="Chart index")
-    term_index = mo.ui.number(start=0, value=0, step=1, label="Mapped term index")
-    inspect_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Inspect sector")
-    numerator_button = mo.ui.button(value=0, on_click=lambda n: n+1, label="Inspect weighted numerator")
-    mo.vstack([mo.hstack([sector_index, coefficient_index, alias_page, chart_index, term_index], justify="start", wrap=True), mo.hstack([inspect_button, numerator_button], justify="start", wrap=True)])
-    return alias_page, chart_index, coefficient_index, inspect_button, numerator_button, sector_index, term_index
-
-
-@app.cell(hide_code=True)
-def _(alias_page, chart_index, coefficient_index, inspect_button, mo, numerator_button, run_revision, run_state, sector_index, sectors, term_index):
-    run_revision
-    _actions = {"inspect": inspect_button.value, "numerator": numerator_button.value}
-    _changed = {key for key, value in _actions.items() if value != run_state.seen[key]}
-    run_state.seen.update(_actions)
-    if "inspect" in _changed:
-        try:
-            if run_state.generated is None:
-                raise ValueError("Generate an input first")
-            run_state.inspected_sector = sectors.detail(mo, run_state.generated, int(sector_index.value), int(coefficient_index.value), int(alias_page.value), int(chart_index.value), int(term_index.value), run_state.kernels)
-        except Exception as _inspection_error:
-            run_state.inspected_sector = mo.callout(f"Sector inspection failed: {_inspection_error}", kind="warn")
-    elif "numerator" in _changed:
-        try:
-            if run_state.prepared is None:
-                raise ValueError("Generate an input first")
-            run_state.numerator_view = run_state.prepared.scalar_numerator()
-        except Exception as _numerator_error:
-            run_state.numerator_view = mo.callout(f"Native numerator inspection failed: {_numerator_error}", kind="warn")
-    mo.vstack([item for item in (run_state.inspected_sector, run_state.numerator_view) if item is not None])
-    return
-
-
-@app.cell(hide_code=True)
-def _(asset_description, mo, report, run_revision, run_state):
-    run_revision
-    _downloads = []
-    if run_state.previous_report_bytes is not None:
-        _downloads.append(mo.download(run_state.previous_report_bytes, filename="fastsecdec-previous-report.json", label="Download previous allocation report"))
-    if run_state.configuration is not None and not run_state.active:
-        _downloads.append(mo.download(lambda: report.report_bytes(run_state), filename="fastsecdec-report.json", label="Download run report"))
-    if run_state.kernels is not None and not run_state.active:
-        _downloads.append(mo.download(lambda: run_state.kernels.to_bytes(), filename="fastsecdec-kernels.bin", label="Download native kernels"))
-    if run_state.checkpoint_bytes is not None and not run_state.active:
-        _downloads.append(mo.download(run_state.checkpoint_bytes, filename="fastsecdec-checkpoint.json", label="Download checkpoint"))
-    mo.vstack([
-        mo.hstack(_downloads, justify="start") if _downloads else mo.md(""),
-        mo.accordion({"Reading the result · provenance and limits": mo.md(f"""
-        Full signed Laurent vectors and real/imaginary covariance come from native
-        snapshots. Missing uncertainty stays missing. The highest requested order
-        target is 0.1%; complete production is required. Completing an allocation
-        does not guarantee that target. Successive history observations share samples.
-
-        Generated sector coefficients may be complex, while compiled estimates split
-        their real and imaginary components. Native backend labels distinguish O2
-        kernels from the portable interpreter. Interactive active time includes
-        refresh waits; native worker time is separate. No responsiveness guarantee
-        or prepared numerical output is supplied.
-
-        **Assets:** {asset_description}. gg → HH is an optional extended run;
-        browser completion and cost remain unvalidated. See `README.md` for
-        source/build provenance, explicit browser asset mounting and interruption.
-        """)}),
-    ])
+def _(get_prepared_revision, mo, study):
+    get_prepared_revision()
+    study.prepared_view(mo)
     return
 
 
 @app.cell
-def _(mo, run_revision):
-    from symbolica import get_citations
+def _(get_artifact_revision, study):
+    get_artifact_revision()
+    generated = study.run.generated
+    generated
+    return (generated,)
 
-    run_revision  # Update the process bibliography as the computation advances.
+
+@app.cell
+def _(get_artifact_revision, study):
+    get_artifact_revision()
+    artifact = study.run.kernels
+    artifact
+    return (artifact,)
+
+
+@app.cell(hide_code=True)
+def _(get_inspection_revision, mo, study):
+    get_inspection_revision()
+    study.inspection_view(mo)
+    return
+
+
+@app.cell
+def _(get_revision, mo, study):
+    get_revision()
+    study.result_view(mo)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_artifact_revision, mo):
+    from symbolica import get_citations
+    get_artifact_revision()
     citations = get_citations()
-    mo.vstack([
-        mo.md("## References"),
+    mo.accordion({"Native citations": mo.vstack([
         *[mo.as_html(citation) for citation in citations],
-        mo.download("\n\n".join(citation.to_bibtex() for citation in citations).encode(),
-                    filename="fastsecdec-references.bib", label="Download BibTeX"),
-    ])
-    return (citations,)
+        mo.download("\n\n".join(c.to_bibtex() for c in citations).encode(), filename="fastsecdec-references.bib", label="Download BibTeX"),
+    ])})
+    return
 
 
 if __name__ == "__main__":

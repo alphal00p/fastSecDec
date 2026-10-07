@@ -37,6 +37,12 @@ fn integrate(graph: GraphIntegral, mu_squared: i64) -> VectorEstimate {
     })
     .unwrap();
     let mut kernels = generated.compile().unwrap();
+    // These independent master comparisons retain their original validated
+    // precision contract. Default distance routing has separate kernel controls
+    // and the numerator-reference suite also exercises the default policy.
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
     let problem = IntegrationProblem::new_with_components(
         kernels.content_id().to_owned(),
         kernels.orders().to_vec(),

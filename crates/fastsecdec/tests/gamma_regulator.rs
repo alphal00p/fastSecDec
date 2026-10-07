@@ -57,7 +57,7 @@ fn gamma_and_endpoint_poles_keep_the_complete_underscored_regulator_vector() {
         // Independent analytic constants, including a positive epsilon order.
         let expected = [
             1.0,
-            -0.577_215_664_901_532_9,
+            -std::f64::consts::EULER_GAMMA,
             0.989_055_995_327_972_6,
             -0.907_479_076_080_886_3,
         ];

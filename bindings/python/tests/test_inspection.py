@@ -10,6 +10,7 @@ from symbolica.community import hepkit as hep
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
+from _fixtures import fixed_arguments
 
 fs = getattr(hep, "sector_decomposition", None)
 pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel with FastSecDec")
@@ -22,7 +23,7 @@ def prepared():
 
 @pytest.fixture(scope="module")
 def generated(prepared):
-    return fs.Integral(**prepared.integral_arguments()).generate(
+    return fs.Integral(**fixed_arguments(prepared)).generate(
         1, coefficient_expansion="native_named"
     )
 
@@ -58,7 +59,7 @@ def test_all_sector_views_preserve_native_chart_and_representative_indices(gener
 def test_coordinate_images_and_positive_measure_preserve_exact_geometry(generated):
     domain = generated.metadata.domain
     assert domain.domain == "projective_simplex"
-    assert domain.branch_policy == "no_threshold_real"
+    assert domain.branch_policy == "user_responsible"
     assert not domain.caller_asserted and not domain.relies_on_assertion
     assert domain.factors
     for factor in domain.factors:
@@ -66,7 +67,7 @@ def test_coordinate_images_and_positive_measure_preserve_exact_geometry(generate
         assert isinstance(factor.polynomial, Expression)
         assert isinstance(factor.exponent, Expression)
         assert factor.certificate in {
-            "positive_coefficients", "negative_coefficients_integer_power"
+            "unchecked_user_responsibility"
         }
     for chart in generated.metadata.charts:
         coordinates, geometry = chart.coordinates, chart.geometry
@@ -117,7 +118,7 @@ def test_compact_roots_and_definitions_are_native_and_immutable(generated):
 
 
 def test_selected_views_outlive_all_parent_python_variables(prepared):
-    value = fs.Integral(**prepared.integral_arguments()).generate(
+    value = fs.Integral(**fixed_arguments(prepared)).generate(
         0, coefficient_expansion="native_named"
     )
     sector = value.sectors[0]
@@ -149,8 +150,20 @@ def test_selected_views_outlive_all_parent_python_variables(prepared):
             power.constant, power.slope, power.subtraction_count) == mapped_values
 
 
+def test_explicit_selected_expression_uses_native_alias_restoration(generated):
+    selected = next(coefficient for sector in generated.sectors
+                    for coefficient in sector.aliased_coefficients
+                    if coefficient.alias_count)
+    retained = selected.root, selected.aliases
+    restored = selected.expression()
+    assert isinstance(restored, Expression)
+    assert all(not restored.contains(alias) for alias, _ in retained[1])
+    assert restored == selected.expression()
+    assert (selected.root, selected.aliases) == retained
+
+
 def test_generated_complex_orders_are_distinct_from_compiled_components(prepared):
-    arguments = prepared.integral_arguments()
+    arguments = fixed_arguments(prepared)
     arguments["measure_multiplier"] = 2 + 3 * Expression.I
     value = fs.Integral(**arguments).generate(0, coefficient_expansion="native_named")
     assert value.orders == [0]
@@ -170,7 +183,7 @@ def test_generated_complex_orders_are_distinct_from_compiled_components(prepared
         counts = record.operations
         assert all(getattr(counts, name) >= 0 for name in
                    ("additions", "multiplications", "inversions", "function_calls"))
-        if kernels.backend == "native_o2":
+        if kernels.backend == "symjit_o2":
             assert record.backend == "symjit_o2" and record.symjit_ir_bytes > 0
         else:
             assert record.backend == "symbolica_interpreter" and record.symjit_ir_bytes is None
@@ -187,7 +200,7 @@ def test_generated_complex_orders_are_distinct_from_compiled_components(prepared
 
 
 def test_truncated_charts_retain_none_without_inventing_per_chart_zeros(prepared):
-    arguments = prepared.integral_arguments()
+    arguments = fixed_arguments(prepared)
     arguments["measure_multiplier"] = prepared.regulator**2
     value = fs.Integral(**arguments).generate(0)
     assert value.sectors == [] and value.sector_count == 0
@@ -217,7 +230,7 @@ def test_mapped_endpoint_powers_are_exact_source_chart_views(generated):
 
 def test_singular_box_retains_actual_endpoint_subtraction_requirements():
     prepared = inputs.massless_box()
-    value = fs.Integral(**prepared.integral_arguments()).generate(-1)
+    value = fs.Integral(**fixed_arguments(prepared)).generate(-1)
     powers = [power for chart in value.metadata.charts
               for term in chart.pre_subtraction.terms for power in term.powers]
     assert powers

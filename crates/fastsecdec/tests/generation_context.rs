@@ -224,41 +224,35 @@ fn equal_support_reuses_only_geometry_and_reassesses_changed_coefficients() {
         ..Default::default()
     };
     for options in [&options, &asserted] {
-        let mut reuse_emitted = false;
-        let error = context
-            .generate(
-                &input(parse!("1-2*x"), parse!("-1"), Atom::Zero),
+        for (polynomial, exponent) in [
+            (parse!("1-2*x"), parse!("-1")),
+            (parse!("-1-x"), parse!("-1/2")),
+            (parse!("1-x"), parse!("-1")),
+        ] {
+            let (generated, reuse) = run(
+                &mut context,
+                &input(polynomial.clone(), exponent, Atom::Zero),
                 options,
-                |event| {
-                    reuse_emitted |= matches!(event, GenerationEvent::GeometryReuse(_));
-                    ControlFlow::Continue(())
-                },
-            )
-            .unwrap_err();
-        assert!(matches!(error, GenerationError::Threshold(_)));
-        assert!(!reuse_emitted);
+            );
+            assert!(reuse[0].reused);
+            let domain = generated.metadata().domain_assessment();
+            assert_eq!(
+                domain.branch_policy(),
+                fastsecdec::generation::BranchPolicy::UserResponsible
+            );
+            assert_eq!(domain.caller_asserted(), options.assume_no_threshold);
+            assert_eq!(domain.factors()[0].polynomial(), &polynomial);
+            assert_eq!(
+                domain.factors()[0].certificate(),
+                fastsecdec::generation::FactorCertificate::UncheckedUserResponsibility
+            );
+        }
     }
-    assert!(matches!(
-        context.generate(
-            &input(parse!("-1-x"), parse!("-1/2"), Atom::Zero),
-            &asserted,
-            |_| ControlFlow::Continue(())
-        ),
-        Err(GenerationError::ComplexBranch(_))
-    ));
-    assert!(matches!(
-        context.generate(
-            &input(parse!("1-x"), parse!("-1"), Atom::Zero),
-            &asserted,
-            |_| ControlFlow::Continue(())
-        ),
-        Err(GenerationError::UpperBoundary(_))
-    ));
     assert_eq!(context.geometry_cache().len(), 1);
 }
 
 #[test]
-fn assertions_and_input_domain_are_not_cached_admission() {
+fn caller_provenance_and_input_domain_are_not_replaced_by_cached_geometry() {
     let mut context = GenerationContext::new(4);
     let ordinary = GenerationOptions::default();
     let asserted = GenerationOptions {
@@ -271,22 +265,17 @@ fn assertions_and_input_domain_are_not_cached_admission() {
         &ordinary,
     );
     let unknown = input(parse!("1-x+x^2"), parse!("-1"), Atom::Zero);
-    assert!(matches!(
-        context.generate(&unknown, &ordinary, |_| ControlFlow::Continue(())),
-        Err(GenerationError::UnknownDomain(_))
-    ));
-    let (accepted, observation) = run(&mut context, &unknown, &asserted);
-    assert!(observation[0].reused);
-    assert!(
-        accepted
-            .metadata()
-            .domain_assessment()
-            .relies_on_assertion()
-    );
-    assert!(matches!(
-        context.generate(&unknown, &ordinary, |_| ControlFlow::Continue(())),
-        Err(GenerationError::UnknownDomain(_))
-    ));
+    for options in [&ordinary, &asserted, &ordinary] {
+        let (accepted, observation) = run(&mut context, &unknown, options);
+        assert!(observation[0].reused);
+        let domain = accepted.metadata().domain_assessment();
+        assert_eq!(domain.caller_asserted(), options.assume_no_threshold);
+        assert!(!domain.relies_on_assertion());
+        assert_eq!(
+            domain.factors()[0].certificate(),
+            fastsecdec::generation::FactorCertificate::UncheckedUserResponsibility
+        );
+    }
 
     let cube = input(parse!("1+x"), parse!("-2"), Atom::Zero);
     run(&mut context, &cube, &ordinary);
@@ -503,7 +492,7 @@ fn caller_dispatch_preserves_generated_vectors_metadata_and_native_analytic_cont
 }
 
 #[test]
-fn dispatched_generation_reassesses_domain_and_never_admits_incomplete_work() {
+fn dispatched_generation_retains_caller_provenance_and_never_admits_incomplete_work() {
     use fastsecdec::generation::{GeometryCompletion, GeometryJob};
     let options = GenerationOptions::default();
     let good = input(parse!("1+x"), parse!("-1"), parse!("-1+eps"));
@@ -517,17 +506,24 @@ fn dispatched_generation_reassesses_domain_and_never_admits_incomplete_work() {
             |_| ControlFlow::Continue(()),
         )
         .unwrap();
-    let mut never=|_: &mut dyn ExactSizeIterator<Item=GeometryJob>| -> Result<Vec<GeometryCompletion>,SectorError> {panic!("domain failure/empty input dispatched")};
-    assert!(matches!(
-        context.generate_with_dispatch(
+    let mut never=|_: &mut dyn ExactSizeIterator<Item=GeometryJob>| -> Result<Vec<GeometryCompletion>,SectorError> {panic!("cached/empty input dispatched")};
+    let formal = context
+        .generate_with_dispatch(
             &input(parse!("1-2*x"), parse!("-1"), Atom::Zero),
             &options,
             &mut never,
             || false,
-            |_| ControlFlow::Continue(())
-        ),
-        Err(GenerationError::Threshold(_))
-    ));
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+    assert_eq!(
+        formal.metadata().domain_assessment().branch_policy(),
+        fastsecdec::generation::BranchPolicy::UserResponsible
+    );
+    assert_eq!(
+        formal.metadata().domain_assessment().factors()[0].polynomial(),
+        &parse!("1-2*x")
+    );
     assert_eq!(context.geometry_cache().len(), 1);
     let zero = ParametricIntegrand::new(
         good.parameters().to_vec(),

@@ -10,9 +10,16 @@ from .integration import highest_order_rows
 class RunState:
     prepared: object = None
     generated: object = None
+    generation_session: object = None
+    generation_active: bool = False
+    generation_display: object = None
+    generation_last_display: float = -float("inf")
     kernels: object = None
+    parameter_point: dict = field(default_factory=dict)
     session: object = None
     snapshot: object = None
+    observation: object = None
+    live_observation: object = None
     configuration: dict | None = None
     events: list = field(default_factory=list)
     input_events: list = field(default_factory=list)
@@ -60,50 +67,97 @@ class RunState:
 
     def observe_generation(self, event, display=None):
         self.events.append(event)
-        if display is not None:
+        now = perf_counter()
+        if display is not None and (now - self.generation_last_display >= 1.0 or event.stage == "complete"):
             display(event)
+            self.generation_last_display = now
         return True
 
-    def generate(self, decompose, prepare, configuration, *, compile, display=None, input_display=None):
-        """Own the UI lifecycle; invoke the notebook's explicit native callbacks."""
-        if self.active:
-            self.message = "Cancel integration before generating another input."
+    @property
+    def work_active(self):
+        return self.active or self.generation_active
+
+    def start_generation(self, prepare, configuration, create_session, *, display=None):
+        """Construct a retained native generation owner; sampling stays absent."""
+        if self.work_active:
+            self.message = "Pause the active calculation before choosing another input."
             return
         self.prepared = self.generated = self.kernels = self.session = self.snapshot = None
+        self.generation_session = None
+        self.observation = self.live_observation = None
+        self.parameter_point.clear()
+        self.previous_report_bytes = self.previous_snapshot = None
+        self.previous_configuration = self.previous_phase = None
+        self.preparation_seconds = 0.0
         self.configuration = dict(configuration)
         self.events.clear()
-        self.input_events.clear()
         self.history.clear()
+        self.input_events.clear()
         self.inspected_sector = self.numerator_view = self.drawing = None
-        self.preparation_seconds = 0.0
-        self.pilot_seconds = 0.0
         self.checkpoint_bytes = None
-        self.error = None
-        self.checkpoint_warning = None
-        self.active_seconds = 0.0
+        self.error = self.checkpoint_warning = None
+        self.active_seconds = self.pilot_seconds = 0.0
         self.active_started = None
         self.phase = "preparing"
-        self.message = "Preparing the submitted native input…"
+        self.message = "Preparing the selected native diagram. Pause is serviced at the next native unit boundary."
+        self.generation_display = display
+        self.generation_last_display = -float("inf")
+        if display is not None:
+            display()
         started = perf_counter()
         try:
-            def input_observer(event):
-                self.input_events.append(event)
-                if input_display is not None:
-                    input_display(event)
-                return True
-            self.prepared = prepare(input_observer)
+            self.prepared = prepare()
             self.preparation_seconds = perf_counter() - started
+            self.generation_session = create_session(self.prepared, configuration)
+            self.generation_active = not self.generation_session.complete
             self.phase = "generating"
-            self.message = "Generating native sectors…"
-            observer = lambda event: self.observe_generation(event, display)
-            self.generated = decompose(self.prepared, configuration["max_order"], observer)
-            self.phase = "compiling"
-            self.kernels = compile(self.generated, observer)
-            self.phase = "ready"
-            self.message = "Generation and compilation complete. No points sampled. Inspect the sectors, then select Integrate."
+            self.message = "Generating sectors and eager evaluators. Pause retains this native owner."
+            if self.generation_active:
+                self.advance_generation()
+            else:
+                self.generated = self.generation_session.generated
+                self.kernels = self.generation_session.kernels
+                self.phase = "ready"
+                self.message = "Native generation is already complete. No points sampled."
         except (Exception, KeyboardInterrupt) as error:
             self.preparation_seconds = self.preparation_seconds or perf_counter() - started
+            self.generation_active = False
             self.fail(error)
+
+    def advance_generation(self, *, display=True):
+        if not self.generation_active:
+            return
+        try:
+            self.generation_session.step(max_units=1, observer=lambda event: self.observe_generation(
+                event, (lambda _: self.generation_display()) if display and self.generation_display is not None else None))
+            self.generated = self.generation_session.generated
+            self.kernels = self.generation_session.kernels
+            if self.generation_session.complete:
+                self.generation_active = False
+                self.phase = "ready"
+                self.message = "Sectors and eager evaluators ready. Inspect them, then integrate explicitly. No points sampled."
+        except KeyboardInterrupt:
+            self.generation_active = False
+            self.phase = "generation_paused"
+            self.message = "Generation paused; Resume continues the retained native owner."
+        except Exception as error:
+            self.generated = self.generation_session.generated
+            self.kernels = self.generation_session.kernels
+            self.generation_active = False
+            if self.generation_session.failed is None:
+                self.phase = "generation_paused"
+                self.error = f"{type(error).__name__}: {error}"
+                self.message = "Caller/presentation interruption; the native unit is retained. Resume retries the next unit."
+            else:
+                self.fail(error)
+
+    def pause(self):
+        if self.generation_active:
+            self.generation_active = False
+            self.phase = "generation_paused"
+            self.message = "Generation paused between native units. Resume continues the same owner."
+        else:
+            self.cancel()
 
     def integrate(self, create_session, settings=None):
         """Start a fresh native session only from already prepared kernels."""
@@ -133,11 +187,12 @@ class RunState:
             self.session = create_session(self.kernels, configuration)
             self.configuration = configuration
             self.snapshot = self.session.snapshot()
+            self.capture_observation()
             self.active = not self.session.complete
             self.active_started = perf_counter() if self.active else None
             self.phase = ("pilot" if self.pilot else "integrating") if self.active else ("pilot_ready" if self.pilot else "complete")
             self.error = None
-            self.message = ("Havana pilot — one global batch per refresh. Freeze production explicitly after training." if self.pilot else "Integrating — one native package per refresh.") if self.active else "The native allocation is exact and already complete."
+            self.message = ("Havana pilot. Production starts after this pilot; its samples stay excluded." if self.pilot else "Integrating with short caller work budgets; native observations refresh once per second.") if self.active else "The native allocation is exact and already complete."
             if not self.active:
                 self.save_checkpoint()
         except (Exception, KeyboardInterrupt) as error:
@@ -162,6 +217,7 @@ class RunState:
                 self.fail(error)
                 return
         self.session = self.snapshot = None
+        self.observation = self.live_observation = None
         self.history.clear()
         self.checkpoint_bytes = None
         self.error = self.checkpoint_warning = None
@@ -187,6 +243,7 @@ class RunState:
             warnings = []
             try:
                 self.snapshot = self.session.snapshot()
+                self.capture_observation()
             except (Exception, KeyboardInterrupt) as secondary:
                 warnings.append(f"Snapshot capture failed: {type(secondary).__name__}: {secondary}")
             try:
@@ -203,17 +260,25 @@ class RunState:
         try:
             self.save_checkpoint()
             self.snapshot = self.session.snapshot()
+            self.capture_observation()
             self.phase = "paused"
             self.message = "Pilot paused in memory; Resume continues this native session. Downloadable checkpoints become available after freezing production." if self.pilot else "Cancelled by the caller between packages. Accepted coverage is saved."
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
 
     def resume(self):
+        if self.phase == "generation_paused" and self.generation_session is not None:
+            self.generation_active = True
+            self.phase = "generating"
+            self.error = None
+            self.message = "Resuming native generation and eager compilation."
+            return
         if self.active or self.kernels is None:
             return
         if self.pilot:
             try:
                 self.snapshot = self.session.snapshot()
+                self.capture_observation()
                 self.active = not self.session.complete
                 self.active_started = perf_counter() if self.active else None
                 self.phase = "pilot" if self.active else "pilot_ready"
@@ -231,6 +296,7 @@ class RunState:
             restore = self.kernels.restore_mc if self.is_mc else self.kernels.restore
             self.session = restore(self.checkpoint_bytes)
             self.snapshot = self.session.snapshot()
+            self.capture_observation()
             self.active = not self.session.complete
             self.active_started = perf_counter() if self.active else None
             self.error = None
@@ -252,6 +318,7 @@ class RunState:
                 )
             else:
                 self.snapshot = self.session.adapt_pilot()
+            self.capture_observation()
             self.pilot_seconds += elapsed
             self.history.clear()
             self.checkpoint_bytes = None
@@ -260,22 +327,32 @@ class RunState:
             self.active_started = perf_counter() if self.active else None
             self.phase = "pilot" if self.pilot else "integrating"
             self.error = self.checkpoint_warning = None
-            self.message = "Another native pilot epoch started." if self.pilot else "Production grids frozen; pilot estimates discarded. Sampling one global batch per refresh."
+            self.message = "Another native pilot epoch started." if self.pilot else "Production grids frozen; pilot estimates discarded. Sampling in short caller work budgets."
             if not self.active:
                 self.phase = "pilot_ready" if self.pilot else "complete"
                 self.save_checkpoint()
         except (Exception, KeyboardInterrupt) as error:
             self.fail(error)
 
-    def advance(self, step):
+    def capture_observation(self):
+        # Read-only native views; these never enter checkpoints or convergence.
+        self.observation = self.session.observation() if hasattr(self.session, "observation") else None
+        self.live_observation = self.session.live_observation() if hasattr(self.session, "live_observation") else None
+
+    def record_estimate(self):
+        if self.snapshot.estimate is not None:
+            for row in highest_order_rows(self.snapshot.estimate):
+                self.history.append({"accepted points": self.snapshot.completed_points, **row})
+
+    def advance(self, step, *, observe=True):
         """Only an explicit Integrate or Resume action can arm these steps."""
         if not self.active:
             return
         try:
             self.snapshot = step(self.session, self.configuration.get("method", "qmc"))
-            if self.snapshot.estimate is not None:
-                for row in highest_order_rows(self.snapshot.estimate):
-                    self.history.append({"accepted points": self.snapshot.completed_points, **row})
+            if observe or self.session.complete:
+                self.capture_observation()
+                self.record_estimate()
             if self.session.complete:
                 self.stop_clock()
                 self.active = False

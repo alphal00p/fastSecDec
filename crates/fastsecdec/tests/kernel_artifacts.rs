@@ -41,28 +41,6 @@ fn generated() -> fastsecdec::generation::GeneratedIntegral {
     .unwrap()
 }
 
-// These are serialization checks, not an alternative native IR validator.
-fn resign(mut text: String, version: u32) -> Vec<u8> {
-    let value: serde_json::Value = serde_json::from_str(&text).unwrap();
-    let start = text.find("\"payload\":").unwrap() + "\"payload\":".len();
-    let mut hash = blake3::Hasher::new();
-    #[cfg(feature = "native")]
-    let domain = format!("fastsecdec-portable-kernel-v{version}:symbolica-3:symjit-2.26:f64");
-    #[cfg(feature = "portable")]
-    let domain = {
-        assert_eq!(version, 3);
-        "fastsecdec-portable-kernel-v3:symbolica-3:interpreter:malachite:astro:f64".to_owned()
-    };
-    hash.update(domain.as_bytes());
-    hash.update(&text.as_bytes()[start..text.len() - 1]);
-    text = text.replacen(
-        value["content_id"].as_str().unwrap(),
-        hash.finalize().to_hex().as_ref(),
-        1,
-    );
-    text.into_bytes()
-}
-
 #[cfg(feature = "native")]
 #[test]
 fn legacy_v1_v2_keep_original_identity_bytes_and_expression_semantics() {
@@ -105,19 +83,9 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
     let retained_address = compiled.artifact_bytes().unwrap().as_ptr();
     assert_eq!(compiled.artifact_bytes().unwrap(), before_compile);
     assert_eq!(compiled.to_bytes().unwrap(), before_compile);
-    let payload: serde_json::Value = serde_json::from_slice(&before_compile).unwrap();
-    assert_eq!(payload["payload"]["version"], 3);
-    assert!(
-        payload["payload"]["sectors"][0]
-            .get("coefficients")
-            .is_none()
-    );
-    assert!(
-        !payload["payload"]["sectors"][0]["program"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
+    assert!(before_compile.starts_with(b"FastSecDec\0binserde\x07"));
+    assert!(serde_json::from_slice::<serde_json::Value>(&before_compile).is_err());
+    assert!(compiled.sectors()[0].statistics().exact_program_bytes > 0);
     let mut restored = KernelSet::from_bytes(&before_compile).unwrap();
     assert_eq!(restored.orders(), [0, 0, 1, 1, 2, 2]);
     assert_eq!(compiled.content_id(), restored.content_id());
@@ -146,215 +114,70 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
 }
 
 #[test]
-fn native_cold_load_retains_original_formatting_in_borrowed_transport() {
-    let generated = generated();
-    let bytes = generated
+fn binary_transport_retains_owned_and_borrowed_identity() {
+    let bytes = generated()
         .to_kernel_bytes(PrecisionPolicy::default())
         .unwrap();
-    let pretty =
-        serde_json::to_vec_pretty(&serde_json::from_slice::<serde_json::Value>(&bytes).unwrap())
-            .unwrap();
-    assert_ne!(pretty, bytes);
-    let original = KernelSet::from_bytes(&bytes).unwrap();
-    let restored = KernelSet::from_bytes(&pretty).unwrap();
-    assert_eq!(restored.content_id(), original.content_id());
-    assert_eq!(restored.artifact_bytes().unwrap(), pretty);
+    let restored = KernelSet::from_bytes(&bytes).unwrap();
+    assert_eq!(restored.artifact_bytes().unwrap(), bytes);
     let copied = restored.to_bytes().unwrap();
-    assert_eq!(copied, pretty);
+    assert_eq!(copied, bytes);
     assert_ne!(copied.as_ptr(), restored.artifact_bytes().unwrap().as_ptr());
 }
 
 #[test]
-fn native_codec_layout_and_exact_byte_exhaustion_are_enforced() {
+fn binary_integrity_header_and_exact_byte_exhaustion_are_enforced() {
     let bytes = generated()
         .to_kernel_bytes(PrecisionPolicy::default())
         .unwrap();
-    let text = String::from_utf8(bytes).unwrap();
-    #[cfg(feature = "native")]
-    let policy_strings = (
-        format!(
-            "symjit-version-code={}:O2:direct",
-            fastsecdec::kernel::symjit_version_code()
-        ),
-        format!(
-            "symjit-version-code={}:O3:direct",
-            fastsecdec::kernel::symjit_version_code()
-        ),
-    );
-    #[cfg(feature = "native")]
-    let policy = (policy_strings.0.as_str(), policy_strings.1.as_str());
-    #[cfg(feature = "portable")]
-    let policy = ("symbolica-3.0.1:interpreter", "symbolica-3.0.1:unsupported");
-    for (before, after) in [
-        (
-            "98794d0d7337ba2b08e4c046dde584ad7fc1ce10",
-            "0000000000000000000000000000000000000000",
-        ),
-        (
-            "serde-bincode-2-standard:v1",
-            "serde-bincode-2-standard:v999",
-        ),
-        policy,
-        (
-            "\"components\":[\"Real\",\"Imag\",\"Real\",\"Imag\",\"Real\",\"Imag\"]",
-            "\"components\":[\"Real\"]",
-        ),
-    ] {
-        assert!(text.contains(before));
-        assert!(KernelSet::from_bytes(&resign(text.replacen(before, after, 1), 3)).is_err());
-    }
-    let start = text.find("\"program\":[").unwrap() + "\"program\":".len();
-    let end = start + text[start..].find(']').unwrap() + 1;
-    let original: Vec<u8> = serde_json::from_str(&text[start..end]).unwrap();
-    let mut trailing = original.clone();
+    let mut trailing = bytes.clone();
     trailing.push(0);
+    let mut corrupt = bytes.clone();
+    let last = corrupt.len() - 1;
+    corrupt[last] ^= 1;
+    let mut unsupported = bytes.clone();
+    unsupported[b"FastSecDec\0binserde".len()] = 255;
     for bad in [
         Vec::new(),
-        original[..original.len() - 1].to_vec(),
+        bytes[..bytes.len() - 1].to_vec(),
         trailing,
+        corrupt,
+        unsupported,
     ] {
-        let changed = format!(
-            "{}{}{}",
-            &text[..start],
-            serde_json::to_string(&bad).unwrap(),
-            &text[end..]
-        );
-        assert!(KernelSet::from_bytes(&resign(changed, 3)).is_err());
+        assert!(KernelSet::from_bytes(&bad).is_err());
     }
 }
 
 #[cfg(feature = "native")]
 #[test]
-fn backend_version_is_recorded_and_legacy_ir_keeps_its_original_bytes() {
-    let version = fastsecdec::kernel::symjit_version_code();
-    let bytes = generated()
-        .to_kernel_bytes(PrecisionPolicy::default())
-        .unwrap();
-    let text = String::from_utf8(bytes.clone()).unwrap();
-    let policy = format!("symjit-version-code={version}:O2:direct:horner-iterations=0");
-    assert!(text.contains(&policy));
-    let loaded = KernelSet::from_bytes(&bytes).unwrap();
-    assert_eq!(loaded.to_bytes().unwrap(), bytes);
-
-    let legacy = resign(
-        text.replacen(&policy, "symjit-2.26.4:O2:direct:horner-iterations=0", 1),
-        3,
-    );
-    let restored = KernelSet::from_bytes(&legacy);
-    if version == 22604 {
-        let restored = restored.unwrap();
-        let saved: serde_json::Value = serde_json::from_slice(&legacy).unwrap();
-        assert_eq!(restored.content_id(), saved["content_id"].as_str().unwrap());
-        assert_eq!(restored.to_bytes().unwrap(), legacy);
-    } else {
-        assert!(restored.is_err());
-    }
+fn legacy_json_whitespace_is_retained_without_changing_scientific_identity() {
+    let bytes = include_bytes!("fixtures/kernel-v2-triangle.json");
+    let pretty =
+        serde_json::to_vec_pretty(&serde_json::from_slice::<serde_json::Value>(bytes).unwrap())
+            .unwrap();
+    let original = KernelSet::from_bytes(bytes).unwrap();
+    let restored = KernelSet::from_bytes(&pretty).unwrap();
+    assert_eq!(original.content_id(), restored.content_id());
+    assert_eq!(restored.artifact_bytes().unwrap(), pretty);
 }
 
 #[test]
-fn real_layout_cannot_discard_an_exact_imaginary_coefficient_below_f64_range() {
-    let input = ParametricIntegrand::new(
-        vec![symbol!("artifact_tiny::x")],
-        symbol!("artifact_tiny::eps"),
-        ParametricDomain::UnitCube,
-        vec![ParametricTerm::new(
-            parse!("1+𝑖/10^400"),
-            vec![Atom::one()],
-            vec![],
-        )],
-    )
-    .unwrap();
-    let generated = generate(&input, &GenerationOptions::default(), |_| {
-        ControlFlow::Continue(())
-    })
-    .unwrap();
-    let text = String::from_utf8(
-        generated
-            .to_kernel_bytes(PrecisionPolicy::default())
-            .unwrap(),
-    )
-    .unwrap();
-    let complex_layout = "\"components\":[\"Real\",\"Imag\"]";
-    assert!(text.contains(complex_layout));
-    let tampered = resign(
-        text.replacen(complex_layout, "\"components\":[\"Real\"]", 1),
-        3,
-    );
-    let error = match KernelSet::from_bytes(&tampered) {
-        Ok(_) => panic!("an exact imaginary coefficient was silently projected to real"),
-        Err(error) => error,
+fn configured_optimizer_policy_survives_binary_cold_load() {
+    let settings = fastsecdec::kernel::CompilationSettings {
+        horner_iterations: 2,
+        cpe_rounds: Some(7),
+        ..Default::default()
     };
-    assert!(
-        error.to_string().contains("complex native coefficient"),
-        "{error}"
-    );
-}
-
-#[test]
-fn complex_fixed_gamma_cannot_be_loaded_with_a_real_output_layout() {
-    let input = ParametricIntegrand::new(
-        vec![symbol!("artifact_fixed::x")],
-        symbol!("artifact_fixed::eps"),
-        ParametricDomain::UnitCube,
-        vec![ParametricTerm::new(
-            parse!("gamma(1+𝑖)"),
-            vec![Atom::one()],
-            vec![],
-        )],
-    )
-    .unwrap();
-    let generated = generate(&input, &GenerationOptions::default(), |_| {
-        ControlFlow::Continue(())
-    })
-    .unwrap();
-    let bytes = generated
-        .to_kernel_bytes(PrecisionPolicy::default())
+    let original = generated()
+        .compile_with_settings_parameters_and_progress(Default::default(), &[], settings, |_| {
+            ControlFlow::Continue(())
+        })
         .unwrap();
-    // Establish that the fixed external constant is supported on its actual
-    // complex path before asking the real compiler to reject it fallibly.
-    let mut complex = KernelSet::from_bytes(&bytes).unwrap();
-    let mut output = [0.0; 2];
-    complex.sectors_mut()[0]
-        .evaluate(&[0.25], &mut output)
-        .unwrap();
-    assert!(output.iter().all(|v| v.is_finite()));
-    assert_ne!(output[1], 0.0);
-    let text = String::from_utf8(bytes).unwrap();
-    let layout = "\"components\":[\"Real\",\"Imag\"]";
-    assert!(text.contains(layout));
-    let real = resign(text.replacen(layout, "\"components\":[\"Real\"]", 1), 3);
-    assert!(KernelSet::from_bytes(&real).is_err());
-}
-
-#[test]
-fn a_different_backend_policy_is_rejected_before_native_program_decoding() {
-    let bytes = generated()
-        .to_kernel_bytes(PrecisionPolicy::default())
-        .unwrap();
-    let mut artifact: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    #[cfg(feature = "native")]
-    let foreign = (
-        "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1:integer-malachite:float-astro",
-        "symbolica-3.0.1:interpreter:integer-malachite:float-astro:horner-iterations=0",
-    );
-    #[cfg(feature = "portable")]
-    let foreign = (
-        "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1",
-        "symjit-2.26.4:O2:direct:horner-iterations=0",
-    );
-    assert_ne!(artifact["payload"]["program_codec"], foreign.0);
-    assert_ne!(artifact["payload"]["compiler_policy"], foreign.1);
-    artifact["payload"]["program_codec"] = foreign.0.into();
-    artifact["payload"]["compiler_policy"] = foreign.1.into();
-    artifact["payload"]["sectors"][0]["program"] = serde_json::json!([255]);
-    let error = match KernelSet::from_bytes(&serde_json::to_vec(&artifact).unwrap()) {
-        Ok(_) => panic!("foreign backend artifact was accepted"),
-        Err(error) => error,
-    };
-    assert!(
-        error.to_string().contains("codec or compiler policy"),
-        "{error}"
-    );
+    let bytes = original.artifact_bytes().unwrap();
+    let loaded = KernelSet::from_bytes(bytes).unwrap();
+    assert_eq!(loaded.compilation_settings(), &settings);
+    assert_eq!(loaded.content_id(), original.content_id());
+    assert_eq!(loaded.artifact_bytes().unwrap(), bytes);
 }
 
 #[cfg(feature = "portable")]

@@ -9,8 +9,9 @@ The inventory contains 24 graph and direct-parametric run cards and 17 native
 DOT files; the CLI input test covers every card.
 The separate [generated gg→HH double box](gghh_double_box/README.md) adds a
 Standard-Model diagram, numerical helicity projectors and its full provenance.
-Its first bounded native CLI generation did not complete; it is an explicit
-development example, outside the validated card inventory above.
+It uses runtime kinematic/model inputs, paired metadata/native-data artifacts,
+and the same batched QMC and Havana runtime as the scalar examples. See its guide
+for the current commands and the recorded validation scope.
 Native bubble and triangle CLI runs pass initial analytic checks, and the native
 massless box passes its complete Laurent-vector QMC regression. Eleven native
 one-loop graph cases also pass complete-vector comparisons against HEPKit's Rust
@@ -21,8 +22,26 @@ checks. Remaining multiloop and numerator acceptance is tracked in the regressio
 `models/scalar.json` provides the real mass parameter `mt`, zero widths, and
 scalar vertices of degree two through five. `models/massless.json` and
 `models/massive.json` set `mt` to zero and one. Native expressions refer to that
-parameter as `UFO::mt`. Kinematic invariants remain independent inputs, including
-off-shell external legs. The minimal `massless_phi3.json` model also supports the
+parameter as `UFO::mt`. Kinematic dot products are named runtime inputs, including
+nonzero off-shell virtualities. `[integration.parameters]` selects each card's
+historical Euclidean point, and contributing nonzero model masses are supplied
+there as `model::mt`. Literal zero masses and on-shell virtualities define the generated
+family; changing those structural restrictions requires regeneration. The
+`[parameters]` compile-time substitution option remains available for deliberate
+specialization, but these graph cards use evaluator parameters instead.
+
+```sh
+./target/release/fastsecdec generate examples/runs/triangle.toml --output output/triangle.fsd
+./target/release/fastsecdec inspect output/triangle.fsd
+./target/release/fastsecdec integrate output/triangle.fsd --method qmc --points 4096 --shifts 32 --target-order 0 --relative-tolerance 0.001 --max-rounds 8
+```
+
+Always pass the artifact basename. Generation writes human metadata to
+`output/triangle.fsd.json` and the native serialized evaluator to
+`output/triangle.fsd.dat`. Keep both together when moving the artifact.
+`--parameters point.toml` overrides the stored integration point without
+recompiling expressions. The [Marimo notebooks](hepkit/README.md) expose the
+same separate actions using single-core eager evaluation. The minimal `massless_phi3.json` model also supports the
 initial bubble and triangle library examples.
 
 The scalar graph topologies follow the examples in FastSecDecPathFinder revision

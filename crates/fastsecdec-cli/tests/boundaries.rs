@@ -1,7 +1,7 @@
 //! Exercise the typed diagnostic and cancellation contract across real CLI processes.
 use std::{
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Read},
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -19,7 +19,7 @@ fn cli() -> Command {
 
 fn generate(directory: &Path, card: &str) -> PathBuf {
     let input = directory.join("input.toml");
-    let artifact = directory.join("integral.json");
+    let artifact = directory.join("integral.fsd");
     fs::write(&input, card).unwrap();
     let generated = cli()
         .arg("--json")
@@ -217,7 +217,16 @@ monomial_powers = [{powers}]
             .unwrap()
             .success()
     );
+    // stderr was taken above to synchronize with the first native sampling
+    // event. Keep draining that independent pipe while wait_with_output reads
+    // stdout, or a final burst of status events can block the child on exit.
+    let status_reader = std::thread::spawn(move || {
+        let mut remaining = String::new();
+        lines.read_to_string(&mut remaining).unwrap();
+        remaining
+    });
     let output = child.wait_with_output().unwrap();
+    let _remaining_status = status_reader.join().unwrap();
     assert!(
         output.status.success(),
         "{}",

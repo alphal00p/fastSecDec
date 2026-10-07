@@ -22,14 +22,12 @@ def digest(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--notebook", choices=("dashboard", "gghh"), default="dashboard", help="Dashboard, or the self-contained gg → HH walkthrough")
+    parser.add_argument("--notebook", choices=("dashboard", "gghh"), default="dashboard", help="Scalar examples, or the native gg → HH workflow")
     parser.add_argument("--wheel", type=Path, required=True, help="Community cp314 pyemscripten_2026_0 wasm32 wheel with FastSecDec")
     parser.add_argument("--output", type=Path, required=True, help="New export directory, served over HTTP")
-    parser.add_argument("--mode", choices=("run", "edit"), help="Dashboard view defaults to run; gg → HH requires edit for explicit cell execution")
+    parser.add_argument("--mode", choices=("run", "edit"), help="Both notebooks default to run mode; edit exposes source cells")
     args = parser.parse_args()
-    mode = args.mode or ("edit" if args.notebook == "gghh" else "run")
-    if args.notebook == "gghh" and mode != "edit":
-        parser.error("The gg → HH walkthrough requires --mode edit to run its disabled calculation cells")
+    mode = args.mode or "run"
     wheel = args.wheel.resolve()
     if not wheel.is_file() or not wheel.name.endswith("-cp314-abi3-pyemscripten_2026_0_wasm32.whl"):
         parser.error("Expected a real cp314-abi3-pyemscripten_2026_0_wasm32.whl wheel")
@@ -38,11 +36,11 @@ def main():
         parser.error("Use a new output directory; existing exports are preserved")
     here = Path(__file__).resolve().parent
     notebook = here / ("gghh.py" if args.notebook == "gghh" else "fastsecdec_showcase.py")
-    files = []
-    if args.notebook == "dashboard":
-        files = [here / "showcase" / name for name in ("__init__.py", "inputs.py", "state.py", "presentation.py", "generation.py", "sectors.py", "integration.py", "report.py", "gghh.py")]
-        files += [here / "fixtures/fastsecdec" / name for name in ("README.md", "scalar.json", "triangle.dot", "box.dot", "box_rank2_numerator.dot", "sunset_2loop_numerator.dot")]
-        files += [here / "fixtures/gghh" / name for name in ("README.md", "origin.json", "model.json", "parameters.json", "raw-diagram.json", "generation.json")]
+    files = sorted((here / "showcase").glob("*.py"))
+    files += [here / "fixtures/fastsecdec" / name for name in (
+        "README.md", "scalar.json", "triangle.dot", "box.dot",
+        "box_rank2_numerator.dot", "sunset_2loop_numerator.dot",
+    )]
     if not all(path.is_file() for path in files):
         parser.error("Missing required local example assets")
     with tempfile.TemporaryDirectory(prefix="fastsecdec-showcase-export-") as temporary:

@@ -78,7 +78,7 @@ fn retained_maps_are_the_actual_pre_subtraction_pullback_and_keep_gauge_meaning(
         );
         assert_eq!(
             value.metadata().domain_assessment().branch_policy(),
-            BranchPolicy::NoThresholdReal
+            BranchPolicy::UserResponsible
         );
         assert!(!value.metadata().domain_assessment().relies_on_assertion());
         assert_eq!(value.metadata().charts().len(), 2);
@@ -138,10 +138,10 @@ fn assessments_and_exact_chart_associations_survive_portable_roundtrip() {
         true,
     );
     let metadata = asserted.metadata().domain_assessment();
-    assert!(metadata.relies_on_assertion() && metadata.caller_asserted());
+    assert!(!metadata.relies_on_assertion() && metadata.caller_asserted());
     assert_eq!(
         metadata.factors()[0].certificate(),
-        FactorCertificate::ExplicitInteriorAssertion
+        FactorCertificate::UncheckedUserResponsibility
     );
     let restored = KernelSet::from_bytes(
         &asserted
@@ -150,13 +150,13 @@ fn assessments_and_exact_chart_associations_survive_portable_roundtrip() {
     )
     .unwrap();
     assert!(
-        restored
+        !restored
             .generation_metadata()
             .unwrap()
             .domain_assessment()
             .relies_on_assertion()
     );
-    let certified = generated(
+    let ordinary = generated(
         ParametricDomain::UnitCube,
         parse!("1+metadata::x"),
         vec![symbol!("metadata::x")],
@@ -171,7 +171,7 @@ fn assessments_and_exact_chart_associations_survive_portable_roundtrip() {
         true,
     );
     assert_ne!(
-        certified.compile().unwrap().content_id(),
+        ordinary.compile().unwrap().content_id(),
         optional_assertion.compile().unwrap().content_id()
     );
     let exact = generated(
@@ -197,53 +197,26 @@ fn assessments_and_exact_chart_associations_survive_portable_roundtrip() {
     );
 }
 
-fn resign(mut text: String, version: u32) -> Vec<u8> {
-    let value: serde_json::Value = serde_json::from_str(&text).unwrap();
-    let start = text.find("\"payload\":").unwrap() + "\"payload\":".len();
-    let payload = &text[start..text.len() - 1];
-    let mut hash = blake3::Hasher::new();
-    hash.update(
-        format!("fastsecdec-portable-kernel-v{version}:symbolica-3:symjit-2.26:f64").as_bytes(),
-    );
-    hash.update(payload.as_bytes());
-    text = text.replacen(
-        value["content_id"].as_str().unwrap(),
-        hash.finalize().to_hex().as_ref(),
-        1,
-    );
-    text.into_bytes()
-}
-
 #[test]
-fn resigned_semantic_tampering_is_rejected() {
-    let value = generated(
+fn binary_metadata_corruption_is_rejected() {
+    let generated = generated(
         ParametricDomain::UnitCube,
         parse!("1+metadata::x"),
         vec![symbol!("metadata::x")],
         Atom::num(-1),
         false,
     );
-    let bytes = value.to_kernel_bytes(PrecisionPolicy::default()).unwrap();
-    let text = String::from_utf8(bytes).unwrap();
-    let version = serde_json::from_str::<serde_json::Value>(&text).unwrap()["payload"]["version"]
-        .as_u64()
-        .unwrap() as u32;
-    for (before, after) in [
-        ("\"representative\":0", "\"representative\":999"),
-        (
-            "\"representative_permutation\":[0]",
-            "\"representative_permutation\":[1]",
-        ),
-        ("\"kernel_sector\":0", "\"kernel_sector\":999"),
-        ("\"measure_jacobian\":\"1\"", "\"measure_jacobian\":\"2\""),
-        ("\"determinant\":\"1\"", "\"determinant\":\"2\""),
-        ("PositiveCoefficients", "NegativeCoefficientsIntegerPower"),
-    ] {
-        assert!(text.contains(before), "missing test mutation {before}");
-        assert!(
-            KernelSet::from_bytes(&resign(text.replacen(before, after, 1), version)).is_err(),
-            "accepted {after}"
-        );
+    let bytes = generated
+        .to_kernel_bytes(PrecisionPolicy::default())
+        .unwrap();
+    assert!(bytes.starts_with(b"FastSecDec\0binserde"));
+    assert!(KernelSet::from_bytes(&bytes).is_ok());
+    // Exact semantic-field mutations are tested beside the native metadata
+    // decoder, without duplicating its private context-binserde wire format.
+    for offset in [0, bytes.len() / 2, bytes.len() - 1] {
+        let mut invalid = bytes.clone();
+        invalid[offset] ^= 1;
+        assert!(KernelSet::from_bytes(&invalid).is_err());
     }
 }
 

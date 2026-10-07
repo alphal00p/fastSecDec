@@ -128,7 +128,7 @@ fn gamma_constants_and_complex_boundary_rescue_remain_numeric_on_workers() {
             )],
         )
         .unwrap();
-        generate(
+        let mut kernels = generate(
             &input,
             &GenerationOptions {
                 max_order: 2,
@@ -138,7 +138,11 @@ fn gamma_constants_and_complex_boundary_rescue_remain_numeric_on_workers() {
         )
         .unwrap()
         .compile()
-        .unwrap()
+        .unwrap();
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
+        kernels
     };
     let mut real = build(Atom::num(1));
     let complex = build(Atom::num(Complex::new(

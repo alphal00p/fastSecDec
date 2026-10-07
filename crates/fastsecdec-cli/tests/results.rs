@@ -77,7 +77,7 @@ fn write_reference(path: &Path) -> ReferenceResult {
 fn saved_run_survives_removing_sources_and_exports_the_explicit_reference() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("artifact.json");
+    let artifact = dir.path().join("artifact.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     let result_path = dir.path().join("result.json");
     let reference_path = dir.path().join("reference.json");
@@ -150,7 +150,13 @@ independence_evidence = "The stored test target was not derived from this run."
         saved.provenance.attributes["artifact_content_id"],
         report["content_id"]
     );
-    for path in [&input, &artifact, &checkpoint, &reference_path] {
+    for path in [
+        input,
+        artifact.with_extension("fsd.json"),
+        artifact.with_extension("fsd.dat"),
+        checkpoint,
+        reference_path,
+    ] {
         fs::remove_file(path).unwrap();
     }
     let viewed = success(
@@ -258,6 +264,7 @@ fn numerical_fixture(selected: bool) -> SavedIntegrationResult {
         contributions: session.contributions().unwrap(),
         stopping_reason: StoppingReason::WorkLimit,
         requested_tolerance: None,
+        requested_accuracy_target: Default::default(),
         evaluation_diagnostics: None,
         qmc_design: Some(session.design()),
         provenance: ReferenceProvenance::new("native constant fixture", "unit-cube measure"),
@@ -406,7 +413,7 @@ periodization = "none"
                 .arg("run")
                 .arg(&input)
                 .arg("--output")
-                .arg(dir.path().join("artifact.json"))
+                .arg(dir.path().join("artifact.fsd"))
                 .arg("--save-result")
                 .arg(&result_path)
                 .arg("--checkpoint")

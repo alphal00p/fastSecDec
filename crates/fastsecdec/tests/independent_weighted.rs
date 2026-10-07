@@ -28,7 +28,7 @@ fn amplification_recovers_a_single_underflowed_complex_component_after_large_max
             )],
         )
         .unwrap();
-        let kernels = generate(
+        let mut kernels = generate(
             &input,
             &GenerationOptions {
                 max_order: 1,
@@ -39,6 +39,10 @@ fn amplification_recovers_a_single_underflowed_complex_component_after_large_max
         .unwrap()
         .compile()
         .unwrap();
+        // The optional validated policy retains the component-underflow test.
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         let mut context = kernels
             .evaluation_context(0, ReplayPolicy::default())
             .unwrap();

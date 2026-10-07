@@ -135,9 +135,15 @@ fn hidden_complex_coordinate_images_preserve_gamma_vector_and_weighted_reload() 
             512,
         );
 
-        let kernels = generated.compile().unwrap();
+        let mut kernels = generated.compile().unwrap();
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         let bytes = kernels.to_bytes().unwrap();
-        let restored = KernelSet::from_bytes(&bytes).unwrap();
+        let mut restored = KernelSet::from_bytes(&bytes).unwrap();
+        restored
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         assert_eq!(restored.content_id(), kernels.content_id());
         assert_eq!(restored.orders().len(), 2 * expected_coefficients.len());
         for kernels in [&kernels, &restored] {

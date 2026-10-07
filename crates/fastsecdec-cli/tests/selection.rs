@@ -54,7 +54,7 @@ relative_tolerance=0.0
 fn selected_execution_keeps_ids_scope_exact_offset_and_checkpoint_identity() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("artifact.json");
+    let artifact = dir.path().join("artifact.fsd");
     card(&input);
     let generated = success(
         cli()
@@ -272,7 +272,7 @@ fn selected_execution_keeps_ids_scope_exact_offset_and_checkpoint_identity() {
         );
     }
     let exact_card = dir.path().join("exact.toml");
-    let exact_artifact = dir.path().join("exact.json");
+    let exact_artifact = dir.path().join("exact.fsd");
     fs::write(
         &exact_card,
         "[direct]\ndomain='unit_cube'\nparameters=[]\n[[direct.terms]]\nprefactor='2'\n",
@@ -334,7 +334,7 @@ fn selected_execution_keeps_ids_scope_exact_offset_and_checkpoint_identity() {
         "\n[integration.scope.SelectedSectors]\nsector_ids=[1]\nexact_policy='ExcludeAll'"
     )
     .unwrap();
-    let scoped_artifact = dir.path().join("scoped-card.json");
+    let scoped_artifact = dir.path().join("scoped-card.fsd");
     let card_scope = success(
         cli()
             .arg("run")
@@ -394,7 +394,7 @@ fn selected_execution_keeps_ids_scope_exact_offset_and_checkpoint_identity() {
 fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("symmetric.toml");
-    let artifact = dir.path().join("symmetric.json");
+    let artifact = dir.path().join("symmetric.fsd");
     fs::write(&input, "[direct]\ndomain='unit_cube'\nparameters=['x','y']\n[[direct.terms]]\nmonomial_powers=['0','0']\n[[direct.terms.factors]]\npolynomial='x+y'\nexponent='-1'\n").unwrap();
     success(
         cli()
@@ -406,11 +406,12 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
             .unwrap(),
     );
     let inspect = success(cli().arg("inspect").arg(&artifact).output().unwrap());
-    let stored: serde_json::Value = serde_json::from_slice(&fs::read(&artifact).unwrap()).unwrap();
-    assert_eq!(
-        inspect["generation_metadata"],
-        stored["kernel"]["payload"]["metadata"]
-    );
+    let stored: serde_json::Value =
+        serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
+    assert!(stored["kernel"].get("payload").is_none());
+    assert_eq!(inspect["sectors"], stored["kernel"]["sectors"]);
+    assert!(artifact.with_extension("fsd.dat").exists());
+    assert!(!artifact.exists());
     assert_eq!(
         inspect["generation_metadata"]["charts"]
             .as_array()
@@ -421,7 +422,7 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
     assert_eq!(inspect["sectors"], 1);
     assert_eq!(
         inspect["generation_metadata"]["domain"]["branch"],
-        "NoThresholdReal"
+        "UserResponsible"
     );
     for chart in inspect["generation_metadata"]["charts"].as_array().unwrap() {
         assert_eq!(chart["kernel_sector"], 0);
@@ -437,12 +438,26 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
         .env("SYMBOLICA_HIDE_BANNER", "1")
         .args(["--plain", "inspect"])
         .arg(&artifact)
-        .arg("--expressions")
+        .args(["--sector", "0", "--expressions"])
         .output()
         .unwrap();
     assert!(plain.status.success());
     let text = String::from_utf8(plain.stdout).unwrap();
-    assert!(text.contains("Positive real measure") && text.contains("Representative permutation"));
+    assert!(text.contains("Positive measure") && text.contains("Representative"));
+    assert!(text.contains("before endpoint subtraction"));
+    let selected = success(
+        cli()
+            .arg("inspect")
+            .arg(&artifact)
+            .args(["--sector", "0"])
+            .output()
+            .unwrap(),
+    );
+    assert_eq!(
+        selected["selected_sector"]["charts"],
+        inspect["generation_metadata"]["charts"]
+    );
+    assert!(selected.get("generation_metadata").is_none());
     let missing = dir.path().join("missing.toml");
     let model = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../examples/models/scalar.json")

@@ -6,12 +6,15 @@ mod decompose;
 mod error;
 mod execution;
 mod generation;
+mod generation_session;
 mod input;
 mod inspection;
 mod kernels;
 mod mc;
 mod progress;
+mod presentation;
 mod session;
+mod settings;
 mod status;
 
 use pyo3::{prelude::*, types::PyModule};
@@ -24,7 +27,10 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(input::with_diagram_expressions, &module)?)?;
     module.add_class::<input::PyIntegral>()?;
     module.add_class::<generation::PyGeneratedIntegral>()?;
+    module.add_class::<generation_session::PyGenerationSession>()?;
     module.add_class::<kernels::PyKernels>()?;
+    module.add_class::<settings::PyCompilationSettings>()?;
+    module.add_class::<settings::PyStabilitySettings>()?;
     module.add_class::<session::PyQmcSettings>()?;
     module.add_class::<session::PyQmcSession>()?;
     module.add_class::<mc::PyHavanaDiscreteSettings>()?;

@@ -57,6 +57,8 @@ impl PyHavanaDiscreteSession {
             contexts,
             diagnostics: state.diagnostics,
             stop_reason: state.stop_reason,
+            live_batches: Vec::new(),
+            live_source: fastsecdec::integration::LiveSource::SinceResume,
         })
     }
 }

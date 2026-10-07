@@ -65,3 +65,7 @@ path = "../../crates/fastsecdec/tests/runtime_mc_discrete.rs"
 opt-level = 2
 [profile.dev.package.numerica]
 opt-level = 2
+
+[[test]]
+name = "generation_session"
+path = "../../crates/fastsecdec/tests/generation_session.rs"

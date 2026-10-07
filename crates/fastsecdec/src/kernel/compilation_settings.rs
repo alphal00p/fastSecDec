@@ -2,9 +2,33 @@
 use super::KernelError;
 use serde::{Deserialize, Serialize};
 
+/// Numerical execution owner; `Auto` preserves the build's historical default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvaluatorBackend {
+    #[default]
+    Auto,
+    Eager,
+    Symjit,
+}
+
+impl EvaluatorBackend {
+    fn is_auto(&self) -> bool {
+        *self == Self::Auto
+    }
+
+    pub fn is_eager(self) -> bool {
+        self == Self::Eager || (self == Self::Auto && cfg!(feature = "portable"))
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CompilationSettings {
+    /// Explicit eager execution is available in native and portable builds.
+    /// Omitting Auto preserves historical compiler-policy bytes and identities.
+    #[serde(skip_serializing_if = "EvaluatorBackend::is_auto")]
+    pub backend: EvaluatorBackend,
     pub horner_iterations: usize,
     /// Maximum common-pair elimination rounds; zero disables, None is unlimited.
     #[serde(with = "cpe_rounds", alias = "max_cpe_rounds")]
@@ -32,6 +56,7 @@ fn single_core<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<usiz
 impl Default for CompilationSettings {
     fn default() -> Self {
         Self {
+            backend: EvaluatorBackend::Auto,
             horner_iterations: 10,
             cpe_rounds: Some(1000),
             cores: 1,
@@ -46,6 +71,11 @@ impl Default for CompilationSettings {
 
 impl CompilationSettings {
     pub fn validate(&self) -> Result<(), KernelError> {
+        if self.backend == EvaluatorBackend::Symjit && cfg!(feature = "portable") {
+            return Err(KernelError::Compilation(
+                "SymJIT is unavailable in a portable build; select eager or auto".into(),
+            ));
+        }
         if self.cores != 1 {
             return Err(KernelError::Compilation(
                 "evaluator cores must be 1 for deterministic native optimization; parallelize sectors with generation workers".into(),

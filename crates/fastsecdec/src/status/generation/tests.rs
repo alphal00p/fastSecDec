@@ -40,7 +40,8 @@ fn attempt_reset_and_fallback_preserve_completed_sector_semantics() {
     let mut status = snapshot();
     status.observe_generation(1, &event(0, CoefficientExpansionStage::Lowering, 1, 7));
     assert_eq!(status.completed, 0);
-    assert!(status.detail.contains("current attempt 1"));
+    assert!(status.detail.contains("epsilon expansion pass 1"));
+    assert_eq!(status.coefficient_expansion.as_ref().unwrap().attempt, 1);
     status.observe_generation(1, &event(0, CoefficientExpansionStage::RegularSeries, 2, 0));
     assert_eq!(status.completed, 0);
     assert_eq!(

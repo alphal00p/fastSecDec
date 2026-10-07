@@ -123,7 +123,7 @@ mod tests {
         std::fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['1']").unwrap();
         let (artifact, _) = crate::generate::generate(
             &card,
-            &dir.path().join("new.json"),
+            &dir.path().join("new.fsd"),
             &mut crate::display::Dashboard::new(false, false).unwrap(),
             None,
         )
@@ -134,7 +134,7 @@ mod tests {
             "../../fastsecdec/tests/fixtures/kernel-v1-triangle.json"
         ))
         .unwrap();
-        let path = dir.path().join("legacy.json");
+        let path = dir.path().join("legacy.fsd");
         Artifact::new(&restored, artifact.provenance)
             .unwrap()
             .save(&path)

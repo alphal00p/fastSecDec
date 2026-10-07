@@ -16,4 +16,3 @@ regulator = "eps"
 
 [generation]
 order = 2
-assume_no_threshold = false

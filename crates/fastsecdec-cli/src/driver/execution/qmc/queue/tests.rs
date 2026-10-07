@@ -46,6 +46,11 @@ fn completed_worker_refills_before_straggler_and_preserves_full_covariance() {
         workers: 2,
         diagnostics: &mut diagnostics,
         replay: &mut replay,
+        operations: &crate::driver::execution::observations::Operations::new(
+            2,
+            kernels.orders(),
+            Duration::from_secs(1),
+        ),
     }
     .run_with(|_, _, _, _| Ok(Outcome::default()), &|slot, task, stop| {
         let count = active.fetch_add(1, Ordering::SeqCst) + 1;
@@ -116,6 +121,11 @@ fn cancellation_keeps_inflight_checkpoint_unaccepted_and_reissuable() {
         workers: 2,
         diagnostics: &mut diagnostics,
         replay: &mut replay,
+        operations: &crate::driver::execution::observations::Operations::new(
+            2,
+            kernels.orders(),
+            Duration::from_secs(1),
+        ),
     }
     .run_with(
         |session, _, _, _| {
@@ -177,6 +187,11 @@ fn real_failure_stops_refill_without_accepting_failed_or_cancelled_prefixes() {
         workers: 2,
         diagnostics: &mut diagnostics,
         replay: &mut replay,
+        operations: &crate::driver::execution::observations::Operations::new(
+            2,
+            kernels.orders(),
+            Duration::from_secs(1),
+        ),
     }
     .run_with(
         |_, _, _, _| Ok(Outcome::default()),
@@ -256,6 +271,11 @@ fn worker_panic_notifies_coordinator_and_drains_other_jobs() {
         workers: 2,
         diagnostics: &mut diagnostics,
         replay: &mut replay,
+        operations: &crate::driver::execution::observations::Operations::new(
+            2,
+            kernels.orders(),
+            Duration::from_secs(1),
+        ),
     }
     .run_with(|_, _, _, _| Ok(Outcome::default()), &|slot, task, stop| {
         if task.sector_id() == 0 {

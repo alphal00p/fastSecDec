@@ -389,6 +389,97 @@ mod tests {
     use super::*;
 
     #[test]
+    fn runtime_example_points_preserve_frozen_reference_densities() {
+        let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let fixtures = repository.join("crates/fastsecdec-cli/tests/fixtures/historical-run-cards");
+        let directory = tempfile::tempdir().unwrap();
+        // Preserve each card's ordinary relative paths without writing absolute
+        // paths into either historical evidence or temporary cards.
+        for name in ["graphs", "models", "parametric", "runs"] {
+            fs::create_dir(directory.path().join(name)).unwrap();
+            if name != "runs" {
+                for entry in fs::read_dir(repository.join("examples").join(name)).unwrap() {
+                    let entry = entry.unwrap();
+                    if entry.file_type().unwrap().is_file() {
+                        fs::copy(
+                            entry.path(),
+                            directory.path().join(name).join(entry.file_name()),
+                        )
+                        .unwrap();
+                    }
+                }
+            }
+        }
+        let mut entries = fs::read_dir(fixtures)
+            .unwrap()
+            .map(Result::unwrap)
+            .collect::<Vec<_>>();
+        entries.sort_by_key(|entry| entry.file_name());
+        for entry in entries {
+            if entry
+                .path()
+                .extension()
+                .is_none_or(|extension| extension != "toml")
+            {
+                continue;
+            }
+            let name = entry.file_name();
+            let mut historical: toml::Value =
+                toml::from_str(&fs::read_to_string(entry.path()).unwrap()).unwrap();
+            if let Some(input) = historical.get_mut("input") {
+                input
+                    .as_table_mut()
+                    .unwrap()
+                    .insert("model_parameters".into(), "fixed".into());
+            }
+            let old_path = directory.path().join("runs").join(&name);
+            fs::write(&old_path, toml::to_string(&historical).unwrap()).unwrap();
+            let old = load(&old_path).unwrap();
+            assert!(old.runtime_parameters.is_empty());
+            let current = load(&repository.join("examples/runs").join(&name)).unwrap();
+            let point = current
+                .card
+                .integration
+                .parameters
+                .iter()
+                .map(|(name, value)| {
+                    (
+                        symbol(name).unwrap(),
+                        Atom::num(Rational::try_from(*value).unwrap()),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            assert!(
+                current
+                    .runtime_parameters
+                    .iter()
+                    .all(|symbol| point.contains_key(symbol)),
+                "missing point for {name:?}"
+            );
+            assert_eq!(
+                current.integrand.parameters(),
+                old.integrand.parameters(),
+                "coordinate ordering for {name:?}"
+            );
+            assert_eq!(
+                current.integrand.domain(),
+                old.integrand.domain(),
+                "domain for {name:?}"
+            );
+            assert_eq!(
+                current.integrand.regulator(),
+                old.integrand.regulator(),
+                "regulator for {name:?}"
+            );
+            assert_eq!(
+                bind(&current.integrand.density(), &point).expand(),
+                old.integrand.density().expand(),
+                "bound native density for {name:?}"
+            );
+        }
+    }
+
+    #[test]
     fn caller_parameter_names_are_literal_not_pattern_wildcards() {
         let values = BTreeMap::from([(symbol("user_value_").unwrap(), expression("2").unwrap())]);
         assert_eq!(
@@ -562,17 +653,33 @@ norm = "-1"
             include_str!("../../../examples/graphs/bubble.dot"),
         )
         .unwrap();
-        for (inline, restriction, expected) in [
-            ("'UFO::a' = '3'", None, "23*gamma(eps)"),
+        for (inline, restriction, symbolic, scale, fixed_expected) in [
+            (
+                "'UFO::a' = '3'",
+                None,
+                "12+model::fixed",
+                "23",
+                "23*gamma(eps)",
+            ),
             (
                 "'UFO::a' = 'symbolica::pi'",
                 None,
+                "model::fixed+4*symbolica::pi",
+                "11+4*symbolica::pi",
                 "(11+4*symbolica::pi)*gamma(eps)",
             ),
-            ("'UFO::a' = '3'", Some(r#"{"b":[5,0]}"#), "21*gamma(eps)"),
+            (
+                "'UFO::a' = '3'",
+                Some(r#"{"b":[5,0]}"#),
+                "12+model::fixed",
+                "23",
+                "21*gamma(eps)",
+            ),
             (
                 "'UFO::a' = '3'\n'UFO::b' = '7'",
                 Some(r#"{"b":[5,0]}"#),
+                "14+model::fixed",
+                "25",
                 "25*gamma(eps)",
             ),
         ] {
@@ -591,18 +698,85 @@ model = 'model.json'
 [kinematics]
 products = [{{left=1,right=1,value='-1'}}]
 [parameters]
+'UFO::mt' = '0'
 {inline}
 [integral]
 measure_multiplier = 'UFO::b+UFO::GC_check+UFO::fixed'
 "#
             );
             let path = directory.path().join("input.toml");
-            fs::write(&path, card).unwrap();
+            fs::write(&path, &card).unwrap();
             let loaded = load(&path).unwrap();
+            let fixed = symbol("model::fixed").unwrap();
+            assert_eq!(loaded.runtime_parameters, [fixed]);
+            assert_eq!(loaded.model_parameter_defaults["model::fixed"], 11.0);
             assert_eq!(
                 loaded.integrand.terms()[0].prefactor(),
-                &expression(expected).unwrap(),
+                &expression(&format!("({symbolic})*gamma(eps)")).unwrap(),
                 "inline {inline}, restriction {restriction:?}"
+            );
+            // Cached internal/card values are metadata in runtime mode. The
+            // native dependent definition follows explicit scalar overrides;
+            // the independent expressionless leaf is supplied to the evaluator.
+            let generated =
+                fastsecdec::generation::generate(&loaded.integrand, &Default::default(), |_| {
+                    std::ops::ControlFlow::Continue(())
+                })
+                .unwrap();
+            let mut kernels = generated
+                .compile_with_parameters_and_progress(&loaded.runtime_parameters, |_| {
+                    std::ops::ControlFlow::Continue(())
+                })
+                .unwrap();
+            let template = kernels.to_bytes().unwrap();
+            assert_eq!(kernels.sectors().len(), 1);
+            assert_eq!(kernels.sectors()[0].dimension(), 1);
+            let scale = expression(scale)
+                .unwrap()
+                .evaluate(&std::collections::HashMap::<Atom, f64>::new())
+                .unwrap();
+            let mut prior = Vec::<f64>::new();
+            for (value, expected_scale) in [(11.0, scale), (13.0, scale + 2.0)] {
+                kernels
+                    .bind_parameters(&BTreeMap::from([(fixed, value)]))
+                    .unwrap();
+                let mut total = kernels.exact_coefficients().to_vec();
+                for sector in kernels.sectors_mut() {
+                    let mut output = vec![0.0; total.len()];
+                    sector
+                        .evaluate(&vec![0.37; sector.dimension()], &mut output)
+                        .unwrap();
+                    for (sum, value) in total.iter_mut().zip(output) {
+                        *sum += value;
+                    }
+                }
+                // The two projective bubble charts combine to the pole
+                // density 2/(1+t)^2, whose integral is one. This is a
+                // pointwise evaluator check, not an integrated pole value.
+                let expected_pole_density = expected_scale * 2.0 / (1.0_f64 + 0.37).powi(2);
+                assert!(
+                    (total[0] - expected_pole_density).abs() < 1e-12,
+                    "pole density {} != {expected_pole_density}",
+                    total[0]
+                );
+                if !prior.is_empty() {
+                    for (old, new) in prior.iter().zip(&total) {
+                        assert!((new - old * expected_scale / scale).abs() < 1e-11);
+                    }
+                }
+                prior = total;
+                assert_eq!(kernels.to_bytes().unwrap(), template);
+            }
+            // Explicit fixed mode retains the old scalar-card restriction
+            // behavior; this is distinct from runtime defaults above.
+            fs::write(
+                &path,
+                card.replace("[input]", "[input]\nmodel_parameters='fixed'"),
+            )
+            .unwrap();
+            assert_eq!(
+                load(&path).unwrap().integrand.terms()[0].prefactor(),
+                &expression(fixed_expected).unwrap()
             );
         }
     }

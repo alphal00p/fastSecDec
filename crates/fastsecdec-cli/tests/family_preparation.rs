@@ -45,7 +45,7 @@ fn fixture(directory: &Path) {
 
 fn card(path: &Path, policy: &str, named: bool) {
     let coefficient = if named {
-        "[generation.coefficient_expansion]\nmethod='native_named'"
+        "[generation.coefficient_expansion]\nmethod='coefficient_series'"
     } else {
         ""
     };
@@ -70,6 +70,8 @@ shifts=8
 seed=419
 workers=1
 max_rounds=1
+[integration.parameters]
+"model::mt"=1.0
 "#
         ),
     )
@@ -86,7 +88,7 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
     let mut means = Vec::new();
     for (name, policy, named) in [("original", "", false), ("prepared", PREPARED, true)] {
         let input = directory.path().join(format!("{name}.toml"));
-        let artifact = directory.path().join(format!("{name}.json"));
+        let artifact = directory.path().join(format!("{name}.fsd"));
         card(&input, policy, named);
         let inspected = success(cli().arg("inspect").arg(&input).output().unwrap());
         assert_eq!(inspected["parameters"], 2);
@@ -108,7 +110,8 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
         // Each following command is a fresh process loading the ordinary artifact.
         let cold = success(cli().arg("inspect").arg(&artifact).output().unwrap());
         assert_eq!(cold["orders"], serde_json::json!([-1, 0, 1]));
-        assert_eq!(cold["exact_coefficients"].as_array().unwrap().len(), 3);
+        assert_eq!(cold["parameters_bound"], false);
+        assert!(cold["exact_coefficients"].is_null());
         let provenance = &cold["provenance"];
         if named {
             let report: FamilyPreparationReport =
@@ -140,7 +143,7 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
         let sources = provenance["sources"].as_array().unwrap();
         assert_eq!(sources.len(), 4);
         for source in sources.iter().skip(1) {
-            let bytes = fs::read(source["path"].as_str().unwrap()).unwrap();
+            let bytes = fs::read(directory.path().join(source["path"].as_str().unwrap())).unwrap();
             assert_eq!(source["blake3"], blake3::hash(&bytes).to_hex().as_str());
         }
         originals.push(sources[1..].to_vec());
@@ -158,7 +161,7 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
         assert_eq!(mean.len(), 3);
         // Independent normalized massive vacuum result: 5*2*3*7*Gamma(eps).
         // This checks both pole and finite/higher coefficients, not chart densities.
-        let gamma = 0.577_215_664_901_532_9_f64;
+        let gamma = std::f64::consts::EULER_GAMMA;
         let expected = [
             210.0,
             -210.0 * gamma,
@@ -187,7 +190,7 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
     let directory = tempfile::tempdir().unwrap();
     fixture(directory.path());
     let input = directory.path().join("input.toml");
-    let artifact = directory.path().join("integral.json");
+    let artifact = directory.path().join("integral.fsd");
     card(&input, "family_preparation='Original'", false);
     let original = success(cli().arg("inspect").arg(&input).output().unwrap());
     assert!(original.get("family_preparation").is_none());
@@ -219,9 +222,13 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
     assert_eq!(fallback["orders"], serde_json::json!([-1, 0, 1]));
     // Preparation is part of complete artifact identity, not observational data.
     let mut saved: serde_json::Value =
-        serde_json::from_slice(&fs::read(&artifact).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
     saved["provenance"]["family_preparation"]["active_powers"][0] = 9.into();
-    fs::write(&artifact, serde_json::to_vec(&saved).unwrap()).unwrap();
+    fs::write(
+        artifact.with_extension("fsd.json"),
+        serde_json::to_vec(&saved).unwrap(),
+    )
+    .unwrap();
     assert!(
         !cli()
             .arg("inspect")
@@ -231,7 +238,8 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
             .status
             .success()
     );
-    fs::remove_file(&artifact).unwrap();
+    fs::remove_file(artifact.with_extension("fsd.json")).unwrap();
+    fs::remove_file(artifact.with_extension("fsd.dat")).unwrap();
     for (source, error) in [
         (
             "[direct]\ndomain='unit_cube'\nparameters=['x']\nterms=[]\n[generation.family_preparation.SingleUnitTerm]\nmax_states=32",
@@ -259,6 +267,7 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
                 .contains(error),
             "{failure}"
         );
-        assert!(!artifact.exists());
+        assert!(!artifact.with_extension("fsd.json").exists());
+        assert!(!artifact.with_extension("fsd.dat").exists());
     }
 }

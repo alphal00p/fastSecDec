@@ -25,7 +25,7 @@ fn padded(complex: bool, tiny: bool) -> KernelSet {
         )],
     )
     .unwrap();
-    generate(
+    let mut kernels = generate(
         &input,
         &GenerationOptions {
             max_order: 2,
@@ -35,7 +35,11 @@ fn padded(complex: bool, tiny: bool) -> KernelSet {
     )
     .unwrap()
     .compile()
-    .unwrap()
+    .unwrap();
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
+    kernels
 }
 
 #[test]
@@ -43,7 +47,9 @@ fn cold_literal_zero_padding_does_not_trigger_weighted_range_rescue() {
     for complex in [false, true] {
         let fresh = padded(complex, false);
         let bytes = fresh.to_bytes().unwrap();
-        let cold = KernelSet::from_bytes(&bytes).unwrap();
+        let mut cold = KernelSet::from_bytes(&bytes).unwrap();
+        cold.set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         assert_eq!(fresh.content_id(), cold.content_id());
         assert_eq!(cold.to_bytes().unwrap(), bytes);
         for kernels in [&fresh, &cold] {
@@ -77,7 +83,9 @@ fn cold_literal_zero_proof_preserves_genuine_underflow_rescue() {
     for complex in [false, true] {
         let fresh = padded(complex, true);
         let bytes = fresh.to_bytes().unwrap();
-        let cold = KernelSet::from_bytes(&bytes).unwrap();
+        let mut cold = KernelSet::from_bytes(&bytes).unwrap();
+        cold.set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         for kernels in [&fresh, &cold] {
             let mut worker = kernels
                 .evaluation_context(0, ReplayPolicy::default())

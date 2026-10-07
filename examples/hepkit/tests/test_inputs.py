@@ -98,3 +98,11 @@ def test_sunset_preserves_the_mixed_loop_numerator_and_coupled_propagator():
 def test_showcase_controls_reject_outside_the_declared_euclidean_inputs(builder, arguments):
     with pytest.raises(ValueError):
         builder(**arguments)
+
+
+def test_massless_examples_fix_only_the_structural_zero_mass():
+    for builder in (inputs.massless_box, inputs.rank_two_box, inputs.coupled_sunset):
+        value = builder()
+        assert value.integral_arguments()["scalar_values"] == value.scalar_values
+        assert value.integral_arguments()["model_parameters"] == "runtime"
+    assert inputs.massive_triangle().integral_arguments()["scalar_values"] == {}

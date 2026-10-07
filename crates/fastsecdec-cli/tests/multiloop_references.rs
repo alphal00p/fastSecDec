@@ -105,16 +105,7 @@ fn double_box_reference_preserves_the_complete_audited_laurent_vector() {
     assert_eq!(attributes["requested_settings"]["seed"], 20261203);
     assert_eq!(attributes["kinematics"]["s12"], "-1");
     assert_eq!(attributes["kinematics"]["s23"], "-1");
-    for source in attributes["native_sources"].as_array().unwrap() {
-        let path = source["path"].as_str().unwrap();
-        assert_eq!(
-            blake3::hash(&fs::read(repository().join(path)).unwrap())
-                .to_hex()
-                .as_str(),
-            source["blake3"].as_str().unwrap(),
-            "source {path} changed; reassess reference compatibility"
-        );
-    }
+    support::verify_native_sources(repository(), &attributes["native_sources"]);
     assert_eq!(
         read_reference(&encode_reference(&reference).unwrap()).unwrap(),
         reference
@@ -183,14 +174,7 @@ fn issue_one_reference_preserves_full_orthant_data_without_certifying_omitted_co
             .unwrap()
             .contains("calibration unverified")
     );
-    for source in attributes["native_sources"].as_array().unwrap() {
-        assert_eq!(
-            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
-                .to_hex()
-                .as_str(),
-            source["blake3"].as_str().unwrap()
-        );
-    }
+    support::verify_native_sources(repository(), &attributes["native_sources"]);
     // Exercise the public eligibility boundary with an explicitly independent
     // comparison; unverified provider covariance must remain visible to callers.
     let estimate = VectorEstimate {
@@ -288,14 +272,7 @@ fn issue_one_together_reference_preserves_native_sector_sum_uncertainty() {
     assert_eq!(attributes["highest_order_target"], 2);
     assert_eq!(attributes["highest_order_target_met"], false);
     assert!(errors[2] / means[2].abs() > 0.001);
-    for source in attributes["native_sources"].as_array().unwrap() {
-        assert_eq!(
-            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
-                .to_hex()
-                .as_str(),
-            source["blake3"].as_str().unwrap()
-        );
-    }
+    support::verify_native_sources(repository(), &attributes["native_sources"]);
     let prior = &attributes["earlier_unverified_reference"];
     let bytes = fs::read(repository().join(prior["path"].as_str().unwrap())).unwrap();
     assert_eq!(
@@ -401,14 +378,7 @@ fn offshell_scalar_triple_box_reference_preserves_all_orders_and_native_measure(
         attributes["native_kernel_content_ids"]["original"],
         attributes["native_kernel_content_ids"]["projected"]
     );
-    for source in attributes["native_sources"].as_array().unwrap() {
-        assert_eq!(
-            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
-                .to_hex()
-                .as_str(),
-            source["blake3"].as_str().unwrap()
-        );
-    }
+    support::verify_native_sources(repository(), &attributes["native_sources"]);
     assert_eq!(
         read_reference(&encode_reference(&reference).unwrap()).unwrap(),
         reference
@@ -507,14 +477,7 @@ fn offshell_rank_two_triple_box_reference_preserves_numerator_and_physical_tuple
         attributes["native_kernel_content_ids"]["original"],
         attributes["native_kernel_content_ids"]["projected"]
     );
-    for source in attributes["native_sources"].as_array().unwrap() {
-        assert_eq!(
-            blake3::hash(&fs::read(repository().join(source["path"].as_str().unwrap())).unwrap())
-                .to_hex()
-                .as_str(),
-            source["blake3"].as_str().unwrap()
-        );
-    }
+    support::verify_native_sources(repository(), &attributes["native_sources"]);
     assert_eq!(
         read_reference(&encode_reference(&reference).unwrap()).unwrap(),
         reference

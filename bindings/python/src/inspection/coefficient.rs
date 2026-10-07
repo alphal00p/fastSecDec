@@ -35,6 +35,13 @@ impl PyCompactCoefficient {
     fn root(&self) -> PythonExpression {
         expression(self.native().get_root())
     }
+    /// Explicitly restore this selected coefficient with Symbolica's alias owner.
+    /// This can be expensive; passive views retain the compact root and aliases.
+    fn expression(&self) -> PythonExpression {
+        PythonExpression {
+            expr: self.native().clone().into_inner(),
+        }
+    }
     /// Stored definitions for this coefficient; definitions may be shared with others.
     #[getter]
     fn alias_count(&self) -> usize {

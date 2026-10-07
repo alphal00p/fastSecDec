@@ -4,7 +4,7 @@ use super::super::EvaluatorTiming;
 use std::time::Instant;
 
 #[cfg(feature = "native")]
-pub(in crate::kernel) fn evaluate<T: symbolica::evaluate::JITCompiledNumber>(
+pub(super) fn evaluate_jit<T: symbolica::evaluate::JITCompiledNumber>(
     evaluator: &mut symbolica::evaluate::JITCompiledEvaluator<T>,
     input: &[T],
     output: &mut [T],
@@ -34,8 +34,7 @@ pub(in crate::kernel) fn evaluate<T: symbolica::evaluate::JITCompiledNumber>(
         .collect()
 }
 
-#[cfg(feature = "portable")]
-pub(in crate::kernel) fn evaluate<T: symbolica::domains::float::Real>(
+pub(super) fn evaluate_eager<T: symbolica::domains::float::Real>(
     evaluator: &mut symbolica::evaluate::ExpressionEvaluator<T>,
     input: &[T],
     output: &mut [T],

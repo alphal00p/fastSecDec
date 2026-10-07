@@ -255,6 +255,7 @@ fn write_programs(interleaved: bool) {
         let mut cold = SectorKernel::from_program(
             SectorProgram {
                 parameters: parameters.clone(),
+                runtime_parameters: Vec::new(),
                 exact: decoded.clone(),
                 cancellation,
                 exact_zero: vec![false; 4],
@@ -317,6 +318,7 @@ fn read_named_coefficient_programs() {
         let mut kernel = SectorKernel::from_program(
             SectorProgram {
                 parameters: parameters.clone(),
+                runtime_parameters: Vec::new(),
                 exact: exact.clone(),
                 cancellation,
                 exact_zero: vec![false; 4],

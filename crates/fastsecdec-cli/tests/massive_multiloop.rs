@@ -40,6 +40,7 @@ struct CaseReport {
     name: &'static str,
     loops: usize,
     propagators: usize,
+    runtime_parameters: Vec<String>,
     generation: Option<GenerationReport>,
     integration: Option<IntegrationReport>,
     reference_comparison: Option<ReferenceComparison>,
@@ -172,11 +173,12 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
     for (name, loops, propagators) in reference::CASES {
         println!("Generating {name} (L={loops}, N={propagators})");
         let card = repository.join(format!("examples/runs/{name}.toml"));
-        let artifact = directory.join(format!("{name}.fsd.json"));
+        let artifact = directory.join(format!("{name}.fsd"));
         let mut report = CaseReport {
             name,
             loops,
             propagators,
+            runtime_parameters: Vec::new(),
             generation: None,
             integration: None,
             reference_comparison: None,
@@ -197,6 +199,27 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
             serde_json::from_slice::<GenerationReport>(&bytes).map_err(|error| error.to_string())
         }) {
             Ok(generation) => {
+                // Generation is a portable template. The run card's historical
+                // point is bound only by the later integration invocation.
+                let metadata_path = artifact.with_extension("fsd.json");
+                let data_path = artifact.with_extension("fsd.dat");
+                let metadata: serde_json::Value =
+                    serde_json::from_slice(&fs::read(&metadata_path).unwrap()).unwrap();
+                assert!(!artifact.exists());
+                assert!(data_path.is_file());
+                report.runtime_parameters =
+                    serde_json::from_value(metadata["kernel"]["runtime_parameters"].clone())
+                        .unwrap();
+                assert!(
+                    report
+                        .runtime_parameters
+                        .iter()
+                        .any(|name| name == "model::mt")
+                );
+                assert!(
+                    report.runtime_parameters.len() > 1,
+                    "kinematics must remain runtime inputs"
+                );
                 if generation.orders != [0] || generation.sectors == 0 {
                     report.errors.push(format!(
                         "unexpected generated orders {:?} or empty numerical support",
@@ -224,7 +247,7 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
         }
         let name = case.name;
         println!("Integrating {name}: 1024 points × 8 shifts, complete vector");
-        let artifact = directory.join(format!("{name}.fsd.json"));
+        let artifact = directory.join(format!("{name}.fsd"));
         let checkpoint = directory.join(format!("{name}.checkpoint.json"));
         match invoke(
             &directory,

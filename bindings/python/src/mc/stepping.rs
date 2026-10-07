@@ -9,18 +9,19 @@ use crate::{error, status::PyIntegrationSnapshot};
 impl PyHavanaDiscreteSession {
     /// Execute at most max_batches. False from observer pauses after an accepted
     /// global batch. Interrupted batches are retried, without partial statistics.
-    #[pyo3(signature = (max_batches=1, *, observer=None))]
+    #[pyo3(signature = (max_batches=1, *, evaluation_batch_size=256, observer=None))]
     fn step(
         &mut self,
         py: Python<'_>,
         max_batches: usize,
+        evaluation_batch_size: usize,
         observer: Option<Py<PyAny>>,
     ) -> PyResult<PyIntegrationSnapshot> {
-        if max_batches == 0 {
+        if max_batches == 0 || evaluation_batch_size == 0 {
             return Err(error::native(
                 py,
                 "configuration",
-                "max_batches must be positive",
+                "max_batches and evaluation_batch_size must be positive",
             ));
         }
         self.stop_reason = None;
@@ -44,20 +45,15 @@ impl PyHavanaDiscreteSession {
                     );
                 }
                 let mut interrupted = None;
-                let mut calls = 0usize;
-                let value =
-                    self.worker
-                        .as_mut()
-                        .expect("prepared native worker")
-                        .evaluate_weighted(task.clone(), |id, point, weight, output| {
-                            if calls.is_multiple_of(256)
-                                && let Err(e) = py.check_signals()
-                            {
-                                interrupted = Some(e);
-                                return Err("Python signal interrupted batch".to_owned());
-                            }
-                            calls = calls.wrapping_add(1);
-                            // The shared KernelResultManifest assigns kernel index ids.
+                let mut live = None;
+                let value = self
+                    .worker
+                    .as_mut()
+                    .expect("prepared native worker")
+                    .evaluate_weighted_batch_observed(
+                        task.clone(),
+                        evaluation_batch_size,
+                        |id, points, weights, output| {
                             let sector = usize::try_from(id).map_err(|e| e.to_string())?;
                             let context = self.contexts.get_mut(sector).ok_or_else(|| {
                                 "native sector id outside kernel manifest".to_owned()
@@ -73,23 +69,22 @@ impl PyHavanaDiscreteSession {
                                         .map_err(|e| e.to_string())?,
                                 );
                             }
-                            match context
-                                .as_mut()
-                                .expect("prepared weighted context")
-                                .evaluate_weighted(point, weight, output)
-                            {
-                                Ok(report) => self
-                                    .diagnostics
-                                    .record_replay(report)
-                                    .map_err(|e| e.to_string()),
-                                Err(e) => {
-                                    self.diagnostics
-                                        .record_failure()
-                                        .map_err(|e| e.to_string())?;
-                                    Err(e.to_string())
-                                }
+                            crate::execution::evaluate_batch(
+                                py,
+                                context.as_mut().expect("prepared weighted context"),
+                                points,
+                                weights,
+                                output,
+                                &mut self.diagnostics,
+                                &mut interrupted,
+                            )
+                        },
+                        |view| {
+                            if view.points() == task.point_count() as u64 {
+                                live = Some(view.snapshot());
                             }
-                        });
+                        },
+                    );
                 if let Some(e) = interrupted {
                     signal_interrupted = true;
                     return Err(e);
@@ -112,6 +107,9 @@ impl PyHavanaDiscreteSession {
                     .submit(value)
                     .map_err(|e| error::native(py, "integration", e))?;
                 self.replay = accepted;
+                if let Some(live) = live {
+                    self.live_batches.push(live);
+                }
                 Ok(())
             })();
             if let Err(e) = result {

@@ -1,308 +1,245 @@
 import marimo
 
 __generated_with = "0.24.2"
-app = marimo.App(width="medium", app_title="gg → HH · one double box")
+app = marimo.App(width="full", app_title="gg → HH · from native diagrams to integrals")
 
 
 @app.cell(hide_code=True)
 async def _():
     import marimo as mo
-    import sys as _sys
-
-    if _sys.platform == "emscripten":
-        import hashlib as _hashlib
-        import micropip as _micropip
-        from pathlib import Path as _Path
-        from pyodide.http import pyfetch as _pyfetch
-
-        # Install the explicitly exported community wheel; no physics files.
+    import sys
+    from pathlib import Path
+    if sys.platform == "emscripten":
+        import hashlib
+        import io
+        import json
+        import zipfile
+        from importlib import import_module
+        # Browser-only packages must not enter native Marimo's static import
+        # registry: its missing-module probes run outside this platform branch.
+        _micropip = import_module("micropip")
+        _pyfetch = import_module("pyodide.http").pyfetch
         _base = f"{str(mo.notebook_location()).rstrip('/')}/public/fastsecdec"
         _response = await _pyfetch(f"{_base}/manifest.json")
         if not _response.ok:
-            raise RuntimeError("Missing wheel manifest; export with --notebook gghh.")
-        _wheel = (await _response.json())["wheel"]
-        _response = await _pyfetch(f"{_base}/{_wheel['filename']}")
-        if not _response.ok:
-            raise RuntimeError("Unable to fetch the exported HEPKit wheel.")
-        _data = await _response.bytes()
-        if _hashlib.sha256(_data).hexdigest() != _wheel["sha256"]:
-            raise RuntimeError("HEPKit wheel hash does not match the export manifest.")
-        _wheel_path = _Path("/tmp") / _wheel["filename"]
-        _wheel_path.write_bytes(_data)
-        await _micropip.install(f"emfs:{_wheel_path}")
-
-    from fractions import Fraction
-    from symbolica import E, S
-    from symbolica.community import hepkit as hep
-    from symbolica.community.hepkit.sector_decomposition import (
-        QmcSettings, HavanaDiscreteSettings, with_diagram_expressions,
-    )
-    from symbolica.community.tensor import Tensor, TensorName, Representation, dot
-    return E, Fraction, HavanaDiscreteSettings, QmcSettings, Representation, S, Tensor, TensorName, dot, hep, mo, with_diagram_expressions
+            raise RuntimeError("Export this notebook with the tested HEPKit Pyodide wheel.")
+        _manifest = await _response.json()
+        _root = Path("/fastsecdec-showcase")
+        _root.mkdir(exist_ok=True)
+        for _kind in ("wheel", "assets"):
+            _entry = _manifest[_kind]
+            _response = await _pyfetch(f"{_base}/{_entry['filename']}")
+            if not _response.ok:
+                raise RuntimeError(f"Missing exported {_kind}")
+            _data = await _response.bytes()
+            if hashlib.sha256(_data).hexdigest() != _entry["sha256"]:
+                raise RuntimeError(f"Exported {_kind} hash differs")
+            if _kind == "wheel":
+                _wheel = _root / _entry["filename"]
+                _wheel.write_bytes(_data)
+                await _micropip.install(f"emfs:{_wheel}")
+            else:
+                with zipfile.ZipFile(io.BytesIO(_data)) as _archive:
+                    if set(_archive.namelist()) != set(_entry["files"]):
+                        raise RuntimeError("Asset manifest differs")
+                    for _name in _archive.namelist():
+                        _path = Path(_name)
+                        if _path.is_absolute() or ".." in _path.parts:
+                            raise RuntimeError("Invalid asset path")
+                        _bytes = _archive.read(_name)
+                        if hashlib.sha256(_bytes).hexdigest() != _entry["files"][_name]:
+                            raise RuntimeError("Asset hash differs")
+                        _destination = _root / _path
+                        _destination.parent.mkdir(parents=True, exist_ok=True)
+                        _destination.write_bytes(_bytes)
+    else:
+        _root = Path(mo.notebook_location())
+    sys.path.insert(0, str(_root))
+    from showcase.notebook import Study
+    return Study, mo
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    # $gg\to HH$: one top-quark double box
+    # gg → HH · from native diagrams to integrals
 
-    Everything needed for this example is in this notebook. HEPKit supplies the
-    Standard Model, graph generation, tensor algebra and numerical helicities;
-    FastSecDec supplies sector decomposition and integration.
+    All one- and two-loop Standard Model diagrams with $QED=2$, restricted to Higgs, gluon and top particles. Initial and final states are symmetrized. The first one-loop diagram is selected by default. The initial integration point uses $\sqrt{s}=300$ GeV, $m_H=125$ GeV, $m_t=172.5$ GeV and $\cos\theta=4/5$, with $(+,+)$ gluon helicities and color projection $\delta_{ab}$. Each calculation is one diagram contribution.
 
-    We compute one color-projected $(+,+)$ diagram at $\sqrt{s}=300$ GeV,
-    $m_t=172.5$ GeV and $m_H=125$ GeV. This is one contribution, not the complete
-    gauge-invariant amplitude. The measure is $\prod_l d^Dk_l/(i\pi^{D/2})$,
-    with $D=4-2\epsilon$, Feynman gauge, $\cos\theta=4/5$, no spin/color
-    average and zero top/Higgs widths.
-
-    Use **marimo's editor**. The expensive decomposition and integration cells
-    start disabled; enable and run the desired cell. A browser needs the Pyodide community
-    wheel; it uses one CPU and generation can take several minutes.
+    **Build diagrams → Generate → Inspect → Integrate QMC → Integrate Havana.**
+    Every calculation starts with a button. Pause retains the native owner;
+    Resume continues it. Changing a selection starts no calculation.
+    One caller, eager Symbolica arithmetic, no SymJIT — the same workflow on
+    native Python and Pyodide.
     """)
     return
 
 
 @app.cell
-def _(E, Fraction, hep, mo):
-    # Exact transport of numerical external data; no algebra implementation.
-    def exact(z):
-        return E(str(Fraction(z.real))) + E("1i") * E(str(Fraction(z.imag)))
-
-    mt, mH, sqrt_s = 172.5, 125.0, 300.0
-    model = hep.Model.standard_model()
-    values = model.scalar_bindings(overrides={
-        model.parameter(name).symbol: exact(value)
-        for name, value in dict(MT=mt, ymt=mt, MH=mH, WT=0.0, WH=0.0).items()
-    })
-    mo.ui.table([{"parameter": name, "value (GeV)": value}
-                 for name, value in {"mt = ymt": mt, "mH": mH, "sqrt(s)": sqrt_s,
-                                     "top/Higgs widths": 0}.items()])
-    return exact, mH, model, mt, sqrt_s, values
-
-
-@app.cell
-def _(E, hep, model):
-    vertices = [v for v in model.vertex_rules
-                if sorted(model.particle(p).pdg_code for p in v.particles)
-                in ([-6, 6, 21], [-6, 6, 25])]  # ttg and ttH
-    process = model.process([21, 21], [25, 25], vertex_allow=vertices)
-    diagrams = process.generate_diagrams(
-        loops=2, max_vertices=6, threads=1, projector=E("1"),
-        numerator_grouping=hep.NumeratorGrouping("none"),
-    ).diagrams
-    return diagrams, process
-
-
-@app.cell
-def _(diagrams, mo):
-    def is_double_box(d):
-        top = [e for e in d.internal_edges if abs(e.particle.pdg_code) == 6]
-        gluons = [e for e in d.internal_edges if e.particle.pdg_code == 21]
-        if len(top) != 6 or len(gluons) != 1 or len(d.vertices) != 6:
-            return False
-        if not d.subgraph(edges=[e.id for e in top]).is_connected():
-            return False
-        legs = {e.source if e.source is not None else e.target: e.particle.pdg_code
-                for e in d.external_edges}
-        pairs = [(e.source, e.target) for e in top if e.source in legs and e.target in legs]
-        # Two disjoint g-H pairs on a connected top hexagon: the gluon is its
-        # opposite chord, giving two boxes. All topology queries are native.
-        return (len(pairs) == 2 and len({v for pair in pairs for v in pair}) == 4
-                and all(sorted([legs[a], legs[b]]) == [21, 25] for a, b in pairs))
-
-    double_boxes = [d for d in diagrams if is_double_box(d)]
-    raw_diagram = double_boxes[0]
-    mo.vstack([mo.md(f"**{len(double_boxes)} double boxes** among {len(diagrams)} diagrams; using {raw_diagram.name}."),
-               mo.as_html(raw_diagram.render())])
-    return double_boxes, raw_diagram
-
-
-@app.cell
-def _(E, Representation, S, Tensor, TensorName, dot, exact, hep, mH, raw_diagram, sqrt_s):
-    eps, D = S("gghh::eps", "gghh::D")
-    P, K = hep.Kinematics.external_momentum(), hep.Kinematics.loop_momentum()
-    legs = sorted(hep.Amplitude.from_diagram(raw_diagram).legs, key=lambda leg: leg.index)
-    gluons = [leg for leg in legs if leg.particle.pdg_code == 21]
-    energy = exact(sqrt_s / 2)
-    q = (energy**2 - exact(mH)**2) ** E("1/2")
-    physical = [[energy, 0, 0, energy], [energy, 0, 0, -energy],
-                [energy, 3*q/5, 0, 4*q/5], [energy, -3*q/5, 0, -4*q/5]]
-    physical = dict(zip([leg.index for leg in legs if leg.state == "incoming"]
-                       + [leg.index for leg in legs if leg.state == "outgoing"], physical))
-    basis = raw_diagram.loop_momentum_basis
-    external = {e.id: e.external_index for e in raw_diagram.external_edges}
-    pol = [TensorName.vector(f"gghh::eps{i+1}") for i in range(2)]
-    states = [hep.FourMomentum(sqrt_s/2, 0, 0, z).wavefunction("epsilon", hep.Helicity.PLUS)
-              for z in (sqrt_s/2, -sqrt_s/2)]
-    vectors = [(P(i), physical[external[e]]) for i, e in enumerate(basis.external_edges)
-               if e not in basis.dependent_externals]
-    auxiliaries = [name.to_expression() for name in pol]
-    vectors += list(zip(auxiliaries, [[exact(z) for z in state.components] for state in states]))
-    tensors = [Tensor.dense(TensorName.vector(f"point::v{i}")(Representation.mink(4)),
-                           [E(str(x)) if isinstance(x, int) else x for x in vector])
-               for i, (_, vector) in enumerate(vectors)]
-    kinematics = hep.Kinematics(D, momenta=[K(i) for i in range(2)] + [p for p, _ in vectors])
-    for i, (left, _) in enumerate(vectors):
-        for j in range(i, len(vectors)):
-            product = dot(tensors[i], tensors[j])
-            product.execute()
-            kinematics = kinematics.with_scalar_product(left, vectors[j][0], product.result_scalar())
-    return D, auxiliaries, eps, gluons, kinematics, pol
-
-
-@app.cell
-def _(D, E, Representation, gluons, kinematics, mo, pol, raw_diagram, with_diagram_expressions):
-    color = Representation.coad(8).id(*(leg.tensor_index for leg in gluons))
-    polarization = pol[0](next(s for s in gluons[0].slots if s.representation == Representation.mink(4)))
-    polarization *= pol[1](next(s for s in gluons[1].slots if s.representation == Representation.mink(4)))
-    contracted = (raw_diagram.numerator_expression(in_lmb=True) * color * polarization
-                  * raw_diagram.projector_expression()).with_lorentz_dimension(D)
-    contracted = contracted.simplify_algebra(
-        contract="minimal", color_substitute_cof_dimension_invariants=True,
-    ).to_dots()
-    assert contracted.is_scalar
-    numerator = kinematics.apply(contracted).to_expression()
-    # Projection is now in the numerator; keep native graph weights separate.
-    diagram = with_diagram_expressions(
-        raw_diagram, numerator=numerator, projector=E("1"),
-        overall_factor=raw_diagram.overall_factor_expression(evaluate=True),
-    )
-    mo.accordion({"Contracted scalar numerator · preview": mo.as_html(
-        numerator.formatted(max_terms=8, max_line_length=90, show_namespaces=False))})
-    return diagram, numerator
+def _(Study):
+    study = Study("gghh")
+    study
+    return (study,)
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ## Decompose, then compile
-
-    The input is the HEPKit diagram with its contracted numerator and kinematics.
-    Its seven physical propagators retain their unit powers. Enable the next
-    cell to generate through the finite coefficient. The usual domain check
-    stays active; no threshold-free assumption is forced.
-    """)
-    return
-
-
-@app.cell(disabled=True)
-def _(auxiliaries, diagram, eps, kinematics, values):
-    generated = diagram.sector_decompose(
-        regulator=eps, dimension=4-2*eps, kinematics=kinematics,
-        scalar_values=values, auxiliary_momenta=auxiliaries, max_order=0,
-        coefficient_expansion="native_named", progress="auto",
-    )
-    kernels = generated.compile(progress="auto")
-    return generated, kernels
+def _(mo, study):
+    build = mo.ui.button(value=0, on_click=lambda n: n + 1,
+                         label="Build diagrams", kind="success")
+    build if study.kind == "gghh" else mo.md("Choose one of the native scalar examples below.")
+    return (build,)
 
 
 @app.cell
-def _(generated, kernels, mo):
-    sector_choice = mo.ui.dropdown({f"Sector {s.index}": s.index for s in generated.sectors},
-                                   value="Sector 0", label="Inspect")
-    mo.vstack([mo.ui.table([
-        {"sector": s.index, "dimension": s.dimension, "orders": generated.orders,
-         "evaluator bytes": stats.exact_program_bytes, "SymJIT application bytes": stats.symjit_ir_bytes,
-         "additions": stats.operations.additions, "multiplications": stats.operations.multiplications}
-        for s, stats in zip(generated.sectors, kernels.sector_statistics)
-    ]), mo.md("Expression sizes describe the shared sector evaluator. SymJIT application bytes measure its serialized program; browser kernels use the interpreter."), sector_choice])
-    return (sector_choice,)
+def _(build, mo, study):
+    catalogue = study.build(build.value, mo) if study.kind == "gghh" else None
+    mo.md(f"**{len(catalogue.diagrams)} diagrams** · " + " · ".join(
+        f"{sum(d.loop_count == loops for d in catalogue.diagrams)} at {loops} loop(s)"
+        for loops in (1, 2))) if catalogue is not None else mo.md("")
+    return (catalogue,)
+
+
+@app.cell(hide_code=True)
+def _(catalogue, mo, study):
+    catalogue
+    diagram = mo.ui.dropdown(study.choices(), value=study.default_choice(),
+                             allow_select_none=False, label="Native diagram / input")
+    diagram
+    return (diagram,)
 
 
 @app.cell
-def _(generated, mo, sector_choice):
-    charts = [c for c in generated.metadata.charts if c.kernel_sector == sector_choice.value]
-    mo.accordion({f"Chart {c.source_index}": mo.vstack([
-        mo.md("**Coordinate map**"),
-        mo.ui.table([{"source": str(p), "image": str(v)}
-                     for p, v in zip(c.coordinates.source_parameters, c.coordinates.images)]),
-        *[mo.vstack([mo.md(f"**Mapped term {i}: prefactor**"), mo.as_html(t.prefactor),
-                     mo.ui.table([{"coordinate": str(p), "epsilon-dependent exponent": str(a.exponent),
-                                   "Taylor terms": a.subtraction_count}
-                                  for p, a in zip(c.coordinates.target_parameters, t.powers)])])
-          for i, t in enumerate(c.pre_subtraction.terms)],
-    ]) for c in charts})
+def _(diagram, mo, study):
+    study.diagram_view(mo, diagram.value)
     return
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md("""
-    ## Integrate
-
-    Creating a session samples nothing. Enable the integration cell to advance
-    it; interrupt with marimo's Stop control. Rerunning only that cell continues
-    the same session. Long native calls can delay browser interruption.
-    The small default allocation is an exploration, not a precision guarantee.
-    """)
-    return
-
-
-@app.cell
-def _(QmcSettings, kernels):
-    session = kernels.session(QmcSettings(points=1024, shifts=8, seed=20261005))
-    # Larger native observation: points=32768, shifts=16, rule="hkkn_alpha3", seed=20261007.
-    return (session,)
-
-
-@app.cell
-def _(mo):
-    def integrate(session):
-        while not session.complete:
-            snapshot = session.step()  # one QMC package or global Havana batch
-            estimate = snapshot.estimate
-            rows = [] if estimate is None else [
-                {"epsilon power": n, "component": part, "value": value, "standard error": error,
-                 "relative error (per mil)": 1000*error/abs(value) if value else None}
-                for n, part, value, error in zip(estimate.orders, estimate.components,
-                                                estimate.mean, estimate.standard_error)]
-            mo.output.replace(mo.vstack([
-                mo.hstack([mo.stat(label="Accepted points", value=f"{snapshot.completed_points:,}"),
-                           mo.stat(label="Planned", value=f"{snapshot.planned_points:,}"),
-                           mo.stat(label="Worker time", value=f"{snapshot.worker_seconds:.1f} s")]),
-                mo.md(f"**{snapshot.method} · {snapshot.stage}** · uncertainty: {snapshot.uncertainty}"),
-                mo.ui.table(rows) if rows else mo.md("Waiting for a native production estimate…"),
-            ]))
-        return session.snapshot()
-    return (integrate,)
-
-
-@app.cell(disabled=True)
-def _(integrate, session):
-    qmc_result = integrate(session)
-    return (qmc_result,)
-
-
-@app.cell
-def _(HavanaDiscreteSettings, kernels):
-    # Optional comparison: native discrete importance sampling over sectors.
-    mc = kernels.mc_session(HavanaDiscreteSettings(points_per_batch=1024, batches=4), pilot=True)
-    return (mc,)
-
-
-@app.cell(disabled=True)
-def _(integrate, mc):
-    if mc.stage == "pilot":
-        integrate(mc)
-        mc.freeze_production(points_per_batch=1024, batches=8)
-    mc_result = integrate(mc)
-    return (mc_result,)
-
-
-@app.cell
-def _(kernels, mo):
-    from symbolica import get_citations
-
-    kernels  # Refresh the bibliography after native generation and compilation.
-    citations = get_citations()
+def _(mo, study):
+    generate = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Generate sectors", kind="success")
+    inspect = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Inspect", kind="neutral")
+    qmc = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Integrate QMC", kind="success")
+    havana = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Integrate Havana", kind="success")
+    pause = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Pause", kind="warn")
+    resume = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Resume")
+    export = mo.ui.button(value=0, on_click=lambda n: n + 1, label="Prepare downloads")
+    points = mo.ui.dropdown({str(n): n for n in (64, 256, 1024, 4096, 16384)}, value="1024", label="Points per shift / global MC batch")
+    replicas = mo.ui.number(start=2, stop=64, value=4, step=1, label="Shifts / global batches")
+    seed = mo.ui.number(start=0, stop=2**32-1, value=20261007, step=1, label="Seed")
+    sector = mo.ui.number(start=0, value=0, step=1, label="Sector ID")
+    epsilon_order = mo.ui.number(value=0, step=1, label="ε order")
+    sqrt_s = mo.ui.number(start=251, value=300, label="sqrt(s) [GeV]")
+    higgs_mass = mo.ui.number(start=1, value=125, label="mH [GeV]")
+    top_mass = mo.ui.number(start=1, value=172.5, label="mt = Yukawa mass [GeV]")
+    cos_theta = mo.ui.number(start=-0.999, stop=0.999, value=0.8, step=0.1, label="cos(theta)")
+    get_active, set_active = mo.state(False)
+    get_revision, set_revision = mo.state(0)
+    get_prepared_revision, set_prepared_revision = mo.state(0)
+    get_inspection_revision, set_inspection_revision = mo.state(0)
+    get_artifact_revision, set_artifact_revision = mo.state(0)
     mo.vstack([
-        mo.md("## References"),
-        *[mo.as_html(citation) for citation in citations],
-        mo.download("\n\n".join(citation.to_bibtex() for citation in citations).encode(),
-                    filename="fastsecdec-references.bib", label="Download BibTeX"),
+        mo.hstack([generate, inspect, qmc, havana], justify="start", wrap=True),
+        mo.hstack([pause, resume, sector, epsilon_order], justify="start", wrap=True),
+        mo.accordion({"Optional exports": mo.vstack([export, mo.md("Prepare portable evaluator and run-report bytes on the notebook caller, then use the download links below.")])}),
+        mo.accordion({"Runtime physical point": mo.vstack([
+            mo.hstack([sqrt_s, higgs_mass, top_mass, cos_theta], justify="start", wrap=True),
+            mo.md("Bound only at Integrate. Native model leaves and momentum Gram products remain evaluator parameters; changing this point reuses generated sectors."),
+        ])}) if study.kind == "gghh" else mo.md(""),
+        mo.accordion({"Integration allocation": mo.vstack([
+            mo.hstack([points, replicas, seed], justify="start", wrap=True),
+            mo.md("QMC uses Kuo-33002 (at least 1024 points), Korobov-3 and independent shifted lattices. Havana trains two 64-point pilot batches, then freezes production; pilot samples are excluded. A complete allocation is not an accuracy guarantee."),
+        ])}),
     ])
-    return (citations,)
+    return cos_theta, epsilon_order, export, generate, get_active, get_artifact_revision, get_inspection_revision, get_prepared_revision, get_revision, havana, higgs_mass, inspect, pause, points, qmc, replicas, resume, sector, seed, set_active, set_artifact_revision, set_inspection_revision, set_prepared_revision, set_revision, sqrt_s, top_mass
+
+
+@app.cell(hide_code=True)
+def _(get_active, mo):
+    refresh = mo.ui.refresh(options=["125ms", "250ms", "1s"], default_interval="125ms", label="Caller steps") if get_active() else None
+    refresh
+    return (refresh,)
+
+
+@app.cell(hide_code=True)
+def _(cos_theta, diagram, epsilon_order, export, generate, havana, higgs_mass, inspect, mo, pause, points, qmc, refresh, replicas, resume, sector, seed, set_active, set_artifact_revision, set_inspection_revision, set_prepared_revision, set_revision, sqrt_s, study, top_mass):
+    _before = study.run.work_active
+    _revision = study.dispatch(
+        {"generate": generate.value, "inspect": inspect.value, "qmc": qmc.value,
+         "havana": havana.value, "pause": pause.value, "resume": resume.value, "export": export.value},
+        refresh.value if refresh is not None else None,
+        diagram.value, {"points": points.value, "replicas": replicas.value,
+                        "seed": seed.value, "sector": sector.value, "epsilon_order": epsilon_order.value,
+                        "sqrt_s": sqrt_s.value, "higgs_mass": higgs_mass.value,
+                        "top_mass": top_mass.value, "cos_theta": cos_theta.value}, mo,
+    )
+    if study.run.work_active != _before:
+        set_active(study.run.work_active)
+    if _revision is not None:
+        set_revision(_revision)
+    _views = study.take_view_updates()
+    if "prepared" in _views:
+        set_prepared_revision(_views["prepared"])
+    if "inspection" in _views:
+        set_inspection_revision(_views["inspection"])
+    if "artifact" in _views:
+        set_artifact_revision(_views["artifact"])
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_revision, mo, study):
+    get_revision()
+    study.monitor(mo)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_prepared_revision, mo, study):
+    get_prepared_revision()
+    study.prepared_view(mo)
+    return
+
+
+@app.cell
+def _(get_artifact_revision, study):
+    get_artifact_revision()
+    generated = study.run.generated
+    generated
+    return (generated,)
+
+
+@app.cell
+def _(get_artifact_revision, study):
+    get_artifact_revision()
+    artifact = study.run.kernels
+    artifact
+    return (artifact,)
+
+
+@app.cell(hide_code=True)
+def _(get_inspection_revision, mo, study):
+    get_inspection_revision()
+    study.inspection_view(mo)
+    return
+
+
+@app.cell
+def _(get_revision, mo, study):
+    get_revision()
+    study.result_view(mo)
+    return
+
+
+@app.cell(hide_code=True)
+def _(get_artifact_revision, mo):
+    from symbolica import get_citations
+    get_artifact_revision()
+    citations = get_citations()
+    mo.accordion({"Native citations": mo.vstack([
+        *[mo.as_html(citation) for citation in citations],
+        mo.download("\n\n".join(c.to_bibtex() for c in citations).encode(), filename="fastsecdec-references.bib", label="Download BibTeX"),
+    ])})
+    return
 
 
 if __name__ == "__main__":

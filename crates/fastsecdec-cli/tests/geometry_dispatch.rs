@@ -53,8 +53,8 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
     card(&input, "x+y", 1000);
-    let serial_path = dir.path().join("serial.json");
-    let parallel_path = dir.path().join("parallel.json");
+    let serial_path = dir.path().join("serial.fsd");
+    let parallel_path = dir.path().join("parallel.fsd");
     let serial = success(
         cli()
             .arg("generate")
@@ -65,7 +65,7 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
             .unwrap(),
     );
     let output = cli()
-        .arg("--status-json")
+        .args(["--status-json", "--status-interval-ms", "0"])
         .arg("generate")
         .arg(&input)
         .args(["--geometry-workers", "2", "--output"])
@@ -77,21 +77,22 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
         .lines()
         .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
         .collect::<Vec<_>>();
-    for label in ["chart jobs returned", "cone jobs returned"] {
+    for label in ["charts", "cones"] {
         assert!(snapshots.iter().any(|s| {
             s["detail"]
                 .as_str()
-                .is_some_and(|d| d.contains(label) && d.contains("native admission pending"))
+                .is_some_and(|d| d.contains(label) && d.contains("running"))
         }));
     }
     let parallel = success(output);
     assert_eq!(serial["content_id"], parallel["content_id"]);
     assert_eq!(serial["orders"], serde_json::json!([-2, -1, 0]));
-    assert_eq!(parallel["geometry_workers"], 2);
+    assert_eq!(parallel["workers"], 2);
     let mut serial_artifact: serde_json::Value =
-        serde_json::from_slice(&fs::read(&serial_path).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(serial_path.with_extension("fsd.json")).unwrap()).unwrap();
     let mut parallel_artifact: serde_json::Value =
-        serde_json::from_slice(&fs::read(&parallel_path).unwrap()).unwrap();
+        serde_json::from_slice(&fs::read(parallel_path.with_extension("fsd.json")).unwrap())
+            .unwrap();
     serial_artifact
         .as_object_mut()
         .unwrap()
@@ -100,12 +101,14 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
         .as_object_mut()
         .unwrap()
         .remove("generation_timings");
+    serial_artifact["generation"]["workers"] = serde_json::Value::Null;
+    parallel_artifact["generation"]["workers"] = serde_json::Value::Null;
     assert_eq!(
         serial_artifact, parallel_artifact,
         "ordered kernels, metadata and identities"
     );
 
-    let run_path = dir.path().join("run.json");
+    let run_path = dir.path().join("run.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     let result = success(
         cli()
@@ -156,11 +159,11 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
 }
 
 #[test]
-fn parallel_geometry_keeps_domain_and_limit_failures_without_artifacts() {
+fn parallel_geometry_keeps_resource_limit_failures_without_artifacts() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("rejected.json");
-    for (factor, limit) in [("1-x", 1000), ("x+y", 0)] {
+    let artifact = dir.path().join("rejected.fsd");
+    for (factor, limit) in [("x+y", 0), ("x+y", 1)] {
         card(&input, factor, limit);
         let serial = cli()
             .arg("generate")
@@ -180,7 +183,8 @@ fn parallel_geometry_keeps_domain_and_limit_failures_without_artifacts() {
         let serial: serde_json::Value = serde_json::from_slice(&serial.stdout).unwrap();
         let parallel: serde_json::Value = serde_json::from_slice(&parallel.stdout).unwrap();
         assert_eq!(serial["error"], parallel["error"]);
-        assert!(!artifact.exists());
+        assert!(!artifact.with_extension("fsd.json").exists());
+        assert!(!artifact.with_extension("fsd.dat").exists());
     }
     let invalid = cli()
         .arg("generate")

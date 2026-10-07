@@ -8,5 +8,6 @@
 *.profdata
 .DS_Store
 __pycache__/
+__marimo__/
 *.py[cod]
 .pytest_cache/

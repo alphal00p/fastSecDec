@@ -104,7 +104,7 @@ fn symmetric_chart_multiplicity_preserves_pole_and_finite_coefficient() {
     near(
         &estimate,
         1,
-        2.0 * 2.0f64.ln() - 1.5 - 0.577_215_664_901_532_9,
+        2.0 * 2.0f64.ln() - 1.5 - std::f64::consts::EULER_GAMMA,
     );
 }
 

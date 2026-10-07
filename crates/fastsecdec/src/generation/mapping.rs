@@ -315,3 +315,23 @@ pub(crate) fn coordinates_from_parts(
         projective_fixed_parameter: map.fixed_parameter,
     }
 }
+
+/// Keep generated coordinates disjoint from every source symbol, including
+/// coordinates absent from the density. Shared by ordinary and stepped callers.
+pub(super) fn target_parameters(input: &ParametricIntegrand, dimension: usize) -> Vec<Symbol> {
+    let mut source_symbols = input.density().get_all_symbols(true);
+    source_symbols.extend(input.parameters().iter().copied());
+    source_symbols.insert(input.regulator());
+    for namespace in 0usize.. {
+        let candidates = (0..dimension)
+            .map(|axis| symbolica::symbol!(format!("fastsecdec::sector_{namespace}::t{axis}")))
+            .collect::<Vec<_>>();
+        if candidates
+            .iter()
+            .all(|symbol| !source_symbols.contains(symbol))
+        {
+            return candidates;
+        }
+    }
+    unreachable!("finite source symbols cannot exhaust namespaces")
+}

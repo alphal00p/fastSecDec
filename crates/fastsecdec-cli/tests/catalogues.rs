@@ -38,7 +38,7 @@ fn card(path: &Path, integration: &str, dimension: usize) {
 fn explicit_catalogues_integrate_one_artifact_and_checkpoint_distinct_sampling() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
+    let artifact = dir.path().join("integral.fsd");
     card(&input, "points=1024\nshifts=4", 1);
     let generated = success(
         cli()
@@ -49,7 +49,7 @@ fn explicit_catalogues_integrate_one_artifact_and_checkpoint_distinct_sampling()
             .output()
             .unwrap(),
     );
-    let original = fs::read(&artifact).unwrap();
+    let original = fs::read(artifact.with_extension("fsd.json")).unwrap();
     for (name, native) in [
         ("kuo33002", "Kuo33002"),
         ("kuo38005", "Kuo38005"),
@@ -103,7 +103,7 @@ fn explicit_catalogues_integrate_one_artifact_and_checkpoint_distinct_sampling()
         );
     }
     assert_eq!(
-        fs::read(&artifact).unwrap(),
+        fs::read(artifact.with_extension("fsd.json")).unwrap(),
         original,
         "integration overrides must not regenerate the symbolic artifact"
     );
@@ -129,7 +129,7 @@ fn explicit_catalogues_integrate_one_artifact_and_checkpoint_distinct_sampling()
 fn native_catalogue_bounds_apply_to_toml_without_fallback() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
+    let artifact = dir.path().join("integral.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     card(&input, "points=2\nshifts=4\nlattice=\"hkkn-alpha3\"", 1);
     let result = success(
@@ -161,7 +161,7 @@ fn native_catalogue_bounds_apply_to_toml_without_fallback() {
         .arg("run")
         .arg(&wide)
         .arg("--output")
-        .arg(dir.path().join("wide.json"))
+        .arg(dir.path().join("wide.fsd"))
         .output()
         .unwrap();
     assert!(!rejected.status.success());

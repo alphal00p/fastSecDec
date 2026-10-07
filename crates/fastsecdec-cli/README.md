@@ -3,15 +3,16 @@
 The CLI reads native HEPKit DOT graphs, native model JSON and parameter cards,
 and TOML run cards. Paths inside a run card are relative to that card. External
 scalar products use the graph's native `P(index)` basis; `inspect` reports that
-basis. The ggHH example includes a runtime point file; migration of the older
-cards under `examples/runs` is deferred.
+basis. The ggHH example includes a runtime point file. Graph cards under
+`examples/runs` declare symbolic dot products and retain their reference points
+in `[integration.parameters]`.
 
 Graph inputs compile contributing independent model inputs as runtime evaluator
 parameters by default. Native HEPKit resolves dependent parameters and couplings
 into expressions in those inputs. The model card supplies human-readable defaults
 and zero-width restrictions; its cached numerical values do not freeze dependent
-expressions. Integration requires the declared values through `--parameters`
-or repeated `--parameter NAME=VALUE`. Inputs use `model::NAME`, with `_re` and
+expressions. Integration requires the declared values through `[integration.parameters]`,
+`--parameters`, or repeated `--parameter NAME=VALUE`. Inputs use `model::NAME`, with `_re` and
 `_im` components for complex leaves. Kinematic `symbol` declarations likewise
 require integration-time values; `value` declarations are fixed expressions.
 
@@ -234,12 +235,12 @@ not establish completion of every full graph or matched performance. Saved
 conditioning rows retain their existing numeric meaning; the fresh result's
 descriptive conditioning basis is not inferred from a loaded artifact.
 
-The on-shell triple-box card selects `native_named` together with
+The on-shell triple-box card selects `coefficient_series` together with
 `SingleUnitTerm { max_states: 32 }`. This preserves its original graph,
 kinematics and normalization while using the validated eight-parameter family:
 
 ```sh
-fastsecdec generate examples/runs/triple_box.toml --output output/triple_box.fsd.json
+fastsecdec generate examples/runs/triple_box.toml --output output/triple_box.fsd
 ```
 
 This case has completed generation of all 1,026 sector kernels through epsilon
@@ -278,7 +279,7 @@ QMC uses the historical `kuo33002` catalogue by default. Select another native
 published catalogue explicitly, without regenerating the symbolic artifact:
 
 ```sh
-fastsecdec integrate output/bubble.fsd.json --lattice hkkn-alpha3
+fastsecdec integrate output/bubble.fsd --lattice hkkn-alpha3
 ```
 
 The equivalent run-card setting is `[integration] lattice = "hkkn-alpha3"`.

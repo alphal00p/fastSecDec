@@ -1,4 +1,6 @@
 # Native HEPKit P(index) scalar products; paths are relative to this card.
+# Nonzero dot products and contributing model inputs are evaluator parameters.
+# The integration defaults below select the historical Euclidean reference point.
 [input]
 graph = "../graphs/three_point_2loop.dot"
 model = "../models/scalar.json"
@@ -6,15 +8,10 @@ parameter_card = "../models/massive.json"
 
 [kinematics]
 products = [
-  { left = 0, right = 0, value = "s11" },
-  { left = 1, right = 1, value = "s22" },
-  { left = 0, right = 1, value = "(s33-s11-s22)/2" },
+  { left = 0, right = 0, symbol = "p0_dot_p0" },
+  { left = 1, right = 1, symbol = "p1_dot_p1" },
+  { left = 0, right = 1, symbol = "p0_dot_p1" },
 ]
-
-[parameters]
-s11 = "-1"
-s22 = "-1"
-s33 = "-1"
 
 [integral]
 dimension = "4-2*eps"
@@ -23,4 +20,9 @@ measure_multiplier = "1"
 
 [generation]
 order = 0
-assume_no_threshold = false
+
+[integration.parameters]
+"p0_dot_p0" = -1.0
+"p1_dot_p1" = -1.0
+"p0_dot_p1" = 0.5
+"model::mt" = 1.0

@@ -20,6 +20,12 @@ cargo fmt --all --check
 cargo tree --locked --duplicates
 ```
 
+On macOS, if `cc` resolves to MacPorts GCC, use Apple's Clang linker for Rust:
+`CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=/usr/bin/clang cargo test --workspace --locked -- --test-threads=1`.
+The GCC-linked test executable on our macOS validation host aborted even for a
+minimal `catch_unwind`; relinking with Clang restored panic recovery. This is an
+environment setting, not a reason to disable cancellation or worker-panic tests.
+
 Cargo obtains dependencies from their public Git repositories and the registry.
 There is no dependency-preparation script, generated path overlay or local
 Symbolica source patch. The standard `[patch.crates-io]` entry selects upstream
@@ -50,8 +56,12 @@ must supply matching source roots for their source-state fingerprints.
 
 ## Portable and Python consumers
 
-Select exactly one numerical backend: `native` uses SymJIT O2 and GMP/MPFR;
-`portable` uses Symbolica's interpreter and Malachite/Astro. Portable host tests
+Select exactly one arithmetic backend: `native` provides GMP/MPFR and supports
+either SymJIT O2 or Symbolica's eager evaluator; `portable` uses the eager
+evaluator with Malachite/Astro. The CLI defaults to SymJIT O2 locally. Python
+notebooks explicitly choose eager compilation and one caller-owned worker, also
+when running locally. `CompilationSettings.backend` selects evaluator generation
+without changing expressions or runtime parameter ownership. Portable host tests
 exercise that arithmetic backend, but do not establish actual Wasm execution.
 The standalone validation consumer excludes native-only reference providers:
 
@@ -120,5 +130,5 @@ Native tests, portable-feature host tests, actual Wasm execution and installed
 Python wheels are separate evidence. Earlier notebook and ggHH results keep
 their original source identities; an ordinary dependency migration does not
 relabel them as fresh runtime validation. Current delivery is tracked in
-[draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18)
+[merged HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18)
 and the [dependency review](reviews/regular-hepkit-build.md).

@@ -168,3 +168,6 @@ fn symbol_strings(values: &[Symbol]) -> Vec<String> {
         .map(|symbol| Atom::var(*symbol).to_canonical_string())
         .collect()
 }
+
+#[cfg(test)]
+mod tests;

@@ -2,6 +2,9 @@
 //!
 //! Symbolica owns all polynomial manipulation, derivatives and series expansions.
 //! This module owns the integral-specific order of these operations.
+mod assembly;
+mod session;
+pub use session::{GenerationSession, GenerationSessionState};
 mod coefficient_first;
 mod coefficients;
 mod conditioning;
@@ -45,10 +48,8 @@ use context::emit;
 use fastsecdec_sectors::PolynomialSupport;
 use geometry::{Geometry, GeometrySource};
 use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
-use symbolica::{
-    atom::{Atom, AtomCore, AtomView},
-    symbol,
-};
+#[cfg(test)]
+use symbolica::atom::Atom;
 
 /// Test-only access to the real Laurent stage, without manufacturing a partial
 /// generated integral or its domain/chart metadata.
@@ -168,14 +169,6 @@ fn generate_inner(
             seconds: started.elapsed().as_secs_f64(),
         },
     )?;
-    let mut source_symbols = input.density().get_all_symbols(true);
-    // Unused input coordinates still belong to the source chart and must not
-    // be reused as target symbols merely because the density omits them.
-    source_symbols.extend(input.parameters().iter().copied());
-    source_symbols.extend(std::iter::once(input.regulator()));
-    let mut pending = Vec::new();
-    let mut exact = BTreeMap::<i32, Atom>::new();
-    let mut minimum = options.max_order.min(0);
     let mut templates = laurent::TemplateCache::default();
     let mut registry = symmetry::SymmetryRegistry::default();
     let mut representatives = BTreeMap::new();
@@ -185,20 +178,8 @@ fn generate_inner(
         .flat_map(Geometry::maps)
         .map(|map| map.into_owned())
         .collect::<Vec<_>>();
-    let mut namespace = 0usize;
-    let dimension = maps.first().map_or(0, |map| map.dimension());
-    let parameters = loop {
-        let candidates = (0..dimension)
-            .map(|axis| symbol!(format!("fastsecdec::sector_{namespace}::t{axis}")))
-            .collect::<Vec<_>>();
-        if candidates
-            .iter()
-            .all(|symbol| !source_symbols.contains(symbol))
-        {
-            break candidates;
-        }
-        namespace += 1;
-    };
+    let parameters =
+        mapping::target_parameters(input, maps.first().map_or(0, |map| map.dimension()));
     let mut maps = maps.into_iter();
     let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
         let mapped = work::map_dispatched(
@@ -310,7 +291,6 @@ fn generate_inner(
         )?;
     }
     let total = representatives.len();
-    let mut kernel_indices = BTreeMap::new();
     let expanded = if let Some(dispatch) = symbolic_dispatch {
         work::expand_dispatched(
             representatives,
@@ -357,77 +337,13 @@ fn generate_inner(
         }
         expanded
     };
+    let mut assembly = assembly::Assembly::new(options.max_order);
     for (representative_index, map, parameters, multiplicity, output) in expanded {
-        let coefficients = output
-            .coefficients
-            .into_iter()
-            .map(|(order, coefficient)| {
-                (
-                    order,
-                    coefficient.map_root(|root| root * Atom::num(multiplicity)),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        let conditioning = output.conditioning;
-        if let Some(order) = coefficients.keys().next() {
-            minimum = minimum.min(*order);
-        }
-        if coefficients.values().all(|coefficient| {
-            let symbols = coefficient.get_root().get_all_symbols(true);
-            parameters.iter().all(|p| {
-                let parameter = Atom::var(*p);
-                !symbols.contains(p)
-                    && coefficient.get_aliases().iter().all(|(handle, body)| {
-                        let AtomView::Var(handle) = handle.as_view() else {
-                            unreachable!("Laurent images are native symbols")
-                        };
-                        !symbols.contains(&handle.get_symbol())
-                            || !body.contains(parameter.as_view())
-                    })
-            })
-        }) {
-            for (order, coefficient) in coefficients {
-                *exact.entry(order).or_insert(Atom::Zero) += coefficient.into_inner();
-            }
-        } else {
-            kernel_indices.insert(representative_index, pending.len());
-            pending.push((map, parameters, coefficients, conditioning));
-        }
+        assembly.push(representative_index, map, parameters, multiplicity, output);
     }
     #[cfg(test)]
     laurent::profiling::reject_uncaptured_result()?;
-    for chart in &mut charts {
-        chart.kernel_sector = kernel_indices.get(&chart.representative).copied();
-    }
-    let orders = (minimum..=options.max_order).collect::<Vec<_>>();
-    let sectors = pending
-        .into_iter()
-        .map(
-            |(map, parameters, coefficients, conditioning)| GeneratedSector {
-                cancellation_degree: conditioning.degree,
-                cancellation_terms: conditioning.rows,
-                endpoint_profiles: conditioning.endpoint_profiles,
-                conditioning_basis: conditioning.basis,
-                parameters,
-                map,
-                materialized: Default::default(),
-                coefficients: orders
-                    .iter()
-                    .map(|order| coefficients.get(order).cloned().unwrap_or_default())
-                    .collect(),
-            },
-        )
-        .collect();
-    let exact_coefficients = orders
-        .iter()
-        .map(|order| exact.get(order).cloned().unwrap_or(Atom::Zero))
-        .collect();
-    let result = GeneratedIntegral {
-        metadata: GenerationMetadata { domain, charts },
-        orders,
-        sectors,
-        exact_coefficients,
-    };
+    let result = assembly.finish(domain, charts, options.max_order);
     emit(
         &mut progress,
         GenerationProgress::Complete {

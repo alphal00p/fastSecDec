@@ -81,8 +81,8 @@ independence_evidence = "The reference is an analytic antiderivative, independen
 fn reference_configuration_and_overrides_preserve_artifact_and_checkpoint_identity() {
     let dir = tempfile::tempdir().unwrap();
     let card = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
-    let second_artifact = dir.path().join("compared.json");
+    let artifact = dir.path().join("integral.fsd");
+    let second_artifact = dir.path().join("compared.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     fs::write(&card, CARD).unwrap();
     let baseline = json(
@@ -141,17 +141,17 @@ fn reference_configuration_and_overrides_preserve_artifact_and_checkpoint_identi
     );
     assert_eq!(baseline["content_id"], generated["content_id"]);
     let stored: serde_json::Value =
-        serde_json::from_slice(&fs::read(&second_artifact).unwrap()).unwrap();
-    assert!(Path::new(stored["reference"]["path"].as_str().unwrap()).is_absolute());
+        serde_json::from_slice(&fs::read(second_artifact.with_extension("fsd.json")).unwrap())
+            .unwrap();
+    assert_eq!(stored["reference"]["path"], "reference.json");
     let restored_default = json(
         cli()
+            .current_dir(&elsewhere)
             .arg("integrate")
             .arg(&second_artifact)
             .arg("--checkpoint")
             .arg(&checkpoint)
             .arg("--resume")
-            .arg("--reference")
-            .arg(dir.path().join("reference.json"))
             .output()
             .unwrap(),
     );
@@ -218,7 +218,7 @@ fn reference_configuration_and_overrides_preserve_artifact_and_checkpoint_identi
 fn invalid_reference_is_reported_before_graph_loading_and_historical_errors_stay_unknown() {
     let dir = tempfile::tempdir().unwrap();
     let card = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
+    let artifact = dir.path().join("integral.fsd");
     fs::write(
         &card,
         "[input]\ngraph='missing.dot'\nmodel='missing.json'\n[reference]\npath='reference.json'\n",
@@ -244,7 +244,8 @@ fn invalid_reference_is_reported_before_graph_loading_and_historical_errors_stay
             .unwrap()
             .contains("unsupported native reference format/version")
     );
-    assert!(!artifact.exists());
+    assert!(!artifact.with_extension("fsd.json").exists());
+    assert!(!artifact.with_extension("fsd.dat").exists());
     fs::write(
         &card,
         format!("{CARD}\n[reference]\npath='reference.json'\n"),

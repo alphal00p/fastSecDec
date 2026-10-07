@@ -11,6 +11,7 @@ use symbolica::{
 
 use crate::{Error, Result, kernel::RuntimeMassConstraint, parametric::ParametricIntegrand};
 
+#[derive(Clone)]
 struct Parameter {
     name: String,
     symbol: Symbol,
@@ -21,6 +22,7 @@ struct Parameter {
 /// Only explicit fixed overrides and zero-width restrictions specialize them.
 /// After preparing the integral, call `retain_used`, compile with `symbols()`,
 /// and attach `mass_constraints()` to the resulting KernelSet before binding.
+#[derive(Clone)]
 pub struct RuntimeModelBindings {
     values: BTreeMap<Symbol, Atom>,
     parameters: Vec<Parameter>,

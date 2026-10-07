@@ -1,4 +1,6 @@
 # Native HEPKit P(index) scalar products; paths are relative to this card.
+# Nonzero dot products and contributing model inputs are evaluator parameters.
+# The integration defaults below select the historical Euclidean reference point.
 [input]
 graph = "../graphs/bubble.dot"
 model = "../models/scalar.json"
@@ -6,11 +8,12 @@ parameter_card = "../models/massless.json"
 
 [kinematics]
 products = [
-  { left = 1, right = 1, value = "s" },
+  { left = 1, right = 1, symbol = "p1_dot_p1" },
 ]
 
+# This massless family is a structural specialization.
 [parameters]
-s = "-1"
+"UFO::mt" = "0"
 
 [integral]
 dimension = "4-2*eps"
@@ -19,4 +22,6 @@ measure_multiplier = "1"
 
 [generation]
 order = 0
-assume_no_threshold = false
+
+[integration.parameters]
+"p1_dot_p1" = -1.0

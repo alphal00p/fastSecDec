@@ -43,8 +43,7 @@ impl ComplexKernel {
             .map(|v| Complex::new(*v, 0.0))
             .collect::<Vec<_>>();
         let mut values = vec![Complex::new(0.0, 0.0); rows * self.output.len()];
-        let timings = evaluator::evaluate_batch(
-            &mut self.evaluator,
+        let timings = self.evaluator.evaluate_batch(
             &input,
             &mut values,
             rows,
@@ -131,9 +130,8 @@ impl ComplexKernel {
         }
         Ok(())
     }
-    #[cfg(feature = "native")]
-    pub(super) fn symjit_ir_bytes(&self) -> usize {
-        self.evaluator.as_bytes().len()
+    pub(super) fn symjit_ir_bytes(&self) -> Option<usize> {
+        self.evaluator.symjit_ir_bytes()
     }
     #[cfg(test)]
     pub(super) fn new(
@@ -159,6 +157,7 @@ impl ComplexKernel {
                 .iter()
                 .map(|value| !super::has_complex_coefficients(value))
                 .collect(),
+            super::EvaluatorBackend::Auto,
         )
     }
 
@@ -169,11 +168,12 @@ impl ComplexKernel {
         precision: PrecisionPolicy,
         exact_zero: Vec<bool>,
         real_coefficients: Vec<bool>,
+        backend: super::EvaluatorBackend,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         let inputs = exact.get_input_len();
         let outputs = exact.get_output_len();
-        let evaluator = evaluator::complex(&exact)?;
+        let evaluator = evaluator::complex(&exact, backend)?;
         let requirements =
             evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
         let conditioning = requirements

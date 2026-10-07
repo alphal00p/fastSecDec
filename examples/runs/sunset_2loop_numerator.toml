@@ -6,10 +6,11 @@ model = "../models/scalar.json"
 parameter_card = "../models/massless.json"
 
 [kinematics]
-products = [{ left = 0, right = 0, value = "s" }]
+products = [{ left = 0, right = 0, symbol = "p0_dot_p0" }]
 
+# This massless family is a structural specialization.
 [parameters]
-s = "-1"
+"UFO::mt" = "0"
 
 [integral]
 dimension = "4-2*eps"
@@ -18,4 +19,6 @@ measure_multiplier = "1"
 
 [generation]
 order = 1
-assume_no_threshold = false
+
+[integration.parameters]
+"p0_dot_p0" = -1.0

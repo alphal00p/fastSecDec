@@ -262,44 +262,6 @@ impl Dashboard {
         self.memory.finish().process_cpu_seconds
     }
 
-    /// Compatibility view when a caller only has an accepted progress snapshot.
-    /// Sector estimates unavailable in that snapshot remain unavailable.
-    #[cfg(test)]
-    pub fn integration(&mut self, snapshot: &IntegrationSnapshot, elapsed: f64) -> CliResult<()> {
-        use fastsecdec::integration::{
-            ContributionReport, IntegrationObservation, ReplicaRelation, SectorContribution,
-        };
-        let layout = snapshot.estimate.as_ref();
-        let contributions = ContributionReport {
-            method: snapshot.method,
-            stage: snapshot.stage,
-            orders: layout.map(|e| e.orders.clone()).unwrap_or_default(),
-            components: layout.map(|e| e.components.clone()).unwrap_or_default(),
-            exact_coefficients: vec![],
-            replica_relation: ReplicaRelation::SharedAcrossSectors,
-            sectors: snapshot
-                .sectors
-                .iter()
-                .map(|s| SectorContribution {
-                    progress: s.clone(),
-                    used_replicas: s.complete_replicas,
-                    used_points: s.completed_points,
-                    uncertainty: snapshot.uncertainty.clone(),
-                    estimate: None,
-                })
-                .collect(),
-            uncertainty: snapshot.uncertainty.clone(),
-            total: snapshot.estimate.clone(),
-        };
-        self.integration_observation(
-            &IntegrationObservation {
-                snapshot: snapshot.clone(),
-                contributions,
-            },
-            elapsed,
-        )
-    }
-
     pub fn integration_observation(
         &mut self,
         observation: &fastsecdec::integration::IntegrationObservation,

@@ -1,7 +1,7 @@
 //! Bounded, caller-owned batches. Only independent primary evaluations move
 //! ahead; weighted references and precision replays retain original row order.
 use super::{KernelError, PrecisionClass, ReplayReport, StabilityMode, WeightedEvaluationContext};
-use crate::kernel::{Backend, EvaluatorTiming, evaluator};
+use crate::kernel::{Backend, EvaluatorTiming};
 
 /// A failed batch retains the reports for its successfully processed prefix.
 /// `completed.len()` identifies the failing row (or zero for a shape error).
@@ -140,8 +140,7 @@ impl WeightedEvaluationContext {
         }
         let timings = match &mut self.kernel.backend {
             Backend::Real(kernel) => {
-                let timings = evaluator::evaluate_batch(
-                    &mut kernel.evaluator,
+                let timings = kernel.evaluator.evaluate_batch(
                     &input,
                     &mut primary,
                     selected.len(),

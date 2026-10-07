@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, ops::ControlFlow, sync::Arc};
 
 use fastsecdec::{
     Atom, Kinematics, Model,
-    generation::{GenerationError, GenerationOptions, generate},
+    generation::{BranchPolicy, FactorCertificate, GenerationOptions, generate},
     input::GraphIntegral,
     integration::{IntegrationProblem, QmcSession, QmcSettings, SectorSpec},
     kernel::ReplayPolicy,
@@ -63,14 +63,14 @@ fn parametric(graph: &GraphIntegral) -> ParametricIntegrand {
 }
 
 #[test]
-fn native_timelike_massless_triangle_and_box_reject_even_with_an_assertion() {
+fn native_timelike_massless_inputs_are_formal_and_uncertified() {
     for (dot, triangle) in [
         (include_str!("../../../examples/graphs/triangle.dot"), true),
         (include_str!("../../../examples/graphs/box.dot"), false),
     ] {
         let input = parametric(&graph(dot, triangle, 1));
         for assume_no_threshold in [false, true] {
-            let error = generate(
+            let generated = generate(
                 &input,
                 &GenerationOptions {
                     assume_no_threshold,
@@ -78,14 +78,16 @@ fn native_timelike_massless_triangle_and_box_reject_even_with_an_assertion() {
                 },
                 |_| ControlFlow::Continue(()),
             )
-            .unwrap_err();
-            // Here F is negative throughout the open domain, rather than
-            // changing sign inside it. Its regulator-dependent power needs
-            // complex branch handling, which an assertion cannot override.
-            assert!(
-                matches!(error, GenerationError::ComplexBranch(_)),
-                "{error}"
-            );
+            .unwrap();
+            // Formal native expressions preserve their branch-sensitive factors;
+            // no contour or claim of a valid real-domain numerical point is added.
+            let domain = generated.metadata().domain_assessment();
+            assert_eq!(domain.branch_policy(), BranchPolicy::UserResponsible);
+            assert_eq!(domain.caller_asserted(), assume_no_threshold);
+            assert!(!domain.relies_on_assertion());
+            assert!(domain.factors().iter().all(
+                |factor| factor.certificate() == FactorCertificate::UncheckedUserResponsibility
+            ));
         }
     }
 }
@@ -206,7 +208,7 @@ fn negative_highest_order_integrates_only_the_native_triangle_poles() {
         .mean
         .iter()
         .zip(&estimate.standard_error)
-        .zip([-1.0, 0.577_215_664_901_532_9])
+        .zip([-1.0, std::f64::consts::EULER_GAMMA])
     {
         assert!(
             (actual - expected).abs() < 8.0 * error + 2e-6,
@@ -232,6 +234,9 @@ fn native_rank_two_numerator_replay_preserves_the_complete_real_laurent_vector()
             .unwrap()
             .compile()
             .unwrap();
+            kernels
+                .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+                .unwrap();
             assert_eq!(kernels.orders().last(), Some(&0));
             assert!(kernels.orders().len() >= 2);
             assert!(

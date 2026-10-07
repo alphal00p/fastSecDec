@@ -29,7 +29,7 @@ fn report(output: Output) -> (serde_json::Value, Vec<serde_json::Value>) {
 fn cadence_is_observational_and_forced_stage_final_events_survive_a_long_interval() {
     let dir = tempfile::tempdir().unwrap();
     let card = dir.path().join("input.toml");
-    let artifact = dir.path().join("artifact.json");
+    let artifact = dir.path().join("artifact.fsd");
     fs::write(&card,"[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['1']\n[integration]\npoints=1024\nshifts=4\n").unwrap();
     report(
         cli()

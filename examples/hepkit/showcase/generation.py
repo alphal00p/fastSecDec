@@ -19,7 +19,7 @@ def timing_rows(event):
 
 def generation_view(mo, state):
     if not state.events:
-        return mo.md("The native phase timeline appears after Generate.")
+        return mo.md("Preparing the native input. Individual algebra units are atomic; Pause takes effect at the next retained boundary.")
     last = state.events[-1]
     progress = f"{last.completed:,} / {last.total:,}" if last.total is not None else f"{last.completed:,} observed"
     content = [
@@ -34,13 +34,13 @@ def generation_view(mo, state):
               "Native phase timings": table(mo, timing_rows(last))}
     coefficient = last.coefficient_expansion
     if coefficient is not None:
-        requests = coefficient.requests
+        # The native detail above supplies stage-valid request/piece counts.
+        # Raw zero-initialized counters are not measurements before their stage.
         detail["Coefficient expansion"] = table(mo, [{
             "sector": coefficient.sector, "stage": coefficient.stage,
             "requested method": coefficient.requested_method, "effective method": coefficient.effective_method,
-            "attempt": coefficient.attempt, "relative width": coefficient.relative_width,
-            "formal pieces": coefficient.formal_pieces,
-            **{name: getattr(requests, name) for name in ("source_bodies", "unique_requests", "cached_partials", "aliases", "interleaved_requests", "fallback_requests")},
+            **({"epsilon expansion pass": coefficient.attempt,
+                "relative epsilon depth": coefficient.relative_width} if coefficient.attempt else {}),
         }])
     if last.stage == "complete":
         t = last.timings

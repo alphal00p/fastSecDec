@@ -23,8 +23,8 @@ def state_backend():
         @property
         def checkpoint_available(self): return self.stage == "production"
         def snapshot(self): return NS(estimate=None, completed_points=self.accepted, stage=self.stage)
-        def step(self, max_batches):
-            assert max_batches == 1
+        def step(self, max_batches, evaluation_batch_size):
+            assert max_batches == 1 and evaluation_batch_size == 256
             calls["steps"] += 1
             self.accepted += 1
             self.complete = self.accepted == 2

@@ -25,10 +25,15 @@ def backend():
         complete = False
         def snapshot(self): return snapshot
         def checkpoint(self): return b"accepted-checkpoint"
-        def step(self, max_packages):
+        def step(self, max_packages, evaluation_batch_size):
+            assert max_packages == 1 and evaluation_batch_size == 256
             calls["step"] += 1
             return snapshot
     class Kernels:
+        runtime_parameters = []
+        def with_parameters(self, values, stability):
+            assert values == {}
+            return self
         def session(self, settings):
             calls["session"] += 1
             return Session()
@@ -36,6 +41,7 @@ def backend():
             assert checkpoint == b"accepted-checkpoint"
             return Session()
     class Generated:
+        runtime_parameter_defaults = {}
         def compile(self, observer):
             calls["compile"] += 1
             return Kernels()
@@ -43,7 +49,29 @@ def backend():
         def sector_decompose(self, *, max_order, observer, **arguments):
             calls["generate"] += 1
             return Generated()
-    fs = SimpleNamespace(QmcSettings=lambda **kw: kw)
+    class Generation:
+        complete = False
+        failed = None
+        generated = kernels = None
+        def __init__(self, diagram): self.diagram = diagram
+        def step(self, max_units, observer):
+            assert max_units == 1
+            try:
+                if self.generated is None:
+                    self.generated = self.diagram.sector_decompose(max_order=0, observer=observer)
+                else:
+                    self.kernels = self.generated.compile(observer=observer)
+                    self.complete = True
+            except Exception as error:
+                self.failed = str(error)
+                raise
+    class Integral:
+        def __init__(self, **arguments): self.diagram = arguments["diagram"]
+        def generation_session(self, **options):
+            assert options["compilation_settings"]["backend"] == "eager"
+            return Generation(self.diagram)
+    fs = SimpleNamespace(QmcSettings=lambda **kw: kw, Integral=Integral,
+                         CompilationSettings=lambda **kw: kw, StabilitySettings=lambda **kw: kw)
     diagram = Diagram()
     prepared = prepared_input(diagram)
     return fs, prepared, calls
@@ -119,15 +147,15 @@ def test_new_preparation_failure_does_not_reuse_old_timing(monkeypatch):
 
 
 def test_compilation_failure_keeps_generated_native_owner():
-    generated = SimpleNamespace(compile=lambda **kw: (_ for _ in ()).throw(ValueError("compile stopped")))
-    fs = SimpleNamespace()
-    diagram = SimpleNamespace(sector_decompose=lambda **kw: generated)
-    prepared = prepared_input(diagram)
+    fs, prepared, calls = backend()
+    class CompilationFailure(ValueError): stage = "compilation"
+    generated = SimpleNamespace(compile=lambda **kw: (_ for _ in ()).throw(CompilationFailure("compile stopped")))
+    prepared.diagram.sector_decompose = lambda **kw: generated
     state = RunState()
     generate(state, fs, lambda observer: prepared, CONFIG)
     assert state.generated is generated
     assert state.kernels is None and state.session is None
-    assert "compiling" in state.message
+    assert "compilation" in state.error and not state.generation_active
 
 
 def test_cancel_storage_failure_keeps_session_and_prior_checkpoint():

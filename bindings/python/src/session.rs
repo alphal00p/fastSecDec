@@ -241,6 +241,23 @@ impl PyQmcSession {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyQmcSession {
+    fn observation(&self, py: Python<'_>) -> PyResult<crate::status::PyIntegrationObservation> {
+        let mut inner = self
+            .session
+            .diagnostic_observation()
+            .map_err(|e| error::native(py, "integration", e))?;
+        inner.snapshot.evaluation_diagnostics = Some(self.diagnostics.clone());
+        inner.snapshot.stop_reason = self.stop_reason.clone();
+        Ok(crate::status::PyIntegrationObservation { inner })
+    }
+    fn live_observation(&self, py: Python<'_>) -> PyResult<crate::status::PyLiveObservation> {
+        let inner = self
+            .session
+            .live_observation()
+            .map_err(|e| error::native(py, "integration", e))?;
+        Ok(crate::status::PyLiveObservation { inner })
+    }
+
     #[getter]
     fn complete(&self) -> bool {
         self.session.is_complete()
@@ -265,18 +282,19 @@ impl PyQmcSession {
 
     /// Execute at most max_packages, returning to the Python caller between steps.
     /// An observer receives immutable snapshots after accepted packages; False stops this call.
-    #[pyo3(signature = (max_packages=1, *, observer=None))]
+    #[pyo3(signature = (max_packages=1, *, evaluation_batch_size=256, observer=None))]
     fn step(
         &mut self,
         py: Python<'_>,
         max_packages: usize,
+        evaluation_batch_size: usize,
         observer: Option<Py<PyAny>>,
     ) -> PyResult<PyIntegrationSnapshot> {
-        if max_packages == 0 {
+        if max_packages == 0 || evaluation_batch_size == 0 {
             return Err(error::native(
                 py,
                 "configuration",
-                "max_packages must be positive",
+                "max_packages and evaluation_batch_size must be positive",
             ));
         }
         self.stop_reason = None;
@@ -300,31 +318,21 @@ impl PyQmcSession {
                 self.prepare(py, sector)?;
                 let active = self.active.as_mut().expect("prepared context");
                 let mut interrupted = None;
-                let mut calls = 0usize;
-                let value =
-                    active
-                        .worker
-                        .evaluate_weighted(task.clone(), |point, weight, output| {
-                            if calls.is_multiple_of(256)
-                                && let Err(e) = py.check_signals()
-                            {
-                                interrupted = Some(e);
-                                return Err("Python signal interrupted package".to_owned());
-                            }
-                            calls = calls.wrapping_add(1);
-                            match active.context.evaluate_weighted(point, weight, output) {
-                                Ok(report) => self
-                                    .diagnostics
-                                    .record_replay(report)
-                                    .map_err(|e| e.to_string()),
-                                Err(e) => {
-                                    self.diagnostics
-                                        .record_failure()
-                                        .map_err(|e| e.to_string())?;
-                                    Err(e.to_string())
-                                }
-                            }
-                        });
+                let value = active.worker.evaluate_weighted_batch(
+                    task.clone(),
+                    evaluation_batch_size,
+                    |points, weights, output| {
+                        crate::execution::evaluate_batch(
+                            py,
+                            &mut active.context,
+                            points,
+                            weights,
+                            output,
+                            &mut self.diagnostics,
+                            &mut interrupted,
+                        )
+                    },
+                );
                 if let Some(e) = interrupted {
                     signal_interrupted = true;
                     return Err(e);

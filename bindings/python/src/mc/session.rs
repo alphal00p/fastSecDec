@@ -33,6 +33,8 @@ pub(crate) struct PyHavanaDiscreteSession {
     pub(super) contexts: Vec<Option<WeightedEvaluationContext>>,
     pub(super) diagnostics: EvaluationDiagnostics,
     pub(super) stop_reason: Option<StoppingReason>,
+    pub(super) live_batches: Vec<fastsecdec::integration::McLiveBatch>,
+    pub(super) live_source: fastsecdec::integration::LiveSource,
 }
 
 impl PyHavanaDiscreteSession {
@@ -68,6 +70,8 @@ impl PyHavanaDiscreteSession {
             contexts,
             diagnostics: EvaluationDiagnostics::default(),
             stop_reason: None,
+            live_batches: Vec::new(),
+            live_source: fastsecdec::integration::LiveSource::CurrentIteration,
         })
     }
 
@@ -83,12 +87,35 @@ impl PyHavanaDiscreteSession {
         // Accepted precision knowledge survives adaptation; phase statistics do not.
         self.diagnostics = EvaluationDiagnostics::default();
         self.stop_reason = None;
+        self.live_batches.clear();
+        self.live_source = fastsecdec::integration::LiveSource::CurrentIteration;
     }
 }
 
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHavanaDiscreteSession {
+    fn observation(&self, py: Python<'_>) -> PyResult<crate::status::PyIntegrationObservation> {
+        let mut inner = self
+            .session
+            .diagnostic_observation()
+            .map_err(|e| error::native(py, "integration", e))?;
+        inner.snapshot.evaluation_diagnostics = Some(self.diagnostics.clone());
+        inner.snapshot.stop_reason = self.stop_reason.clone();
+        Ok(crate::status::PyIntegrationObservation { inner })
+    }
+    /// Native point-statistics preview, separate from accepted complete-batch covariance.
+    fn live_observation(&self, py: Python<'_>) -> PyResult<crate::status::PyLiveObservation> {
+        let inner = fastsecdec::integration::mc_live_observation(
+            self.session.problem(),
+            self.session.stage(),
+            self.live_source,
+            &self.live_batches,
+            true,
+        )
+        .map_err(|e| error::native(py, "integration", e))?;
+        Ok(crate::status::PyLiveObservation { inner })
+    }
     /// Whether this pilot epoch or production allocation has completed.
     #[getter]
     fn complete(&self) -> bool {

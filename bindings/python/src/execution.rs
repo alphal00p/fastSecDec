@@ -6,6 +6,51 @@ use fastsecdec::{
 };
 use pyo3::prelude::*;
 
+/// Shared binding boundary for native vector batches. Python signals stop at
+/// point-routing boundaries; speculative matrix attempts remain diagnostics,
+/// while the session admits only whole successful statistical packages.
+pub(crate) fn evaluate_batch(
+    py: Python<'_>,
+    context: &mut fastsecdec::kernel::WeightedEvaluationContext,
+    points: &[f64],
+    weights: &[f64],
+    output: &mut [f64],
+    diagnostics: &mut fastsecdec::status::EvaluationDiagnostics,
+    interrupted: &mut Option<PyErr>,
+) -> Result<(), String> {
+    let before = context.evaluation_metrics();
+    let result = context.evaluate_weighted_batch_controlled(points, weights, output, || {
+        if interrupted.is_some() {
+            return true;
+        }
+        if let Err(e) = py.check_signals() {
+            *interrupted = Some(e);
+            return true;
+        }
+        false
+    });
+    let timings = context.evaluation_metrics().since(before);
+    let reports = match &result {
+        Ok(reports) => reports,
+        Err(failure) => &failure.completed,
+    };
+    let mut local = fastsecdec::status::EvaluationDiagnostics::default();
+    for report in reports {
+        local.record_replay(*report).map_err(|e| e.to_string())?;
+    }
+    if result
+        .as_ref()
+        .is_err_and(|e| !matches!(e.error, fastsecdec::kernel::KernelError::Cancelled))
+    {
+        local.record_failure().map_err(|e| e.to_string())?;
+    }
+    local.f64_timing = timings.f64;
+    local.double_float_timing = timings.double_float;
+    local.arbitrary_timing = timings.arbitrary;
+    diagnostics.merge(&local).map_err(|e| e.to_string())?;
+    result.map(|_| ()).map_err(|e| e.error.to_string())
+}
+
 pub(crate) fn problem(py: Python<'_>, kernels: &KernelSet) -> PyResult<IntegrationProblem> {
     KernelResultManifest::from_kernels(kernels)
         .integration_problem(&ResultScope::FullIntegral, kernels.content_id())

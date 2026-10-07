@@ -12,19 +12,30 @@ QMC packages or native Havana global batches, with native replay, covariance and
 checkpoint validation. The
 binding introduces no graph, algebra or numerical integration implementation.
 
-For an existing native diagram, kinematics and regulator symbol:
+For an existing native diagram, kinematics and regulator symbol (declare a
+runtime Gram symbol with `S("kinematics::s", is_real=True)` before using it in
+the kinematics):
 
 ```python
-from symbolica.community.hepkit.sector_decomposition import QmcSettings
-
-generated = diagram.sector_decompose(
-    kinematics=kinematics, regulator=eps, max_order=0,
-    observer=on_generation,
+from symbolica.community.hepkit.sector_decomposition import (
+    Integral, CompilationSettings, QmcSettings, StabilitySettings,
 )
-kernels = generated.compile(observer=on_generation)
+
+integral = Integral(diagram, kinematics, regulator=eps,
+                    runtime_parameters=[s], model_parameters="runtime")
+work = integral.generation_session(
+    max_order=0, compilation_settings=CompilationSettings(backend="eager"))
+# An explicit Generate/Resume action calls one native unit per UI tick.
+work.step(max_units=1, observer=on_generation)
+# After work.complete; inspection itself performs no generation or compilation.
+generated, template = work.generated, work.kernels
+# Build an explicit physical point; defaults are inspectable metadata only.
+point = {**generated.runtime_parameter_defaults, s: -1.0}
+kernels = template.with_parameters(point, stability=StabilitySettings())
 session = kernels.session(QmcSettings(points=4096, shifts=16))
-# Advance only when requested by the caller; each call is bounded.
-snapshot = session.step(max_packages=1, observer=on_integration)
+# Only an explicit Integrate/Resume action advances sampling.
+snapshot = session.step(max_packages=1, evaluation_batch_size=256,
+                        observer=on_integration)
 ```
 
 The free function `sector_decompose(diagram, ...)` is the same entry point.
@@ -48,7 +59,29 @@ Use the existing diagram-expression replacement helper when preparing a differen
 diagram numerator. Generation returns inspectable sectors and metadata without
 compiling kernels or creating an integration session.
 
-`Integral(diagram, kinematics, ...).generate()` remains available in the canonical
+`Integral(diagram, kinematics, ...).generate()` remains a synchronous generation
+entry, followed by explicit `generated.compile(backend="eager")`. Neither is
+called by passive displays. `generation_session()` instead retains native work
+through both stages: stop scheduling `step()` to pause and call it again to
+resume the same owner. A unit is a chart/cone, mapping/symmetry operation,
+representative coefficient expansion, sector evaluator build or final assembly.
+An indivisible native algebra operation can exceed a UI tick. Observer `False`
+or `KeyboardInterrupt` retains the completed unit; a genuine native error marks
+the owner failed. No library thread or worker pool is started.
+
+`Integral` defaults to independent runtime model inputs. HEPKit resolves analytic
+dependencies; named masses remain symbolic before sector support analysis.
+Declare real Symbolica kinematic symbols with `runtime_parameters`; their
+attributes must be specified when the symbols are first created. The generated object's
+`runtime_parameters`, `model_parameter_defaults` (string keys) and
+`runtime_parameter_defaults` (native symbol keys) describe the required point.
+Explicit `scalar_values` specialize selected inputs; `model_parameters="fixed"`
+selects a deliberately fixed model for reference calculations. Widths must be
+explicitly zero and runtime masses must remain finite, real and nonzero.
+`with_parameters()` returns independent native evaluator owners and preserves
+immutable artifact bytes. It never recompiles or mutates the template.
+
+The API remains available in the canonical
 `hepkit.sector_decomposition` namespace. HEPKit's object methods are
 optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
@@ -90,9 +123,12 @@ browser lifecycle using showcase `0cf08c6`. It does not validate the newer
 endpoint/statistics or discrete-MC APIs. The build guide records compiled and
 showcase revisions separately when only notebook assets change.
 
-The default native backend selects SymJIT O2; the portable feature selects the
-existing interpreted WASM backend. Native and portable features are mutually
-exclusive. The host owns PyO3's ABI and extension-module settings.
+Python compilation defaults to Symbolica's existing eager evaluator on both
+native and portable builds. `CompilationSettings` exposes the native Horner/CPE
+controls, with deterministic `cores=1`; an explicit `backend="symjit"` is
+available only on native hosts. The CLI/core's default `auto` policy remains
+SymJIT O2 natively and eager on portable builds. Native and portable features
+are mutually exclusive. The host owns PyO3's ABI and extension-module settings.
 
 On Linux x86_64, select an absolute native linker with
 `CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER` before invoking Pyodide, whose
@@ -140,15 +176,24 @@ affine endpoint powers, with the native number of required Taylor subtractions.
 These are facts before symmetry multiplicity and subtraction, not a prediction
 of surviving poles. An older artifact can lack the record. Expressions remain
 Symbolica objects; inspection does not expand the regular density.
+`generated.sectors[i].aliased_coefficients[j]` is a cheap retained view of one
+compact root and its native alias definitions. Its explicit `expression()`
+method restores only that selected coefficient through Symbolica's alias owner;
+call it from an Inspect action when a full expression is wanted. Passive rich
+views do not perform this restoration.
 `kernels.sector_statistics` reports each complete shared evaluator's native
 program bytes and pre-SymJIT operation counts. `symjit_ir_bytes` measures the
-compressed compiled application, not machine code, and is absent for the
-portable interpreter. Complex evaluator outputs precede the real/imaginary
+compressed compiled application, not machine code, and is absent for eager
+evaluators. Complex evaluator outputs precede the real/imaginary
 component split.
 
 `kernels.mc_session(HavanaDiscreteSettings(...), pilot=True)` starts native
 sector and coordinate importance training. The caller advances bounded
-`step(max_batches=1)` calls and can pause by retaining the session object.
+`step(max_batches=1, evaluation_batch_size=256)` calls and can pause by retaining
+the session object. QMC uses the same native batched weighted-evaluation path.
+Native SymJIT handles matrices; eager and high-precision tiers use the native
+owner's row evaluation because those owners have no matrix API. Numerical
+batch size is operational and can change across checkpoint continuation.
 After a complete pilot, `adapt_pilot()` starts another pilot epoch, or
 `freeze_production(points_per_batch=..., batches=...)` freezes both grids and
 starts independent production. Pilot observations never enter production
@@ -158,3 +203,12 @@ Per-sector `planned_points` is `None` for this stochastic allocation;
 `discrete_allocation` contains the actual native selection probability and
 global batch size. The total planned budget remains an integer. The existing
 QMC `session`/`restore` methods and checkpoint format are unchanged.
+
+Both sessions expose `observation()` for accepted full-vector estimates,
+complete covariance, per-sector contributions and exact offsets. Their
+`live_observation()` is explicitly provisional: QMC uses complete shifted
+lattices; Havana uses native point statistics for the current phase, or only
+work since a restored checkpoint. Previews never enter convergence or
+checkpoints. `StabilitySettings` transports native distance/validated policy,
+including optional cutoffs and per-power thresholds. Diagnostic final-class
+counts remain separate from attempted evaluator points and matrix invocations.

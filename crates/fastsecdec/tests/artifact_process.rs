@@ -5,10 +5,15 @@ use std::{ops::ControlFlow, process::Command};
 #[test]
 fn gamma_artifact_loads_in_a_fresh_process() {
     let temporary = tempfile::tempdir().unwrap();
-    for method in ["physical", "native_named"] {
+    for method in ["expanded_expression", "coefficient_series"] {
         for mode in ["write", "read"] {
             let output = Command::new(std::env::current_exe().unwrap())
-                .args(["--exact", "artifact_process_child", "--test-threads=1"])
+                .args([
+                    "--exact",
+                    "artifact_process_child",
+                    "--test-threads=1",
+                    "--nocapture",
+                ])
                 .env("FASTSECDEC_ARTIFACT_PROCESS_MODE", mode)
                 .env("FASTSECDEC_ARTIFACT_COEFFICIENT_METHOD", method)
                 .env("FASTSECDEC_ARTIFACT_PROCESS_DIR", temporary.path())
@@ -69,8 +74,8 @@ fn artifact_process_child() {
                         .unwrap()
                         .as_str()
                     {
-                        "physical" => CoefficientExpansionMethod::Physical,
-                        "native_named" => CoefficientExpansionMethod::NativeNamed,
+                        "expanded_expression" => CoefficientExpansionMethod::Physical,
+                        "coefficient_series" => CoefficientExpansionMethod::NativeNamed,
                         other => panic!("unknown coefficient method {other}"),
                     },
                     ..Default::default()
@@ -80,7 +85,10 @@ fn artifact_process_child() {
             |_| ControlFlow::Continue(()),
         )
         .unwrap();
-        let kernels = generated.compile().unwrap();
+        let mut kernels = generated.compile().unwrap();
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         assert_eq!(kernels.orders(), &[0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
         let mut values = vec![0.0; kernels.orders().len()];
         let report = kernels
@@ -96,8 +104,11 @@ fn artifact_process_child() {
         std::fs::write(expected, serde_json::to_vec(&values).unwrap()).unwrap();
     } else {
         assert_eq!(mode, "read");
-        let kernels =
+        let mut kernels =
             fastsecdec::kernel::KernelSet::from_bytes(&std::fs::read(artifact).unwrap()).unwrap();
+        kernels
+            .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+            .unwrap();
         let expected: Vec<f64> = serde_json::from_slice(&std::fs::read(expected).unwrap()).unwrap();
         let count = kernels.orders().len();
         let mut worker = kernels.evaluation_context(0, Default::default()).unwrap();

@@ -23,13 +23,17 @@ pub(in crate::driver::execution::qmc) fn fixture()
          [generation]\norder=1\n",
     )
     .unwrap();
-    let (artifact, kernels) = crate::generate::generate(
+    let (artifact, mut kernels) = crate::generate::generate(
         &card,
-        &dir.path().join("artifact.json"),
+        &dir.path().join("artifact.fsd"),
         &mut Dashboard::new(false, false).unwrap(),
         None,
     )
     .unwrap();
+    // Slot eviction must retain the original validated replay envelope.
+    kernels
+        .set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())
+        .unwrap();
     assert_eq!(kernels.sectors().len(), 2);
     assert_eq!(kernels.orders(), [0, 1]);
     let settings = IntegrationInput {
@@ -37,6 +41,7 @@ pub(in crate::driver::execution::qmc) fn fixture()
         shifts: 4,
         package_points: 1024,
         max_rounds: 1,
+        stability: fastsecdec::kernel::StabilitySettings::validated(),
         ..Default::default()
     };
     (dir, artifact, kernels, settings)
@@ -210,13 +215,20 @@ fn bounded_slots_match_eager_full_vectors_for_identical_worker_schedules() {
     let (_dir, artifact, kernels, mut settings) = fixture();
     for workers in [1, 3] {
         settings.workers = workers;
-        let eager = run_schedule(&artifact, &kernels, &settings, true);
-        let bounded = run_schedule(&artifact, &kernels, &settings, false);
+        let mut eager = run_schedule(&artifact, &kernels, &settings, true);
+        let mut bounded = run_schedule(&artifact, &kernels, &settings, false);
         assert!(bounded.0.production_complete);
         assert_eq!(bounded.0.mean.len(), 2);
         assert_eq!(bounded.0.covariance_of_mean.len(), 4);
         assert!(bounded.1.rescues > 0);
         assert!(bounded.1.max_precision_bits > 53);
+        // Timing observations vary between runs; keep all scientific counters
+        // and native evaluator point/invocation counts in the equality control.
+        for diagnostics in [&mut eager.1, &mut bounded.1] {
+            diagnostics.f64_timing.nanoseconds = 0;
+            diagnostics.double_float_timing.nanoseconds = 0;
+            diagnostics.arbitrary_timing.nanoseconds = 0;
+        }
         assert_eq!(bounded, eager);
     }
 }

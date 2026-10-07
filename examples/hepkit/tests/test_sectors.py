@@ -71,10 +71,12 @@ def test_selected_term_reads_exact_retained_requirements_without_touching_other_
     assert any("Taylor coefficients required" in text and "<td>2</td>" in text for text in display.text)
     assert any("not a count of surviving poles" in text for text in display.text)
     assert "$$gamma(eps)$$" in display.text
-    assert display.downloads[0]() == b"gamma(eps)"
-    for call in native.pre_subtraction.terms[1].prefactor.calls:
+    for call in native.pre_subtraction.terms[1].prefactor.calls[:-1]:
         assert call["max_terms"] == 12
     assert native.pre_subtraction.terms[1].prefactor.calls[0]["show_namespaces"] is False
+    assert any(call["show_namespaces"] for call in native.pre_subtraction.terms[1].prefactor.calls)
+    assert display.downloads[0] == b"gamma(eps)"
+    assert native.pre_subtraction.terms[1].prefactor.calls[-1] == {"show_namespaces": True}
 
 
 def test_missing_legacy_record_is_explicit_and_bad_selection_fails():
@@ -104,7 +106,7 @@ def test_stats_preserve_native_counts_and_portable_absence_without_session_acces
     assert sectors._operation_total(owner.sector_statistics[0]) == 10
     assert any("SymJIT application bytes" in text and "<td>—</td>" in text and "<td>2</td>" in text for text in display.text)
     assert any("multiplications" in text and "<td>2</td>" in text for text in display.text)
-    assert any("before SymJIT" in text for text in display.text)
+    assert any("after native Horner/CPE optimization" in text for text in display.text)
 
 
 def test_static_math_cells_preserve_native_markup_and_escape_plain_source():
@@ -113,3 +115,24 @@ def test_static_math_cells_preserve_native_markup_and_escape_plain_source():
     assert "marimo-tex" in html
     assert "&lt;raw&amp;name&gt;" in html
     assert "marimo-table" not in html
+
+
+def test_epsilon_order_resolves_native_sparse_schema_without_positional_guess():
+    generated = NS(sectors=[NS(aliased_coefficients=[NS(order=-3), NS(order=0), NS(order=2)])])
+    assert sectors.coefficient_index(generated, 0, -3) == 0
+    assert sectors.coefficient_index(generated, 0, 0) == 1
+    assert sectors.coefficient_index(generated, 0, 2) == 2
+    with pytest.raises(ValueError, match="available orders: -3, 0, 2"):
+        sectors.coefficient_index(generated, 0, 1)
+    with pytest.raises(ValueError, match="existing generated sector"):
+        sectors.coefficient_index(generated, 1, 0)
+
+
+def test_compact_formula_hides_namespace_latex_but_source_keeps_identity():
+    import marimo as mo
+    from symbolica import S
+    symbol = S("inspection_source::t2", is_real=True)
+    rendered = sectors._formula(mo, symbol).text
+    assert "marimo-tex" in rendered and "t2" in rendered
+    assert "inspection_source" not in rendered and "\\tiny" not in rendered and "\t" not in rendered
+    assert sectors._compact(symbol) == "inspection_source::t2"

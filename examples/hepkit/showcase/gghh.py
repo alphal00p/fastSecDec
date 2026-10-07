@@ -1,46 +1,115 @@
-"""gg -> HH input, rebuilt with HEPKit on every explicit Generate action.
+"""Native Standard Model gg → HH catalogue and selected-diagram preparation.
 
-The archived raw diagram is an identity guard for the topology selected by the
-native Rust/Linnet example, never a substitute for diagram generation. See the
-asset origin manifest. No kernels or integration results are loaded here.
+Importing this module does no generation, contraction or sampling. The caller
+explicitly builds the catalogue, chooses a native diagram, then prepares it.
 """
-
 from dataclasses import dataclass
-import hashlib
-import json
 from pathlib import Path
 
-from symbolica import E, S, Replacement
+from symbolica import E, S
 from symbolica.community import hepkit as hep
-from symbolica.community.tensor import (
-    ReductionStatus, Representation, Tensor, TensorName, dot,
-)
-
+from symbolica.community.tensor import Representation, Tensor, TensorName, dot
 from .inputs import ShowcaseInput
 
-
+# Archived historical inputs remain readable as evidence; this workflow builds
+# the current native Standard Model and never uses a stored diagram selector.
 ASSETS = Path(__file__).resolve().parents[1] / "fixtures" / "gghh"
 
 
-def _assets(directory):
-    directory = Path(directory)
-    manifest = json.loads((directory / "origin.json").read_text())
-    for name, expected in manifest["files"].items():
-        if Path(name).name != name:
-            raise ValueError("Invalid ggHH input manifest path")
-        if hashlib.sha256((directory / name).read_bytes()).hexdigest() != expected:
-            raise ValueError(f"ggHH input identity changed: {name}")
-    return manifest
+def exact(value):
+    value = complex(value)
+    def real(number):
+        numerator, denominator = float(number).as_integer_ratio()
+        return E(str(numerator)) / E(str(denominator))
+    return real(value.real) + E("1i") * real(value.imag)
 
 
-def _rational(value):
-    numerator, denominator = float(value).as_integer_ratio()
-    return E(str(numerator)) / E(str(denominator))
+def standard_model():
+    model = hep.Model.standard_model()
+    card = model.default_parameter_card()
+    for name, value in {"MT": 172.5, "ymt": 172.5, "MH": 125.0,
+                        "WT": 0.0, "WH": 0.0}.items():
+        card.set(name, value, 0.0)
+    model = model.with_parameter_card(card)
+    values = model.scalar_bindings(card)
+    return model, values
 
 
-def _components(state):
-    # Exact transport of the binary64 GammaLoop convention, not a decimal fit.
-    return [_rational(z.real) + E("1i") * _rational(z.imag) for z in state.components]
+def process(model):
+    """Restrict particles, never individual vertices of the allowed theory."""
+    return model.process([21, 21], [25, 25], particle_selection=[6, 21, 25])
+
+
+@dataclass(frozen=True)
+class Catalogue:
+    model: object
+    scalar_values: dict
+    process: object
+    result: object
+
+    @property
+    def diagrams(self):
+        return self.result.diagrams
+
+    @property
+    def default_diagram(self):
+        return next(diagram for diagram in self.diagrams if diagram.loop_count == 1)
+
+    def selected(self, identity=None):
+        if identity is None:
+            return self.default_diagram
+        return next(diagram for diagram in self.diagrams if diagram.id == identity)
+
+
+def catalogue(*, progress="auto"):
+    model, values = standard_model()
+    native_process = process(model)
+    result = native_process.generate_diagrams(
+        loops=(1, 2), coupling_orders={"QED": 2}, threads=1,
+        symmetrize_initial=True, symmetrize_final=True, allow_zero_flow_edges=True,
+        maximum_bridges=None, self_energy=None, tadpoles=None, zero_snails=None,
+        numerator_grouping=None,
+        projector=E("1"), progress=progress,
+    )
+    if not result.report.completed:
+        raise RuntimeError("Native diagram generation did not complete")
+    if not any(diagram.loop_count == 1 for diagram in result.diagrams):
+        raise RuntimeError("The generated catalogue contains no one-loop diagram")
+    return Catalogue(model, values, native_process, result)
+
+
+@dataclass(frozen=True)
+class GGHHInput(ShowcaseInput):
+    auxiliary_momenta: tuple
+    raw_diagram: object
+    raw_numerator: object
+    simplified_numerator: object
+    gram_symbols: tuple
+
+    def fixed_scalar_values(self):
+        # Zero widths are the declared real-mass convention, not numerical
+        # integration defaults for freely varying complex propagator masses.
+        return {self.model.parameter(name).symbol: E("0") for name in ("WT", "WH")}
+
+    def integral_arguments(self):
+        arguments = super().integral_arguments()
+        arguments["auxiliary_momenta"] = list(self.auxiliary_momenta)
+        arguments["runtime_parameters"] = [symbol for _, _, symbol in self.gram_symbols]
+        return arguments
+
+    def runtime_point(self, point):
+        """Bind the native physical Gram matrix without regenerating sectors."""
+        named, _ = _external_data(self.raw_diagram, point)
+        result = {}
+        for left, right, symbol in self.gram_symbols:
+            value = complex(_dot(named[left][1], named[right][1]))
+            if value.imag != 0:
+                raise ValueError("The chosen scattering plane requires real Gram values")
+            result[symbol] = value.real
+        return result
+
+    def generation_arguments(self):
+        return {"coefficient_expansion": "coefficient_series"}
 
 
 def _tensor(name, components):
@@ -48,165 +117,100 @@ def _tensor(name, components):
 
 
 def _dot(left, right):
-    value = dot(left, right)
-    value.execute()
-    return value.result_scalar().expand()
+    product = dot(left, right)
+    product.execute()
+    return product.result_scalar().expand()
 
 
-def _near(value, expected):
-    if abs(complex(value.evaluate({})) - expected) > 2e-12:
-        raise ValueError("Native external-state Gram check failed")
-
-
-@dataclass(frozen=True)
-class GGHHInput(ShowcaseInput):
-    auxiliary_momenta: tuple
-    raw_diagram: object
-    preparation_events: tuple
-    provenance: dict
-
-    def integral_arguments(self):
-        arguments = super().integral_arguments()
-        arguments["auxiliary_momenta"] = list(self.auxiliary_momenta)
-        return arguments
-
-    def generation_arguments(self):
-        return {"coefficient_expansion": "native_named"}
-
-    def scalar_numerator(self):
-        return super().scalar_numerator().replace_multiple(
-            [Replacement(symbol, value) for symbol, value in self.scalar_values.items()]
-        )
-
-
-def prepare(*, observer=None, assets=ASSETS):
-    """Reproduce the audited native (+,+), delta_ab single-diagram input.
-
-    ``observer`` receives HEPKit's original typed GenerationProgress objects.
-    All expensive preparation is explicit; importing this module does no work.
-    """
-    fs = hep.sector_decomposition
-    if not hasattr(fs, "with_diagram_expressions"):
-        raise RuntimeError("Rebuild the community wheel with the ggHH expression-copy API")
-    origin = _assets(assets)
-    assets = Path(assets)
-    model = hep.Model(assets / "model.json")
-    card = hep.ParameterCard.from_json((assets / "parameters.json").read_text())
-    model = model.with_parameter_card(card)
-    scalar_values = model.scalar_bindings(card)
-    vertices = [v for v in model.vertex_rules
-                if sorted(model.particle(p).pdg_code for p in v.particles)
-                in ([-6, 6, 21], [-6, 6, 25])]
-    if len(vertices) != 2:
-        raise ValueError("The bound SM input no longer has the two expected top vertices")
-    process = model.process([21, 21], [25, 25], vertex_allow=vertices)
-    events = []
-
-    def progress(event):
-        events.append(event)
-        if observer is not None:
-            observer(event)
-
-    generated = process.generate_diagrams(
-        loops=2, max_vertices=6, threads=1, allow_self_loops=False,
-        allow_zero_flow_edges=False, symmetrize_initial=False,
-        symmetrize_final=False, symmetrize_left_right=False,
-        symmetrize_external_fermions=False, graph_prefix="FK",
-        numerator_grouping=hep.NumeratorGrouping("none"),
-        numerator_prefactor=E("1"), projector=E("1"), progress=progress,
-    )
-    if not generated.report.completed:
-        raise ValueError("HEPKit diagram generation did not complete")
-    identity = json.loads((assets / "generation.json").read_text())
-    matches = [d for d in generated.diagrams if d.id == identity["diagram_id"]]
-    if len(matches) != 1:
-        raise ValueError("Native generation did not reproduce the audited double-box identity")
-    raw = matches[0]
-    # Rehydrate the identity through the same native owner: canonical Symbolica
-    # tag ordering may differ between a Rust process and the Python host.
-    expected = hep.FeynmanDiagram.from_json(model, (assets / "raw-diagram.json").read_text())
-    actual_identity, expected_identity = json.loads(raw.to_json()), json.loads(expected.to_json())
-    # The generated-order display counter differs across frontends. The native
-    # content ID and every physical field below must still match exactly.
-    origin = dict(origin, actual_diagram_name=actual_identity.pop("name"),
-                  audited_diagram_name=expected_identity.pop("name"))
-    if actual_identity != expected_identity:
-        raise ValueError("Generated raw graph/model/numerator/weight differs from the native input")
-    raw.validate()
-
-    # Amplitude::legs keeps each raw half-edge port; no label guessing or graph
-    # parsing. The amplitude expression is not used and no weight is reapplied.
+def _external_data(raw, point):
+    import math
+    if point is None:
+        e, mass, cosine = S("gghh_point::energy", "gghh_point::higgs_mass", "gghh_point::cos_theta")
+        energy = 150.0  # Polarizations are dimensionless; native fixed-helicity convention.
+    else:
+        energy = float(point.get("sqrt_s", 300)) / 2
+        mass = float(point.get("higgs_mass", 125))
+        cosine = float(point.get("cos_theta", 0.8))
+        if not all(math.isfinite(x) for x in (energy, mass, cosine)) or mass <= 0 or energy <= mass or abs(cosine) >= 1:
+            raise ValueError("Require sqrt(s) > 2 mH > 0 and -1 < cos(theta) < 1")
+        e, mass, cosine = exact(energy), exact(mass), exact(cosine)
     legs = sorted(hep.Amplitude.from_diagram(raw).legs, key=lambda leg: leg.index)
-    gluons = [leg for leg in legs if leg.particle.pdg_code == 21]
-    if len(gluons) != 2 or any(leg.state != "incoming" for leg in gluons):
-        raise ValueError("Expected two unsewn incoming gluon ports")
-    indices = [leg.tensor_index for leg in gluons]
-    color_projection = Representation.coad(8).id(*indices)
-    source = raw.numerator_expression() * color_projection
-    policy = dict(gamma=False, color=True, epsilon=False, contract="none")
-    symbolic = source.simplify_algebra(**policy)
-    explicit = source.simplify_algebra(**policy, color_substitute_cof_dimension_invariants=True)
-    closure = symbolic.simplify_algebra(**policy, color_substitute_cof_dimension_invariants=True)
-    if any(value.reduction_status != ReductionStatus.Complete for value in (symbolic, explicit, closure)):
-        raise ValueError("Native color reduction did not complete")
-    if explicit.to_expression() != closure.to_expression():
-        raise ValueError("Native symbolic and explicit color reductions disagree")
-
-    epsilon_names = tuple(TensorName.vector(f"gghh::eps{i + 1}") for i in range(2))
-    lorentz_slots = [[slot for slot in leg.slots if slot.representation == Representation.mink(4)]
-                    for leg in gluons]
-    if any(len(slots) != 1 for slots in lorentz_slots):
-        raise ValueError("Native gluon ports do not have one four-dimensional Lorentz slot")
-    projector = epsilon_names[0](lorentz_slots[0][0])
-    projector *= epsilon_names[1](lorentz_slots[1][0])
-    diagram = fs.with_diagram_expressions(
-        raw, numerator=explicit.to_expression(), projector=projector.to_expression(),
-        overall_factor=raw.overall_factor_expression(evaluate=True),
-    )
-
-    incoming = sorted(leg.index for leg in legs if leg.state == "incoming")
-    outgoing = sorted(leg.index for leg in legs if leg.state == "outgoing")
-    vectors = [[E(x) for x in row] for row in (
-        ["150", "0", "0", "150"], ["150", "0", "0", "-150"],
-        ["150", "15*11^(1/2)", "0", "20*11^(1/2)"],
-        ["150", "-15*11^(1/2)", "0", "-20*11^(1/2)"],
-    )]
-    if len(incoming) != 2 or len(outgoing) != 2:
-        raise ValueError("Expected two incoming and two outgoing external states")
+    incoming = [leg.index for leg in legs if leg.state == "incoming"]
+    outgoing = [leg.index for leg in legs if leg.state == "outgoing"]
+    momentum = (e**2 - mass**2) ** E("1/2")
+    longitudinal = momentum * cosine
+    transverse = momentum * (1 - cosine**2) ** E("1/2")
+    zero = E("0")
+    vectors = [[e,zero,zero,e], [e,zero,zero,-e],
+               [e,transverse,zero,longitudinal], [e,-transverse,zero,-longitudinal]]
     physical = dict(zip(incoming + outgoing, vectors))
     external = {edge.id: edge.external_index for edge in raw.external_edges}
     basis = raw.loop_momentum_basis
-    coordinates = [physical[external[edge]] for edge in basis.external_edges]
-    P, Q = hep.Kinematics.external_momentum(), hep.Symbols.edge_momentum()
-    for edge in basis.external_edges:
-        routed = basis.route_expression(Q(edge))
-        for component in range(4):
-            actual = routed
-            for index, vector in enumerate(coordinates):
-                actual = actual.replace(P(index), vector[component])
-            if (actual - physical[external[edge]][component]).expand() != E("0"):
-                raise ValueError("Native external routing changed the physical point")
-
-    states = [hep.FourMomentum(150, 0, 0, z).wavefunction("epsilon", hep.Helicity.PLUS)
-              for z in (150, -150)]
-    polarizations = [_tensor(f"gghh_data::eps{i}", _components(state)) for i, state in enumerate(states)]
-    for index, (state, polarization) in enumerate(zip(states, polarizations)):
-        if _dot(polarization, polarization) != E("0"):
-            raise ValueError("The transported circular polarization is not exactly null")
-        _near(_dot(polarization, _tensor(f"gghh_data::bar{index}", _components(state.bar()))), -1)
-        _near(_dot(_tensor(f"gghh_data::incoming{index}", physical[incoming[index]]), polarization), 0)
-    _near(_dot(*polarizations), -1)
-    named = [(P(i), _tensor(f"gghh_data::p{i}", coordinates[i]))
+    P = hep.Kinematics.external_momentum()
+    polarizations = [TensorName.vector(f"gghh::eps{i+1}") for i in range(2)]
+    states = [hep.FourMomentum(energy, 0, 0, z).wavefunction("epsilon", hep.Helicity.PLUS)
+              for z in (energy, -energy)]
+    named = [(P(i), _tensor(f"gghh_data::p{i}", physical[external[edge]]))
              for i, edge in enumerate(basis.external_edges) if edge not in basis.dependent_externals]
-    auxiliaries = tuple(name.to_expression() for name in epsilon_names)
-    named.extend(zip(auxiliaries, polarizations))
-    regulator, dimension = S("gghh::eps", "gghh::D")
+    named += [(name.to_expression(), _tensor(f"gghh_data::epsilon{i}", [exact(z) for z in state.components]))
+              for i, (name, state) in enumerate(zip(polarizations, states))]
+    return named, polarizations
+
+
+def prepare(*, selected=None, source=None, observer=None):
+    """Contract one chosen native owner, preserving all generated graph factors.
+
+    The (+,+), delta_ab projection retains symbolic Gram products; the initial
+    integration point is sqrt(s)=300 GeV, mt=172.5 GeV, mH=125 GeV and cos(theta)=4/5.
+    It is a single diagram contribution, not a
+    gauge-invariant amplitude or a claim of threshold regularization.
+    """
+    source = source if source is not None else catalogue(progress=observer or "auto")
+    raw = source.selected(selected)
+    raw.validate()
+    legs = sorted(hep.Amplitude.from_diagram(raw).legs, key=lambda leg: leg.index)
+    gluons = [leg for leg in legs if leg.particle.pdg_code == 21]
+    incoming = [leg.index for leg in legs if leg.state == "incoming"]
+    outgoing = [leg.index for leg in legs if leg.state == "outgoing"]
+    if len(gluons) != 2 or len(incoming) != 2 or len(outgoing) != 2:
+        raise ValueError("Expected native gg → HH external ports")
     K = hep.Kinematics.loop_momentum()
-    kinematics = hep.Kinematics(dimension, momenta=[K(i) for i in range(raw.loop_count)] + [name for name, _ in named])
+    regulator, dimension = S("gghh::eps", "gghh::D")
+    named, polarization_names = _external_data(raw, None)
+    auxiliary = tuple(name.to_expression() for name in polarization_names)
+    kinematics = hep.Kinematics(dimension,
+        momenta=[K(i) for i in range(raw.loop_count)] + [name for name, _ in named])
+    gram_symbols = []
     for i, (left, a) in enumerate(named):
-        for right, b in named[i:]:
-            kinematics = kinematics.with_scalar_product(left, right, _dot(a, b))
+        for j, (right, b) in enumerate(named[i:], i):
+            value = _dot(a, b)
+            # Preserve only native exact structural zeros. Even dimensionless
+            # polarization products are runtime inputs: their numerical native
+            # wavefunctions must not freeze binary64 normalizations into algebra.
+            if value != E("0"):
+                value = S(f"gghh_kinematics::dot_{i}_{j}", is_real=True)
+                gram_symbols.append((i, j, value))
+            kinematics = kinematics.with_scalar_product(left, right, value)
+    color = Representation.coad(8).id(*(leg.tensor_index for leg in gluons))
+    slots = [[slot for slot in leg.slots if slot.representation == Representation.mink(4)]
+             for leg in gluons]
+    if any(len(value) != 1 for value in slots):
+        raise ValueError("Expected one Lorentz slot on each external gluon")
+    polarization = polarization_names[0](slots[0][0]) * polarization_names[1](slots[1][0])
+    raw_numerator = raw.numerator_expression(in_lmb=True)
+    contracted = (raw_numerator * color * polarization * raw.projector_expression()).with_lorentz_dimension(dimension)
+    contracted = contracted.simplify_algebra(
+        contract="minimal", color_substitute_cof_dimension_invariants=True,
+    ).to_dots()
+    if not contracted.is_scalar:
+        raise ValueError("Native numerator contraction left free tensor indices")
+    simplified = kinematics.apply(contracted).to_expression()
+    diagram = hep.sector_decomposition.with_diagram_expressions(
+        raw, numerator=simplified, projector=E("1"),
+        overall_factor=raw.overall_factor_expression(evaluate=True),
+    )
     return GGHHInput(
-        "gg → HH · single top double box (+,+)", model, diagram, kinematics,
-        regulator, 4 - 2 * regulator, scalar_values, 0, auxiliaries, raw, tuple(events), origin,
+        f"gg → HH · {raw.name} · {raw.loop_count} loop(s)", source.model, diagram,
+        kinematics, regulator, 4 - 2 * regulator, source.scalar_values, 0,
+        auxiliary, raw, raw_numerator, simplified, tuple(gram_symbols),
     )

@@ -39,7 +39,7 @@ fn partial_selected_checkpoint_resumes_only_selected_contexts_with_original_id()
     std::fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x','y']\n[[direct.terms]]\nmonomial_powers=['1','0']\n[[direct.terms.factors]]\npolynomial='x+y'\nexponent='-1'\n").unwrap();
     let (artifact, kernels) = crate::generate::generate(
         &card,
-        &dir.path().join("artifact.json"),
+        &dir.path().join("artifact.fsd"),
         &mut Dashboard::new(false, false).unwrap(),
         None,
     )

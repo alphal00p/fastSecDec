@@ -6,9 +6,11 @@ mod backend_version;
 pub use backend_version::symjit_version_code;
 mod cancellation;
 mod compilation;
-pub use compilation::{CompilationCompletion, CompilationDispatch, CompilationJob};
+pub use compilation::{
+    CompilationCompletion, CompilationDispatch, CompilationJob, CompilationSession,
+};
 mod compilation_settings;
-pub use compilation_settings::CompilationSettings;
+pub use compilation_settings::{CompilationSettings, EvaluatorBackend};
 mod complex;
 mod distance;
 mod evaluator;
@@ -400,6 +402,38 @@ pub struct KernelSet {
 }
 
 impl KernelSet {
+    /// Copy the evaluator owners for an independently bound physical point.
+    /// Immutable programs and metadata are retained; workspaces and timing
+    /// counters are independent, and no symbolic recompilation is performed.
+    pub fn try_clone(&self) -> Result<Self, KernelError> {
+        Ok(Self {
+            compilation_settings: self.compilation_settings,
+            stability: self.stability.clone(),
+            runtime_parameters: self.runtime_parameters.clone(),
+            runtime_mass_constraints: self.runtime_mass_constraints.clone(),
+            exact_kernel: self
+                .exact_kernel
+                .as_ref()
+                .map(SectorKernel::try_clone)
+                .transpose()?,
+            template_content_id: self.template_content_id.clone(),
+            portable_artifact: self.portable_artifact.clone(),
+            metadata: self.metadata.clone(),
+            coefficient_orders: self.coefficient_orders.clone(),
+            components: self.components.clone(),
+            precision: self.precision.clone(),
+            exact_expressions: self.exact_expressions.clone(),
+            content_id: self.content_id.clone(),
+            orders: self.orders.clone(),
+            sectors: self
+                .sectors
+                .iter()
+                .map(SectorKernel::try_clone)
+                .collect::<Result<_, _>>()?,
+            exact_coefficients: self.exact_coefficients.clone(),
+        })
+    }
+
     /// Settings used to construct the immutable native evaluator programs.
     pub fn compilation_settings(&self) -> &CompilationSettings {
         &self.compilation_settings

@@ -24,6 +24,7 @@ fn unsupported_conditioning_preserves_ordinary_values_and_rejects_unsupported_re
     let mut kernel = SectorKernel::from_program(
         SectorProgram {
             parameters: vec![x],
+            runtime_parameters: Vec::new(),
             exact,
             cancellation: Cancellation::new(1, Some(vec![vec![1]]), 1).unwrap(),
             exact_zero: vec![false],
@@ -100,6 +101,7 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
         let mut kernel = SectorKernel::from_program(
             SectorProgram {
                 parameters: vec![x],
+                runtime_parameters: Vec::new(),
                 exact,
                 cancellation: Cancellation::new(1, None, 1).unwrap(),
                 exact_zero: vec![false],
@@ -109,6 +111,9 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
             complex,
         )
         .unwrap();
+        // This control exercises the established increasing-precision rescue,
+        // not the separate distance dispatcher and its 106-bit middle tier.
+        kernel.stability = crate::kernel::StabilitySettings::validated();
         // Worker cloning must retain callback admission without symbolic work.
         let mut worker = kernel.try_clone().unwrap();
         let mut output = vec![0.0; if complex { 2 } else { 1 }];
@@ -123,10 +128,17 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
         }
         // Original and independent worker retain the same numerical policy.
         let mut original = vec![0.0; output.len()];
-        assert_eq!(
-            kernel.evaluate_scaled(&[1e-4], &mut original, 2.0).unwrap(),
-            report
-        );
+        let mut original_report = kernel.evaluate_scaled(&[1e-4], &mut original, 2.0).unwrap();
+        let mut cloned_report = report;
+        // Compare every numerical decision and call counter; elapsed call times
+        // are independent observations on these two evaluator owners.
+        for record in [&mut original_report, &mut cloned_report] {
+            record.timings.f64.nanoseconds = 0;
+            record.timings.double_float.nanoseconds = 0;
+            record.timings.arbitrary.nanoseconds = 0;
+            record.timings.conditioning.nanoseconds = 0;
+        }
+        assert_eq!(original_report, cloned_report);
         assert_eq!(original, output);
     }
 }

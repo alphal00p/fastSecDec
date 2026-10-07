@@ -1532,14 +1532,14 @@ locked owner graphs, backend separation and bootstrap/provenance boundaries;
 it found no delivery blocker within the tested Linux scope.
 CLI builds reject missing provenance instead of publishing an unknown identity.
 Community validation against the published FastSecDec Git revision subsequently
-passes in [draft HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+passes in [merged HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
 The fresh installed native wheel passes 39 tests with zero skips; independent
 review and postflight checks bind all 169 compiled source files and 38 delivered
 files. The preparation helper uses an isolated Cargo home for Maturin/Pyodide,
 and the actual portable PEP 517 metadata flow passes. This does not relabel the
 earlier actual Wasm/browser execution as a new build. Upstream adoption of the
 documented dependency patches remains open; unpatched optional-feature-off
-resolution still conflicts on the OneLOop SymJIT pin, as the draft explains.
+resolution still conflicts on the OneLOop SymJIT pin, as that delivery review explains.
 
 The [bounded double-box follow-up](reviews/double-box-lattice-followup.md) uses
 Numerica's existing published HKKN catalogue, ordinary native QMC stepping,
@@ -1707,3 +1707,43 @@ keeps numerical implementation in FastSecDec and removes the preparation script
 and experimental feature gates. These checks establish upstream compatibility;
 they do not relabel historical native/Wasm wheels or add physics/performance
 acceptance. See the [delivery review](reviews/regular-hepkit-build.md).
+
+
+## Cooperative eager notebook owners (2026-10-07)
+
+The new caller-stepped generation owner reuses native geometry job/completion
+admission, existing mapping/canonization and coefficient expansion, and shared
+Laurent assembly. It retains completed work rather than replaying generation on
+resume. Four scientific owner tests pass in both native and portable host builds.
+The independent coordinating review is recorded in
+[cooperative generation](reviews/cooperative-generation-review.md).
+
+A separate independent audit accepts runtime eager selection through Symbolica's
+existing ExpressionEvaluator and coefficient/callback mapper, plus resumable
+CompilationSession ownership. Native real/complex analytic controls pass direct
+versus stepped compilation, two runtime points, cold loading, exact-offset-only
+kernels, batch tails and f64/DoubleFloat/Arb routing. No new algebra, graph type,
+interpreter, numerical dependency solver or numerical worker pool is introduced.
+See [notebook workflow reuse](reviews/notebook-workflow-reuse.md) for the precise
+owner APIs, evidence, fixed pause/error-boundary findings and limitations.
+The native unit bound cannot interrupt a single expensive upstream call. Host
+portable tests are not a claim of actual Wasm execution, and upstream FeynKit's
+static method keyword documentation remains a recorded limitation.
+
+The final [native browser review](reviews/notebook-browser-acceptance.md) records
+actual ggHH/scalar Generate, Inspect, QMC, Havana, runtime point changes,
+pause/resume, lazy numerator/integrand navigation and cold artifact import.
+Both raw and simplified views reuse HEPKit's native scoped Pager. Dedicated
+owning cells and persistent HTML disclosures respect Marimo's comm-disposal
+contract; exported bytes are prepared explicitly on the native caller.
+
+Native QMC work packages now use the existing 4096-point setting while evaluator
+batches remain 256 points. Independent two-million-point comparisons reproduced
+the entire mean and covariance exactly and exposed mandatory snapshot reduction
+as the old notebook overhead. No alternate reduction or integrator was added.
+Final acceptance includes 486 owned-source workspace tests (25 intentionally
+ignored), 59 portable host tests, 73 installed Python binding tests, 88 notebook
+tests, strict Clippy and formatting. Concurrent numerator-contraction work is
+excluded from this milestone. The native massless-box QMC cold 1000-digit
+polygamma preparation cost remains explicitly documented; actual execution of
+this new notebook in Pyodide remains a separate future validation.

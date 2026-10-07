@@ -10,6 +10,7 @@ from symbolica.community import hepkit as hep
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
+from _fixtures import fixed_arguments
 
 fs = getattr(hep, "sector_decomposition", None)
 pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel with FastSecDec")
@@ -17,7 +18,7 @@ pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel w
 
 @pytest.fixture(scope="module")
 def kernels():
-    return fs.Integral(**inputs.massive_triangle().integral_arguments()).generate(1).compile()
+    return fs.Integral(**fixed_arguments(inputs.massive_triangle())).generate(1).compile()
 
 
 def settings(**updates):
@@ -124,7 +125,7 @@ def test_checkpoint_rejects_wrong_lane_and_native_identity(kernels):
 
 
 def test_complex_weight_and_native_covariance_are_preserved(kernels):
-    arguments = inputs.massive_triangle().integral_arguments()
+    arguments = fixed_arguments(inputs.massive_triangle())
     arguments["measure_multiplier"] = 2 + 3 * Expression.I
     complex_kernels = fs.Integral(**arguments).generate(1).compile()
     design = fs.HavanaDiscreteSettings(points_per_batch=1024, batches=8, seed=13, bins=4)

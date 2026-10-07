@@ -30,6 +30,11 @@ class ShowcaseInput:
     scalar_values: dict[Expression, Expression]
     max_order: int
 
+    def fixed_scalar_values(self):
+        # The massless examples belong to the exact zero-mass stratum. A named
+        # runtime mass may not cross into it without regenerating the template.
+        return {symbol: value for symbol, value in self.scalar_values.items() if value == E("0")}
+
     def integral_arguments(self):
         """Native arguments for diagram sector decomposition; no serialization step."""
         return {
@@ -37,7 +42,8 @@ class ShowcaseInput:
             "kinematics": self.kinematics,
             "regulator": self.regulator,
             "dimension": self.dimension,
-            "scalar_values": dict(self.scalar_values),
+            "model_parameters": "runtime",
+            "scalar_values": self.fixed_scalar_values(),
             "powers": {},
             "auxiliary_momenta": [],
             "measure_multiplier": E("1"),

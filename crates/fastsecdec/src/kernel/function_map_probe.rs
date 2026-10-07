@@ -330,7 +330,7 @@ fn inspect(exact: &Exact, complex: bool, jit_direct: bool) -> (Vec<Vec<f64>>, Ve
     })
     .join()
     .unwrap();
-    let gamma = 0.5772156649015329_f64;
+    let gamma = std::f64::consts::EULER_GAMMA;
     let zeta3 = 1.202056903159594_f64;
     let pi = std::f64::consts::PI;
     let expected = [

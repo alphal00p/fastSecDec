@@ -11,6 +11,7 @@ from symbolica.community import hepkit as hep
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
 from showcase import inputs
+from _fixtures import fixed_arguments
 fs = getattr(hep, "sector_decomposition", None)
 pytestmark = pytest.mark.skipif(fs is None, reason="requires a community wheel with FastSecDec")
 
@@ -31,7 +32,7 @@ def test_periodization_settings_preserve_defaults_and_roundtrip_all_native_varia
 @pytest.fixture(scope="module")
 def prepared():
     value = inputs.massive_triangle()
-    return value, fs.Integral(**value.integral_arguments())
+    return value, fs.Integral(**fixed_arguments(value))
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +46,7 @@ def compiled(prepared):
     kernels = generated.compile(observer=events.append)
     assert events[-1].stage == "complete"
     assert kernels.snapshot().kernels == kernels.sector_count
-    expected_backend = "portable_interpreted" if sys.platform == "emscripten" else "native_o2"
+    expected_backend = "symbolica_interpreter"
     assert kernels.backend == expected_backend
     return kernels
 
@@ -55,7 +56,7 @@ def test_native_input_and_dimension_remain_distinct(prepared):
     assert integral.regulator == value.regulator
     assert integral.dimension == 4 - 2 * value.regulator
     assert len(integral.powers) == 3
-    args = value.integral_arguments()
+    args = fixed_arguments(value)
     args["scalar_values"] = {value.kinematics.dimension: E("4")}
     with pytest.raises(fs.FastSecDecError) as caught:
         fs.Integral(**args)
@@ -64,7 +65,7 @@ def test_native_input_and_dimension_remain_distinct(prepared):
 
 def test_selected_subgraph_guard_is_preserved(prepared):
     value, _ = prepared
-    arguments = value.integral_arguments()
+    arguments = fixed_arguments(value)
     # A native physical-cut view avoids requiring the optional standalone
     # Linnet Python renderer merely to exercise the guarded Rust accessor.
     model = hep.Model.phi4()
@@ -202,7 +203,7 @@ def test_errors_do_not_become_zero_estimates(prepared, compiled):
         compiled.restore(b"invalid checkpoint")
     assert caught.value.stage == "checkpoint"
     value, _ = prepared
-    arguments = value.integral_arguments()
+    arguments = fixed_arguments(value)
     arguments["measure_multiplier"] = E("10^10000")
     generated = fs.Integral(**arguments).generate()
     session = generated.compile().session(fs.QmcSettings(points=32, rule="hkkn_alpha3", shifts=2, package_points=8))
@@ -226,7 +227,7 @@ def test_complex_measure_weight_is_applied_once_and_checkpoint_identity_is_bound
     value, integral = prepared
     settings = fs.QmcSettings(points=32, rule="hkkn_alpha3", shifts=2, seed=7, package_points=64)
     baseline = integral.generate().compile()
-    arguments = value.integral_arguments()
+    arguments = fixed_arguments(value)
     arguments["measure_multiplier"] = 2 + 3 * Expression.I
     weighted = fs.Integral(**arguments).generate().compile()
     original_session = baseline.session(settings)
@@ -250,11 +251,13 @@ def test_complex_measure_weight_is_applied_once_and_checkpoint_identity_is_bound
 @pytest.mark.parametrize("builder", [inputs.massless_box, inputs.rank_two_box, inputs.coupled_sunset])
 def test_default_showcase_inputs_generate_and_evaluate_signed_laurent_layout(builder):
     value = builder()
-    generated = fs.Integral(**value.integral_arguments()).generate(value.max_order)
+    generated = fs.Integral(**fixed_arguments(value)).generate(value.max_order)
     assert generated.orders[-1] == value.max_order
     assert generated.orders[0] < 0
     assert generated.sector_count > 0
-    kernels = generated.compile()
+    # Preserve this reference smoke's original validated policy. The separate
+    # eager-workflow controls exercise the new distance policy explicitly.
+    kernels = generated.compile().with_stability(fs.StabilitySettings(mode="validated"))
     assert kernels.orders == generated.orders
     session = kernels.session(fs.QmcSettings(points=1024, shifts=2, package_points=32))
     partial = session.step()

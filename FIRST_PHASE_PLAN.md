@@ -1,5 +1,50 @@
 # FastSecDec first-phase implementation plan
 
+## Eager Marimo workflow and complete example migration (2026-10-07)
+
+After finishing batching, rebuild the gg → HH notebook around native generation
+of all one- and two-loop diagrams at QED order 2 with only Higgs, gluon and top
+particles, symmetrizing initial and final states. Select the first one-loop
+diagram by default and allow switching graphs to repeat the workflow. Render
+the selected diagram and its numerator before/after simplification using native
+HEPKit/Symbolica presentation, taking inspiration from the current HEPKit
+four-loop gluon notebook.
+
+Expose separate manual Generate, Inspect and Integrate actions, with QMC before
+Havana. Generation and integration must automatically open elegant live views
+with smooth stop/resume controls; inspection offers rich sector metadata and
+expressions. All returned objects need useful Marimo displays. Visible code
+should consist of short scientific calls; startup/helper definitions stay hidden.
+Use eager evaluators exclusively and one core, including local execution, while
+retaining Pyodide/Wasm compatibility. No passive display/import may trigger
+generation, contraction, compilation or integration.
+
+Generate the artifact in place in the notebook, retaining native generated and
+compiled objects for Inspect and Integrate without a CLI subprocess or mandatory
+filesystem round trip. Saving/downloading is an explicit optional action; hosted
+browser persistence can follow after the local workflow is validated.
+
+Inspect must expose the actual Symbolica integrand expression for the selected
+sector through the existing HEPKit scoped, lazy expression viewer. Reuse its
+large-expression handling; do not eagerly expand a massive expression into HTML
+or replace the requested view with a metadata summary.
+
+Use that same pretty, lazy viewer for the simplified projected numerator. Audit
+preparation so contributing model inputs and kinematic quantities stay symbolic
+in both that numerator and compiled evaluator expressions, with values bound
+only for integration as in the local ggHH workflow. Remove unintended numeric
+substitutions and large binary-rational artifacts from preparation. Exercise the
+notebook controls and parameter changes extensively in the live browser.
+
+Launch and exercise the actual notebook extensively through computer use,
+primarily on the one-loop box. Then migrate all examples and other notebooks to
+the same applicable standards, update configuration/docs/READMEs, and complete
+all local gates. This explicitly lifts the previous deferral of example and
+permanent test/gate migration. Validate native and portable behavior separately,
+record independent numerical/ecosystem reviews, and commit/push the final
+verified product. Mark the goal complete only after every requested workflow
+and deliverable has current authoritative evidence.
+
 ## Batched evaluator execution follow-up (2026-10-07)
 
 Carry configurable point batches through QMC and both Havana integration paths,

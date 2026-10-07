@@ -109,7 +109,7 @@ fn native_massless_box_matches_analytic_vector_and_frozen_external_target() {
     // At s=t=-1 the conventional massless box is
     // 4/eps^2 - 4*gamma_E/eps + 2*gamma_E^2 - 4*pi^2/3 + O(eps).
     // This is an integral-level check, independent of the sector partition.
-    let gamma = 0.577_215_664_901_532_9;
+    let gamma = std::f64::consts::EULER_GAMMA;
     let expected = [
         4.0,
         -4.0 * gamma,

@@ -74,19 +74,87 @@ fn every_shipped_run_card_loads_through_the_native_cli() {
 }
 
 #[test]
+fn shipped_bubble_reuses_one_template_at_two_runtime_points() {
+    fn checked(output: std::process::Output) -> serde_json::Value {
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice(&output.stdout).unwrap()
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let artifact = directory.path().join("bubble.fsd");
+    let card = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/runs/bubble.toml");
+    checked(
+        cli()
+            .arg("generate")
+            .arg(card)
+            .arg("--output")
+            .arg(&artifact)
+            .output()
+            .unwrap(),
+    );
+    let metadata_path = artifact.with_extension("fsd.json");
+    let data_path = artifact.with_extension("fsd.dat");
+    let metadata = fs::read(&metadata_path).unwrap();
+    let data = fs::read(&data_path).unwrap();
+    let summary: serde_json::Value = serde_json::from_slice(&metadata).unwrap();
+    assert_eq!(
+        summary["kernel"]["runtime_parameters"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(!artifact.exists());
+    let mut estimates = Vec::new();
+    for value in [-1, -4] {
+        let result = checked(
+            cli()
+                .arg("integrate")
+                .arg(&artifact)
+                .args([
+                    "--points",
+                    "1024",
+                    "--shifts",
+                    "4",
+                    "--seed",
+                    "456",
+                    "--max-rounds",
+                    "1",
+                ])
+                .arg("--parameter")
+                .arg(format!("p1_dot_p1={value}"))
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(result["estimate"]["orders"], serde_json::json!([-1, 0]));
+        let mean = result["estimate"]["mean"].as_array().unwrap();
+        assert!((mean[0].as_f64().unwrap() - 1.0).abs() < 1e-9);
+        estimates.push(mean[1].as_f64().unwrap());
+    }
+    // The massless bubble's finite coefficient shifts by -log((-s2)/(-s1)).
+    assert!((estimates[1] - estimates[0] + 4.0_f64.ln()).abs() < 1e-9);
+    assert_eq!(fs::read(metadata_path).unwrap(), metadata);
+    assert_eq!(fs::read(data_path).unwrap(), data);
+}
+
+#[test]
 fn portable_generation_integration_resume_and_json_errors() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
+    let artifact = dir.path().join("integral.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     card(&input);
     let generated = cli()
         .current_dir(dir.path())
-        .arg("--status-json")
+        .args(["--status-json", "--status-interval-ms", "0"])
         .arg("generate")
         .arg("input.toml")
         .arg("--output")
-        .arg("integral.json")
+        .arg("integral.fsd")
         .output()
         .unwrap();
     assert!(
@@ -98,7 +166,7 @@ fn portable_generation_integration_resume_and_json_errors() {
         .unwrap()
         .lines()
         .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
-        .filter(|snapshot| snapshot["stage"] == "Compilation")
+        .filter(|snapshot| snapshot["stage"] == "Compilation" && snapshot["total"].is_number())
         .collect::<Vec<_>>();
     assert_eq!(compilation.first().unwrap()["completed"], 0);
     assert_eq!(
@@ -164,12 +232,14 @@ fn portable_generation_integration_resume_and_json_errors() {
     assert!((run["estimate"]["mean"][0].as_f64().unwrap() - 0.5).abs() < 0.002);
     assert!(run["loading_seconds"].as_f64().unwrap() > 0.0);
     assert_eq!(run["generation_timings"], generated["generation_timings"]);
-    assert!(
-        run["snapshot"]["evaluation_diagnostics"]["weighted_checks"]
-            .as_u64()
-            .unwrap()
-            > 0
+    // The default distance stack classifies every point once; the first
+    // nonzero sample establishes its maximum without a validation replay.
+    let diagnostics = &run["snapshot"]["evaluation_diagnostics"];
+    assert_eq!(
+        diagnostics["evaluations"],
+        run["snapshot"]["completed_points"]
     );
+    assert_eq!(diagnostics["failures"], 0);
     assert!(
         run["snapshot"]["evaluation_diagnostics"]["additional_replays"]
             .as_u64()
@@ -181,10 +251,22 @@ fn portable_generation_integration_resume_and_json_errors() {
     assert_eq!(saved["replay"]["states"][0]["verified"], true);
     // Observations are not mathematical identity and must not invalidate a
     // production checkpoint or the portable kernel's content certificate.
-    let mut stored: serde_json::Value =
-        serde_json::from_slice(&fs::read(&artifact).unwrap()).unwrap();
-    stored["generation_timings"]["total_seconds"] = 999.0.into();
-    fs::write(&artifact, serde_json::to_vec(&stored).unwrap()).unwrap();
+    let mut stored: std::collections::BTreeMap<String, Box<serde_json::value::RawValue>> =
+        serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
+    // Preserve the exact serialized kernel summary covered by the envelope;
+    // only the explicitly observational field changes.
+    let mut timings: serde_json::Value =
+        serde_json::from_str(stored["generation_timings"].get()).unwrap();
+    timings["total_seconds"] = 999.0.into();
+    stored.insert(
+        "generation_timings".into(),
+        serde_json::value::to_raw_value(&timings).unwrap(),
+    );
+    fs::write(
+        artifact.with_extension("fsd.json"),
+        serde_json::to_vec(&stored).unwrap(),
+    )
+    .unwrap();
     let resumed = cli()
         .arg("integrate")
         .arg(&artifact)
@@ -265,7 +347,7 @@ fn portable_generation_integration_resume_and_json_errors() {
 fn plain_mode_sigint_saves_a_resumable_checkpoint() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("input.toml");
-    let artifact = dir.path().join("integral.json");
+    let artifact = dir.path().join("integral.fsd");
     let checkpoint = dir.path().join("checkpoint.json");
     let saved_result = dir.path().join("result.json");
     card(&input);
@@ -350,7 +432,7 @@ fn transcendental_laurent_artifact_loads_in_a_fresh_process() {
     let dir = tempfile::tempdir().unwrap();
     let input =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/runs/analytic_endpoint.toml");
-    let artifact = dir.path().join("endpoint.json");
+    let artifact = dir.path().join("endpoint.fsd");
     let generated = cli()
         .arg("generate")
         .arg(input)

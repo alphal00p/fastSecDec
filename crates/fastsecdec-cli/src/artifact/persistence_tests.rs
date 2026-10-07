@@ -15,6 +15,7 @@ fn provenance() -> Provenance {
         max_order: 0,
         integration: serde_json::json!({}),
         family_preparation: None,
+        model_parameter_defaults: Default::default(),
     }
 }
 
@@ -43,46 +44,37 @@ fn vector(kernels: &mut KernelSet) -> Vec<f64> {
 }
 
 #[test]
-fn old_outer_v1_identity_and_native_bytes_survive_load_and_resave() {
+fn native_pair_roundtrips_legacy_kernel_and_human_metadata() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("legacy.json");
-    let saved_again = directory.path().join("legacy-again.json");
+    let path = directory.path().join("native.fsd");
     let mut kernels = legacy_kernels();
     let expected = vector(&mut kernels);
-    assert_eq!(expected.len(), 3);
-    assert_eq!(expected[0], -1.0);
-    let old_kernel: serde_json::Value =
-        serde_json::from_slice(kernels.artifact_bytes().unwrap()).unwrap();
-    let provenance = provenance();
-    // The old protocol is written independently here: two canonical serialized
-    // values, following the original domain marker, with no v2 native-ID shortcut.
-    let mut old_hash = blake3::Hasher::new();
-    old_hash.update(b"fastsecdec-artifact-v1");
-    old_hash.update(&serde_json::to_vec(&provenance).unwrap());
-    old_hash.update(&serde_json::to_vec(&old_kernel).unwrap());
-    let id = old_hash.finalize().to_hex().to_string();
-    let old = serde_json::json!({"format_version":1,"content_id":id,
-        "provenance":provenance,"kernel":old_kernel});
-    fs::write(&path, serde_json::to_vec_pretty(&old).unwrap()).unwrap();
-    let (artifact, mut loaded) = Artifact::load(&path).unwrap();
-    assert_eq!(artifact.format_version, 1);
-    assert_eq!(artifact.content_id, id);
-    assert_eq!(vector(&mut loaded), expected);
-    artifact.save(&saved_again).unwrap();
-    let (again, mut loaded_again) = Artifact::load(&saved_again).unwrap();
-    assert_eq!(again.format_version, 1);
-    assert_eq!(again.content_id, id);
+    let artifact = Artifact::new(&kernels, provenance()).unwrap();
+    artifact.save(&path).unwrap();
+    let (metadata, data) = paths(&path).unwrap();
+    assert!(!path.exists());
+    assert!(metadata.exists() && data.exists());
+    let human: serde_json::Value = serde_json::from_slice(&fs::read(metadata).unwrap()).unwrap();
+    assert_eq!(human["format_version"], 3);
+    assert!(human["kernel"].get("payload").is_none());
     assert_eq!(
-        loaded.artifact_bytes().unwrap(),
-        loaded_again.artifact_bytes().unwrap()
+        human["kernel"]["orders"],
+        serde_json::json!(kernels.orders())
     );
-    assert_eq!(vector(&mut loaded_again), expected);
+    let (loaded_artifact, mut loaded) = Artifact::load(&path).unwrap();
+    assert_eq!(loaded_artifact.content_id, artifact.content_id);
+    assert_eq!(vector(&mut loaded), expected);
+    let relocated = directory.path().join("moved").join("native.fsd");
+    loaded_artifact.save(&relocated).unwrap();
+    let (again, mut kernels) = Artifact::load(&relocated).unwrap();
+    assert_eq!(again.content_id, artifact.content_id);
+    assert_eq!(vector(&mut kernels), expected);
 }
 
 #[test]
-fn outer_v2_keeps_native_json_verbatim_and_cold_full_vector() {
+fn generation_observations_do_not_change_the_pair_identity() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("native.json");
+    let path = directory.path().join("native.fsd");
     let input =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/runs/analytic_endpoint.toml");
     let (artifact, mut kernels) = crate::generate::generate(
@@ -92,19 +84,10 @@ fn outer_v2_keeps_native_json_verbatim_and_cold_full_vector() {
         None,
     )
     .unwrap();
-    assert_eq!(artifact.format_version, 2);
-    assert_eq!(
-        artifact.kernel.get().as_bytes(),
-        kernels.artifact_bytes().unwrap()
-    );
     let expected = vector(&mut kernels);
     assert_eq!(expected.len(), 3);
     let (mut loaded_artifact, mut loaded) = Artifact::load(&path).unwrap();
     assert_eq!(loaded_artifact.content_id, artifact.content_id);
-    assert_eq!(
-        loaded.artifact_bytes().unwrap(),
-        kernels.artifact_bytes().unwrap()
-    );
     assert_eq!(vector(&mut loaded), expected);
     loaded_artifact.generation_timings = Some(GenerationTimings {
         total_seconds: 999.0,
@@ -119,37 +102,61 @@ fn outer_v2_keeps_native_json_verbatim_and_cold_full_vector() {
 }
 
 #[test]
-fn outer_v2_rejects_payload_tampering_even_when_both_claimed_ids_are_unchanged() {
+fn pair_rejects_metadata_and_binary_tampering_and_runs_preflight_before_binary_loading() {
     let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("tampered.json");
+    let path = directory.path().join("tampered.fsd");
     let artifact = Artifact::new(&legacy_kernels(), provenance()).unwrap();
+    artifact.save(&path).unwrap();
+    let (metadata, data) = paths(&path).unwrap();
+    let original_bytes = fs::read(&metadata).unwrap();
     let original = serde_json::to_value(&artifact).unwrap();
-    for mutation in ["provenance", "kernel_id", "payload"] {
+    for mutation in ["provenance", "kernel_id", "summary"] {
         let mut value = original.clone();
         match mutation {
             "provenance" => value["provenance"]["measure_multiplier"] = "2".into(),
-            "kernel_id" => value["kernel"]["content_id"] = "bad-id".into(),
-            "payload" => value["kernel"]["payload"]["exact"][0] = "123".into(),
+            "kernel_id" => value["kernel_content_id"] = "bad-id".into(),
+            "summary" => value["kernel"]["sectors"] = 123.into(),
             _ => unreachable!(),
         }
-        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
-        let preflight_called = Cell::new(false);
+        fs::write(&metadata, serde_json::to_vec(&value).unwrap()).unwrap();
+        let called = Cell::new(false);
         assert!(
             Artifact::load_with_preflight(&path, |_| {
-                preflight_called.set(true);
+                called.set(true);
                 Ok(())
             })
             .is_err()
         );
-        // The payload mutation deliberately passes the unchanged outer v2 ID;
-        // native payload validation still rejects it before any successful load.
-        assert_eq!(preflight_called.get(), mutation == "payload");
+        assert!(!called.get());
     }
-    fs::write(&path, serde_json::to_vec(&original).unwrap()).unwrap();
+    // RawValue's human layout is part of this envelope's integrity check.
+    // Restore the producer's exact bytes before testing binary/preflight order.
+    fs::write(&metadata, original_bytes).unwrap();
+    fs::write(&data, b"truncated native data").unwrap();
     let error = Artifact::load_with_preflight(&path, |_| Err("caller preflight sentinel".into()))
         .err()
         .unwrap();
     assert_eq!(error.to_string(), "caller preflight sentinel");
+    assert!(Artifact::load(&path).is_err());
+    fs::remove_file(data).unwrap();
+    assert!(Artifact::load(&path).is_err());
+}
+
+#[test]
+fn suffixes_are_rejected_before_reading_or_writing_files() {
+    let directory = tempfile::tempdir().unwrap();
+    for suffix in ["json", "dat"] {
+        let path = directory.path().join(format!("native.fsd.{suffix}"));
+        assert!(paths(&path).unwrap_err().to_string().contains("basename"));
+        assert!(
+            Artifact::load(&path)
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("basename")
+        );
+    }
+    assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
 }
 
 #[test]

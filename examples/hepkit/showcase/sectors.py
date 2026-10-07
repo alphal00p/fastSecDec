@@ -1,43 +1,103 @@
 """Read-only native sector inspection; no JSON parsing or coefficient expansion."""
+from .presentation import panel
 
 from collections import Counter
 from html import escape
 from .presentation import table, epsilon_label
 
 
+def _monomials(chart):
+    """Group native retained monomial factors, not inferred integrand limits."""
+    from symbolica import E
+    groups = {}
+    record = getattr(chart, "pre_subtraction", None)
+    if record is None:
+        return []
+    for term in record.terms:
+        value = E("1")
+        for parameter, power in zip(chart.coordinates.target_parameters, term.powers):
+            value *= parameter ** power.exponent
+        groups[value] = groups.get(value, 0) + 1
+    return list(groups.items())
+
+
 def overview(mo, generated, kernels=None):
     if generated is None:
         return mo.md("Generate first to inspect the decomposition.")
-    if not hasattr(generated, "sectors") or not hasattr(generated, "metadata"):
-        return mo.callout("This wheel lacks the native sector-inspection API. Install the updated community wheel.", kind="warn")
     charts = generated.metadata.charts
     statistics = getattr(kernels, "sector_statistics", ())
     chart_counts = Counter(chart.kernel_sector for chart in charts)
+    indexed = {sector.index: sector for sector in generated.sectors}
+    ranked = sorted(indexed, key=lambda index: (
+        -statistics[index].exact_program_bytes if index < len(statistics) else 0, index))
     rows = []
-    for sector in generated.sectors:
-        stats = statistics[sector.index] if sector.index < len(statistics) else None
-        rows.append({
-            "sector": sector.index, "dimension": sector.dimension,
-            "generated orders": ", ".join(epsilon_label(order) for order in generated.orders),
-            "source charts": chart_counts[sector.index],
-            "shared evaluator operations": _operation_total(stats) if stats else None,
-            "exact program bytes": stats.exact_program_bytes if stats else None,
-            "SymJIT application bytes": stats.symjit_ir_bytes if stats else None,
-            "conditioning basis": sector.conditioning_basis.replace("_", " "),
-        })
-    no_kernel = chart_counts[None]
-    domain = generated.metadata.domain
-    certificates = [{"term": factor.term_index, "factor": factor.factor_index,
-                     "native certificate": factor.certificate.replace("_", " ")}
-                    for factor in domain.factors]
+    for index in ranked[:10]:
+        sector = indexed[index]
+        stats = statistics[index] if index < len(statistics) else None
+        matching = [chart for chart in charts if chart.kernel_sector == index]
+        representative = next((chart for chart in matching if chart.source_index == chart.representative), matching[0] if matching else None)
+        groups = _monomials(representative) if representative is not None else []
+        monomials = mo.vstack([mo.hstack([_formula(mo, value), mo.md(f"× {count} mapped term(s)")], justify="start")
+                              for value, count in groups[:3]]) if groups else mo.md("Not retained")
+        if len(groups) > 3:
+            monomials = mo.vstack([monomials, mo.md(f"+ {len(groups)-3} more; inspect sector {index}")])
+        rows.append({"Sector ID": index, "Coordinates": sector.dimension,
+                     "Evaluator bytes": stats.exact_program_bytes if stats else "Not recorded",
+                     "Native operations": _operation_total(stats) if stats else "Not recorded",
+                     "Retained pre-subtraction monomial factors": monomials})
+    sizes = [stat.exact_program_bytes for stat in statistics]
     return mo.vstack([
-        mo.md(f"**{len(rows)} numerical sectors** · {len(charts)} retained charts · branch: {domain.branch_policy.replace('_', ' ')}"),
-        mo.md(f"Native domain: **{domain.domain.replace('_', ' ')}** · caller assertion: **{'yes' if domain.caller_asserted else 'no'}** · admission relies on assertion: **{'yes' if domain.relies_on_assertion else 'no'}**"),
-        mo.accordion({f"Domain certificates · {len(certificates)} factors": table(mo, certificates)}),
-        table(mo, rows),
-        mo.md(f"{no_kernel} chart(s) retain no numerical kernel at the requested orders. This may mean exact, cancelled or truncated contributions; the native metadata does not classify them further.") if no_kernel else mo.md(""),
-        mo.md("Operations describe the complete shared Symbolica evaluator before real/complex SymJIT lowering and optimization. SymJIT application bytes measure its compressed serialized application, not machine code; portable execution has no SymJIT application. Older wheels may lack these statistics."),
+        mo.md(f"### {len(indexed)} numerical sectors · {len(charts)} source charts"),
+        _static_table(mo, [{"Backend": getattr(kernels, "backend", "Not compiled"),
+                           "Evaluator storage": f"{sum(sizes):,} bytes",
+                           "Largest evaluator": f"{max(sizes, default=0):,} bytes",
+                           "Orders": str(generated.orders)}]),
+        mo.md("**Ten largest shared evaluators**, ordered by serialized native program size. IDs are the saved kernel indices."),
+        _static_table(mo, rows),
+        mo.md("Monomials precede endpoint subtraction and symmetry multiplicity; the regular body may still vanish. Operation counts follow native Horner/CPE optimization. No numerical session is created by inspection."),
+        mo.md(f"{chart_counts[None]} chart(s) have no numerical kernel at these orders; this alone does not distinguish exact, cancelled or truncated terms.") if chart_counts[None] else mo.md(""),
     ])
+
+
+def coefficient_index(generated, index, order):
+    """Resolve a physical Laurent order from the native retained schema."""
+    if not 0 <= index < len(generated.sectors):
+        raise ValueError("Choose an existing generated sector")
+    coefficients = generated.sectors[index].aliased_coefficients
+    for position, coefficient in enumerate(coefficients):
+        if coefficient.order == order:
+            return position
+    available = ", ".join(str(value.order) for value in coefficients)
+    raise ValueError(f"Sector {index} has no epsilon order {order}; available orders: {available}")
+
+
+def expression_viewer(generated, index, coefficient_index):
+    """Open only the explicitly selected native coefficient's scoped pager."""
+    from symbolica.community.spenso import TensorExpression
+    native_sectors = generated.sectors
+    if not 0 <= index < len(native_sectors):
+        raise ValueError("Choose an existing generated sector")
+    coefficients = native_sectors[index].aliased_coefficients
+    if not 0 <= coefficient_index < len(coefficients):
+        raise ValueError(f"Coefficient index must be between 0 and {len(coefficients)-1}")
+    # Native alias materialization is an explicit inspection operation. The
+    # native Pager bounds rendering and owns navigation/cache lifetimes.
+    return TensorExpression(coefficients[coefficient_index].expression()).paged(page_size=25)
+
+
+def inspection(mo, generated, kernels, index, coefficient_index=0, viewer=None):
+    if not generated.sectors:
+        return mo.vstack([overview(mo, generated, kernels),
+                          mo.md("There are no numerical sectors at these orders. Bind the physical point and integrate to obtain the native exact contribution, if any.")])
+    views = [overview(mo, generated, kernels),
+             detail(mo, generated, index, coefficient_index=coefficient_index, kernels=kernels)]
+    if viewer is not None:
+        coefficient = generated.sectors[index].aliased_coefficients[coefficient_index]
+        views.append(panel(mo, f"Sector {index} integrand · {epsilon_label(coefficient.order)}", mo.vstack([
+            mo.md("The actual native Symbolica Laurent coefficient after endpoint subtraction, including the retained sector's symmetry multiplicity. The global coordinate-independent exact contribution is separate. HEPKit renders one scoped page at a time; use the viewer controls to explore the full expression."),
+            mo.as_html(viewer),
+        ])))
+    return mo.vstack(views)
 
 
 def _static_table(mo, rows):
@@ -86,11 +146,12 @@ def _operation_total(stats):
 
 
 def _compact(value):
-    return str(value.formatted(max_terms=12, max_line_length=80, show_namespaces=False))
+    return str(value.formatted(max_terms=12, max_line_length=80, show_namespaces=True))
 
 
 def _formula(mo, value):
     # Symbolica supplies the bounded LaTeX; no expression reconstruction or CAS.
+    # Qualified identities remain in the exact-source metadata and downloads.
     formatted = value.formatted(max_terms=12, max_line_length=80, show_namespaces=False)
     latex = formatted._repr_latex_()
     if latex and len(latex) <= 4000:
@@ -115,7 +176,7 @@ def _pre_subtraction(mo, chart, term_index):
                "b": _formula(mo, power.constant), "c": _formula(mo, power.slope),
                "Taylor coefficients required": power.subtraction_count}
               for parameter, power in zip(parameters, term.powers)]
-    source = [{"coordinate": str(parameter), "exact exponent": _preview(power.exponent)}
+    source = [{"coordinate": _compact(parameter), "exact exponent": _preview(power.exponent)}
               for parameter, power in zip(parameters, term.powers)]
     return mo.vstack([
         mo.md(f"**Mapped term {term_index} / {len(terms)-1}** · metadata v{record.version} · regulator {_compact(record.regulator)}"),
@@ -127,7 +188,7 @@ def _pre_subtraction(mo, chart, term_index):
         mo.accordion({"Exact native names and prefactor source": mo.vstack([
             _static_table(mo, source),
             mo.Html('<pre style="white-space:pre-wrap;overflow:auto">' + escape(_preview(term.prefactor)) + '</pre>'),
-            mo.download(lambda: str(term.prefactor).encode(), filename=f"chart-{chart.source_index}-term-{term_index}-prefactor.txt", label="Download exact prefactor"),
+            mo.download(str(term.prefactor.formatted(show_namespaces=True)).encode(), filename=f"chart-{chart.source_index}-term-{term_index}-prefactor.txt", label="Download exact prefactor"),
         ])}),
     ])
 
@@ -143,7 +204,7 @@ def _statistics(mo, kernels, index):
                     "exact program bytes": stats.exact_program_bytes,
                     "SymJIT application bytes": stats.symjit_ir_bytes}]),
         _static_table(mo, [{key: getattr(stats.operations, key) for key in ("additions", "multiplications", "inversions", "function_calls")}]),
-        mo.md("Counts belong to the actual shared complete-vector evaluator before SymJIT lowering/optimization. Complex outputs split into real/imaginary components during numerical evaluation. No per-coefficient compiled cost is inferred from shared expressions."),
+        mo.md("Counts belong to the actual shared complete-vector evaluator after native Horner/CPE optimization and before backend lowering. Complex outputs split into real/imaginary components during numerical evaluation. No per-coefficient compiled cost is inferred from shared expressions."),
     ])
 
 
@@ -192,9 +253,9 @@ def detail(mo, generated, index, coefficient_index=0, alias_page=0, chart_index=
             _pre_subtraction(mo, chart, term_index),
             _geometry(mo, chart.geometry),
         ])
-    return mo.accordion({f"Sector {sector.index} · {sector.dimension} dimensions": mo.vstack([
+    return panel(mo, f"Sector {sector.index} · {sector.dimension} coordinates", mo.vstack([
         mo.md("Maps describe the density pullback **before endpoint subtraction**. Generated coefficients may be complex; compiled results can split real and imaginary components."),
-        _static_table(mo, [{"parameters": ", ".join(str(value) for value in sector.parameters),
+        _static_table(mo, [{"native parameter IDs": ", ".join(_compact(value) for value in sector.parameters),
                     "conditioning basis": sector.conditioning_basis,
                     "cancellation degree": sector.cancellation_degree,
                     "conditioning rows": str(sector.cancellation_terms)}]),
@@ -202,4 +263,4 @@ def detail(mo, generated, index, coefficient_index=0, alias_page=0, chart_index=
                       "Selected compact coefficient": coefficient_view,
                       "Selected source chart": chart_view,
                       "Sector geometry": _geometry(mo, sector.map)}),
-    ])})
+    ]))

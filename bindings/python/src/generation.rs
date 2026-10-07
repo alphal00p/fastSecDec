@@ -6,10 +6,13 @@ use fastsecdec::{
     status::{GenerationSnapshot, GenerationStage, GenerationTimings},
 };
 use pyo3::{prelude::*, types::PyString};
-use symbolica::{api::python::PythonExpression, symbol};
+use symbolica::api::python::PythonExpression;
 
 use super::{
-    error, input::PyIntegral, kernels::PyKernels, progress::GenerationProgress,
+    error,
+    input::{PyIntegral, RuntimeInputs},
+    kernels::PyKernels,
+    progress::GenerationProgress,
     status::PyGenerationSnapshot,
 };
 
@@ -17,11 +20,14 @@ use super::{
 #[pyclass(
     name = "GeneratedIntegral",
     module = "symbolica.community.hepkit.sector_decomposition",
-    frozen
+    frozen,
+    skip_from_py_object
 )]
+#[derive(Clone)]
 pub(crate) struct PyGeneratedIntegral {
     pub(crate) inner: Arc<GeneratedIntegral>,
-    status: GenerationSnapshot,
+    pub(crate) status: GenerationSnapshot,
+    pub(crate) runtime: RuntimeInputs,
 }
 
 #[pymethods]
@@ -51,18 +57,7 @@ impl PyIntegral {
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native diagram",
-            || {
-                let parameters = (0..self.graph.powers().len())
-                    .map(|i| symbol!(format!("fastsecdec::hepkit::x{i}")))
-                    .collect();
-                ParametricIntegrand::from_graph(
-                    &self.graph,
-                    parameters,
-                    self.regulator,
-                    self.dimension.clone(),
-                )
-                .map_err(|e| error::native(py, "parametrization", e))
-            },
+            || self.parametrize(py),
         )
     }
 }
@@ -77,7 +72,7 @@ pub(crate) fn generate_native(
     observer: Option<&Py<PyAny>>,
     progress: Option<&Py<PyAny>>,
     detail: &str,
-    parametrize: impl FnOnce() -> PyResult<ParametricIntegrand>,
+    parametrize: impl FnOnce() -> PyResult<(ParametricIntegrand, RuntimeInputs)>,
 ) -> PyResult<PyGeneratedIntegral> {
     let method = match coefficient_expansion {
         "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
@@ -106,7 +101,7 @@ pub(crate) fn generate_native(
             return Err(error::cancelled(py, "generation"));
         }
         crate::citations::mark_generation();
-        let input = parametrize()?;
+        let (input, runtime) = parametrize()?;
         status.timings.parametrization_seconds = started.elapsed().as_secs_f64();
         let mut options = GenerationOptions {
             max_order,
@@ -140,6 +135,7 @@ pub(crate) fn generate_native(
         Ok(PyGeneratedIntegral {
             inner: Arc::new(inner),
             status,
+            runtime,
         })
     })();
     progress.finish(py, result)
@@ -148,6 +144,40 @@ pub(crate) fn generate_native(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGeneratedIntegral {
+    #[getter]
+    fn runtime_parameters(&self) -> Vec<PythonExpression> {
+        self.runtime
+            .parameters
+            .iter()
+            .map(|s| PythonExpression {
+                expr: fastsecdec::Atom::var(*s),
+            })
+            .collect()
+    }
+    /// Model-card defaults are human metadata, never automatically bound.
+    #[getter]
+    fn model_parameter_defaults(&self) -> std::collections::BTreeMap<String, f64> {
+        self.runtime.defaults.clone()
+    }
+    /// Explicitly inspectable defaults keyed by the actual native runtime symbols.
+    #[getter]
+    fn runtime_parameter_defaults<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, pyo3::types::PyDict>> {
+        let result = pyo3::types::PyDict::new(py);
+        for symbol in &self.runtime.parameters {
+            if let Some(value) = self.runtime.defaults.get(symbol.get_name()) {
+                result.set_item(
+                    PythonExpression {
+                        expr: fastsecdec::Atom::var(*symbol),
+                    },
+                    *value,
+                )?;
+            }
+        }
+        Ok(result)
+    }
     /// Immutable native sector views; coefficients remain compact until requested.
     #[getter]
     fn sectors(&self) -> Vec<crate::inspection::PyGeneratedSector> {
@@ -189,14 +219,25 @@ impl PyGeneratedIntegral {
     /// Build the native O2 or portable interpreted evaluator. Progress follows
     /// generate: auto marimo display (suppressed with observer), None, or a full
     /// snapshot callback. False cancels; original exceptions survive cleanup.
-    #[pyo3(signature = (*, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
-    #[pyo3(text_signature = "($self, *, observer=None, progress='auto')")]
+    #[pyo3(signature = (*, backend="eager", settings=None, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(
+        text_signature = "($self, *, backend='eager', settings=None, observer=None, progress='auto')"
+    )]
     fn compile(
         &self,
         py: Python<'_>,
+        backend: &str,
+        settings: Option<&crate::settings::PyCompilationSettings>,
         observer: Option<Py<PyAny>>,
         progress: Option<Py<PyAny>>,
     ) -> PyResult<PyKernels> {
+        let settings =
+            settings
+                .map(|v| v.inner)
+                .unwrap_or(fastsecdec::kernel::CompilationSettings {
+                    backend: crate::settings::backend(backend)?,
+                    ..Default::default()
+                });
         let mut progress = GenerationProgress::new(py, progress.as_ref(), observer.as_ref(), true)?;
         let result = (|| {
             let started = Instant::now();
@@ -204,28 +245,35 @@ impl PyGeneratedIntegral {
             let offset = status.elapsed_seconds;
             let mut callback_error = None;
             let mut cancelled = false;
-            let result = self.inner.compile_with_progress(|event| {
-                status.observe_compilation(event);
-                status.elapsed_seconds = offset + started.elapsed().as_secs_f64();
-                match progress.observe(py, &status) {
-                    Ok(true) => ControlFlow::Continue(()),
-                    Ok(false) => {
-                        cancelled = true;
-                        ControlFlow::Break(())
+            let result = self.inner.compile_with_settings_parameters_and_progress(
+                Default::default(),
+                &self.runtime.parameters,
+                settings,
+                |event| {
+                    status.observe_compilation(event);
+                    status.elapsed_seconds = offset + started.elapsed().as_secs_f64();
+                    match progress.observe(py, &status) {
+                        Ok(true) => ControlFlow::Continue(()),
+                        Ok(false) => {
+                            cancelled = true;
+                            ControlFlow::Break(())
+                        }
+                        Err(e) => {
+                            callback_error = Some(e);
+                            ControlFlow::Break(())
+                        }
                     }
-                    Err(e) => {
-                        callback_error = Some(e);
-                        ControlFlow::Break(())
-                    }
-                }
-            });
+                },
+            );
             if let Some(error) = callback_error {
                 return Err(error);
             }
             if cancelled {
                 return Err(error::cancelled(py, "compilation"));
             }
-            let inner = result.map_err(|e| error::native(py, "compilation", e))?;
+            let inner = result
+                .and_then(|k| k.with_runtime_mass_constraints(self.runtime.masses.clone()))
+                .map_err(|e| error::native(py, "compilation", e))?;
             status.stage = GenerationStage::Complete;
             status.timings.total_seconds = offset + started.elapsed().as_secs_f64();
             status.detail = "Kernels ready".into();
@@ -274,7 +322,9 @@ import typing
 import symbolica.community.hepkit.sector_decomposition
 
 class PyGeneratedIntegral:
-    def compile(self, *, observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
+    def compile(self, *, backend: str = "eager",
+                settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
+                observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                 progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                 ) -> symbolica.community.hepkit.sector_decomposition.Kernels:
         """Compile native evaluators without creating or advancing a session.

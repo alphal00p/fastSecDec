@@ -162,6 +162,7 @@ mod tests {
                 rescued: false,
                 checked: false,
                 bits: 53,
+                ..Default::default()
             })
             .unwrap();
         let mut worker = EvaluationDiagnostics::default();
@@ -170,6 +171,8 @@ mod tests {
                 rescued: true,
                 checked: true,
                 bits: 512,
+                class: crate::kernel::PrecisionClass::Arbitrary,
+                ..Default::default()
             })
             .unwrap();
         worker.record_failure().unwrap();
@@ -182,6 +185,9 @@ mod tests {
                 rescues: 1,
                 max_precision_bits: 512,
                 failures: 1,
+                f64_points: 1,
+                arbitrary_points: 1,
+                unstable_points: 1,
                 ..Default::default()
             }
         );
@@ -207,6 +213,8 @@ mod tests {
                         rescued: true,
                         checked: true,
                         bits: 256,
+                        class: crate::kernel::PrecisionClass::Arbitrary,
+                        ..Default::default()
                     },
                     weighted_check: true,
                     replayed,

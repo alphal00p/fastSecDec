@@ -7,11 +7,17 @@ def _fields(owner, names):
     return {name: getattr(owner, name) for name in names.split()}
 
 
+def _symbol_name(symbol):
+    # Symbolica's default str() hides namespaces; preserve parameter identity.
+    return str(symbol.formatted(show_namespaces=True)) if hasattr(symbol, "formatted") else str(symbol)
+
+
 def run_report(state):
     """A presentation record; native kernel/checkpoint codecs remain separate."""
     result = {
         "schema": "fastsecdec-showcase-report-1",
         "configuration": state.configuration,
+        "runtime_parameter_point": {_symbol_name(symbol): value for symbol, value in state.parameter_point.items()},
         "phase": state.phase,
         "active": state.active,
         "session_created": state.session is not None,
@@ -44,8 +50,7 @@ def run_report(state):
         result["generated"] = {"orders": generated.orders}
         if hasattr(generated, "metadata"):
             domain = generated.metadata.domain
-            result["generated"]["domain"] = _fields(domain, "domain branch_policy caller_asserted relies_on_assertion")
-            result["generated"]["domain"]["certificates"] = [_fields(f, "term_index factor_index certificate") for f in domain.factors]
+            result["generated"]["domain"] = _fields(domain, "domain branch_policy")
             result["generated"]["sectors"] = [_fields(s, "index dimension coefficient_count alias_counts conditioning_basis cancellation_degree") for s in generated.sectors]
             result["generated"]["charts"] = [_fields(c, "source_index representative representative_permutation kernel_sector") for c in generated.metadata.charts]
     if state.snapshot is not None:

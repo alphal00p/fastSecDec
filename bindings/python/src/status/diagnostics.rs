@@ -18,6 +18,48 @@ pub(crate) struct PyEvaluationDiagnostics {
 #[pymethods]
 impl PyEvaluationDiagnostics {
     #[getter]
+    fn f64_points(&self) -> u64 {
+        self.inner.f64_points
+    }
+    #[getter]
+    fn double_float_points(&self) -> u64 {
+        self.inner.double_float_points
+    }
+    #[getter]
+    fn arbitrary_points(&self) -> u64 {
+        self.inner.arbitrary_points
+    }
+    #[getter]
+    fn unstable_points(&self) -> u64 {
+        self.inner.unstable_points
+    }
+    #[getter]
+    fn cutoff_zero_points(&self) -> u64 {
+        self.inner.cutoff_zero_points
+    }
+    #[getter]
+    fn unclassified_points(&self) -> u64 {
+        self.inner.unclassified_points()
+    }
+    #[getter]
+    fn f64_timing(&self) -> PyEvaluatorTiming {
+        PyEvaluatorTiming {
+            inner: self.inner.f64_timing,
+        }
+    }
+    #[getter]
+    fn double_float_timing(&self) -> PyEvaluatorTiming {
+        PyEvaluatorTiming {
+            inner: self.inner.double_float_timing,
+        }
+    }
+    #[getter]
+    fn arbitrary_timing(&self) -> PyEvaluatorTiming {
+        PyEvaluatorTiming {
+            inner: self.inner.arbitrary_timing,
+        }
+    }
+    #[getter]
     fn evaluations(&self) -> u64 {
         self.inner.evaluations
     }
@@ -54,5 +96,38 @@ impl PyEvaluationDiagnostics {
 
     fn __str__(&self) -> String {
         self.inner.to_string()
+    }
+}
+
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(
+    name = "EvaluatorTiming",
+    module = "symbolica.community.hepkit.sector_decomposition",
+    frozen,
+    from_py_object
+)]
+#[derive(Clone)]
+pub(crate) struct PyEvaluatorTiming {
+    inner: fastsecdec::kernel::EvaluatorTiming,
+}
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyEvaluatorTiming {
+    /// Evaluated points, including speculative or repeated numerical attempts.
+    #[getter]
+    fn calls(&self) -> u64 {
+        self.inner.calls
+    }
+    #[getter]
+    fn nanoseconds(&self) -> u64 {
+        self.inner.nanoseconds
+    }
+    #[getter]
+    fn matrix_invocations(&self) -> u64 {
+        self.inner.matrix_invocations
+    }
+    #[getter]
+    fn matrix_points(&self) -> u64 {
+        self.inner.matrix_points
     }
 }

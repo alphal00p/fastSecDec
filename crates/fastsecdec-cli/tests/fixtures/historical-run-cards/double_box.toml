@@ -1,0 +1,28 @@
+# Native HEPKit P(index) scalar products; paths are relative to this card.
+[input]
+graph = "../graphs/double_box.dot"
+model = "../models/scalar.json"
+parameter_card = "../models/massless.json"
+
+[kinematics]
+products = [
+  { left = 0, right = 0, value = "0" },
+  { left = 1, right = 1, value = "0" },
+  { left = 2, right = 2, value = "0" },
+  { left = 0, right = 1, value = "s12/2" },
+  { left = 1, right = 2, value = "s23/2" },
+  { left = 0, right = 2, value = "-(s12+s23)/2" },
+]
+
+[parameters]
+s12 = "-1"
+s23 = "-1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"
+
+[generation]
+order = 0
+assume_no_threshold = false

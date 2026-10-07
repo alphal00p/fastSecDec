@@ -68,6 +68,8 @@ def sector_decompose(
     scalar_values: typing.Optional[dict[symbolica.Expression, symbolica.Expression]] = None,
     auxiliary_momenta: typing.Optional[collections.abc.Sequence[symbolica.Expression]] = None,
     measure_multiplier: typing.Optional[symbolica.Expression] = None,
+    runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
+    model_parameters: str = "runtime",
     max_order: int = 0, coefficient_expansion: str = "full_expression",
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
     progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
@@ -88,9 +90,9 @@ def sector_decompose(
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, max_order=0, coefficient_expansion="full_expression", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
 #[pyo3(
-    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, max_order=0, coefficient_expansion='full_expression', observer=None, progress='auto')"
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', observer=None, progress='auto')"
 )]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
@@ -104,6 +106,8 @@ pub(crate) fn sector_decompose(
     scalar_values: Option<&Bound<'_, PyDict>>,
     auxiliary_momenta: Option<Vec<PythonExpression>>,
     measure_multiplier: Option<&PythonExpression>,
+    runtime_parameters: Option<Vec<PythonExpression>>,
+    model_parameters: &str,
     max_order: i32,
     coefficient_expansion: &str,
     observer: Option<Py<PyAny>>,
@@ -131,6 +135,8 @@ pub(crate) fn sector_decompose(
             scalar_values,
             auxiliary_momenta,
             measure_multiplier,
+            runtime_parameters,
+            model_parameters,
         )?
         .generate(py, max_order, coefficient_expansion, observer, progress);
     }
@@ -182,6 +188,19 @@ pub(crate) fn sector_decompose(
                     &family, &powers, numerator, parameters, regulator, dimension,
                 )
                 .map_err(|e| error::native(py, "parametrization", e))
+                .and_then(|input| {
+                    Ok((
+                        input,
+                        crate::input::RuntimeInputs {
+                            parameters: runtime_parameters
+                                .unwrap_or_default()
+                                .iter()
+                                .map(|p| expression_symbol(py, p, "runtime parameter"))
+                                .collect::<PyResult<_>>()?,
+                            ..Default::default()
+                        },
+                    ))
+                })
             },
         );
     }
