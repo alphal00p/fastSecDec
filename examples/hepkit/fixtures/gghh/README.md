@@ -16,5 +16,5 @@ widths in that historical input. Current generation instead fixes only exact
 structural zeros, including both incoming gluon mass shells, while all nonzero
 Gram products and contributing model leaves remain runtime inputs. See the
 [current workflow](../../README.md) for native `to_dots` preparation and
-numerical-dual generation. No current notebook loads scalar products, kernels or
+symbolic generation. No current notebook loads scalar products, kernels or
 numerical results from this archive.

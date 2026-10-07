@@ -337,7 +337,7 @@ def _(ShowcaseInput, runtime_ready):
                 return result
 
             def generation_arguments(self):
-                return {"mode": "numerical_dual", "subtraction": "taylor",
+                return {"mode": "symbolic", "subtraction": "taylor",
                         "coefficient_expansion": "coefficient_series"}
 
             def gram_legend(self):

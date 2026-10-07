@@ -175,7 +175,7 @@ def test_compiled_relocated_notebook_generates_and_binds_runtime_points(tmp_path
         study.dispatch(actions, None, box.id, {}, mo)
         assert study.run.error is None, study.run.error
         owner = study.run.generation_session
-        assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
+        assert owner.mode == "symbolic" and owner.subtraction == "taylor"
         assert study.run.session is None
         actions["pause"] = 1
         study.dispatch(actions, None, box.id, {}, mo)
@@ -190,7 +190,7 @@ def test_compiled_relocated_notebook_generates_and_binds_runtime_points(tmp_path
             assert study.run.error is None, study.run.error
         assert study.run.phase == "ready" and owner.complete
         assert study.run.generation_session is owner and study.run.session is None
-        assert study.run.generated.mode == "numerical_dual"
+        assert study.run.generated.mode == "symbolic"
         assert study.run.kernels.backend == "symbolica_interpreter"
         assert all(stat.symjit_ir_bytes is None for stat in study.run.kernels.sector_statistics)
         prepared = study.run.prepared

@@ -1,5 +1,16 @@
 # Three-loop ggHH cards and notebook defaults
 
+The user's latest correction restores `symbolic` as the ggHH notebook default,
+while retaining native `to_dots` and eager compilation. The three-loop CLI
+cards remain numerical-dual with their respective dots/minimal contraction
+choices. The execution evidence below records the previously tested notebook
+default. The corrected source is published immediately at the user's request,
+without claiming completion of the ongoing final-pin native wheel build.
+The correction passes seven source/parity/option-forwarding controls and checks
+of all three Marimo entrypoints. Independent review confirms that the native
+crates and all CLI cards are unchanged; an explicit numerical-dual override
+remains covered. These checks do not claim a completed symbolic notebook run.
+
 This independent audit covers the two distinct three-loop ggHH inputs and the
 shared notebook workflow. The requested defaults are numerical-dual generation
 for both three-loop cards and the notebooks; native `dots` contraction for the

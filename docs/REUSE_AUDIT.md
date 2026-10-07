@@ -1,5 +1,16 @@
 # Ecosystem reuse evidence
 
+## Notebook default correction (2026-10-07)
+
+The user subsequently selected the existing symbolic generation lane for the
+ggHH Marimo notebooks. This changes the prepared input's forwarded option;
+native `to_dots`, eager evaluators, runtime inputs and explicit caller-owned
+actions remain in place. Both three-loop CLI cards keep numerical-dual
+generation. The previous numerical-dual notebook execution evidence below
+describes that earlier default, not a new symbolic-default validation. The
+user explicitly requested publication without waiting for the ongoing native
+link; the replacement PR records its pending final-pin validation.
+
 ## Three-loop input publication and numerical-dual notebook defaults (2026-10-07)
 
 The user now authorizes publishing both ggHH three-loop examples, superseding

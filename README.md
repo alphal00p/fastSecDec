@@ -27,7 +27,7 @@ helpers in the notebook and needs no neighboring Python files or input fixtures.
 Both notebooks use one caller-driven thread and native eager evaluators, including
 local runs. Generation and integration retain completed work across pauses;
 individual native algebra operations finish before a pause takes effect.
-The ggHH notebooks default to `numerical_dual` generation and native `to_dots`
+The ggHH notebooks default to `symbolic` generation and native `to_dots`
 numerator simplification. Incoming gluon mass shells are exact generation-time
 constraints; the remaining declared kinematics and contributing model inputs
 remain runtime evaluator parameters.

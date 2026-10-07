@@ -89,11 +89,10 @@ optional explicit exports; closing/resetting the Python or Pyodide kernel releas
 its in-memory owners.
 
 1. **Generate sectors** prepares the selected input and creates an inert native
-   generation session. gg → HH defaults to **`numerical_dual` with Taylor subtraction**:
-   the native owner prepares shared subtraction formulas, composes deferred sector
-   maps and endpoint jets, then builds eager evaluators. Formula counts and timings
-   remain visible separately. Scalar showcase examples retain their native symbolic
-   default. Each UI tick spends a 50 ms caller work budget on retained
+   generation session. gg → HH defaults to **`symbolic` with Taylor subtraction**:
+   the native owner substitutes sector maps, performs coefficient-series expansion,
+   then builds eager evaluators. Scalar showcase examples also retain their native
+   symbolic default. Each UI tick spends a 50 ms caller work budget on retained
    native units, including eager compilation. Progress opens automatically and shows typed
    phases, counts and timings. Completion creates no integration session and
    samples no points.

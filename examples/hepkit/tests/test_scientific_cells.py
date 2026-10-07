@@ -24,7 +24,7 @@ def test_generation_construction_is_inert_eager_and_explicitly_configured():
 
 def test_input_generation_defaults_and_explicit_overrides_reach_the_native_owner():
     calls = []
-    defaults = {"mode": "numerical_dual", "subtraction": "taylor",
+    defaults = {"mode": "symbolic", "subtraction": "taylor",
                 "coefficient_expansion": "coefficient_series"}
     native = NS(generation_session=lambda **options: calls.append(options))
     callbacks = science(NS(Integral=lambda **arguments: native,
@@ -33,11 +33,11 @@ def test_input_generation_defaults_and_explicit_overrides_reach_the_native_owner
     callbacks.generation(prepared, {"max_order": 0})
     assert calls[-1] == {**defaults, "max_order": 0,
                          "compilation_settings": {"backend": "eager"}}
-    override = {"max_order": 1, "mode": "symbolic", "subtraction": "integrate_by_parts",
+    override = {"max_order": 1, "mode": "numerical_dual", "subtraction": "integrate_by_parts",
                 "coefficient_expansion": "full_expression"}
     callbacks.generation(prepared, override)
     assert calls[-1] == {**override, "compilation_settings": {"backend": "eager"}}
-    assert defaults == {"mode": "numerical_dual", "subtraction": "taylor",
+    assert defaults == {"mode": "symbolic", "subtraction": "taylor",
                         "coefficient_expansion": "coefficient_series"}
 
 

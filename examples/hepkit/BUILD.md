@@ -5,15 +5,15 @@ feature. FastSecDec owns the Rust/PyO3 implementation in `bindings/python`; the
 core library and CLI remain Python-free. Use a current community checkout that
 links this FastSecDec revision. Record both revisions and the resulting wheel
 hash when validating or distributing a notebook. The ggHH workflow requires
-`Integral.generation_session(mode="numerical_dual", subtraction="taylor", ...)`
+`Integral.generation_session(mode="symbolic", subtraction="taylor", ...)`
 and the retained session, explicit eager backend and runtime parameter APIs.
-An older wheel may expose the latter APIs while still lacking numerical-dual
-generation; the notebook must not silently switch its generation mode.
+An older wheel may expose the latter APIs while still lacking explicit generation
+mode selection; the notebook must not silently drop its requested options.
 
 The initial host bridge is [community PR #22](https://github.com/symbolica-dev/symbolica-community/pull/22),
 commit `882ad55ef41fe9c76bcdec63efe8c831bf2fd7d3`, which pins FastSecDec
 `73b0442c4ba7e1e9dd3379f985f80dd11b337291`. That historical pin predates
-numerical-dual generation. Use a community host linking the current FastSecDec
+explicit generation-mode selection. Use a community host linking the current FastSecDec
 revision and its matching public Symbolica prerequisite when building these
 notebooks, and verify the native dependency identities before compiling.
 

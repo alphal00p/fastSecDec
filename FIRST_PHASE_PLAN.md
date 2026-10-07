@@ -1,5 +1,17 @@
 # FastSecDec first-phase implementation plan
 
+## Notebook symbolic default and immediate publication (2026-10-07)
+
+The user's latest correction selects `symbolic` generation in both ggHH Marimo
+notebooks, superseding the numerical-dual notebook default below. Preserve
+native `to_dots` preparation, runtime parameters, eager compilation, explicit
+actions and lazy inspection. Both three-loop CLI cards continue to use
+`numerical_dual`, with `dots` for the original and `minimal` for `_bis`.
+Commit and push this correction and open the replacement community PR
+immediately after source checks, without waiting for the ongoing native link.
+Record unfinished validation explicitly; native build validation may follow
+publication.
+
 ## Publish both three-loop inputs and align the notebook (2026-10-07)
 
 The user now authorizes including the previously untracked

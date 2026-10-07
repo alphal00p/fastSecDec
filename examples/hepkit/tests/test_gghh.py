@@ -48,7 +48,7 @@ def test_box_preparation_retains_native_gram_symbols_for_later_point_binding(cat
     assert set(arguments["scalar_values"]) == {value.model.parameter(name).symbol for name in ("WT", "WH")}
     assert arguments["runtime_parameters"] and value.raw_diagram.id == box.id
     assert value.generation_arguments() == {
-        "mode": "numerical_dual", "subtraction": "taylor",
+        "mode": "symbolic", "subtraction": "taylor",
         "coefficient_expansion": "coefficient_series",
     }
     # The incoming native ports determine which independent momenta are gluons.
@@ -128,7 +128,7 @@ def _check_triple_gluon_parametrization(catalogue, identity):
     prepared = gghh.prepare(selected=identity, source=catalogue)
     assert prepared.simplified_numerator != E("0")
     owner = science.generation(prepared, {"max_order": 0})
-    assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
+    assert owner.mode == "symbolic" and owner.subtraction == "taylor"
     # A tensor may be structurally scalar while retaining indexed contractions
     # across sums. The previous minimal policy failed on this first native unit.
     snapshot = owner.step(max_units=1)
@@ -184,7 +184,7 @@ def test_box_eager_schema_retains_model_leaves_and_polarization_normalization(ca
                and all(abs(e.particle.pdg_code) == 6 for e in d.internal_edges))
     prepared = gghh.prepare(selected=box.id, source=catalogue)
     owner = science.generation(prepared, {"max_order": 0})
-    assert owner.mode == "numerical_dual" and owner.subtraction == "taylor"
+    assert owner.mode == "symbolic" and owner.subtraction == "taylor"
     while not owner.complete:
         owner.step(max_units=1)
     names = {str(symbol.formatted(show_namespaces=True)) for symbol in owner.kernels.runtime_parameters}
@@ -192,4 +192,4 @@ def test_box_eager_schema_retains_model_leaves_and_polarization_normalization(ca
     assert owner.kernels.backend == "symbolica_interpreter"
     assert all(stat.symjit_ir_bytes is None for stat in owner.kernels.sector_statistics)
     assert not {"gghh_kinematics::dot_0_0", "gghh_kinematics::dot_1_1"} & names
-    assert owner.generated.mode == "numerical_dual"
+    assert owner.generated.mode == "symbolic"
