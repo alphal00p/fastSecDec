@@ -321,6 +321,9 @@ pub fn generate_with_workers(
     )?;
     artifact.generation = Some(GenerationRecord {
         workers,
+        contraction_mode: loaded
+            .loops
+            .map(|_| loaded.card.generation.contraction_mode),
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(evaluator_settings),
     });

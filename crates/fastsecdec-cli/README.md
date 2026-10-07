@@ -136,6 +136,24 @@ the scalar output layout: `[-1,-1,0,0]` for a complex result means real and
 imaginary components at epsilon^-1, then real and imaginary components at
 epsilon^0. The human table groups those into two explicitly labeled orders.
 
+For native graph inputs, choose the numerator contraction policy in the run card:
+
+```toml
+[generation]
+contraction_mode = "dots"
+```
+
+The choices map directly to Idenso: `minimal` (the unchanged default) preserves
+independent sum alternatives; `dots` completes structural contractions and
+produces canonical scalar products; `full` completes contractions, followed by
+FastSecDec's scalar-product notation normalization; `none` only permits the
+structural prerequisites of the enabled gamma, color and epsilon identities.
+The latter identities remain enabled in every mode. `dots` and `full` may
+distribute sums to finish contractions that `minimal` leaves indexed. All modes
+must still produce a scalar polynomial in native loop scalar products.
+Nondefault modes are rejected for direct parametric inputs, which have no graph
+numerator to contract. The selected graph mode is saved in generation metadata.
+
 The coefficient-expansion method is selected in the run card:
 
 ```toml

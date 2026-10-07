@@ -141,6 +141,9 @@ pub struct Provenance {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GenerationRecord {
     pub workers: usize,
+    /// Graph-numerator policy; absent for direct inputs and historical artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contraction_mode: Option<fastsecdec::input::NumeratorContraction>,
     /// The requested route can use its supported per-sector physical fallback;
     /// this field does not claim every sector followed the named-series route.
     pub requested_coefficient_expansion: fastsecdec::generation::CoefficientExpansionMethod,

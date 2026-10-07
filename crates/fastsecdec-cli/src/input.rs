@@ -230,14 +230,30 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             let parametrization_started = Instant::now();
             let policy = card.generation.family_preparation;
             let dimension = bind(&expression(&card.integral.dimension)?, &values);
+            let numerator = graph
+                .scalar_numerator(&card.generation.contraction_mode.algebra_settings())?
+                * graph.measure_multiplier();
             let (integrand, family_preparation) = if policy == FamilyPreparationPolicy::Original {
                 (
-                    ParametricIntegrand::from_graph(&graph, parameters, regulator, dimension)?,
+                    ParametricIntegrand::from_family(
+                        graph.family(),
+                        graph.powers(),
+                        numerator,
+                        parameters,
+                        regulator,
+                        dimension,
+                    )?,
                     None,
                 )
             } else {
-                let (integrand, report) = ParametricIntegrand::from_graph_prepared(
-                    &graph, parameters, regulator, dimension, policy,
+                let (integrand, report) = ParametricIntegrand::from_family_prepared(
+                    graph.family(),
+                    graph.powers(),
+                    numerator,
+                    parameters,
+                    regulator,
+                    dimension,
+                    policy,
                 )?;
                 (integrand, Some(report))
             };
@@ -271,6 +287,13 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
             })
         }
         (None, Some(direct)) => {
+            if card.generation.contraction_mode != fastsecdec::input::NumeratorContraction::Minimal
+            {
+                return Err(
+                    "contraction_mode requires native graph input, not direct parametric data"
+                        .into(),
+                );
+            }
             if card.generation.family_preparation != FamilyPreparationPolicy::Original {
                 return Err(
                     "family preparation requires native graph input, not direct parametric data"
