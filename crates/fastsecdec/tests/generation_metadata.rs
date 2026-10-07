@@ -198,7 +198,7 @@ fn assessments_and_exact_chart_associations_survive_portable_roundtrip() {
 }
 
 #[test]
-fn binary_metadata_corruption_is_rejected() {
+fn binary_metadata_validation_rejects_corruption() {
     let generated = generated(
         ParametricDomain::UnitCube,
         parse!("1+metadata::x"),
@@ -216,7 +216,13 @@ fn binary_metadata_corruption_is_rejected() {
     for offset in [0, bytes.len() / 2, bytes.len() - 1] {
         let mut invalid = bytes.clone();
         invalid[offset] ^= 1;
-        assert!(KernelSet::from_bytes(&invalid).is_err());
+        assert!(
+            KernelSet::from_bytes_with_options(
+                &invalid,
+                fastsecdec::kernel::KernelLoadOptions { validate: true },
+            )
+            .is_err()
+        );
     }
 }
 

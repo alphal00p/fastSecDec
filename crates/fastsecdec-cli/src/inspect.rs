@@ -6,11 +6,12 @@ mod presentation;
 mod tables;
 
 use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
-use fastsecdec::kernel::{KernelSet, PortableMetadata};
+use fastsecdec::kernel::{KernelLoadOptions, KernelSet, PortableMetadata};
 use std::{io::IsTerminal, path::Path};
 
 pub fn artifact(
     path: &Path,
+    options: KernelLoadOptions,
     deep: bool,
     expressions: bool,
     sector: Option<usize>,
@@ -18,7 +19,7 @@ pub fn artifact(
     json: bool,
 ) -> CliResult<()> {
     if !deep {
-        let artifact = Artifact::load_metadata(path)?;
+        let artifact = Artifact::load_metadata_with_options(path, options)?;
         let summary = artifact.kernel_summary()?;
         lightweight::validate_sector(&summary, sector)?;
         if json {
@@ -32,7 +33,7 @@ pub fn artifact(
         }
         return Ok(());
     }
-    let (artifact, kernels) = Artifact::load(path)?;
+    let (artifact, kernels) = Artifact::load_with_options(path, options)?;
     if let Some(id) = sector
         && id >= kernels.sectors().len()
     {
@@ -46,7 +47,9 @@ pub fn artifact(
         let value = if let Some(id) = sector {
             serde_json::json!({
                 "content_id":artifact.content_id,
-                "inspection_mode":"deep", "binary_validated":true,
+                "inspection_mode":"deep", "binary_loaded":true,
+                "binary_validated":artifact.validation.binary,
+                "metadata_identity_validated":artifact.validation.metadata_identity,
                 "generation":artifact.generation,
                 "generation_timings":artifact.generation_timings,
                 "loading_seconds":artifact.loading_seconds,
@@ -140,7 +143,9 @@ fn ranked_sectors(kernels: &KernelSet) -> Vec<usize> {
 fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
     serde_json::json!({
         "content_id":artifact.content_id,"provenance":artifact.provenance,
-        "inspection_mode":"deep", "binary_validated":true,
+        "inspection_mode":"deep", "binary_loaded":true,
+        "binary_validated":artifact.validation.binary,
+        "metadata_identity_validated":artifact.validation.metadata_identity,
         "orders":kernels.orders(),"components":kernels.components(),"sectors":kernels.sectors().len(),
         "dimensions":kernels.sectors().iter().map(|k|k.dimension()).collect::<Vec<_>>(),
         "evaluator_statistics":kernels.sectors().iter().map(|k|k.statistics()).collect::<Vec<_>>(),

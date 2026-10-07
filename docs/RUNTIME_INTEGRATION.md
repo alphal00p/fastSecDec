@@ -7,6 +7,24 @@ last. Nested tables merge, while arrays such as stability levels replace the
 whole previous array. Unknown settings are rejected. Runtime parameters supplied
 with `--parameters` and repeated `--parameter NAME=VALUE` remain evaluator inputs.
 
+Artifact loading skips expensive integrity and geometric certification by default.
+Add `--validate-artifact` to `integrate` (or `run --resume`) to recompute the
+metadata/binary identities and certify retained chart geometry. Supported formats,
+dependency compatibility, usable evaluator layouts, declared JSON/binary kernel
+identity agreement, runtime parameter/mass restrictions and checkpoint checks
+remain mandatory. This switch is a CLI loading option, not a TOML integration
+setting, and does not change numerical policy or checkpoint identity. Both modes
+require trusted native artifacts; integrity hashes do not authenticate a producer.
+
+Skipping validation is not a machine-code cache. SymJIT still compiles the saved
+optimized native instructions into executable code; it does not repeat symbolic
+sector generation or Horner/CPE optimization.
+
+`inspect --validate-artifact` still reads only JSON and checks its identity.
+Use `inspect --deep --validate-artifact` for binary certification. `--deep` or
+`--expressions` alone restores the native programs without the optional checks;
+JSON output reports loading and validation separately.
+
 The reusable [QMC settings](../examples/integration/qmc.toml) target 0.1% on the
 complex epsilon-zero coefficient; the [discrete Havana settings](../examples/integration/discrete_mc.toml)
 target 1%. Both use eight workers, explicit seeds and evaluator chunks of 256.

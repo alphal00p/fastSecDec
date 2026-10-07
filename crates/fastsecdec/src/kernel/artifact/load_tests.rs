@@ -9,7 +9,7 @@ use crate::{
 use std::ops::ControlFlow;
 use symbolica::{parse, symbol};
 
-fn template() -> KernelSet {
+pub(super) fn template() -> KernelSet {
     let input = ParametricIntegrand::new(
         vec![symbol!("load_progress::x"), symbol!("load_progress::y")],
         symbol!("load_progress::eps"),
@@ -34,6 +34,48 @@ fn template() -> KernelSet {
         ..Default::default()
     })
     .unwrap()
+}
+
+#[test]
+fn optional_validation_preserves_loaded_values_metadata_and_progress() {
+    assert!(!KernelLoadOptions::default().validate);
+    let template = template();
+    let bytes = template.artifact_bytes().unwrap();
+    let fast = KernelSet::from_bytes(bytes).unwrap();
+    let mut events = Vec::new();
+    let validated = KernelSet::from_bytes_with_options_and_progress(
+        bytes,
+        KernelLoadOptions { validate: true },
+        |event| {
+            events.push(*event);
+            ControlFlow::Continue(())
+        },
+    )
+    .unwrap();
+    assert!(matches!(events.first(), Some(KernelLoadProgress::Decoding)));
+    assert!(matches!(events.last(), Some(KernelLoadProgress::Complete)));
+    assert_eq!(fast.content_id(), validated.content_id());
+    assert_eq!(
+        fast.artifact_bytes().unwrap(),
+        validated.artifact_bytes().unwrap()
+    );
+    let metadata = |kernels: &KernelSet| {
+        serde_json::to_value(crate::kernel::metadata::PortableMetadata::from_native(
+            kernels.generation_metadata().unwrap(),
+        ))
+        .unwrap()
+    };
+    assert_eq!(metadata(&fast), metadata(&validated));
+    let mut fast = fast;
+    let mut validated = validated;
+    for (a, b) in fast.sectors_mut().iter_mut().zip(validated.sectors_mut()) {
+        let point = vec![0.37; a.dimension()];
+        let mut left = vec![0.0; a.output_count()];
+        let mut right = left.clone();
+        a.evaluate(&point, &mut left).unwrap();
+        b.evaluate(&point, &mut right).unwrap();
+        assert_eq!(left, right);
+    }
 }
 
 #[test]

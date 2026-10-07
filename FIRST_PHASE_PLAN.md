@@ -1,5 +1,32 @@
 # FastSecDec first-phase implementation plan
 
+## Saved executable restoration and optional validation (2026-10-08)
+
+Investigate and reuse the pinned Symbolica/SymJIT public serialization APIs for
+native evaluators and saved machine code. Verify the actual owner behavior with
+a focused Rust probe before choosing any new cache format. Where the public
+application API lacks guarded machine-code restoration, record that missing
+operation instead of substituting raw code bytes with process-local addresses.
+Retain exact native instructions for higher precision, eager and portable
+consumers. Remove avoidable loading checks, payload copies and re-encoding
+without claiming that the remaining native JIT compilation is cached.
+
+Make expensive integrity and semantic revalidation explicitly optional and
+disabled by default, as the user now requests. This supersedes the earlier
+requirement to repeat all identity/admission checks on every load. Retain the
+format, dependency, backend and dimension checks needed to use saved objects
+correctly. Keep validation separate from numerical stability policy. Expose the
+choice in the CLI and native API, and distinguish verification, decoding and
+backend restoration in observations where useful.
+
+Check and report that numerical-dual IBP subtraction formulae use the existing
+parallel preparation and shared dynamic recipe cache with complete keys. Do not
+change the ggHH subtraction defaults without a user request. Validate saved
+execution reuse, enabled/disabled validation, scientific parity, portable/eager
+behavior and cache ownership with focused tests and an independent native-reuse
+review. No three-loop generation is required. Commit and push a validated
+milestone, reporting measured loading limits and any old-artifact constraints.
+
 ## Example command scripts and local integration settings (2026-10-07)
 
 Add executable root `generate.sh`, `inspect.sh` and `integrate.sh` wrappers.

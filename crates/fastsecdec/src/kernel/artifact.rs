@@ -6,7 +6,7 @@ mod load_tests;
 mod native;
 mod sector_identity;
 
-use super::{CompilationSettings, KernelError, KernelSet, PrecisionPolicy};
+use super::{CompilationSettings, KernelError, KernelLoadOptions, KernelSet, PrecisionPolicy};
 use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
 
 pub(super) fn atom(expression: String) -> Result<Atom, KernelError> {
@@ -49,6 +49,15 @@ fn validate_orders(orders: &[i32], exact_len: usize) -> Result<(), KernelError> 
     {
         return Err(KernelError::Artifact(
             "invalid Laurent output layout".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_content_id(value: &str) -> Result<(), KernelError> {
+    if value.len() != 64 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(KernelError::Artifact(
+            "invalid content identity format".into(),
         ));
     }
     Ok(())
@@ -104,12 +113,24 @@ impl KernelSet {
     }
 
     /// Load a cache produced by a trusted, compatible FastSecDec/Symbolica builder.
-    /// The envelope, content identity, dimensions and metadata are checked, but
+    /// Format, numerical policy and evaluator layouts are checked. Recomputing
+    /// content identities and symbolic metadata proofs requires `validate` in
+    /// [`KernelLoadOptions`]. In either mode,
     /// upstream Symbolica's native IR decoder does not validate every internal
     /// instruction index. A valid content hash is not proof of safe provenance;
     /// do not pass attacker-created or manually modified native program bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
-        Self::from_bytes_with_progress(bytes, |_| std::ops::ControlFlow::Continue(()))
+        Self::from_bytes_with_options(bytes, KernelLoadOptions::default())
+    }
+
+    /// Restore saved programs with optional content and symbolic metadata checks.
+    pub fn from_bytes_with_options(
+        bytes: &[u8],
+        options: KernelLoadOptions,
+    ) -> Result<Self, KernelError> {
+        Self::from_bytes_with_options_and_progress(bytes, options, |_| {
+            std::ops::ControlFlow::Continue(())
+        })
     }
 
     /// Restore a trusted artifact with caller-owned progress and cancellation.
@@ -121,6 +142,15 @@ impl KernelSet {
     /// expression owner, once at a supplied physical point, without compilation.
     pub fn from_bytes_with_progress(
         bytes: &[u8],
+        progress: impl FnMut(&super::KernelLoadProgress) -> std::ops::ControlFlow<()>,
+    ) -> Result<Self, KernelError> {
+        Self::from_bytes_with_options_and_progress(bytes, KernelLoadOptions::default(), progress)
+    }
+
+    /// Restore with optional validation and caller-owned progress/cancellation.
+    pub fn from_bytes_with_options_and_progress(
+        bytes: &[u8],
+        options: KernelLoadOptions,
         mut progress: impl FnMut(&super::KernelLoadProgress) -> std::ops::ControlFlow<()>,
     ) -> Result<Self, KernelError> {
         use super::KernelLoadProgress;
@@ -130,7 +160,7 @@ impl KernelSet {
         let mut restoring =
             |step: &super::CompilationProgress| progress(&KernelLoadProgress::Restoring(*step));
         let kernels = if bytes.starts_with(binary::PREFIX) {
-            binary::load_with_progress(bytes, &mut restoring)
+            binary::load_with_progress(bytes, options, &mut restoring)
         } else {
             // Dispatch does not replace either codec's strict owned schema.
             // Ignore the large program arrays here instead of allocating a second
@@ -148,7 +178,7 @@ impl KernelSet {
                 1 | 2 => Err(KernelError::Artifact(
                     "expression-only kernel artifacts are unsupported; regenerate native evaluator IR".into(),
                 )),
-                3 => native::load(bytes, &mut restoring),
+                3 => native::load(bytes, options, &mut restoring),
                 _ => Err(KernelError::Artifact(
                     "unsupported kernel artifact version".into(),
                 )),

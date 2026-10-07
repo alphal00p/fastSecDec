@@ -45,7 +45,16 @@ fn metadata_only_inspection_never_opens_binary_and_preserves_native_summary() {
     assert_eq!(summary.orders, native.orders());
     assert!(Artifact::load(&path).is_err());
     let doc = lightweight::document(&loaded, &summary, None).unwrap();
+    assert_eq!(doc["binary_loaded"], false);
     assert_eq!(doc["binary_validated"], false);
+    assert_eq!(doc["metadata_identity_validated"], false);
+    let checked =
+        Artifact::load_metadata_with_options(&path, KernelLoadOptions { validate: true }).unwrap();
+    let checked_doc =
+        lightweight::document(&checked, &checked.kernel_summary().unwrap(), None).unwrap();
+    assert_eq!(checked_doc["metadata_identity_validated"], true);
+    assert_eq!(checked_doc["binary_loaded"], false);
+    assert_eq!(checked_doc["binary_validated"], false);
     assert!(doc["exact_coefficients"].is_null());
     assert!(doc["largest_sectors"].as_array().unwrap().len() <= 10);
     let selected = lightweight::document(&loaded, &summary, Some(0)).unwrap();
@@ -132,7 +141,7 @@ fn missing_and_future_indexes_are_explicitly_unknown_without_binary_fallback() {
         Artifact::load(&path).unwrap().1.to_bytes().unwrap(),
         original_data
     );
-    // A corrupt mathematical identity still fails metadata-only inspection.
+    // Identity recomputation is explicitly requested, including metadata-only inspection.
     raw.insert(
         "content_id".into(),
         serde_json::value::RawValue::from_string("\"wrong\"".into()).unwrap(),
@@ -142,7 +151,10 @@ fn missing_and_future_indexes_are_explicitly_unknown_without_binary_fallback() {
         serde_json::to_vec_pretty(&raw).unwrap(),
     )
     .unwrap();
-    assert!(Artifact::load_metadata(&path).is_err());
+    assert!(Artifact::load_metadata(&path).is_ok());
+    assert!(
+        Artifact::load_metadata_with_options(&path, KernelLoadOptions { validate: true }).is_err()
+    );
 }
 #[test]
 fn metadata_inspection_tolerates_incompatible_native_dependencies_but_deep_does_not() {

@@ -90,6 +90,14 @@ pub struct CompilationProgress {
     pub elapsed_seconds: f64,
 }
 
+/// Optional integrity and symbolic metadata checks for trusted artifact loading.
+/// Format, numerical policy and evaluator layout checks always remain enabled.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct KernelLoadOptions {
+    /// Recompute content hashes and retained polynomial/geometry proofs.
+    pub validate: bool,
+}
+
 /// Caller-owned artifact restoration, separate from generation or integration.
 /// Decoding and each native evaluator construction are indivisible operations.
 #[derive(Clone, Copy, Debug)]
@@ -98,7 +106,7 @@ pub enum KernelLoadProgress {
     Decoding,
     /// Restoring sector evaluators; N/N still precedes final offset validation.
     Restoring(CompilationProgress),
-    /// Evaluators and load-time metadata/schema/identity are admitted. Runtime
+    /// Evaluators, schemas and requested optional validation are admitted. Runtime
     /// constraints and exact offsets still require a valid physical point.
     Complete,
 }

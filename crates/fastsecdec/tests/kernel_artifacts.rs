@@ -124,6 +124,7 @@ fn binary_transport_retains_owned_and_borrowed_identity() {
 
 #[test]
 fn binary_integrity_header_and_exact_byte_exhaustion_are_enforced() {
+    use fastsecdec::kernel::KernelLoadOptions;
     let bytes = generated()
         .to_kernel_bytes(PrecisionPolicy::default())
         .unwrap();
@@ -138,11 +139,17 @@ fn binary_integrity_header_and_exact_byte_exhaustion_are_enforced() {
         Vec::new(),
         bytes[..bytes.len() - 1].to_vec(),
         trailing,
-        corrupt,
         unsupported,
     ] {
-        assert!(KernelSet::from_bytes(&bad).is_err());
+        for validate in [false, true] {
+            assert!(
+                KernelSet::from_bytes_with_options(&bad, KernelLoadOptions { validate }).is_err()
+            );
+        }
     }
+    assert!(
+        KernelSet::from_bytes_with_options(&corrupt, KernelLoadOptions { validate: true }).is_err()
+    );
 }
 
 #[test]

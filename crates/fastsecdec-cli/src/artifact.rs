@@ -9,7 +9,7 @@ use std::{
     time::Instant,
 };
 
-use fastsecdec::kernel::KernelSet;
+use fastsecdec::kernel::{KernelLoadOptions, KernelSet};
 use fastsecdec::status::GenerationTimings;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
@@ -168,6 +168,13 @@ pub struct GenerationRecord {
     pub evaluator: Option<fastsecdec::kernel::CompilationSettings>,
 }
 
+/// Checks completed by this loader invocation, never claims saved by a producer.
+#[derive(Default)]
+pub struct ArtifactValidation {
+    pub metadata_identity: bool,
+    pub binary: bool,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Artifact {
     format_version: u32,
@@ -188,6 +195,8 @@ pub struct Artifact {
     pub reference: Option<crate::config::ReferenceInput>,
     #[serde(skip)]
     pub loading_seconds: f64,
+    #[serde(skip)]
+    pub validation: ArtifactValidation,
     /// Optional bounded display observations; excluded from scientific identity.
     #[serde(
         default,
@@ -316,6 +325,7 @@ impl Artifact {
             generation: None,
             reference: None,
             loading_seconds: 0.0,
+            validation: ArtifactValidation::default(),
             inspection: Some(InspectionIndex::from_kernels(kernels)),
         };
         result.content_id = result.identity()?;
@@ -420,11 +430,14 @@ impl Artifact {
         }
         Ok(())
     }
-    /// Read and check the human summary only. Never opens the data sibling,
+    /// Read the human summary only. Never opens the data sibling,
     /// initializes native evaluators, or requires a compatible native backend.
     /// The optional inspection index and generation observations are not hashed;
     /// this does not validate them against the unread binary.
     pub fn load_metadata(base: &Path) -> CliResult<Self> {
+        Self::load_metadata_with_options(base, KernelLoadOptions::default())
+    }
+    pub fn load_metadata_with_options(base: &Path, options: KernelLoadOptions) -> CliResult<Self> {
         let started = Instant::now();
         let (metadata, _) = paths(base)?;
         let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(metadata)?))?;
@@ -433,9 +446,10 @@ impl Artifact {
                 "artifact version is unsupported; regenerate using an .fsd basename".into(),
             );
         }
-        if artifact.content_id != artifact.identity()? {
+        if options.validate && artifact.content_id != artifact.identity()? {
             return Err("artifact complete content identity is invalid".into());
         }
+        artifact.validation.metadata_identity = options.validate;
         artifact.source_root = base
             .parent()
             .unwrap_or_else(|| Path::new("."))
@@ -449,6 +463,17 @@ impl Artifact {
     pub fn load(base: &Path) -> CliResult<(Self, KernelSet)> {
         Self::load_with_preflight(base, |_| Ok(()))
     }
+    pub fn load_with_options(
+        base: &Path,
+        options: KernelLoadOptions,
+    ) -> CliResult<(Self, KernelSet)> {
+        Self::load_observed_with_options(
+            base,
+            options,
+            |_| Ok(()),
+            |_| std::ops::ControlFlow::Continue(()),
+        )
+    }
     pub fn load_with_preflight(
         base: &Path,
         preflight: impl FnOnce(&Self) -> CliResult<()>,
@@ -457,6 +482,14 @@ impl Artifact {
     }
     pub fn load_observed(
         base: &Path,
+        preflight: impl FnOnce(&Self) -> CliResult<()>,
+        observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
+    ) -> CliResult<(Self, KernelSet)> {
+        Self::load_observed_with_options(base, KernelLoadOptions::default(), preflight, observe)
+    }
+    pub fn load_observed_with_options(
+        base: &Path,
+        options: KernelLoadOptions,
         preflight: impl FnOnce(&Self) -> CliResult<()>,
         mut observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
     ) -> CliResult<(Self, KernelSet)> {
@@ -472,7 +505,11 @@ impl Artifact {
             }
         };
         poll(&ArtifactLoadProgress::Metadata, &mut observe)?;
-        let mut artifact = Self::load_metadata(base)?;
+        let mut artifact = if options.validate {
+            Self::load_metadata_with_options(base, options)?
+        } else {
+            Self::load_metadata(base)?
+        };
         if !artifact.dependencies_compatible() {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
@@ -512,17 +549,19 @@ impl Artifact {
                 break;
             }
         }
-        let kernels = KernelSet::from_bytes_with_progress(&artifact.data, |progress| {
-            // Complete is a delivery event only after the outer artifact identity check.
-            if matches!(progress, fastsecdec::kernel::KernelLoadProgress::Complete) {
-                std::ops::ControlFlow::Continue(())
-            } else {
-                observe(&ArtifactLoadProgress::Native(*progress))
-            }
-        })?;
+        let kernels =
+            KernelSet::from_bytes_with_options_and_progress(&artifact.data, options, |progress| {
+                // Deliver completion only after matching the declared JSON/binary kernel IDs.
+                if matches!(progress, fastsecdec::kernel::KernelLoadProgress::Complete) {
+                    std::ops::ControlFlow::Continue(())
+                } else {
+                    observe(&ArtifactLoadProgress::Native(*progress))
+                }
+            })?;
         if kernels.content_id() != artifact.kernel_content_id()? {
-            return Err("validated native kernel identity differs from the artifact".into());
+            return Err("native kernel identity differs from the artifact".into());
         }
+        artifact.validation.binary = options.validate;
         poll(
             &ArtifactLoadProgress::Native(fastsecdec::kernel::KernelLoadProgress::Complete),
             &mut observe,

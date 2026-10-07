@@ -132,6 +132,9 @@ enum Action {
     /// Inspect native input or an existing portable artifact.
     Inspect {
         path: PathBuf,
+        /// Verify artifact integrity and retained metadata; binary checks require --deep.
+        #[arg(long)]
+        validate_artifact: bool,
         /// Inspect one compiled sector by its zero-based ID from the overview.
         #[arg(long)]
         sector: Option<usize>,
@@ -182,6 +185,9 @@ impl Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    /// Verify saved artifact integrity and retained metadata during loading (can be expensive).
+    #[arg(long)]
+    validate_artifact: bool,
     /// TOML runtime settings overlay; explicit command-line flags take precedence.
     #[arg(long)]
     integration_settings: Option<PathBuf>,
@@ -480,7 +486,14 @@ fn run(cli: Cli) -> CliResult<()> {
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
             let (artifact, mut kernels) = if integration.resume {
-                loading::load(&output, &mut dashboard, |_| Ok(()))?
+                loading::load(
+                    &output,
+                    fastsecdec::kernel::KernelLoadOptions {
+                        validate: integration.validate_artifact,
+                    },
+                    &mut dashboard,
+                    |_| Ok(()),
+                )?
             } else {
                 generate::generate_with_workers(
                     &input,
@@ -547,13 +560,20 @@ fn run(cli: Cli) -> CliResult<()> {
         } => {
             let mut reference = None;
             let mut dashboard = make_dashboard()?;
-            let (artifact, mut kernels) = loading::load(&path, &mut dashboard, |artifact| {
-                reference = reference::prepare(
-                    artifact.resolved_reference(),
-                    integration.reference.as_deref(),
-                )?;
-                Ok(())
-            })?;
+            let (artifact, mut kernels) = loading::load(
+                &path,
+                fastsecdec::kernel::KernelLoadOptions {
+                    validate: integration.validate_artifact,
+                },
+                &mut dashboard,
+                |artifact| {
+                    reference = reference::prepare(
+                        artifact.resolved_reference(),
+                        integration.reference.as_deref(),
+                    )?;
+                    Ok(())
+                },
+            )?;
             let mut settings: IntegrationInput =
                 serde_json::from_value(artifact.provenance.integration.clone())?;
             let checkpoint = integration
@@ -616,6 +636,7 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::Inspect {
             path,
+            validate_artifact,
             deep,
             expressions,
             sector,
@@ -624,6 +645,9 @@ fn run(cli: Cli) -> CliResult<()> {
                 .extension()
                 .is_some_and(|extension| extension == "toml")
             {
+                if validate_artifact {
+                    return Err("--validate-artifact requires a generated artifact basename, not a run card".into());
+                }
                 if sector.is_some() {
                     return Err(
                         "--sector requires a generated artifact basename, not a run card".into(),
@@ -645,6 +669,9 @@ fn run(cli: Cli) -> CliResult<()> {
             } else {
                 inspect::artifact(
                     &path,
+                    fastsecdec::kernel::KernelLoadOptions {
+                        validate: validate_artifact,
+                    },
                     deep || expressions,
                     expressions,
                     sector,

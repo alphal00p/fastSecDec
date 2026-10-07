@@ -5,7 +5,7 @@ use crate::{
     artifact::{Artifact, ArtifactLoadProgress},
     display::Dashboard,
 };
-use fastsecdec::kernel::{KernelLoadProgress, KernelSet};
+use fastsecdec::kernel::{KernelLoadOptions, KernelLoadProgress, KernelSet};
 use std::{
     ops::ControlFlow,
     path::Path,
@@ -58,6 +58,7 @@ impl Snapshot {
 }
 pub(crate) fn load(
     path: &Path,
+    options: KernelLoadOptions,
     dashboard: &mut Dashboard,
     preflight: impl FnOnce(&Artifact) -> CliResult<()> + Send,
 ) -> CliResult<(Artifact, KernelSet)> {
@@ -74,7 +75,7 @@ pub(crate) fn load(
         &cancelled,
         |_| "Loading artifact".into(),
         |(path, preflight), _activity| {
-            Artifact::load_observed(path, preflight, |event| {
+            Artifact::load_observed_with_options(path, options, preflight, |event| {
                 if cancelled.load(Ordering::Relaxed) {
                     return ControlFlow::Break(());
                 }

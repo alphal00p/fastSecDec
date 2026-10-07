@@ -43,9 +43,79 @@ fn payload(kernels: &KernelSet) -> Payload {
 }
 fn rejected(payload: Payload) -> String {
     let (_, bytes) = encode(payload).unwrap();
-    match load(&bytes) {
-        Ok(_) => panic!("invalid native payload admitted"),
-        Err(e) => e.to_string(),
+    let mut error = String::new();
+    for validate in [false, true] {
+        error = match KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate }) {
+            Ok(_) => panic!("invalid native payload admitted (validate={validate})"),
+            Err(e) => e.to_string(),
+        };
+    }
+    error
+}
+
+#[test]
+fn borrowed_envelope_preserves_wire_and_borrows_large_buffers() {
+    let kernels = super::super::load_tests::template();
+    let bytes = kernels.artifact_bytes().unwrap();
+    let wire = bytes.strip_prefix(MAGIC).unwrap();
+    let (borrowed, used): (EnvelopeRef<'_>, _) =
+        bincode::borrow_decode_from_slice(wire, bincode::config::standard()).unwrap();
+    assert_eq!(used, wire.len());
+    let (owned, used): (Envelope, _) =
+        bincode::decode_from_slice(wire, bincode::config::standard()).unwrap();
+    assert_eq!(used, wire.len());
+    assert_eq!(borrowed.content_id, owned.content_id);
+    assert_eq!(borrowed.state, owned.state);
+    assert_eq!(borrowed.payload, owned.payload);
+    for buffer in [borrowed.state, borrowed.payload] {
+        assert!(buffer.as_ptr() >= wire.as_ptr());
+        assert!(buffer.as_ptr_range().end <= wire.as_ptr_range().end);
+    }
+}
+
+#[test]
+fn binary_content_checks_are_explicit_and_format_checks_are_unconditional() {
+    let kernels = super::super::load_tests::template();
+    let original = kernels.artifact_bytes().unwrap();
+    for change_digest in [false, true] {
+        let (mut envelope, _): (Envelope, _) = bincode::decode_from_slice(
+            original.strip_prefix(MAGIC).unwrap(),
+            bincode::config::standard(),
+        )
+        .unwrap();
+        if change_digest {
+            envelope.digest[0] ^= 1;
+        } else {
+            envelope.content_id = "f".repeat(64);
+        }
+        let mut bytes = MAGIC.to_vec();
+        bytes.extend(bincode::encode_to_vec(envelope, bincode::config::standard()).unwrap());
+        assert!(KernelSet::from_bytes(&bytes).is_ok());
+        assert!(
+            KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate: true })
+                .is_err()
+        );
+    }
+    let (mut envelope, _): (Envelope, _) = bincode::decode_from_slice(
+        original.strip_prefix(MAGIC).unwrap(),
+        bincode::config::standard(),
+    )
+    .unwrap();
+    envelope.content_id = "malformed".into();
+    let mut malformed_id = MAGIC.to_vec();
+    malformed_id.extend(bincode::encode_to_vec(envelope, bincode::config::standard()).unwrap());
+    let mut trailing = original.to_vec();
+    trailing.push(0);
+    for validate in [false, true] {
+        for bytes in [
+            malformed_id.as_slice(),
+            trailing.as_slice(),
+            &original[..original.len() - 1],
+        ] {
+            assert!(
+                KernelSet::from_bytes_with_options(bytes, KernelLoadOptions { validate }).is_err()
+            );
+        }
     }
 }
 
