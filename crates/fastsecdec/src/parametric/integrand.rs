@@ -3,7 +3,10 @@
 use std::collections::BTreeSet;
 
 use fastsecdec_sectors::{ParametricDomain, PolynomialSupport, SectorError};
-use symbolica::atom::{Atom, AtomCore, Symbol};
+use symbolica::{
+    atom::{Atom, AtomCore, Symbol},
+    domains::atom::AtomField,
+};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -271,7 +274,15 @@ pub fn polynomial_support(
     parameters: &[Symbol],
 ) -> Result<PolynomialSupport, ParametricError> {
     let variables = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
-    let polynomial = expression.to_polynomial_in_vars::<u32>(&variables);
+    // Newton support is exact structural data. An inconclusive sampled zero
+    // test must never remove a coefficient and change the endpoint geometry.
+    let polynomial = expression.to_polynomial_in_vars_with_field::<u32>(
+        &variables,
+        &AtomField {
+            statistical_zero_test: false,
+            ..AtomField::new()
+        },
+    );
     let mut exponents = Vec::with_capacity(polynomial.nterms());
     for term in &polynomial {
         if variables

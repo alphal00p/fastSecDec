@@ -1811,3 +1811,85 @@ server has already been replaced or that the local source has been published.
 This review makes no convergence, new causal continuation or actual Wasm
 execution claim. See the [independent routing review](reviews/2026-10-07-runtime-complex-routing.md)
 for proof boundaries and final acceptance evidence.
+
+## Deferred maps and native endpoint jets (2026-10-07)
+
+The optional numerical-dual generation lane retains existing exact geometry,
+Laurent composition, subtraction denominators and complete coefficient vectors.
+It lowers unmapped source polynomials and Numerica HyperDual jets using native
+Symbolica evaluators. Known monomial valuations select shifted normalized jet
+coefficients before inversion; partial faces retain the full residual function.
+Native Series supplies conservative regular-numerator valuation bounds without
+expanding a full mapped polynomial or accepting a sampled zero proof. Signed
+maps and unresolved exact endpoint admission use an explicitly recorded symbolic
+chart fallback. No new CAS, jet interpreter, graph owner or worker pool is added.
+
+Public native `merge` concatenates independent outputs but cannot bind prior
+outputs as another evaluator's inputs. The narrowly scoped isolated Symbolica
+`EvaluatorComposer` extension fills that demonstrated API gap, reusing native
+scalar inlining, callback/constant ownership, branch labels and lowering. Its
+composer-only projection pass removes dead straight-line instructions and
+callback constants, distinguishes literal and callback constants, then invokes
+native CSE/CPE and stack optimization. Existing Dualizer optimization remains
+unchanged. Independent source and executable reviews cover dependency liveness,
+slot remapping, callbacks, branch laziness, failure atomicity and exact/complex
+arithmetic with native eager, SymJIT and portable eager. See
+[native composition review](reviews/numerical-dual-native-composition.md),
+[evaluator construction](reviews/numerical-dual-evaluator.md),
+[subtraction review](reviews/numerical-dual-subtraction.md) and
+[CLI/Python options](reviews/numerical-dual-options.md).
+
+The final portable consumer uses registry Numerica/Graphica, its existing
+Malachite/Astro feature stack and the shared scientific test source unchanged;
+all 12 numerical-dual controls pass. Isolated Python and stub-feature compilation
+also pass. Options reuse native enums and preserve symbolic/Taylor defaults;
+saved observations distinguish requested mode from actual source-chart routes,
+including exact charts folded before kernel creation. Passive Python views do
+not materialize deferred expressions; explicit inspection delegates that work
+to the native sector owner.
+
+The new Symbolica prerequisite consists of two independently reviewed commits
+(`9b82a0b`, `1deccb8`), now published with the user's authorization in
+[Symbolica PR #54](https://github.com/symbolica-dev/symbolica/pull/54), targeting
+`community`. All three FastSecDec workspaces pin that exact revision from the
+public fork. Rebuilt-wheel option tests remain pending. The
+[completed double-box benchmark](reviews/numerical-dual-benchmark.md)
+records full-Laurent parity and observed generation speedups of 3.67–4.94×, at
+the cost of approximately twelve times the primary f64 evaluation time with
+256-point batches. It includes scalar timing and source-chart normalization
+checks. Final gates pass 515 native tests (26 ignored diagnostics), 71 portable
+host tests, strict all-target Clippy and binding/stub checks. Two earlier stopped
+construction attempts are documented as failed development measurements, not
+successful validations. Host portable arithmetic is not browser execution.
+
+
+A later coordinating audit identified the direct generated-to-bytes route as a
+fourth evaluator-construction boundary. It now uses the same deferred-sector IR
+builder as synchronous, retained
+and dispatched compilation. The new real/complex × Taylor/IBP regression passes
+in native and portable builds without JIT, including full byte identity against
+eager compilation and analytic Laurent-vector values. The corrected finding and
+evidence are recorded in the options review above; deferred recipes require no
+new fields in the native codec.
+
+Before publication, the milestone was rebased onto the concurrent runtime
+complex-branch repair `2092eaa`. The independent integration review confirms that
+its native realness proof, v8 producer format and historical real-branch admission
+guards remain intact. All actual deferred sectors conservatively use complex
+arithmetic and receive no final-output realness certificate: opaque derivative
+requests cannot prove the branch domains of their hidden factors. Symbolic
+fallbacks and exact offsets retain the upstream proof. This avoids materializing
+the large mapped expressions merely to select arithmetic. Real dual integrals
+therefore retain zero imaginary components in their output layout. Explicit
+Validated stability can perform extra range-loss rescues for such zeros;
+default Distance routing avoids that heuristic. No contour prescription or
+threshold regularization is introduced.
+
+The final combined public-source gate passes 527 native tests and 72 portable
+host tests, including 13 shared numerical-dual controls. Native core tests and
+remaining workspace packages were validated in separate scopes after correcting
+real-only assumptions in three CLI test fixtures. Full Laurent vectors and
+covariance remain asserted. Workspace all-target Clippy, binding/stub Clippy,
+formatting and optimized CLI compilation pass. The numerical-dual prerequisite
+is fetched from its public revision without source-root overrides. No new wheel,
+browser run or three-loop generation is claimed.

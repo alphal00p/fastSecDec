@@ -80,6 +80,14 @@ max_rounds=1
 
 const PREPARED: &str = "[generation.family_preparation.SingleUnitTerm]\nmax_states=32";
 
+fn assert_complex_laurent_layout(value: &serde_json::Value) {
+    assert_eq!(value["orders"], serde_json::json!([-1, -1, 0, 0, 1, 1]));
+    assert_eq!(
+        value["components"],
+        serde_json::json!(["Real", "Imag", "Real", "Imag", "Real", "Imag"])
+    );
+}
+
 #[test]
 fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sources() {
     let directory = tempfile::tempdir().unwrap();
@@ -109,7 +117,7 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
         );
         // Each following command is a fresh process loading the ordinary artifact.
         let cold = success(cli().arg("inspect").arg(&artifact).output().unwrap());
-        assert_eq!(cold["orders"], serde_json::json!([-1, 0, 1]));
+        assert_complex_laurent_layout(&cold);
         assert_eq!(cold["parameters_bound"], false);
         assert!(cold["exact_coefficients"].is_null());
         let provenance = &cold["provenance"];
@@ -156,16 +164,23 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
                 .output()
                 .unwrap(),
         );
-        assert_eq!(run["estimate"]["orders"], serde_json::json!([-1, 0, 1]));
+        assert_complex_laurent_layout(&run["estimate"]);
+        let estimate: fastsecdec::integration::VectorEstimate =
+            serde_json::from_value(run["estimate"].clone()).unwrap();
+        estimate.validate().unwrap();
+        assert_eq!(estimate.covariance_of_mean.len(), 36);
         let mean = run["estimate"]["mean"].as_array().unwrap();
-        assert_eq!(mean.len(), 3);
+        assert_eq!(mean.len(), 6);
         // Independent normalized massive vacuum result: 5*2*3*7*Gamma(eps).
         // This checks both pole and finite/higher coefficients, not chart densities.
         let gamma = std::f64::consts::EULER_GAMMA;
         let expected = [
             210.0,
+            0.0,
             -210.0 * gamma,
+            0.0,
             210.0 * (gamma * gamma / 2.0 + std::f64::consts::PI.powi(2) / 12.0),
+            0.0,
         ];
         for (value, expected) in mean.iter().zip(expected) {
             assert!(
@@ -219,7 +234,7 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
     );
     assert_eq!(report.active_original_indices, [0, 1]);
     assert_eq!(report.active_powers, [1, 1]);
-    assert_eq!(fallback["orders"], serde_json::json!([-1, 0, 1]));
+    assert_complex_laurent_layout(&fallback);
     // Preparation is part of complete artifact identity, not observational data.
     let mut saved: serde_json::Value =
         serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();

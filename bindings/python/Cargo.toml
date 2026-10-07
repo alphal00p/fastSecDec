@@ -40,7 +40,7 @@ serde_json = { version = "1.0", features = ["float_roundtrip"] }
 # Consumer-root patches remain authoritative when this crate is a dependency.
 [patch.crates-io]
 # Share one public Symbolica owner across the HEPKit dependency graph.
-symbolica = { git = "https://github.com/symbolica-dev/symbolica", rev = "58652fabc2f736302a570deaaf8d517679f7fe6e" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4" }
 typst-library = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
 typst-svg = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }

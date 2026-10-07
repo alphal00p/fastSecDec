@@ -141,6 +141,15 @@ pub struct Provenance {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GenerationRecord {
     pub workers: usize,
+    /// Requested native generation lane; absent on older artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<fastsecdec::generation::GenerationMode>,
+    /// Requested endpoint subtraction strategy; absent on older artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subtraction: Option<fastsecdec::generation::SubtractionStrategy>,
+    /// Actual route for retained source charts, before exact-sector folding or kernel renumbering.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_chart_modes: Option<BTreeMap<usize, fastsecdec::generation::GenerationMode>>,
     /// Graph-numerator policy; absent for direct inputs and historical artifacts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contraction_mode: Option<fastsecdec::input::NumeratorContraction>,

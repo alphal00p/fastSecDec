@@ -121,6 +121,8 @@ impl Default for IntegralInput {
 #[serde(default, deny_unknown_fields)]
 pub struct GenerationInput {
     pub order: i32,
+    pub mode: fastsecdec::generation::GenerationMode,
+    pub subtraction: fastsecdec::generation::SubtractionStrategy,
     pub contraction_mode: fastsecdec::input::NumeratorContraction,
     pub assume_no_threshold: bool,
     pub max_sectors: usize,
@@ -136,6 +138,8 @@ impl Default for GenerationInput {
     fn default() -> Self {
         Self {
             order: 0,
+            mode: Default::default(),
+            subtraction: Default::default(),
             contraction_mode: Default::default(),
             assume_no_threshold: false,
             max_sectors: 1_000_000,

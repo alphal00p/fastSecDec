@@ -31,6 +31,13 @@ type Representative = (SectorMap, Vec<Symbol>, Vec<MappedTerm>, usize);
 type Representatives = BTreeMap<usize, Representative>;
 
 enum Stage {
+    NumericalDual {
+        maps: VecDeque<SectorMap>,
+        parameters: Vec<Symbol>,
+        programs: std::sync::Arc<super::numerical_dual::native::SourcePrograms>,
+        valuations: std::sync::Arc<super::numerical_dual::ValuationCache>,
+        completed: Vec<super::numerical_dual::PreparedChart>,
+    },
     Admission,
     GeometryCharts {
         plan: GeometryPlan,

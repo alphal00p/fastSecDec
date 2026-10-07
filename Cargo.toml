@@ -35,7 +35,7 @@ blake3 = "1.8"
 bincode = { version = "2.0.1", features = ["serde"] }
 
 [patch.crates-io]
-symbolica = { git = "https://github.com/symbolica-dev/symbolica", rev = "58652fabc2f736302a570deaaf8d517679f7fe6e" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4" }
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
 

@@ -154,6 +154,30 @@ must still produce a scalar polynomial in native loop scalar products.
 Nondefault modes are rejected for direct parametric inputs, which have no graph
 numerator to contract. The selected graph mode is saved in generation metadata.
 
+Select the generation lane and endpoint subtraction independently:
+
+```toml
+[generation]
+mode = "symbolic"          # default; alternative: "numerical_dual"
+subtraction = "taylor"      # default; alternative: "integrate_by_parts"
+```
+
+These names select the native generation options. `symbolic` preserves the
+existing symbolic generation route. `numerical_dual` selects deferred native
+maps and numerical jets, retaining source charts without symbolic density
+symmetry matching. Ordinary nonnegative regulated charts use the deferred route;
+charts needing exact unregulated endpoint admission or signed monomial maps use
+an explicit local symbolic fallback. Both subtraction strategies keep analytic
+endpoint terms and the complete Laurent vector.
+Generation mode is independent of the evaluator backend and of numerical
+integration/periodization settings. The selected mode and subtraction strategy
+are saved in human artifact metadata and shown by `generate` and `inspect`;
+older artifacts report that these settings were not recorded. Actual execution
+modes are also saved by stable source-chart ID; `inspect --sector` joins those
+IDs to the loaded kernel, retaining the distinction after exact-sector folding.
+For deferred charts, regular-body storage describes the unmapped source Atom;
+explicit symbolic fallback reports mapped-body storage.
+
 The coefficient-expansion method is selected in the run card:
 
 ```toml
@@ -164,13 +188,17 @@ max_relative_width = 128
 max_unique_requests = 10000
 ```
 
-`coefficient_series` expands and shares the regular coefficient functions,
+In `symbolic` mode, `coefficient_series` expands and shares the regular coefficient functions,
 then composes the complete Laurent vector with the endpoint terms.
 `full_expression`, the default, subtracts endpoints in the complete expression
 before expanding it in epsilon. Both use native Symbolica operations. The older
 input names `native_named` and `physical` remain accepted aliases respectively;
 new configuration examples and status output use the descriptive names.
 The Python `coefficient_expansion` argument accepts these same names.
+In `numerical_dual` mode, both requested methods are accepted, but the small
+formal endpoint recipes use the native `coefficient_series` composer. Its
+series/request limits apply to those recipes; the saved requested method does
+not claim that the symbolic full-expression route executed.
 
 Native evaluator optimization is configured separately:
 

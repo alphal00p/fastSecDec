@@ -55,6 +55,12 @@ impl GenerationSnapshot {
                 status.total = Some(*total);
                 status.detail = "Substituting exact sector maps".into();
             }
+            GenerationProgress::NumericalMapping { sector, total } => {
+                status.stage = GenerationStage::Mapping;
+                status.completed = *sector;
+                status.total = Some(*total);
+                status.detail = "Preparing numerical maps and exact endpoint powers".into();
+            }
             GenerationProgress::SymmetryPreparation { sector, total } => {
                 status.stage = GenerationStage::Symmetry;
                 status.completed = *sector;

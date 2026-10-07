@@ -88,3 +88,41 @@ fn coefficient_options_reuse_native_defaults_and_reject_unknown_steering() {
         assert!(toml::from_str::<GenerationInput>(invalid).is_err());
     }
 }
+
+#[test]
+fn generation_mode_and_subtraction_use_native_defaults_and_strict_names() {
+    use fastsecdec::generation::{GenerationMode, GenerationOptions, SubtractionStrategy};
+    let historical: GenerationInput = toml::from_str("order=1").unwrap();
+    let native = GenerationOptions::default();
+    assert_eq!(historical.mode, native.mode);
+    assert_eq!(historical.mode, GenerationMode::Symbolic);
+    assert_eq!(historical.subtraction, native.subtraction);
+    assert_eq!(historical.subtraction, SubtractionStrategy::Taylor);
+    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+        for subtraction in [
+            SubtractionStrategy::Taylor,
+            SubtractionStrategy::IntegrateByParts,
+        ] {
+            let input: GenerationInput = toml::from_str(&format!(
+                "mode='{}'\nsubtraction='{}'",
+                mode.name(),
+                subtraction.name(),
+            ))
+            .unwrap();
+            assert_eq!(input.mode, mode);
+            assert_eq!(input.subtraction, subtraction);
+        }
+    }
+    for invalid in [
+        "mode='numeric'",
+        "mode='Symbolic'",
+        "mode=1",
+        "subtraction='ibp'",
+        "subtraction='Taylor'",
+    ] {
+        assert!(
+            toml::from_str::<GenerationInput>(invalid).is_err(),
+            "{invalid}"
+        );
+    }
+}

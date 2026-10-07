@@ -130,10 +130,20 @@ fn shipped_bubble_reuses_one_template_at_two_runtime_points() {
                 .output()
                 .unwrap(),
         );
-        assert_eq!(result["estimate"]["orders"], serde_json::json!([-1, 0]));
+        assert_eq!(
+            result["estimate"]["orders"],
+            serde_json::json!([-1, -1, 0, 0])
+        );
+        assert_eq!(
+            result["estimate"]["components"],
+            serde_json::json!(["Real", "Imag", "Real", "Imag"])
+        );
         let mean = result["estimate"]["mean"].as_array().unwrap();
+        assert_eq!(mean.len(), 4);
         assert!((mean[0].as_f64().unwrap() - 1.0).abs() < 1e-9);
-        estimates.push(mean[1].as_f64().unwrap());
+        assert!(mean[1].as_f64().unwrap().abs() < 1e-9);
+        assert!(mean[3].as_f64().unwrap().abs() < 1e-9);
+        estimates.push(mean[2].as_f64().unwrap());
     }
     // The massless bubble's finite coefficient shifts by -log((-s2)/(-s1)).
     assert!((estimates[1] - estimates[0] + 4.0_f64.ln()).abs() < 1e-9);

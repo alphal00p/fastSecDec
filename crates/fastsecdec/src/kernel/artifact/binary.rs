@@ -318,18 +318,7 @@ pub(super) fn generated(
         .sectors()
         .iter()
         .map(|sector| {
-            let program = program::build_with_settings(
-                sector.parameters().to_vec(),
-                &[],
-                sector.aliased_coefficients(),
-                Cancellation::new(
-                    sector.cancellation_degree(),
-                    Some(sector.cancellation_terms().to_vec()),
-                    sector.dimension(),
-                )?
-                .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
-                settings,
-            )?;
+            let program = program::build_sector(sector, &[], settings)?;
             Ok(Sector {
                 parameters: program.parameters,
                 program: program::encode(&program.exact)?,

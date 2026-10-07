@@ -23,6 +23,48 @@ pub(super) struct SectorProgram {
     pub real_coefficients: Vec<bool>,
 }
 
+pub(super) fn build_sector(
+    sector: &crate::generation::GeneratedSector,
+    runtime_parameters: &[Symbol],
+    settings: CompilationSettings,
+) -> Result<SectorProgram, KernelError> {
+    let cancellation = Cancellation::new(
+        sector.cancellation_degree(),
+        Some(sector.cancellation_terms().to_vec()),
+        sector.dimension(),
+    )?
+    .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?;
+    if let Some(deferred) = &sector.deferred {
+        let exact = crate::generation::numerical_dual::native::build(
+            deferred,
+            runtime_parameters,
+            settings,
+        )?;
+        Ok(SectorProgram {
+            parameters: sector.parameters().to_vec(),
+            runtime_parameters: runtime_parameters.to_vec(),
+            exact,
+            cancellation,
+            exact_zero: sector
+                .aliased_coefficients()
+                .iter()
+                .map(|value| value.get_root().is_zero())
+                .collect(),
+            // Source factors can need complex intermediates even when all
+            // literal coefficients and formal recipe placeholders look real.
+            real_coefficients: vec![false; sector.aliased_coefficients().len()],
+        })
+    } else {
+        build_with_settings(
+            sector.parameters().to_vec(),
+            runtime_parameters,
+            sector.aliased_coefficients(),
+            cancellation,
+            settings,
+        )
+    }
+}
+
 /// Coordinate-image maps are flat and shared within one generated vector.
 /// Empty maps are allowed for exact zero padding or plain legacy expressions.
 #[cfg(test)]

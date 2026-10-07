@@ -22,12 +22,13 @@ numerica = { version = "3.0.1", default-features = false, features = ["serde", "
 serde_json = { version = "1.0", features = ["float_roundtrip"] }
 
 [dev-dependencies]
+fastsecdec-sectors = { path = "../../crates/fastsecdec-sectors", default-features = false }
 blake3 = "1.8"
 tempfile = "3"
 
 [patch.crates-io]
 # Share one public Symbolica owner across the HEPKit dependency graph.
-symbolica = { git = "https://github.com/symbolica-dev/symbolica", rev = "58652fabc2f736302a570deaaf8d517679f7fe6e" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4" }
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
 
@@ -69,3 +70,7 @@ opt-level = 2
 [[test]]
 name = "generation_session"
 path = "../../crates/fastsecdec/tests/generation_session.rs"
+
+[[test]]
+name = "numerical_dual"
+path = "../../crates/fastsecdec/tests/numerical_dual.rs"

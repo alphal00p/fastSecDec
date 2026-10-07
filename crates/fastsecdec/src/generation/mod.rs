@@ -15,6 +15,7 @@ mod laurent;
 mod mapping;
 mod metadata;
 mod metadata_display;
+pub(crate) mod numerical_dual;
 pub use crate::status::GeometryReuseStatus;
 pub use context::{GenerationContext, GenerationEvent};
 pub use fastsecdec_sectors::{
@@ -39,8 +40,8 @@ pub use metadata::{
 pub use types::{
     CoefficientExpansionMethod, CoefficientExpansionOptions, CoefficientExpansionStage,
     CoefficientRequestCounts, ConditioningBasis, EndpointCancellationSource, EndpointProfileRow,
-    GeneratedIntegral, GeneratedSector, GenerationError, GenerationOptions, GenerationPhase,
-    GenerationProgress, SubtractionStrategy,
+    GeneratedIntegral, GeneratedSector, GenerationError, GenerationMode, GenerationOptions,
+    GenerationPhase, GenerationProgress, SubtractionStrategy,
 };
 
 use crate::parametric::ParametricIntegrand;
@@ -180,6 +181,20 @@ fn generate_inner(
         .collect::<Vec<_>>();
     let parameters =
         mapping::target_parameters(input, maps.first().map_or(0, |map| map.dimension()));
+    if options.mode == GenerationMode::NumericalDual {
+        return numerical_dual::generate(
+            input,
+            options,
+            numerical_dual::PreparedMaps {
+                domain,
+                maps,
+                parameters,
+            },
+            &source_supports,
+            symbolic_dispatch,
+            &mut progress,
+        );
+    }
     let mut maps = maps.into_iter();
     let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
         let mapped = work::map_dispatched(

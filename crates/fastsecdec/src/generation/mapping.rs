@@ -4,7 +4,7 @@ use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::integer::Integer,
+    domains::{atom::AtomField, integer::Integer},
     id::{Pattern, Replacement},
 };
 
@@ -164,7 +164,13 @@ pub(super) fn map_terms(
                         let polynomial = measured!(
                             SparseFallback,
                             mapped
-                                .to_polynomial_in_vars::<i32>(&variables)
+                                .to_polynomial_in_vars_with_field::<i32>(
+                                    &variables,
+                                    &AtomField {
+                                        statistical_zero_test: false,
+                                        ..AtomField::new()
+                                    },
+                                )
                                 .mul_exp(&shifts)
                         );
                         if polynomial

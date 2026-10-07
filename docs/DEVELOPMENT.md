@@ -28,8 +28,8 @@ environment setting, not a reason to disable cancellation or worker-panic tests.
 
 Cargo obtains dependencies from their public Git repositories and the registry.
 There is no dependency-preparation script, generated path overlay or local
-Symbolica source patch. The standard `[patch.crates-io]` entry selects upstream
-Symbolica's Git version for every consumer of the registry package; it does not
+Symbolica source patch. The standard `[patch.crates-io]` entry selects the public
+Symbolica Git revision for every consumer of the registry package; it does not
 modify that source. Library dependency declarations remain registry-based so
 the final consuming workspace owns this single shared Symbolica identity.
 
@@ -42,7 +42,7 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public `community` revision `58652fabc2f736302a570deaaf8d517679f7fe6e`, including configurable coefficient fields |
+| Symbolica | Public fork revision `1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4`, including configurable coefficient fields and native evaluator composition; [upstream PR #54](https://github.com/symbolica-dev/symbolica/pull/54) targets `community` |
 | FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch, locked at `259df8790f27b8d3ef32778cd7195942691b4ef0` |
 | Numerica and Graphica | Registry 3.0.1 |
 | SymJIT | Compatible minimum `2.26.4`; exact resolved release in Cargo.lock |

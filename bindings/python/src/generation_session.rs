@@ -8,7 +8,7 @@ use crate::{
     status::PyGenerationSnapshot,
 };
 use fastsecdec::{
-    generation::{CoefficientExpansionMethod, GenerationOptions, GenerationSession},
+    generation::{GenerationOptions, GenerationSession},
     kernel::CompilationSession,
     status::{GenerationSnapshot, GenerationStage, GenerationTimings},
 };
@@ -40,29 +40,20 @@ pub(crate) struct PyGenerationSession {
 #[pymethods]
 impl PyIntegral {
     /// Create inert retained work. Only step() performs parameterization, generation or compilation.
-    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", compilation_settings=None, runtime_parameters=None))]
+    #[allow(clippy::too_many_arguments)]
     fn generation_session(
         &self,
         py: Python<'_>,
         max_order: i32,
         coefficient_expansion: &str,
+        mode: &str,
+        subtraction: &str,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
     ) -> PyResult<PyGenerationSession> {
-        let method = match coefficient_expansion {
-            "coefficient_series" | "native_named" => CoefficientExpansionMethod::NativeNamed,
-            "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
-            _ => {
-                return Err(pyo3::exceptions::PyValueError::new_err(
-                    "coefficient_expansion must be coefficient_series or full_expression",
-                ));
-            }
-        };
-        let mut options = GenerationOptions {
-            max_order,
-            ..Default::default()
-        };
-        options.coefficient_expansion.method = method;
+        let options =
+            crate::generation::options(max_order, coefficient_expansion, mode, subtraction)?;
         let settings = compilation_settings.cloned().unwrap_or_default().inner;
         settings
             .validate()
@@ -124,6 +115,15 @@ fn observe(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGenerationSession {
+    #[getter]
+    fn mode(&self) -> &'static str {
+        self.options.mode.name()
+    }
+    #[getter]
+    fn subtraction(&self) -> &'static str {
+        self.options.subtraction.name()
+    }
+
     /// Run at most max_units indivisible native units on this caller's thread.
     /// False observers and KeyboardInterrupt pause; already completed work is retained.
     /// Numerical/algebra errors are terminal and expose no partial kernels.
@@ -212,6 +212,8 @@ impl PyGenerationSession {
                             inner: generated,
                             status: self.status.clone(),
                             runtime: self.runtime.clone(),
+                            mode: self.options.mode,
+                            subtraction: self.options.subtraction,
                         });
                         self.generation = None;
                     }
@@ -326,6 +328,7 @@ import symbolica.community.hepkit.sector_decomposition
 
 class PyIntegral:
     def generation_session(self, max_order: int = 0, *, coefficient_expansion: str = "coefficient_series",
+        mode: str = "symbolic", subtraction: str = "taylor",
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.GenerationSession:

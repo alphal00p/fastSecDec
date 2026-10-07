@@ -92,7 +92,7 @@ impl CompilationSettings {
         }
     }
 
-    pub(super) fn native(self) -> symbolica::evaluate::OptimizationSettings {
+    pub(crate) fn native(self) -> symbolica::evaluate::OptimizationSettings {
         symbolica::evaluate::OptimizationSettings::new()
             .horner_iterations(self.horner_iterations)
             .cpe_iterations(self.cpe_rounds)

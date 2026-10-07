@@ -89,6 +89,36 @@ integration APIs; it needs no SymJIT. This is the route for subsequent Pyodide/
 marimo work. See the [runtime API review](../../docs/reviews/runtime-kinematic-parameters.md)
 for the concrete feature and API sequence; no new notebook run is claimed here.
 
+Generation keeps the existing `symbolic` mode by default. To construct endpoint
+coefficients with native Taylor jets instead of substituting entire sector maps
+into the numerator, set these entries in the run card:
+
+```toml
+[generation]
+mode = "numerical_dual"
+subtraction = "taylor" # or "integrate_by_parts"
+order = 0
+```
+
+Both subtraction choices retain exact analytic endpoint denominators and the
+complete interior function. The new mode composes the original polynomial
+evaluators, monomial maps and normalized derivative coefficients into native
+evaluator programs. Runtime kinematics, model inputs, SymJIT O2, eager evaluation
+and point batches use the same interfaces. Korobov smoothing remains a subsequent
+integration-coordinate transformation, after endpoint subtraction or IBP.
+
+The numerical-dual mode keeps source charts separately rather than comparing
+large symbolic densities for symmetry. Unsupported ordinary-jet charts, including
+signed infinity maps and unregulated endpoint admission, use the recorded exact
+symbolic route. Native dense jets have a guarded component limit. Full expressions
+are restored only for explicit inspection of the retained generated object;
+generation and saving do not perform that restoration. See the
+[implementation review](../../docs/reviews/numerical-dual-evaluator.md) for the
+precise native ownership and limitations.
+The [double-box comparison](../../docs/reviews/numerical-dual-benchmark.md) records
+the measured generation speedup, full-Laurent parity and the substantially higher
+per-sample cost of the numerical-dual evaluators.
+
 The earlier example selected **FK018**, with one gluon and one Higgs on
 each box. Its numerical values, sector counts, timings and reference checks
 apply to that different diagram. They are retained only in historical review

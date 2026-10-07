@@ -40,6 +40,7 @@ pub fn artifact(
                 "id": id,
                 "content_id": kernels.sector_content_id(id)?,
                 "dimension": kernels.sectors()[id].dimension(),
+                "source_chart_generation_modes": source_chart_modes(&artifact, &kernels, id),
                 "evaluator_statistics": kernels.sectors()[id].statistics(),
                 "charts": kernels.generation_metadata().map(|metadata| PortableMetadata::charts_for_sector(metadata,id)),
                 }
@@ -74,6 +75,29 @@ pub fn artifact(
         );
     }
     Ok(())
+}
+
+/// Join producer modes to the loaded kernel through stable source-chart IDs.
+/// Generated-sector positions are not stable after exact-sector folding.
+fn source_chart_modes(
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    id: usize,
+) -> Option<std::collections::BTreeMap<usize, fastsecdec::generation::GenerationMode>> {
+    let recorded = artifact.generation.as_ref()?.source_chart_modes.as_ref()?;
+    Some(
+        kernels
+            .generation_metadata()?
+            .charts()
+            .iter()
+            .filter(|chart| chart.kernel_sector() == Some(id))
+            .filter_map(|chart| {
+                recorded
+                    .get(&chart.source_index())
+                    .map(|mode| (chart.source_index(), *mode))
+            })
+            .collect(),
+    )
 }
 
 fn ranked_sectors(kernels: &KernelSet) -> Vec<usize> {

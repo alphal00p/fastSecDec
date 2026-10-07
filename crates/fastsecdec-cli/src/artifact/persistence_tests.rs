@@ -173,3 +173,60 @@ fn interrupted_atomic_writer_preserves_destination_and_cleans_its_temporary() {
     assert_eq!(fs::read(&path).unwrap(), b"previous artifact");
     assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
 }
+
+#[test]
+fn generation_choices_roundtrip_without_inventing_historical_settings() {
+    use fastsecdec::generation::{GenerationMode, SubtractionStrategy};
+    let old =
+        serde_json::json!({"workers": 1, "requested_coefficient_expansion": "full_expression"});
+    let historical: GenerationRecord = serde_json::from_value(old).unwrap();
+    assert!(historical.mode.is_none());
+    assert!(historical.subtraction.is_none());
+    assert!(historical.source_chart_modes.is_none());
+    let old_encoded = serde_json::to_value(&historical).unwrap();
+    assert!(old_encoded.get("mode").is_none());
+    assert!(old_encoded.get("subtraction").is_none());
+    assert!(old_encoded.get("source_chart_modes").is_none());
+
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("generation-choices.fsd");
+    let mut artifact = Artifact::new(&legacy_kernels(), provenance()).unwrap();
+    let id = artifact.content_id.clone();
+    artifact.generation = Some(GenerationRecord {
+        mode: Some(GenerationMode::NumericalDual),
+        subtraction: Some(SubtractionStrategy::IntegrateByParts),
+        source_chart_modes: Some(
+            [
+                (4, GenerationMode::NumericalDual),
+                (8, GenerationMode::Symbolic),
+            ]
+            .into(),
+        ),
+        ..historical
+    });
+    artifact.save(&path).unwrap();
+    let (loaded, _) = Artifact::load(&path).unwrap();
+    assert_eq!(loaded.content_id, id);
+    let record = loaded.generation.unwrap();
+    assert_eq!(record.mode, Some(GenerationMode::NumericalDual));
+    assert_eq!(
+        record.source_chart_modes.as_ref().unwrap()[&4],
+        GenerationMode::NumericalDual
+    );
+    assert_eq!(
+        record.source_chart_modes.as_ref().unwrap()[&8],
+        GenerationMode::Symbolic
+    );
+    assert_eq!(
+        record.subtraction,
+        Some(SubtractionStrategy::IntegrateByParts)
+    );
+    let rows = crate::generation_report::generation_method_rows(record.mode, record.subtraction);
+    assert_eq!(rows[0][1], "numerical_dual");
+    assert_eq!(rows[1][1], "integrate_by_parts");
+    assert!(
+        crate::generation_report::generation_method_rows(None, None)
+            .iter()
+            .all(|r| r[1] == "Not recorded")
+    );
+}

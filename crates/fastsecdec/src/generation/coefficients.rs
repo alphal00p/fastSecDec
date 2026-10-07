@@ -106,7 +106,7 @@ fn physical(
 }
 
 #[derive(Default)]
-struct Observation {
+pub(super) struct Observation {
     attempt: usize,
     width: i64,
     formal_pieces: usize,
@@ -125,7 +125,7 @@ impl Observation {
         };
     }
 
-    fn event(
+    pub(super) fn event(
         &self,
         representative: &Representative<'_>,
         stage: CoefficientExpansionStage,
@@ -141,7 +141,7 @@ impl Observation {
         }
     }
 
-    fn observe(&mut self, progress: Progress) -> CoefficientExpansionStage {
+    pub(super) fn observe(&mut self, progress: Progress) -> CoefficientExpansionStage {
         use CoefficientExpansionStage as Stage;
         match progress {
             Progress::Admission { .. } => Stage::Admission,

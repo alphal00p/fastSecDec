@@ -83,6 +83,7 @@ impl Assembly {
             .into_iter()
             .map(
                 |(map, parameters, coefficients, conditioning)| GeneratedSector {
+                    deferred: None,
                     cancellation_degree: conditioning.degree,
                     cancellation_terms: conditioning.rows,
                     endpoint_profiles: conditioning.endpoint_profiles,

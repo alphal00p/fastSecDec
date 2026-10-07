@@ -38,6 +38,16 @@ pub struct SymbolicCompletion {
     result: Output,
 }
 enum Work {
+    NumericalDual {
+        input: Arc<ParametricIntegrand>,
+        options: Arc<GenerationOptions>,
+        map: SectorMap,
+        parameters: Vec<Symbol>,
+        supports: SupportCache,
+        total: usize,
+        programs: Arc<super::numerical_dual::native::SourcePrograms>,
+        valuations: Arc<super::numerical_dual::ValuationCache>,
+    },
     Mapping {
         input: Arc<ParametricIntegrand>,
         options: Arc<GenerationOptions>,
@@ -61,6 +71,7 @@ enum Work {
     },
 }
 enum Output {
+    NumericalDual(Box<super::numerical_dual::PreparedChart>),
     Mapping(MappedChart),
     Symmetry(Box<PreparedChart>),
     Coefficients(ExpandedChart),
@@ -93,6 +104,30 @@ impl SymbolicJob {
             GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
         };
         let result = (|| match self.work {
+            Work::NumericalDual {
+                input,
+                options,
+                map,
+                parameters,
+                mut supports,
+                total,
+                programs,
+                valuations,
+            } => super::numerical_dual::prepare(
+                super::numerical_dual::Sources {
+                    input: &input,
+                    options: &options,
+                    programs: &programs,
+                    valuations: &valuations,
+                },
+                map,
+                parameters,
+                self.id.index,
+                total,
+                &mut supports,
+                &mut observe,
+            )
+            .map(|chart| Output::NumericalDual(Box::new(chart))),
             Work::Mapping {
                 input,
                 options,
@@ -176,6 +211,68 @@ impl SymbolicJob {
             result: result?,
         })
     }
+}
+
+pub(super) fn numerical_dual_dispatched(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    maps: Vec<SectorMap>,
+    parameters: &[Symbol],
+    supports: &SupportCache,
+    dispatch: &mut SymbolicDispatch<'_>,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<Vec<super::numerical_dual::PreparedChart>, GenerationError> {
+    let owner = Arc::new(());
+    let input = Arc::new(input.clone());
+    let options = Arc::new(options.clone());
+    let total = maps.len();
+    let programs = Arc::new(super::numerical_dual::native::SourcePrograms::default());
+    let valuations = Arc::new(super::numerical_dual::ValuationCache::new(
+        input.parameters(),
+    ));
+    let mut jobs = maps
+        .into_iter()
+        .enumerate()
+        .map(|(index, map)| SymbolicJob {
+            owner: owner.clone(),
+            id: SymbolicJobId {
+                stage: SymbolicStage::Coefficients,
+                index,
+            },
+            work: Work::NumericalDual {
+                input: input.clone(),
+                options: options.clone(),
+                map,
+                parameters: parameters.to_vec(),
+                supports: supports.clone(),
+                total,
+                programs: programs.clone(),
+                valuations: valuations.clone(),
+            },
+        });
+    let started = Instant::now();
+    let completed = admit(
+        &owner,
+        SymbolicStage::Coefficients,
+        total,
+        dispatch(&mut jobs)?,
+    )?;
+    emit(
+        progress,
+        GenerationProgress::PhaseTiming {
+            phase: GenerationPhase::CoefficientExpansion,
+            seconds: started.elapsed().as_secs_f64(),
+        },
+    )?;
+    completed
+        .into_iter()
+        .map(|output| match output {
+            Output::NumericalDual(chart) => Ok(*chart),
+            _ => Err(GenerationError::Invariant(
+                "wrong numerical dual completion kind".into(),
+            )),
+        })
+        .collect()
 }
 
 pub(super) fn map_chart(

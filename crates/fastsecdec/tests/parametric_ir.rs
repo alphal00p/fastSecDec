@@ -235,3 +235,21 @@ fn projective_regular_scaling_does_not_claim_nonzero() {
     let integral = projective_numerator(disguised.clone(), 2).unwrap();
     assert_eq!(integral.terms()[0].factors()[1].polynomial(), &disguised);
 }
+
+#[test]
+fn exact_support_keeps_a_small_coefficient_hidden_by_cancellation() {
+    // Native sampled zero testing is inconclusive here because the exact
+    // residual is far below the roundoff of its unexpanded representation.
+    let coefficient =
+        parse!("(1+support_exact::a)^2-support_exact::a^2-2*support_exact::a-1+1/10^30");
+    assert_eq!(coefficient.expand(), parse!("1/10^30"));
+    let expression = coefficient * parse!("support_exact::x^2") + parse!("support_exact::x^3");
+    let support = polynomial_support(&expression, &[symbol!("support_exact::x")]).unwrap();
+    assert_eq!(
+        support.exponents(),
+        &[
+            vec![symbolica::domains::integer::Integer::from(2)],
+            vec![symbolica::domains::integer::Integer::from(3)]
+        ]
+    );
+}

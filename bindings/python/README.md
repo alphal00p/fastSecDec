@@ -69,6 +69,29 @@ An indivisible native algebra operation can exceed a UI tick. Observer `False`
 or `KeyboardInterrupt` retains the completed unit; a genuine native error marks
 the owner failed. No library thread or worker pool is started.
 
+All generation entrypoints accept the same explicit route selection:
+
+```python
+generated = integral.generate(mode="symbolic", subtraction="taylor", progress=None)
+work = integral.generation_session(mode="numerical_dual", subtraction="integrate_by_parts")
+```
+
+`symbolic` and `taylor` preserve the existing defaults. The alternatives select
+native numerical-dual generation and integration-by-parts subtraction; they are
+independent of eager/SymJIT compilation and QMC/Havana sampling. The free
+`sector_decompose(...)` function accepts these keywords as well. Unknown values
+raise `ValueError` before generation observers or parameterization run. Retained
+sessions and generated objects expose `.mode` and `.subtraction` without doing
+symbolic work, and their rich displays show these settings. In `numerical_dual`
+mode, the native coefficient-series composer handles formal endpoint recipes;
+`coefficient_expansion` retains the requested choice without changing that
+internal recipe engine. This lane retains source charts without symbolic density
+symmetry matching. Exact unregulated endpoint admission and signed maps can
+require a local symbolic fallback; each sector's `.generation_mode` identifies
+the actual route. Compact roots remain cheap recipe views. Only the explicit
+`coefficient.expression()` request materializes the actual native expression,
+which can be expensive; passive displays do not call it.
+
 `Integral` defaults to independent runtime model inputs. HEPKit resolves analytic
 dependencies; named masses remain symbolic before sector support analysis.
 Declare real Symbolica kinematic symbols with `runtime_parameters`; their

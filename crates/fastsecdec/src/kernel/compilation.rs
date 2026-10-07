@@ -16,9 +16,13 @@ pub use session::CompilationSession;
 
 pub(super) fn requires_complex(generated: &GeneratedIntegral, runtime: &[Symbol]) -> bool {
     generated.sectors().iter().any(|sector| {
-        sector.aliased_coefficients().iter().any(|coefficient| {
-            !program::is_real_with_parameters(coefficient, sector.parameters(), runtime)
-        })
+        // Formal request placeholders do not prove the realness of deferred
+        // factors or their derivatives. Retain native complex intermediates
+        // without materializing the mapped expressions merely for this proof.
+        sector.deferred.is_some()
+            || sector.aliased_coefficients().iter().any(|coefficient| {
+                !program::is_real_with_parameters(coefficient, sector.parameters(), runtime)
+            })
     }) || generated
         .exact_coefficients()
         .iter()
@@ -50,18 +54,7 @@ impl CompilationJob {
         self.index
     }
     pub fn run(self) -> Result<CompilationCompletion, KernelError> {
-        let program = program::build_with_settings(
-            self.sector.parameters().to_vec(),
-            &self.runtime_parameters,
-            self.sector.aliased_coefficients(),
-            Cancellation::new(
-                self.sector.cancellation_degree(),
-                Some(self.sector.cancellation_terms().to_vec()),
-                self.sector.dimension(),
-            )?
-            .with_endpoint_profiles(self.sector.endpoint_profiles().to_vec())?,
-            self.settings,
-        )?;
+        let program = program::build_sector(&self.sector, &self.runtime_parameters, self.settings)?;
         let sector = SectorKernel::from_program_with_backend(
             program,
             &self.precision,
@@ -159,18 +152,7 @@ impl GeneratedIntegral {
         emit(0)?;
         let mut sectors = Vec::with_capacity(total);
         for sector in self.sectors() {
-            let program = program::build_with_settings(
-                sector.parameters().to_vec(),
-                runtime_parameters,
-                sector.aliased_coefficients(),
-                Cancellation::new(
-                    sector.cancellation_degree(),
-                    Some(sector.cancellation_terms().to_vec()),
-                    sector.dimension(),
-                )?
-                .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
-                settings,
-            )?;
+            let program = program::build_sector(sector, runtime_parameters, settings)?;
             sectors.push(SectorKernel::from_program_with_backend(
                 program,
                 &precision,

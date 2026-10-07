@@ -26,7 +26,7 @@ pub(super) fn render(
     let mut out = super::overview::render(path, artifact, kernels, width, colors)?;
     if let Some(id) = selected {
         out.push('\n');
-        out.push_str(&sector(kernels, id, expressions, width, colors)?);
+        out.push_str(&sector(artifact, kernels, id, expressions, width, colors)?);
     } else {
         out.push('\n');
         let rows = super::ranked_sectors(kernels)
@@ -157,6 +157,7 @@ fn monomial(chart: &ChartRecord, term: &PreSubtractionTerm) -> Atom {
 }
 
 fn sector(
+    artifact: &Artifact,
     kernels: &KernelSet,
     id: usize,
     expressions: bool,
@@ -165,12 +166,29 @@ fn sector(
 ) -> CliResult<String> {
     let kernel = &kernels.sectors()[id];
     let stats = kernel.statistics();
+    let chart_modes = super::source_chart_modes(artifact, kernels, id);
+    let mode_names = chart_modes
+        .as_ref()
+        .into_iter()
+        .flat_map(|modes| modes.values())
+        .map(|mode| mode.name())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
     let content_id = kernels.sector_content_id(id)?;
     let mut out = heading(&format!("Sector {id}"), width, colors, Color::FG_GREEN);
     let ops = stats.operations;
     out.push_str(&facts_table(
         vec![
             ["Sector ID".into(), id.to_string()],
+            [
+                "Generation mode".into(),
+                if mode_names.is_empty() {
+                    "Not recorded".into()
+                } else {
+                    mode_names.join(", ")
+                },
+            ],
             ["Content ID".into(), content_id],
             ["Coordinates".into(), kernel.dimension().to_string()],
             ["Arithmetic".into(), stats.arithmetic.clone()],
@@ -284,8 +302,21 @@ fn sector(
                 .collect();
             out.push('\n');
             out.push_str(&section(
-                "Original mapped term prefactors",
-                vec!["Term", "Body bytes", "Prefactor"],
+                "Pre-subtraction term prefactors",
+                vec![
+                    "Term",
+                    match chart_modes
+                        .as_ref()
+                        .and_then(|modes| modes.get(&chart.source_index()))
+                    {
+                        Some(fastsecdec::generation::GenerationMode::NumericalDual) => {
+                            "Source bytes"
+                        }
+                        Some(fastsecdec::generation::GenerationMode::Symbolic) => "Mapped bytes",
+                        None => "Body bytes",
+                    },
+                    "Prefactor",
+                ],
                 rows,
                 width,
                 colors,

@@ -9,6 +9,8 @@ mod input;
 mod inspect;
 mod integration_report;
 mod math_display;
+#[cfg(test)]
+mod numerical_dual_benchmark;
 mod reference;
 mod results;
 mod status_policy;

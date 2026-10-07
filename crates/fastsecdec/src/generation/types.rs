@@ -5,6 +5,8 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 
 #[derive(Clone, Debug)]
 pub struct GenerationOptions {
+    /// How sector maps and endpoint derivatives enter evaluator construction.
+    pub mode: GenerationMode,
     /// Legacy recorded caller assertion; threshold freedom is always the
     /// caller's responsibility when no regularisation is requested.
     pub assume_no_threshold: bool,
@@ -15,6 +17,26 @@ pub struct GenerationOptions {
     pub max_subtraction_terms: usize,
     pub subtraction: SubtractionStrategy,
     pub coefficient_expansion: CoefficientExpansionOptions,
+}
+
+/// Independent implementations of the same exact sector integral.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GenerationMode {
+    /// Materialize mapped expressions and their symbolic endpoint derivatives.
+    #[default]
+    Symbolic,
+    /// Compose sector maps and endpoint jets in native evaluator arithmetic.
+    NumericalDual,
+}
+
+impl GenerationMode {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Symbolic => "symbolic",
+            Self::NumericalDual => "numerical_dual",
+        }
+    }
 }
 
 /// Representation used during endpoint subtraction and Laurent expansion.
@@ -79,15 +101,27 @@ pub struct CoefficientRequestCounts {
     pub fallback_requests: usize,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum SubtractionStrategy {
+    #[default]
     Taylor,
     IntegrateByParts,
+}
+
+impl SubtractionStrategy {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Taylor => "taylor",
+            Self::IntegrateByParts => "integrate_by_parts",
+        }
+    }
 }
 
 impl Default for GenerationOptions {
     fn default() -> Self {
         Self {
+            mode: GenerationMode::default(),
             assume_no_threshold: false,
             max_order: 0,
             decomposition: DecompositionOptions::default(),
@@ -103,6 +137,10 @@ impl Default for GenerationOptions {
 pub enum GenerationProgress {
     Decomposition(DecompositionProgress),
     Factorization {
+        sector: usize,
+        total: usize,
+    },
+    NumericalMapping {
         sector: usize,
         total: usize,
     },
@@ -187,6 +225,7 @@ pub struct EndpointProfileRow {
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
+    pub(crate) deferred: Option<std::sync::Arc<super::numerical_dual::DualSector>>,
     pub(crate) cancellation_degree: usize,
     pub(crate) cancellation_terms: Vec<Vec<usize>>,
     pub(crate) endpoint_profiles: Vec<EndpointProfileRow>,
@@ -198,6 +237,13 @@ pub struct GeneratedSector {
 }
 
 impl GeneratedSector {
+    pub fn generation_mode(&self) -> GenerationMode {
+        if self.deferred.is_some() {
+            GenerationMode::NumericalDual
+        } else {
+            GenerationMode::Symbolic
+        }
+    }
     pub fn cancellation_degree(&self) -> usize {
         self.cancellation_degree
     }
@@ -230,6 +276,9 @@ impl GeneratedSector {
     /// Kernel compilation and portable saving do not call this accessor.
     pub fn coefficients(&self) -> &[Atom] {
         self.materialized.get_or_init(|| {
+            if let Some(deferred) = &self.deferred {
+                return deferred.materialized_coefficients();
+            }
             self.coefficients
                 .iter()
                 .cloned()

@@ -1,7 +1,10 @@
 use std::{ops::ControlFlow, rc::Rc, sync::Arc, time::Instant};
 
 use fastsecdec::{
-    generation::{CoefficientExpansionMethod, GeneratedIntegral, GenerationOptions, generate},
+    generation::{
+        CoefficientExpansionMethod, GeneratedIntegral, GenerationMode, GenerationOptions,
+        SubtractionStrategy, generate,
+    },
     parametric::ParametricIntegrand,
     status::{GenerationSnapshot, GenerationStage, GenerationTimings},
 };
@@ -28,6 +31,8 @@ pub(crate) struct PyGeneratedIntegral {
     pub(crate) inner: Arc<GeneratedIntegral>,
     pub(crate) status: GenerationSnapshot,
     pub(crate) runtime: RuntimeInputs,
+    pub(crate) mode: GenerationMode,
+    pub(crate) subtraction: SubtractionStrategy,
 }
 
 #[pymethods]
@@ -38,22 +43,24 @@ impl PyIntegral {
     /// every GenerationSnapshot. Observer runs first; None/True continues,
     /// False from either callback cancels at a native event boundary. Original
     /// callback and KeyboardInterrupt exceptions propagate after UI cleanup.
-    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
     #[pyo3(
-        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', observer=None, progress='auto')"
+        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', observer=None, progress='auto')"
     )]
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate(
         &self,
         py: Python<'_>,
         max_order: i32,
         coefficient_expansion: &str,
+        mode: &str,
+        subtraction: &str,
         observer: Option<Py<PyAny>>,
         progress: Option<Py<PyAny>>,
     ) -> PyResult<PyGeneratedIntegral> {
         generate_native(
             py,
-            max_order,
-            coefficient_expansion,
+            options(max_order, coefficient_expansion, mode, subtraction)?,
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native diagram",
@@ -62,18 +69,14 @@ impl PyIntegral {
     }
 }
 
-/// One observer, cancellation and native generation path for every input owner.
-/// Parameterization is deferred until the initial observer permits it; returning
-/// this result neither compiles evaluators nor creates an integration session.
-pub(crate) fn generate_native(
-    py: Python<'_>,
+/// Shared validation for synchronous and retained generation entrypoints.
+/// Enum deserialization belongs to the native generation options owner.
+pub(crate) fn options(
     max_order: i32,
     coefficient_expansion: &str,
-    observer: Option<&Py<PyAny>>,
-    progress: Option<&Py<PyAny>>,
-    detail: &str,
-    parametrize: impl FnOnce() -> PyResult<(ParametricIntegrand, RuntimeInputs)>,
-) -> PyResult<PyGeneratedIntegral> {
+    mode: &str,
+    subtraction: &str,
+) -> PyResult<GenerationOptions> {
     let method = match coefficient_expansion {
         "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
         "coefficient_series" | "native_named" => CoefficientExpansionMethod::NativeNamed,
@@ -83,6 +86,37 @@ pub(crate) fn generate_native(
             ));
         }
     };
+    let mode = serde_json::from_value(serde_json::Value::String(mode.into())).map_err(|_| {
+        pyo3::exceptions::PyValueError::new_err("mode must be 'symbolic' or 'numerical_dual'")
+    })?;
+    let subtraction = serde_json::from_value(serde_json::Value::String(subtraction.into()))
+        .map_err(|_| {
+            pyo3::exceptions::PyValueError::new_err(
+                "subtraction must be 'taylor' or 'integrate_by_parts'",
+            )
+        })?;
+    let mut options = GenerationOptions {
+        max_order,
+        mode,
+        subtraction,
+        ..Default::default()
+    };
+    options.coefficient_expansion.method = method;
+    Ok(options)
+}
+
+/// One observer, cancellation and native generation path for every input owner.
+/// Parameterization is deferred until the initial observer permits it; returning
+/// this result neither compiles evaluators nor creates an integration session.
+pub(crate) fn generate_native(
+    py: Python<'_>,
+    options: GenerationOptions,
+    observer: Option<&Py<PyAny>>,
+    progress: Option<&Py<PyAny>>,
+    detail: &str,
+    parametrize: impl FnOnce() -> PyResult<(ParametricIntegrand, RuntimeInputs)>,
+) -> PyResult<PyGeneratedIntegral> {
+    let max_order = options.max_order;
     let mut progress = GenerationProgress::new(py, progress, observer, false)?;
     let result = (|| {
         let started = Instant::now();
@@ -103,11 +137,6 @@ pub(crate) fn generate_native(
         crate::citations::mark_generation();
         let (input, runtime) = parametrize()?;
         status.timings.parametrization_seconds = started.elapsed().as_secs_f64();
-        let mut options = GenerationOptions {
-            max_order,
-            ..GenerationOptions::default()
-        };
-        options.coefficient_expansion.method = method;
         let mut callback_error = None;
         let mut cancelled = false;
         let result = generate(&input, &options, |event| {
@@ -136,6 +165,8 @@ pub(crate) fn generate_native(
             inner: Arc::new(inner),
             status,
             runtime,
+            mode: options.mode,
+            subtraction: options.subtraction,
         })
     })();
     progress.finish(py, result)
@@ -144,6 +175,15 @@ pub(crate) fn generate_native(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGeneratedIntegral {
+    /// Requested native generation lane, retained without recomputing sectors.
+    #[getter]
+    fn mode(&self) -> &'static str {
+        self.mode.name()
+    }
+    #[getter]
+    fn subtraction(&self) -> &'static str {
+        self.subtraction.name()
+    }
     #[getter]
     fn runtime_parameters(&self) -> Vec<PythonExpression> {
         self.runtime
@@ -301,6 +341,7 @@ import symbolica.community.hepkit.sector_decomposition
 
 class PyIntegral:
     def generate(self, max_order: int = 0, *, coefficient_expansion: str = "full_expression",
+                 mode: str = "symbolic", subtraction: str = "taylor",
                  observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                  progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                  ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:

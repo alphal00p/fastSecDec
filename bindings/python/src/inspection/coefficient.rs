@@ -31,15 +31,28 @@ impl PyCompactCoefficient {
     fn order(&self) -> i32 {
         self.owner.orders()[self.coefficient]
     }
+    /// Actual native sector route; a numerical-dual request can retain a symbolic fallback.
+    #[getter]
+    fn generation_mode(&self) -> &'static str {
+        self.owner.sectors()[self.sector].generation_mode().name()
+    }
     #[getter]
     fn root(&self) -> PythonExpression {
         expression(self.native().get_root())
     }
-    /// Explicitly restore this selected coefficient with Symbolica's alias owner.
-    /// This can be expensive; passive views retain the compact root and aliases.
+    /// Explicitly materialize an actual coefficient through its native owner.
+    /// Numerical-dual sectors cache full expressions on this explicit request;
+    /// passive views retain only the compact recipe root and aliases.
     fn expression(&self) -> PythonExpression {
+        let sector = &self.owner.sectors()[self.sector];
         PythonExpression {
-            expr: self.native().clone().into_inner(),
+            expr: if sector.generation_mode()
+                == fastsecdec::generation::GenerationMode::NumericalDual
+            {
+                sector.coefficients()[self.coefficient].clone()
+            } else {
+                self.native().clone().into_inner()
+            },
         }
     }
     /// Stored definitions for this coefficient; definitions may be shared with others.

@@ -27,6 +27,8 @@ pub struct Summary<'a> {
     pub content_id: &'a str,
     pub sectors: usize,
     pub workers: Option<usize>,
+    pub mode: Option<fastsecdec::generation::GenerationMode>,
+    pub subtraction: Option<fastsecdec::generation::SubtractionStrategy>,
     pub requested_coefficient_expansion: Option<fastsecdec::generation::CoefficientExpansionMethod>,
     pub evaluator: Option<fastsecdec::kernel::CompilationSettings>,
     pub runtime_inputs: usize,
@@ -78,6 +80,11 @@ pub fn print(
             .generation
             .as_ref()
             .map(|generation| generation.workers),
+        mode: artifact.generation.as_ref().and_then(|record| record.mode),
+        subtraction: artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.subtraction),
         requested_coefficient_expansion: artifact
             .generation
             .as_ref()
@@ -108,6 +115,23 @@ pub fn print(
         render(&summary, width, ColorPolicy::for_stream(plain, terminal))
     );
     Ok(())
+}
+
+/// Saved route selection; historical absence remains explicit in both reports.
+pub(crate) fn generation_method_rows(
+    mode: Option<fastsecdec::generation::GenerationMode>,
+    subtraction: Option<fastsecdec::generation::SubtractionStrategy>,
+) -> Vec<[String; 2]> {
+    vec![
+        [
+            "Generation mode".into(),
+            mode.map_or("Not recorded", |v| v.name()).into(),
+        ],
+        [
+            "Subtraction".into(),
+            subtraction.map_or("Not recorded", |v| v.name()).into(),
+        ],
+    ]
 }
 
 /// Saved generation controls, not values inferred from this process's defaults.
@@ -202,6 +226,7 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
             expansion_method(method).into(),
         ]);
     }
+    facts.extend(generation_method_rows(summary.mode, summary.subtraction));
     facts.extend(evaluator_rows(summary.evaluator.as_ref()));
     let mut result = heading("Generation complete", width, colors, Color::FG_GREEN);
     result.push_str(&facts_table_with_labels(facts, width, 20, colors));

@@ -1,5 +1,35 @@
 # FastSecDec first-phase implementation plan
 
+## Deferred numerical maps and dual endpoint jets (2026-10-07)
+
+Keep the existing symbolic implementation as the default and add an explicit
+`generation.mode = "symbolic" | "numerical_dual"` parallel lane. Support both
+Taylor subtraction and endpoint integration by parts, exposing their existing
+native selection in the run card and notebook API. Reuse exact source supports,
+geometry, epsilon Laurent composition and analytic boundary denominators. Avoid
+substituting whole sector maps into source polynomial Atoms in the new lane:
+compose native evaluator maps and dual jets, shift known monomial valuations
+before inversion, and retain complete interior residuals and mixed faces.
+
+Retain runtime parameters, native eager/portable arithmetic, SymJIT O2, batching,
+precision escalation, deterministic caller-owned dispatch and artifact loading.
+Full expression materialization remains an explicit lazy inspection operation.
+Where ordinary jets cannot establish unregulated endpoint admission or represent
+signed infinity charts, retain the exact symbolic chart path and disclose it.
+Do not infer exact zeros from numerical jets. Native evaluator composition is a
+narrow demonstrated missing owner API; test and independently review its native
+extension, obtaining separate publication authorization before pushing that
+reference repository. The user subsequently authorized that prepared prerequisite;
+its tested revision is published in Symbolica PR #54 against `community`.
+
+Validate Taylor and IBP parity on analytic controls and the actual parametric
+gg → HH double box. Measure generation including evaluator construction and
+compilation, as well as warm scalar/batched sector evaluator time per sample.
+Report observed speedups or regressions and precision classifications honestly;
+do not assume that deferred generation is faster. Keep benchmark outputs under
+ignored output storage and record reproducible evidence and independent reviews
+in the maintained documentation.
+
 ## Eager Marimo workflow and complete example migration (2026-10-07)
 
 After finishing batching, rebuild the gg → HH notebook around native generation

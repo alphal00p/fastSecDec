@@ -80,7 +80,20 @@ impl PyPreSubtractionTerm {
     fn prefactor(&self) -> PythonExpression {
         expression(self.native().prefactor())
     }
-    /// Native Atom storage at mapping, not an expanded term or evaluator count.
+    /// Whether regular_expression_bytes describes the source or mapped Atom.
+    #[getter]
+    fn regular_expression_basis(&self) -> &'static str {
+        let chart = &self.owner.metadata().charts()[self.chart];
+        if chart.kernel_sector().is_some_and(|index| {
+            self.owner.sectors()[index].generation_mode()
+                == fastsecdec::generation::GenerationMode::NumericalDual
+        }) {
+            "source"
+        } else {
+            "mapped"
+        }
+    }
+    /// Native regular Atom storage in regular_expression_basis, not evaluator size.
     #[getter]
     fn regular_expression_bytes(&self) -> usize {
         self.native().regular_expression_bytes()

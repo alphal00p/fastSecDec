@@ -3,8 +3,8 @@ use crate::{
     CliResult,
     artifact::Artifact,
     generation_report::{
-        duration, evaluator_rows, expansion_method, facts_table, facts_table_with_labels, heading,
-        short_id, terminal_text, timing_rows,
+        duration, evaluator_rows, expansion_method, facts_table, facts_table_with_labels,
+        generation_method_rows, heading, short_id, terminal_text, timing_rows,
     },
     math_display,
     terminal_policy::ColorPolicy,
@@ -162,6 +162,35 @@ pub(super) fn render(
             kernels.runtime_parameters().len().to_string(),
         ],
     ];
+    generation_facts.extend(generation_method_rows(
+        artifact.generation.as_ref().and_then(|record| record.mode),
+        artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.subtraction),
+    ));
+    if let Some(modes) = artifact
+        .generation
+        .as_ref()
+        .and_then(|record| record.source_chart_modes.as_ref())
+    {
+        let mut counts = std::collections::BTreeMap::<_, usize>::new();
+        for mode in modes.values() {
+            *counts.entry(mode.name()).or_default() += 1;
+        }
+        generation_facts.push([
+            "Actual chart modes".into(),
+            if counts.is_empty() {
+                "No source charts".into()
+            } else {
+                counts
+                    .into_iter()
+                    .map(|(mode, count)| format!("{mode}: {count}"))
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            },
+        ]);
+    }
     generation_facts.extend(evaluator_rows(
         artifact
             .generation

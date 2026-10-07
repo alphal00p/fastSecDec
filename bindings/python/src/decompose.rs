@@ -71,6 +71,7 @@ def sector_decompose(
     runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     model_parameters: str = "runtime",
     max_order: int = 0, coefficient_expansion: str = "full_expression",
+    mode: str = "symbolic", subtraction: str = "taylor",
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
     progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
 ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:
@@ -90,9 +91,9 @@ def sector_decompose(
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
 #[pyo3(
-    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', observer=None, progress='auto')"
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', observer=None, progress='auto')"
 )]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
@@ -110,6 +111,8 @@ pub(crate) fn sector_decompose(
     model_parameters: &str,
     max_order: i32,
     coefficient_expansion: &str,
+    mode: &str,
+    subtraction: &str,
     observer: Option<Py<PyAny>>,
     progress: Option<Py<PyAny>>,
 ) -> PyResult<PyGeneratedIntegral> {
@@ -138,7 +141,15 @@ pub(crate) fn sector_decompose(
             runtime_parameters,
             model_parameters,
         )?
-        .generate(py, max_order, coefficient_expansion, observer, progress);
+        .generate(
+            py,
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            observer,
+            progress,
+        );
     }
     if let Ok(family) = input.extract::<PyRef<'_, PyIntegralFamily>>() {
         let powers = powers
@@ -166,8 +177,7 @@ pub(crate) fn sector_decompose(
             &numerator.expr * measure_multiplier.map_or_else(Atom::one, |value| value.expr.clone());
         return generate_native(
             py,
-            max_order,
-            coefficient_expansion,
+            crate::generation::options(max_order, coefficient_expansion, mode, subtraction)?,
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native integral family",

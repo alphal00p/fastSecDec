@@ -200,3 +200,33 @@ fn native_collector_out_of_range_diagnostic() {
         "native exponent 2^31: both old full support and new candidate overflow; no production catch or admission claim"
     );
 }
+
+#[test]
+fn exact_sparse_shift_preserves_an_inconclusive_nonzero_coefficient() {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            profile_sparse_only(false);
+        }
+    }
+    profile_sparse_only(true);
+    let _reset = Reset;
+    let coefficient = parse!("(1+mapped_exact::a)^2-mapped_exact::a^2-2*mapped_exact::a-1+1/10^30");
+    assert_eq!(coefficient.expand(), parse!("1/10^30"));
+    let terms = mapped(
+        vec![symbol!("mapped_factor::x")],
+        ParametricDomain::PositiveOrthant,
+        coefficient.clone() * parse!("mapped_factor::x^2") + parse!("mapped_factor::x^3"),
+        Atom::one(),
+        FactorRole::Polynomial,
+        vec![vec![(-1).into()]],
+        vec![(-2).into()],
+    );
+    assert_eq!(terms.len(), 1);
+    assert_eq!(terms[0].powers, [Atom::num(-5)]);
+    assert!(
+        (&terms[0].regular - Atom::one() - coefficient * parse!("mapped_factor::s"))
+            .expand()
+            .is_zero()
+    );
+}

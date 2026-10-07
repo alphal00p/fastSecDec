@@ -2,6 +2,8 @@ pub(crate) mod dispatch;
 #[cfg(test)]
 mod geometry_dispatch;
 mod progress;
+#[cfg(test)]
+mod record_tests;
 
 use progress::{observe_generation, publish_generation};
 
@@ -72,6 +74,8 @@ pub fn generate_with_workers(
     dashboard.generation(&status)?;
     let mut options = GenerationOptions {
         max_order: loaded.card.generation.order,
+        mode: loaded.card.generation.mode,
+        subtraction: loaded.card.generation.subtraction,
         assume_no_threshold: loaded.card.generation.assume_no_threshold,
         coefficient_expansion: loaded.card.generation.coefficient_expansion.clone(),
         ..GenerationOptions::default()
@@ -232,6 +236,7 @@ pub fn generate_with_workers(
         return Err(error.into());
     }
     let generated = generated?;
+    let source_chart_modes = source_chart_modes(&generated);
     let compilation_started = Instant::now();
     let kernels = {
         let pool = rayon::ThreadPoolBuilder::new()
@@ -321,6 +326,9 @@ pub fn generate_with_workers(
     )?;
     artifact.generation = Some(GenerationRecord {
         workers,
+        mode: Some(options.mode),
+        subtraction: Some(options.subtraction),
+        source_chart_modes: Some(source_chart_modes),
         contraction_mode: loaded
             .loops
             .map(|_| loaded.card.generation.contraction_mode),
@@ -344,4 +352,24 @@ pub fn generate_with_workers(
     status.detail = format!("Saved {}", crate::artifact::relative_display(output));
     dashboard.generation(&status)?;
     Ok((artifact, kernels))
+}
+
+fn source_chart_modes(
+    generated: &generation::GeneratedIntegral,
+) -> std::collections::BTreeMap<usize, generation::GenerationMode> {
+    generated
+        .metadata()
+        .charts()
+        .iter()
+        .map(|chart| {
+            // Zero-dimensional charts use exact symbolic admission and are
+            // folded into the exact contribution before a kernel is created.
+            let mode = chart
+                .kernel_sector()
+                .map_or(generation::GenerationMode::Symbolic, |sector| {
+                    generated.sectors()[sector].generation_mode()
+                });
+            (chart.source_index(), mode)
+        })
+        .collect()
 }

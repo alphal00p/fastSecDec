@@ -115,8 +115,8 @@ macro_rules! facts_view {
 }
 
 facts_view!(crate::input::PyIntegral,"Native integral",["Spacetime dimension"=>"dimension","Regulator"=>"regulator","Explicit edge powers"=>"powers"]);
-facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
-facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Complete"=>"complete","Failure"=>"failed"]);
+facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Generation mode"=>"mode","Subtraction"=>"subtraction","Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
+facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Generation mode"=>"mode","Subtraction"=>"subtraction","Complete"=>"complete","Failure"=>"failed"]);
 facts_view!(crate::kernels::PyKernels,"Native evaluators",["Backend"=>"backend","Sectors"=>"sector_count","Laurent orders"=>"orders","Components"=>"components","Runtime inputs"=>"runtime_parameters","Point bound"=>"parameters_bound","Compiler settings"=>"compilation_settings"]);
 facts_view!(crate::session::PyQmcSettings,"Shifted-lattice allocation",["Points per lattice"=>"points","Independent shifts"=>"shifts","Seed"=>"seed","Package points"=>"package_points","Rule"=>"rule","Periodization"=>"periodization"]);
 facts_view!(crate::session::PyQmcSession,"Retained QMC session",["Allocation complete"=>"complete","Settings"=>"settings"]);
@@ -137,10 +137,10 @@ facts_view!(crate::inspection::metadata::PyChart,"Retained source chart",["Sourc
 facts_view!(crate::inspection::domain::PyDomainAssessment,"Declared integration domain",["Domain"=>"domain","Branch policy"=>"branch_policy","Coordinates"=>"parameters"]);
 facts_view!(crate::inspection::domain::PyFactorAssessment,"Retained input factor",["Term"=>"term_index","Factor"=>"factor_index","Polynomial"=>"polynomial","Exponent"=>"exponent"]);
 facts_view!(crate::inspection::geometry::PySectorMap,"Native sector geometry",["Source dimension"=>"source_dimension","Target dimension"=>"dimension","Fixed parameter"=>"fixed_parameter","Determinant"=>"determinant","Exponent matrix"=>"exponent_matrix","Jacobian powers"=>"jacobian_powers"]);
-facts_view!(crate::inspection::sector::PyGeneratedSector,"Generated numerical sector",["Sector ID"=>"index","Coordinates"=>"dimension","Parameters"=>"parameters","Laurent coefficients"=>"coefficient_count","Stored aliases"=>"alias_counts","Conditioning provenance"=>"conditioning_basis","Cancellation degree"=>"cancellation_degree"]);
-facts_view!(crate::inspection::coefficient::PyCompactCoefficient,"Compact Laurent coefficient",["Epsilon order"=>"order","Native root"=>"root","Stored aliases"=>"alias_count"]);
+facts_view!(crate::inspection::sector::PyGeneratedSector,"Generated numerical sector",["Sector ID"=>"index","Generation mode"=>"generation_mode","Coordinates"=>"dimension","Parameters"=>"parameters","Laurent coefficients"=>"coefficient_count","Stored aliases"=>"alias_counts","Conditioning provenance"=>"conditioning_basis","Cancellation degree"=>"cancellation_degree"]);
+facts_view!(crate::inspection::coefficient::PyCompactCoefficient,"Compact Laurent coefficient",["Epsilon order"=>"order","Generation mode"=>"generation_mode","Native root"=>"root","Stored aliases"=>"alias_count"]);
 facts_view!(crate::inspection::pre_subtraction::PyPreSubtractionMetadata,"Pre-subtraction metadata",["Version"=>"version","Regulator"=>"regulator","Mapped terms"=>"#terms"]);
-facts_view!(crate::inspection::pre_subtraction::PyPreSubtractionTerm,"Retained mapped term",["Prefactor"=>"prefactor","Endpoint powers"=>"powers","Regular body storage (bytes)"=>"regular_expression_bytes"]);
+facts_view!(crate::inspection::pre_subtraction::PyPreSubtractionTerm,"Retained pre-subtraction term",["Prefactor"=>"prefactor","Endpoint powers"=>"powers","Regular body basis"=>"regular_expression_basis","Regular body storage (bytes)"=>"regular_expression_bytes"]);
 facts_view!(crate::inspection::pre_subtraction::PyEndpointPower,"Native endpoint power",["Coordinate"=>"parameter","Exponent"=>"exponent","Constant part"=>"constant","Epsilon slope"=>"slope","Taylor coefficients required"=>"subtraction_count"]);
 facts_view!(crate::inspection::statistics::PyEvaluatorStatistics,"Shared native evaluator",["Backend"=>"backend","Arithmetic"=>"arithmetic","Inputs"=>"inputs","Native outputs"=>"outputs","Exact program bytes"=>"exact_program_bytes","Operations after native optimization"=>"operations"]);
 facts_view!(crate::inspection::statistics::PyEvaluatorOperations,"Native operation counts",["Additions"=>"additions","Multiplications"=>"multiplications","Inversions"=>"inversions","Functions"=>"function_calls"]);

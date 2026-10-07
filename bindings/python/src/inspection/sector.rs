@@ -24,6 +24,11 @@ impl PyGeneratedSector {
     fn index(&self) -> usize {
         self.index
     }
+    /// Actual route used for this sector, including explicit local symbolic fallback.
+    #[getter]
+    fn generation_mode(&self) -> &'static str {
+        self.owner.sectors()[self.index].generation_mode().name()
+    }
     #[getter]
     fn dimension(&self) -> usize {
         self.owner.sectors()[self.index].dimension()
