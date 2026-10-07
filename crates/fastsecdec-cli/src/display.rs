@@ -311,6 +311,7 @@ impl Dashboard {
         };
         let cached = integration_view::Cached {
             observation: observation.clone(),
+            workers: self.integration_workers.clone(),
             live: self.live.clone(),
             operational: self.operational.clone(),
             stability_mode: self.stability_mode,
@@ -355,7 +356,6 @@ impl Dashboard {
                     &mut self.integration_view,
                     self.color,
                     self.interrupt.flag.load(Ordering::Relaxed),
-                    &self.integration_workers,
                 )
             })?;
         } else if self.terminal.is_some()
@@ -384,6 +384,11 @@ impl Dashboard {
             }
             match event::read() {
                 Ok(Event::Resize(_, _)) => redraw = true,
+                Ok(Event::Mouse(mouse)) => {
+                    if let Some(cached) = &self.cached_integration {
+                        redraw |= self.integration_view.mouse(mouse, cached);
+                    }
+                }
                 Ok(Event::Key(key)) if key.kind == KeyEventKind::Press => match key.code {
                     KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         self.interrupt.keyboard_interrupt();

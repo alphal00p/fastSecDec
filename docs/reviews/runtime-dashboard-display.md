@@ -5,6 +5,64 @@ agent authored the presentation changes; the kernel/parameters agent performed
 an independent source review of their statistical and timing interpretation.
 Production code was frozen before the documentation review recorded below.
 
+## Structured panel follow-up (2026-10-07)
+
+The subsequent visual revision uses native Ratatui rounded blocks, gauges,
+Tables, Lines and styled cells for the full/selected sum, memory, separate
+accepted and in-flight progress, sector viewport, selected-sector details and
+invocation diagnostics. Workers are captured with the same immutable observation
+as accepted/live estimates; cached mouse and keyboard redraws do not sample or
+refresh statistics. The two progress denominators remain separate, avoiding
+admission double-counting. QMC retains explicit full-sum used-point and
+complete-shift coverage.
+
+The detail inset uses the selected stable sector ID. Assessed points describe
+this invocation; accepted points are native current-phase completed work, while
+view coverage is the estimator's used/preview coverage. Final outcome fractions
+and attempted evaluator calls are distinct. Sector exclusive timing excludes
+unassigned coordinator work. If a transient snapshot observes callback timing
+before worker attribution, the display reports pending attribution rather than
+fractions above 100 percent.
+
+All integration-dashboard timings now use the shared ordinary decimal
+`sample_duration` helper with dynamic µs, ms and s. Dashboard counters use the
+shared four-significant-digit base-1000 K/M/B formatter. IDs and orders are never
+abbreviated, and point sorting compares native u64 values directly, including
+values above 2^53. Raw numerical observations remain unchanged.
+
+Native Layout constraints, column spacing, the two-column selection marker and
+post-render TableState offsets also define the cached mouse hit regions. Clicks
+sort headers in both directions or select rows; wheel events only affect the
+sector body. Compact two-line headers retain separate relative-error, f64-mean
+and maximum-contribution click targets. Mantissas align right and exponent
+cells align left, fixing the multiplication dot across exponent widths. The
+maximum weighted coefficient has the same alignment. Exponents reserve seven
+columns, including −324. Values that exceed their available native cell width
+show an explicit ellipsis instead of a misleading truncated numeric token.
+
+Focused evidence is retained only in ignored `output/dashboard-polish`:
+
+- Native TestBackend captures at 160×48, 120×42, 120×30, 80×32, 80×24,
+  65×26 and 40×20; text and per-cell color HTML exports. The 80×24 view retains
+  two sector rows, RAM, the progress gauges, selected detail and global classes.
+- Million-scale compact capture: 1.049 M assessed, 16.78 M accepted and a
+  503.3 M / 1.007 B progress allocation remain readable.
+- Mouse direction toggles, compact secondary headers, row selection after
+  scrolling, stable IDs, wheel scope and missing-last signed sorting passed.
+- Native buffers verified common dot positions for mixed real, imaginary and
+  maximum-contribution exponents 0, −1, −10 and 12; real/imaginary include −324
+  and differing uncertainty widths.
+- NO_COLOR produced default foreground/background cells. Overflow markers,
+  pending timing attribution and exact point sorting above 2^53 passed.
+- A focused QMC capture retained full-sum points/complete-shift coverage.
+
+The independent review is recorded in
+[integration-dashboard-polish-review.md](integration-dashboard-polish-review.md).
+The source probe and copied source harness were moved to ignored output after
+execution. No permanent tests or other examples were modified. The original
+controls below remain historical evidence; the dashboard duration and layout
+contracts in this follow-up supersede their earlier presentation choices.
+
 ## Ownership and reuse
 
 The CLI consumes native `IntegrationObservation`, `LiveObservation` and
@@ -56,8 +114,7 @@ complex error, mean primary-f64 evaluator duration, and the maximum final
 importance-weighted coefficient magnitude for the selected order. The relative
 error is `hypot(error_re,error_im)/hypot(mean_re,mean_im)` and is unavailable for a
 zero denominator. Observed maxima have no uncertainty annotation. A comparative
-table fits 120 columns; narrower displays use multiline sector rows. Extra
-per-sector precision fractions appear on wide screens. The full or explicitly
+table fits 120 columns; narrower displays use multiline sector rows. Per-sector precision fractions appear in the selected detail inset. The full or explicitly
 selected sum remains above the table.
 
 QMC rows display used points and complete-shift coverage. Sector preview coverage

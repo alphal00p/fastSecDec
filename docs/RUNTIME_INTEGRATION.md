@@ -103,7 +103,20 @@ Use Up/Down, PageUp/PageDown, Home/End to select sectors, Left/Right to change
 epsilon order, Tab or `s` to cycle sorting columns, Shift-Tab to cycle backwards,
 and `r` to reverse sort direction. The selected sector is retained by ID when
 values or sorting change. Missing values remain last in either direction.
+Click a sector-table header to sort that column; clicking it again reverses the
+direction. Click a row to select its sector, or use the mouse wheel to browse.
+Mouse and keyboard actions redraw the same cached observation.
 Ctrl-C, `q` or Escape cancels cooperatively.
+
+The bordered summary keeps the full integral and accepted result visible above
+the sector table, with an iteration/lattice progress bar and process/system RAM.
+Scientific result columns align their multiplication dots. The selected-sector
+inset shows its point counts, precision dispatch, sample/evaluator times and
+measured timing breakdown above the global runtime statistics. Sector timings
+describe attributed work; unassigned coordinator work remains in global totals.
+Dashboard durations use plain decimal µs, ms and s values.
+Sample and operational counts use four significant digits with K, M and B
+suffixes (base 1000); small counts remain plain integers.
 
 Havana's mid-batch display is a current-iteration preview. Discrete-sector
 marginal errors include the implicit zeros from draws of other sectors; the
@@ -131,8 +144,8 @@ Timing separates native evaluator calls from input preparation and escalation
 (integrator overhead). Nested spans are subtracted once; coordinator waiting is
 excluded. These percentages describe aggregate instrumented elapsed work across
 threads. Actual process CPU time comes separately from operating-system counters.
-Wall time, aggregate worker time and CPU time use seconds, minutes, hours or days.
-Saved values remain raw seconds. Operational measurements include pilot work and
+Dashboard wall time, aggregate worker time and CPU time use the same µs/ms/s
+format. Saved values remain raw seconds. Operational measurements include pilot work and
 discarded prefixes independently of accepted statistical samples. Average f64
 time uses primary f64 evaluator calls only; the slowest sector is identified by
 its own mean rather than by a single outlier.

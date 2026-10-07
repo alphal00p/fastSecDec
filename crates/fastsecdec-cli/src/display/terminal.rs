@@ -10,7 +10,11 @@ use std::{
     },
 };
 
-use crossterm::{cursor, execute, terminal};
+use crossterm::{
+    cursor,
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute, terminal,
+};
 use signal_hook::consts::{SIGINT, SIGTERM};
 #[cfg(not(windows))]
 use signal_hook::iterator::{Handle, Signals};
@@ -19,6 +23,7 @@ use signal_hook::iterator::{Handle, Signals};
 struct Mode {
     raw_owned: bool,
     alternate_screen: bool,
+    mouse_capture: bool,
 }
 
 #[derive(Default)]
@@ -38,7 +43,13 @@ impl TerminalState {
         // Mark before the compound write: EnterAlternateScreen may succeed
         // even if hiding the cursor subsequently fails.
         mode.alternate_screen = true;
-        execute!(io::stderr(), terminal::EnterAlternateScreen, cursor::Hide)?;
+        mode.mouse_capture = true;
+        execute!(
+            io::stderr(),
+            terminal::EnterAlternateScreen,
+            cursor::Hide,
+            EnableMouseCapture
+        )?;
         self.active.store(true, Ordering::Release);
         Ok(())
     }
@@ -52,6 +63,11 @@ impl TerminalState {
         let mut mode = self.mode.lock().unwrap_or_else(|error| error.into_inner());
         if mode.raw_owned && terminal::disable_raw_mode().is_ok() {
             mode.raw_owned = false;
+        }
+        // Attempt each restoration independently: a failed capture write must
+        // not prevent leaving the alternate screen or restoring the cursor.
+        if mode.mouse_capture && execute!(io::stderr(), DisableMouseCapture).is_ok() {
+            mode.mouse_capture = false;
         }
         if mode.alternate_screen
             && execute!(io::stderr(), terminal::LeaveAlternateScreen, cursor::Show).is_ok()
@@ -157,7 +173,10 @@ impl Control {
     }
 
     pub fn enter_terminal(&self) -> io::Result<()> {
-        self.state.enter()?;
+        if let Err(error) = self.state.enter() {
+            self.state.restore();
+            return Err(error);
+        }
         register_panic_cleanup(&self.state);
         Ok(())
     }

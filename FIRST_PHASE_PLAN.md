@@ -1,5 +1,22 @@
 # FastSecDec first-phase implementation plan
 
+## Integration dashboard presentation follow-up (2026-10-07)
+
+Restore a structured, colorful Ratatui layout around the integration data:
+aligned full-integral summary, iteration/lattice progress bar, total process and
+system RAM, and bordered global diagnostics. Add a detail inset for the selected
+sector above the global statistics, including precision dispatch, assessed and
+accepted counts, mean sample/evaluator times and exclusive timing fractions.
+Keep column sorting available by keyboard and add clickable header sorting,
+with visible direction, stable sector selection and properly restored terminal
+mouse modes. Space sector columns and align scientific multiplication dots.
+Use ordinary decimal dashboard durations with dynamic µs, ms and s units.
+Format sample and operational counts with four significant digits and base-1000
+K, M and B suffixes, keeping small counts as ordinary integers.
+Preserve cached one-second observations, numerical estimates, sampling and
+checkpoint semantics. Other examples and permanent test/gate migration remain
+deferred.
+
 ## Runtime stability and live integration follow-up (2026-10-07)
 
 Implement the approved runtime/dashboard plan. Refresh dashboard, plain and JSON

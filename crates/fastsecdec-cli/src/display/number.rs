@@ -110,6 +110,81 @@ pub(crate) fn uncertainty(value: f64, error: Option<f64>) -> String {
     format!("{sign}{mantissa} ·10{}", superscript(exponent))
 }
 
+/// Dashboard counts rounded to four significant digits, with B as the largest
+/// unit. Widen before rounding so even u64::MAX cannot overflow or lose digits
+/// through an intermediate floating-point conversion.
+pub(crate) fn compact_count(count: u64) -> String {
+    if count < 1000 {
+        return count.to_string();
+    }
+    let scale = 10_u128.pow(count.ilog10().saturating_sub(3));
+    let rounded = (u128::from(count) + scale / 2) / scale * scale;
+    let (unit, suffix) = if rounded >= 1_000_000_000 {
+        (1_000_000_000_u128, "B")
+    } else if rounded >= 1_000_000 {
+        (1_000_000_u128, "M")
+    } else {
+        (1000_u128, "K")
+    };
+    let whole = rounded / unit;
+    let digits = 3_u32.saturating_sub(whole.ilog10()) as usize;
+    if digits == 0 {
+        format!("{whole} {suffix}")
+    } else {
+        let fraction = (rounded % unit) / (unit / 10_u128.pow(digits as u32));
+        format!("{whole}.{fraction:0digits$} {suffix}")
+    }
+}
+
+/// Dashboard elapsed times and sample averages, always in plain µs, ms or s.
+/// Keep about three significant digits, including fractional microseconds;
+/// choose the next unit if the displayed rounding would otherwise reach 1000.
+pub(crate) fn sample_duration(seconds: f64) -> String {
+    if !seconds.is_finite() || seconds < 0.0 {
+        return "—".into();
+    }
+    if seconds == 0.0 {
+        return "0.00 µs".into();
+    }
+    let mut unit = if seconds < 0.001 {
+        0
+    } else if seconds < 1.0 {
+        1
+    } else {
+        2
+    };
+    let decimals = |value: f64| {
+        if value == 0.0 {
+            2
+        } else if value < 1.0 {
+            (-value.log10()).ceil() as usize + 2
+        } else if value < 10.0 {
+            2
+        } else if value < 100.0 {
+            1
+        } else {
+            0
+        }
+    };
+    loop {
+        let (value, suffix) = match unit {
+            0 => (seconds * 1e6, "µs"),
+            1 => (seconds * 1e3, "ms"),
+            _ => (seconds, "s"),
+        };
+        let mut digits = decimals(value);
+        let text = format!("{value:.digits$}");
+        let rounded: f64 = text.parse().expect("finite plain duration");
+        if unit < 2 && rounded >= 1000.0 {
+            unit += 1;
+            continue;
+        }
+        // A carry into 1, 10 or 100 can also reduce the necessary decimals.
+        digits = decimals(rounded);
+        return format!("{value:.digits$} {suffix}");
+    }
+}
+
 pub(crate) fn duration(seconds: f64) -> String {
     if !seconds.is_finite() || seconds < 0.0 {
         return "—".into();

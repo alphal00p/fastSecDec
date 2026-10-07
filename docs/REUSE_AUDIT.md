@@ -1,5 +1,26 @@
 # Ecosystem reuse evidence
 
+## Integration dashboard layout and mouse interaction (2026-10-07)
+
+The integration presentation reuses Ratatui blocks, tables, gauges, Unicode
+cell widths and table selection for the full-sum, sector and runtime panels.
+Crossterm owns mouse capture and event decoding; the existing terminal lifetime
+owner restores mouse mode together with raw mode, cursor and alternate screen.
+Clicks and wheel events act on cached observations and rendered hit regions.
+Sysinfo's existing whole-process/system snapshot supplies RAM and CPU counters.
+
+Precision dispatch, sample counts and timing panels consume existing native
+operational observations. No sampling, replay, covariance, algebra, graph, or
+one-loop master/reduction implementation changed. The established uncertainty
+formatter remains authoritative; layout aligns its multiplication separator.
+Dashboard durations use a native fixed-decimal adapter with µs/ms/s units.
+Counts use a presentation-only four-significant-digit K/M/B adapter, retaining
+the original integer counters for statistics and sorting.
+The [independent presentation/reuse review](reviews/integration-dashboard-polish-review.md)
+and [acceptance record](reviews/integration-dashboard-polish-results.md) record
+formatting, layout, cached interaction and terminal cleanup evidence. Other
+examples and the permanent test/gate migration remain deferred.
+
 ## Runtime stability and live observations (2026-10-07)
 
 The default runtime stack reuses native Symbolica evaluators and Numerica numeric

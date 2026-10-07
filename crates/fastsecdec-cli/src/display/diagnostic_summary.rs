@@ -49,16 +49,24 @@ pub(crate) fn diagnostic_summary(
     m: &OperationalMetrics,
     mode: fastsecdec::kernel::StabilityMode,
 ) -> Vec<[String; 2]> {
+    diagnostic_summary_with_duration(m, mode, number::duration)
+}
+
+pub(super) fn diagnostic_summary_with_duration(
+    m: &OperationalMetrics,
+    mode: fastsecdec::kernel::StabilityMode,
+    duration: fn(f64) -> String,
+) -> Vec<[String; 2]> {
     let (total, times) = effort(m);
     let mut rows = vec![
-        ["Measured work elapsed".into(), number::duration(total)],
+        ["Measured work elapsed".into(), duration(total)],
         [
             "Aggregate worker elapsed".into(),
-            number::duration(m.worker_seconds),
+            duration(m.worker_seconds),
         ],
         [
             "Active coordinator elapsed".into(),
-            number::duration(m.coordinator_integrand_seconds + m.coordinator_integrator_seconds),
+            duration(m.coordinator_integrand_seconds + m.coordinator_integrator_seconds),
         ],
     ];
     for (name, value) in [
@@ -71,13 +79,13 @@ pub(crate) fn diagnostic_summary(
     {
         rows.push([
             name.into(),
-            format!("{} ({})", number::duration(value), percentage(value, total)),
+            format!("{} ({})", duration(value), percentage(value, total)),
         ]);
     }
     rows.push([
         "f64 evaluator mean".into(),
         f64_mean(&m.diagnostics)
-            .map(number::duration)
+            .map(duration)
             .unwrap_or_else(|| "unavailable".into()),
     ]);
     let slowest = m
@@ -89,7 +97,7 @@ pub(crate) fn diagnostic_summary(
         "Slowest sector f64 mean".into(),
         slowest.map_or_else(
             || "unavailable".into(),
-            |(id, mean)| format!("{} (sector {id})", number::duration(mean)),
+            |(id, mean)| format!("{} (sector {id})", duration(mean)),
         ),
     ]);
     for (name, fraction) in [
@@ -115,13 +123,14 @@ pub(crate) fn diagnostic_summary(
         "Unstable outcomes".into(),
         format!(
             "{} cutoff zeros; {} failures",
-            m.diagnostics.cutoff_zero_points, m.diagnostics.failures
+            number::compact_count(m.diagnostics.cutoff_zero_points),
+            number::compact_count(m.diagnostics.failures)
         ),
     ]);
     if m.diagnostics.unclassified_points() != 0 {
         rows.push([
             "Unclassified historical outcomes".into(),
-            m.diagnostics.unclassified_points().to_string(),
+            number::compact_count(m.diagnostics.unclassified_points()),
         ]);
     }
     rows

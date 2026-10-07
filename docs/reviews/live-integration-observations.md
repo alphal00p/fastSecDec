@@ -239,3 +239,107 @@ operational aggregation on ordinary cancellation polls were removed before the
 measurement. No further numerical or ownership rewrite was made merely to meet
 an arbitrary percentage target. The library remains caller-driven and accepted
 scientific results remain unchanged.
+
+## Mouse capture and cached interaction follow-up
+
+The CLI uses Crossterm 0.29's existing `EnableMouseCapture`,
+`DisableMouseCapture` and typed `Event::Mouse` APIs. The owner implementation
+emits normal/button/motion/RXVT/SGR capture modes and disables the inverse modes
+in reverse order; FastSecDec adds no mouse escape parser. Capture ownership is
+recorded before the compound terminal entry command, so partial entry failures
+are eligible for cleanup. `enter_terminal` immediately restores on an entry
+error. Capture disable is attempted independently before leaving the alternate
+screen; a failed disable write cannot suppress the remaining cleanup attempts.
+Existing stderr-before-mode lock order, draw active-state guard, raw-mode
+ownership, atomics-only signal callbacks and native signal-thread cleanup remain
+intact. The terminal constructor never enters capture in plain/JSON/non-TTY
+modes.
+
+`Dashboard::cancelled` forwards typed mouse events only to the cached integration
+view, then redraws cached data if presentation state changed. It does not call
+an integration observation, statistics reducer, sampler or evaluator. Worker
+activity is now copied into `Cached` alongside its accepted/provisional
+observation: interaction cannot combine newer in-flight counters with an older
+accepted-work snapshot.
+
+The ignored `output/mouse-terminal/terminal_mouse_probe.rs` and `mouse_pty.py`
+probe the production terminal owner directly. Eleven PTY cases passed: normal
+return, ordinary error, panic-hook cleanup, pre-existing raw-mode ownership,
+plain/JSON capture exclusion, native SGR left-click/wheel decoding, second
+keyboard interrupt, second SIGINT and SIGTERM while the caller is blocked, and
+broken-pipe terminal-entry failure. Capturing cases emitted one enable and one
+disable, with capture disabled before leaving the alternate screen; termios and
+cursor state were restored. Forced-interrupt cleanup completed in 10–13 ms.
+The host's standalone panic runtime subsequently aborted; capture/termios
+restoration happened first, so this checks panic-hook cleanup rather than
+continued execution after a caught panic. The broken-pipe case returned an
+error and restored raw state. A read-only-stderr attempt was deliberately not
+used as an error injection: Rust's native standard stream implementation treats
+EBADF as a successful discarded write.
+
+The independent kernel/parameter reviewer accepted the terminal ownership and
+cached-event source changes.
+
+### Independent renderer semantics and native layout audit
+
+The renderer reuses native observations rather than reconstructing a sum or
+covariance. A provisional view keeps its own scope and sampling source; an
+unavailable provisional estimate does not silently fall back to an accepted
+estimate from a different sampling population. Complex relative error uses the
+norm of the component standard errors divided by the norm of the complex mean.
+No displayed marginal errors are summed to invent a full-integral uncertainty.
+QMC points and complete-shift counts come from the existing native observation.
+
+The two progress gauges have separate denominators: accepted native work versus
+current in-flight reservations. Completed but unadmitted work is never added to
+accepted counts. The selected panel distinguishes invocation assessments,
+accepted current-phase points, and estimator coverage. Review caught an initial
+use of `SectorContribution::used_points` for the accepted label, which could
+show zero accepted pilot work or incomplete-lattice packages. This was corrected
+to `SectorSnapshot::completed_points`; `View pts` still reports only the points
+used by the displayed estimate.
+
+Timing rows separate wall time, process CPU, aggregate active worker elapsed and
+active coordinator elapsed. Selected-sector exclusive shares use that sector's
+worker elapsed denominator; global shares add the measured coordinator spans.
+Inclusive integrand time contains pure evaluator time. If a cached in-flight
+sample observes temporarily incomplete timing attribution, the display says
+pending instead of manufacturing negative overhead or a share above 100%.
+Average f64 evaluator time divides actual f64 call time by actual calls, while
+mean time per assessment divides invocation worker elapsed by assessments.
+Final precision-class fractions are distinct from attempted evaluator-call
+counts, and maximum contribution is the recorded finite complex weighted
+coefficient magnitude for the selected Laurent order.
+
+The pinned ratatui-widgets 0.3.2 `Table::get_column_widths`, `selection_width` and `visible_rows`
+were inspected against the hit-region code. The renderer uses the same native
+Layout constraints, spacing, flex and two-cell selection reserve. Row regions
+are built after `render_stateful_widget` updates `TableState::offset`, preserving
+native scrolling and variable-height wrapped rows. Compact second-line headers
+take precedence over their wider spanning header rectangles. Sorting preserves
+stable sector IDs and deterministic ID tie breaking, with unavailable metrics
+last in both directions. Mouse selection cannot change scientific state.
+
+Initial native TestBackend captures at 120×30 and 80×24 exposed missing
+preview/accepted column labels in the short-height header and several clipped
+diagnostic labels. The revised 80×24 capture labels the two value columns in the
+title and uses unambiguous diagnostic labels. The renderer owner's native
+TestBackend interaction probe covers header direction toggling, compact
+second-line headers, stable row selection after scrolling, wheel scope,
+signed/missing-last sorting, exponent-column alignment, NO_COLOR, oversized
+values and pending timing attribution. Its source and output were independently
+inspected in `output/dashboard-polish/interaction_probe.rs` and
+`render-probe.txt`; source-level native layout comparison provides an additional
+check independent of the probe's hit-region assertions.
+
+The four-significant-digit count formatter's native Rust probe was independently
+compiled and executed. Exact counts below 1,000, K/M/B boundaries including
+rounded promotion, and `u64::MAX` all passed; integer widening prevents rounding
+overflow or a floating-point loss of count digits. Raw values, never formatted
+strings, drive sorting. Review identified that the existing point-count sort
+still converted `u64` to `f64`, potentially tying adjacent counts above 2⁵³;
+the renderer owner replaced this with direct integer comparison. The revised
+source and passing reversed-ID control for 2⁵³ and 2⁵³+1 were independently
+inspected in both ascending and descending directions. The selected-panel,
+progress and timing semantics and native mouse hit-region slice are accepted.
+No numerical driver was changed for this work.

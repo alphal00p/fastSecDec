@@ -1,7 +1,7 @@
 //! Cached views of native observations. Sorting changes presentation only.
-use super::{GOLD, IntegrationWorkerActivity, TEAL, memory, number, panel};
+use super::{IntegrationWorkerActivity, memory, number};
 use crate::terminal_policy::ColorPolicy;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, MouseButton, MouseEvent, MouseEventKind};
 use fastsecdec::{
     integration::{
         IntegrationObservation, LiveObservation, LiveSource, LiveStatus, OperationalMetrics,
@@ -10,11 +10,15 @@ use fastsecdec::{
     status::{CoefficientComponent, EvaluationDiagnostics},
 };
 use ratatui::{
-    layout::{Constraint, Layout},
-    style::{Color, Modifier},
+    layout::{Position, Rect},
     text::Line,
-    widgets::{Cell, Paragraph, Row, Table, TableState, Wrap},
+    widgets::TableState,
 };
+
+mod metrics;
+mod render;
+mod sectors;
+pub(super) use render::render;
 use std::{cmp::Ordering, collections::BTreeSet};
 
 #[derive(Clone)]
@@ -26,6 +30,7 @@ pub(super) struct Cached {
     pub memory: memory::Snapshot,
     pub elapsed: f64,
     pub scope: fastsecdec::results::ResultScope,
+    pub workers: Vec<IntegrationWorkerActivity>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -88,6 +93,7 @@ pub(super) struct View {
     sort: Sort,
     descending: bool,
     table: TableState,
+    hits: HitRegions,
 }
 impl Default for View {
     fn default() -> Self {
@@ -97,9 +103,17 @@ impl Default for View {
             sort: Sort::Id,
             descending: false,
             table: TableState::default(),
+            hits: HitRegions::default(),
         }
     }
 }
+#[derive(Default)]
+struct HitRegions {
+    headers: Vec<(Rect, Sort)>,
+    rows: Vec<(Rect, u64)>,
+    body: Rect,
+}
+
 impl View {
     fn orders(data: &Cached) -> Vec<i32> {
         data.observation
@@ -169,6 +183,40 @@ impl View {
         }
         true
     }
+    pub(super) fn mouse(&mut self, event: MouseEvent, data: &Cached) -> bool {
+        let point = Position::new(event.column, event.row);
+        match event.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                if let Some((_, sort)) = self
+                    .hits
+                    .headers
+                    .iter()
+                    .find(|(area, _)| area.contains(point))
+                {
+                    if self.sort == *sort {
+                        self.descending = !self.descending;
+                    } else {
+                        self.sort = *sort;
+                        self.descending = self.sort != Sort::Id;
+                    }
+                    return true;
+                }
+                if let Some((_, id)) = self.hits.rows.iter().find(|(area, _)| area.contains(point))
+                {
+                    self.selected_id = Some(*id);
+                    return true;
+                }
+                false
+            }
+            MouseEventKind::ScrollUp if self.hits.body.contains(point) => {
+                self.key(KeyCode::Up, data)
+            }
+            MouseEventKind::ScrollDown if self.hits.body.contains(point) => {
+                self.key(KeyCode::Down, data)
+            }
+            _ => false,
+        }
+    }
     fn ids(&self, data: &Cached) -> Vec<u64> {
         let mut ids = data
             .observation
@@ -181,9 +229,11 @@ impl View {
         ids.sort_by(|&a, &b| {
             let compare = if self.sort == Sort::Id {
                 a.cmp(&b)
+            } else if self.sort == Sort::Points {
+                estimate(data, Some(a)).2.cmp(&estimate(data, Some(b)).2)
             } else {
                 let metric = |id| {
-                    let (mean, error, points) = estimate(data, Some(id));
+                    let (mean, error, _) = estimate(data, Some(id));
                     let op = operation(data, id);
                     let component = if matches!(self.sort, Sort::Imag | Sort::ImagError) {
                         indices.1
@@ -191,7 +241,6 @@ impl View {
                         indices.0
                     };
                     match self.sort {
-                        Sort::Points => Some(points as f64),
                         Sort::Real | Sort::Imag => {
                             component.and_then(|i| mean.and_then(|v| v.get(i))).copied()
                         }
@@ -219,7 +268,7 @@ impl View {
                             };
                             (n > 0).then_some(c as f64 / n as f64)
                         }),
-                        Sort::Id => unreachable!(),
+                        Sort::Id | Sort::Points => unreachable!(),
                     }
                     .filter(|v| v.is_finite())
                 };
@@ -328,9 +377,13 @@ fn shifts(data: &Cached, id: Option<u64>) -> usize {
 fn used_points(data: &Cached, id: Option<u64>) -> String {
     let points = estimate(data, id).2;
     if is_qmc(data) {
-        format!("{points} / {}", shifts(data, id))
+        format!(
+            "{} / {}",
+            number::compact_count(points),
+            number::compact_count(shifts(data, id) as u64)
+        )
     } else {
-        points.to_string()
+        number::compact_count(points)
     }
 }
 fn value(data: &Cached, id: Option<u64>, index: Option<usize>) -> String {
@@ -397,7 +450,7 @@ fn relative(data: &Cached, id: Option<u64>, indices: (Option<usize>, Option<usiz
 }
 fn f64_time(op: Option<&SectorOperationalMetrics>) -> String {
     op.and_then(|o| super::diagnostic_summary::f64_mean(&o.diagnostics))
-        .map(number::duration)
+        .map(number::sample_duration)
         .unwrap_or_else(|| "—".into())
 }
 fn maximum(op: Option<&SectorOperationalMetrics>, order: i32) -> String {
@@ -416,16 +469,20 @@ fn source(data: &Cached) -> &'static str {
 fn timing(data: &Cached) -> Vec<String> {
     let mut rows = vec![format!(
         "This invocation · wall {} · process CPU {}",
-        number::duration(data.elapsed),
+        number::sample_duration(data.elapsed),
         data.memory
             .process_cpu_seconds
-            .map(number::duration)
+            .map(number::sample_duration)
             .unwrap_or_else(|| "unavailable".into())
     )];
     rows.extend(
-        super::diagnostic_summary::diagnostic_summary(&data.operational, data.stability_mode)
-            .into_iter()
-            .map(|[name, value]| format!("{name}: {value}")),
+        super::diagnostic_summary::diagnostic_summary_with_duration(
+            &data.operational,
+            data.stability_mode,
+            number::sample_duration,
+        )
+        .into_iter()
+        .map(|[name, value]| format!("{name}: {value}")),
     );
     rows
 }
@@ -449,284 +506,6 @@ fn wrapped(text: &str, width: u16) -> Vec<Line<'static>> {
         .lines()
         .map(|s| Line::from(s.trim_end().to_owned()))
         .collect()
-}
-
-pub(super) fn render(
-    frame: &mut ratatui::Frame<'_>,
-    data: &Cached,
-    view: &mut View,
-    colors: ColorPolicy,
-    cancelling: bool,
-    workers: &[IntegrationWorkerActivity],
-) {
-    let area = frame.area();
-    let narrow = area.width < 120;
-    let very_narrow = area.width < 60;
-    let tiny = area.height < 25;
-    let timing_height = if very_narrow {
-        9
-    } else if narrow {
-        7
-    } else {
-        6
-    };
-    let chunks = Layout::vertical([
-        Constraint::Length(if very_narrow { 3 } else { 2 }),
-        Constraint::Length(if narrow { 3 } else { 4 }),
-        Constraint::Min(7),
-        Constraint::Length(timing_height),
-        Constraint::Length(if very_narrow { 3 } else { 2 }),
-    ])
-    .split(area);
-    let snapshot = &data.observation.snapshot;
-    frame.render_widget(
-        Paragraph::new(if very_narrow {
-            let method = match snapshot.method {
-                fastsecdec::status::IntegrationMethod::DemocraticQmc => "QMC",
-                fastsecdec::status::IntegrationMethod::AdaptiveQmc => "adaptive QMC",
-                fastsecdec::status::IntegrationMethod::HavanaMc => "MC",
-                fastsecdec::status::IntegrationMethod::HavanaDiscreteMc => "discrete MC",
-            };
-            format!(
-                "FastSecDec · {method} · {:?}\n{}\nAccepted {} / {}",
-                snapshot.stage,
-                source(data),
-                snapshot.completed_points,
-                snapshot.planned_points
-            )
-        } else {
-            format!(
-                "FastSecDec · {:?} {:?} · {}\nAccepted {} / {} · {}",
-                snapshot.method,
-                snapshot.stage,
-                data.scope,
-                snapshot.completed_points,
-                snapshot.planned_points,
-                source(data)
-            )
-        })
-        .style(colors.foreground(TEAL))
-        .wrap(Wrap { trim: true }),
-        chunks[0],
-    );
-    let order = view.order(data);
-    view.order = Some(order);
-    let indices = indices(data, order);
-    let (real, imag) = indices;
-    let sum_label = if data.scope.is_full_integral() {
-        "Full sum"
-    } else {
-        "Selected sum"
-    };
-    let sum_title = if is_qmc(data) {
-        if very_narrow {
-            format!(
-                "ε{} {sum_label} · {}pts/{}sh",
-                number::superscript(order),
-                estimate(data, None).2,
-                shifts(data, None)
-            )
-        } else {
-            format!(
-                "ε{} · {sum_label} · rel {} · {}pts/{} complete shifts",
-                number::superscript(order),
-                relative(data, None, indices),
-                estimate(data, None).2,
-                shifts(data, None)
-            )
-        }
-    } else {
-        format!(
-            "ε{} · {sum_label} · relative error {}",
-            number::superscript(order),
-            relative(data, None, indices)
-        )
-    };
-    let mut total = vec![
-        Line::from(sum_title),
-        Line::from(format!("Re {}", value(data, None, real))),
-        Line::from(format!("Im {}", value(data, None, imag))),
-    ];
-    if !narrow && let Some(accepted) = &data.observation.contributions.total {
-        let get = |i: Option<usize>| {
-            i.and_then(|i| accepted.mean.get(i).zip(accepted.standard_error.get(i)))
-                .map_or_else(|| "—".into(), |(&v, &e)| number::uncertainty(v, Some(e)))
-        };
-        total.push(Line::from(format!(
-            "Accepted: Re {} · Im {}",
-            get(real),
-            get(imag)
-        )));
-    }
-    frame.render_widget(
-        Paragraph::new(total)
-            .style(colors.foreground(GOLD))
-            .wrap(Wrap { trim: true }),
-        chunks[1],
-    );
-    let ids = view.ids(data);
-    let selected = view
-        .selected_id
-        .and_then(|id| ids.iter().position(|&x| x == id))
-        .or((!ids.is_empty()).then_some(0));
-    view.selected_id = selected.and_then(|i| ids.get(i).copied());
-    view.table.select(selected);
-    let show_fractions = area.width >= 170;
-    let rows = ids.iter().map(|&id| {
-        let op = operation(data,id);
-        let fs = fractions(op.map(|o|&o.diagnostics));
-        let points = used_points(data,Some(id));
-        let re=value(data,Some(id),real); let im=value(data,Some(id),imag);
-        let relative=relative(data,Some(id),indices); let avg=f64_time(op); let max=maximum(op,order);
-        if narrow {
-            let lines=wrapped(&format!("Sector {id} · used pts {points}\nRe {re}\nIm {im}\nRel {relative} · f64 {avg}\nMax |weighted| {max}"),area.width.saturating_sub(5));
-            let height=lines.len().min(u16::MAX as usize) as u16;
-            Row::new(vec![Cell::from(lines)]).height(height)
-        } else {
-            let mut row=vec![id.to_string(),points.to_string(),re,im,relative,avg,max];
-            if show_fractions { row.extend(fs); }
-            Row::new(row)
-        }
-    });
-    let (mut widths, mut headers) = if narrow {
-        (
-            vec![Constraint::Min(1)],
-            vec!["Estimates and invocation diagnostics"],
-        )
-    } else {
-        (
-            vec![
-                Constraint::Length(6),
-                Constraint::Length(12),
-                Constraint::Min(23),
-                Constraint::Min(23),
-                Constraint::Length(9),
-                Constraint::Length(15),
-                Constraint::Length(21),
-            ],
-            vec![
-                "Sector",
-                if is_qmc(data) {
-                    "Used pts/sh"
-                } else {
-                    "Points"
-                },
-                "Real (error)",
-                "Imag (error)",
-                "Rel error",
-                "f64 mean",
-                "Max |weighted|",
-            ],
-        )
-    };
-    if show_fractions {
-        widths.extend([Constraint::Length(6); 4]);
-        headers.extend(["f64", "DF106", "Arb", "Unstable"]);
-    }
-    frame.render_stateful_widget(
-        Table::new(rows, widths)
-            .header(Row::new(headers).style(colors.foreground(GOLD)))
-            .row_highlight_style(colors.foreground(TEAL).add_modifier(Modifier::BOLD))
-            .highlight_symbol("› ")
-            .block(panel(
-                &format!(
-                    "Sectors · {} {} · ε{}",
-                    view.sort.label(),
-                    if view.descending { "↓" } else { "↑" },
-                    number::superscript(order)
-                ),
-                colors,
-            )),
-        chunks[2],
-        &mut view.table,
-    );
-    let m = &data.operational;
-    let (total, times) = super::diagnostic_summary::effort(m);
-    let cpu = data
-        .memory
-        .process_cpu_seconds
-        .map(number::duration)
-        .unwrap_or_else(|| "—".into());
-    let fs = fractions(Some(&m.diagnostics));
-    let arb = super::diagnostic_summary::arbitrary_label(data.stability_mode);
-    let pct = |v| super::diagnostic_summary::percentage(v, total);
-    let mut summary = vec![format!(
-        "Wall {} · CPU {}",
-        number::duration(data.elapsed),
-        cpu
-    )];
-    if very_narrow {
-        summary.push(format!(
-            "Work {} (workers+active coordinator)",
-            number::duration(total)
-        ));
-        summary.push(format!(
-            "I {} · G {} · E {}",
-            pct(times[0]),
-            pct(times[1]),
-            pct(times[2])
-        ));
-        summary.push(format!("f64 {} · DoubleFloat {}", fs[0], fs[1]));
-        summary.push(format!("{arb} {} · Unstable {}", fs[2], fs[3]));
-        summary.push(format!(
-            "Cutoff zeros {} · failures {}",
-            m.diagnostics.cutoff_zero_points, m.diagnostics.failures
-        ));
-    } else {
-        summary.push(format!(
-            "Measured work {}: integrator {} · integrand {} · evaluator {}",
-            number::duration(total),
-            pct(times[0]),
-            pct(times[1]),
-            pct(times[2])
-        ));
-        summary.push(format!(
-            "Outcomes: f64 {} · DoubleFloat {} · {arb} {} · Unstable {}",
-            fs[0], fs[1], fs[2], fs[3]
-        ));
-        summary.push(format!(
-            "Cutoff zeros {} · failures {}",
-            m.diagnostics.cutoff_zero_points, m.diagnostics.failures
-        ));
-    }
-    let means = super::diagnostic_summary::diagnostic_summary(m, data.stability_mode);
-    let mean = &means
-        .iter()
-        .find(|[name, _]| name == "f64 evaluator mean")
-        .expect("mean row")[1];
-    let slowest = &means
-        .iter()
-        .find(|[name, _]| name == "Slowest sector f64 mean")
-        .expect("slowest row")[1];
-    if very_narrow {
-        summary.push(format!("f64 mean {mean}"));
-        summary.push(format!("Slowest {slowest}"));
-    } else {
-        summary.push(format!("f64 mean {mean} · slowest {slowest}"));
-    }
-    if m.diagnostics.unclassified_points() != 0 {
-        summary.push(format!(
-            "Unknown historical classes: {}",
-            m.diagnostics.unclassified_points()
-        ));
-    }
-    if !tiny && !workers.is_empty() {
-        summary.push(super::integration_activity::summary(workers));
-    }
-    frame.render_widget(
-        Paragraph::new(summary.join("\n"))
-            .style(colors.foreground(Color::DarkGray))
-            .wrap(Wrap { trim: true }),
-        chunks[3],
-    );
-    let help = if cancelling {
-        "Cancelling · Ctrl-C again forces exit"
-    } else if very_narrow {
-        "↑↓/Pg: sector · ←→: ε · Tab: column\nr: reverse · Ctrl-C/q/Esc: stop\nI/G/E: integrator/integrand/evaluator"
-    } else {
-        "↑↓/Pg/Home/End: sector · ←→: ε · Tab/s: sort · r: reverse\nCtrl-C/q/Esc: stop · Work includes active coordinator"
-    };
-    frame.render_widget(Paragraph::new(help).wrap(Wrap { trim: true }), chunks[4]);
 }
 
 pub(super) fn plain(data: &Cached, view: &View) -> String {
@@ -782,11 +561,14 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
         if is_qmc(data) {
             format!(
                 "{} used points / {} complete shifts",
-                estimate(data, None).2,
-                shifts(data, None)
+                number::compact_count(estimate(data, None).2),
+                number::compact_count(shifts(data, None) as u64)
             )
         } else {
-            format!("{} sampled points", estimate(data, None).2)
+            format!(
+                "{} sampled points",
+                number::compact_count(estimate(data, None).2)
+            )
         },
         table,
         timing(data).join("\n")

@@ -311,8 +311,16 @@ Havana and QMC commands targeting 1% and 0.1% respectively.
 
 The sector table supports arrows/PageUp/PageDown/Home/End for selection,
 Left/Right for epsilon order, Tab or `s` to choose a sort column, and `r` to
-reverse sorting. These actions redraw cached observations. The total stays
-visible above the table. Havana previews update during batches; QMC means
+reverse sorting. Click column headers to sort or reverse them, click a sector row
+to select it, and use the mouse wheel to browse. These actions redraw cached
+observations. Bordered panels show the full sum, iteration/lattice progress,
+process/system RAM, selected-sector details and global diagnostics. Result
+columns align their scientific multiplication dots; dashboard times use plain
+decimal µs, ms and s. Sample and operational counts use four significant digits
+with base-1000 K, M and B suffixes. The selected inset reports attributed sector
+work, while
+global totals include unassigned coordinator overhead.
+Havana previews update during batches; QMC means
 require a complete lattice and errors require two complete independent shifts.
 Operational timing includes pilots and discarded prefixes and separates
 integrator overhead, integrand overhead and evaluator calls. Wall time, summed

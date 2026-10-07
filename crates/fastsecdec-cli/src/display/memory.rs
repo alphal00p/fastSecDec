@@ -136,7 +136,7 @@ impl Snapshot {
     }
 }
 
-fn bytes(value: Option<u64>) -> String {
+pub(super) fn bytes(value: Option<u64>) -> String {
     let Some(value) = value else {
         return "unavailable".into();
     };

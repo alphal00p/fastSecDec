@@ -1,0 +1,41 @@
+# Integration dashboard polish review
+
+Date: 2026-10-07. This record separates author evidence for number formatting from the independent renderer/interaction review.
+
+## Duration formatting — author evidence
+
+`display/number.rs::sample_duration` uses Rust's native fixed decimal formatter with microsecond, millisecond and second units. It keeps about three significant digits, including fractional microseconds, and promotes units when display rounding would otherwise reach 1000. Zero and negative zero display identically; negative/nonfinite durations are unavailable. Large elapsed values remain in seconds. The existing uncertainty/scientific formatter and final-report `duration` function are unchanged.
+
+An ignored probe extracted the actual function into a standalone Rust compilation and passed zero, sub-microseconds, one nanosecond, `999.95 µs -> 1.00 ms`, `999.95 ms -> 1.00 s`, one second, hour/day-sized values retained as seconds, nonfinite/negative inputs, positive subnormals and the largest finite f64. It verified that no exponent, scientific-product notation or larger time unit appears. Evidence: `output/dashboard-polish/duration_probe.rs` and `duration-probe.txt`. Extremely small or large finite inputs can produce a long decimal string; clipping remains the caller's layout responsibility rather than changing the duration's unit policy.
+
+## Count formatting — author evidence
+
+`display/number.rs::compact_count` retains integers below 1000 and rounds larger counts to four significant digits with K, M and B units. Integer `u128` intermediates preserve exact rounding from `u64` without overflow or a floating-point conversion. Unit selection follows rounding, including `999950 -> 1.000 M` and `999950000 -> 1.000 B`; B is the largest unit. Fractional trailing zeroes carry the requested precision, as in `1.000 K`, `10.00 K` and `100.0 K`.
+
+The ignored exact-function Rust probe passed the promotion boundaries, ordinary values, one trillion and `u64::MAX`, which displays as `18450000000 B`. It verified the absence of exponent notation. Evidence: `output/dashboard-polish/count_probe.rs` and `count-probe.txt`. The dashboard uses this helper for work, accepted/preview coverage, evaluator-call and failure counts. The coordinating author also applies it to final human diagnostic counts under the user's latest count-format request. Saved JSON counters, sorting values, final-report duration formatting and numerical estimates remain unchanged.
+
+## Native layout research
+
+The pinned Ratatui `Cell::new` accepts native `Text`/`Line` content; `Line::alignment(Alignment::Right)` delegates Unicode display width handling to the renderer. Separate mantissa and exponent cells can therefore align the existing normalized scientific output without rewriting arithmetic, ANSI padding or a parallel uncertainty formatter. Splitting the established ` ·10` presentation separator preserves the existing rounded value and uncertainty. A right-aligned mantissa including its uncertainty aligns its right edge; decimal-point alignment needs a deliberate separate layout decision when uncertainty widths differ.
+
+The renderer uses native `Layout` constraints for both the table and its mouse hit rectangles, with the native selection-marker width reserved consistently. Sorting and selection retain sector identity rather than indexing into a reordered source object.
+
+## Independent renderer review
+
+The final native-buffer captures at 80×24, 80×32, 120×42 and 160×48 pass an independently executed review script. It checks each row's cell width, scientific-product anchor positions, full million/billion counts, complete timing strings and labels, distinct preview/accepted totals, and native foreground/bold styles. The first two layouts retain Re/Im anchors at columns 42/72; the wider layouts retain all three Re/Im/maximum anchors at 42/69/112 and 62/109/152. These remain fixed across exponents 0, −1, −10 and 12, varying uncertainty widths, and the smallest f64's exponent −324. Seven-cell exponent fields preserve the complete exponent. Native style assertions also cover `NO_COLOR` with reset foreground/background.
+
+At 80×24, two selectable sector rows remain visible alongside selected-sector and global panels. `1.049 M` assessed points, `16.78 M` accepted points, `80% · 1.400 M` attempted f64 calls, and a `503.3 M / 1.007 B` accepted-work gauge all fit without truncation. Selected mean/point correctly displays `3 s / 1048576 = 2.86 µs`; the evaluator-only f64 mean is `0.1 s / 1400000 = 0.0714 µs`. The three selected exclusive timing fractions and all their labels remain complete. Oversized scientific mantissas show an explicit ellipsis rather than a truncated value. Very narrow views intentionally reduce detail and wrap sector cards; full timing detail requires a larger terminal.
+
+Source review confirms that the selected detail resolves the stable sector ID after sorting, accepted counts use native phase progress, current preview coverage remains separate, and fractions describe final precision classes while evaluator calls count attempts. The maximum is read from the selected sector and Laurent order. Worker/integrand/evaluator timing differences are withheld as pending when atomically sampled values are temporarily inconsistent. Mouse/key actions only select, sort, scroll or redraw immutable observations.
+
+The renderer author's native interaction probe additionally passes both sort directions, signed-value ordering with missing values last, exact integer point sorting above 2^53, compact secondary headers, scrolling with updated hit rectangles, wheel scoping, explicit overflow and pending-timing controls. Those controls use public Ratatui `TestBackend`, native `Buffer` cells, Crossterm events and existing numerical result types. No alternate uncertainty formatter, estimator or evaluator was introduced. The author source and probes are retained only under ignored output. Independent capture evidence: `output/dashboard-polish/independent_buffer_review.py` and `independent-buffer-review.json`; author native evidence: `render-probe.txt`, `interaction_probe.rs`, and `view-*.txt`.
+
+The final QMC coverage footer is also accepted. It reads total points and complete shifts from the same native estimate source as the displayed sum, identifies full versus selected scope, and labels the current live estimate provisional. The independent 80×30 capture check confirms the complete `124.9 K points / 2 complete shifts` total and the per-sector `6.080 K / 2` coverage without changing the accepted/in-flight progress denominators. Evidence: `qmc-80x30.txt`.
+
+## Independent mouse and terminal lifecycle review
+
+The renderer-independent terminal slice is accepted. Mouse capture ownership is recorded before native Crossterm's compound entry write, so partial I/O failures can be restored immediately. Disable-capture is attempted independently before leaving the alternate screen; its failure does not prevent cursor/screen restoration. Existing raw-mode ownership is preserved. Frame drawing and restore use the same stderr-before-mode lock order, and signal callbacks still perform only atomic operations; forced exit cleanup runs in ordinary Rust code.
+
+`Dashboard::cancelled` forwards native mouse events only to the cached view and redraw path. It does not collect statistics, evaluate kernels, or admit integration work. Resize, key and mouse polling remain independent of the observation cadence.
+
+The author's eleven-case PTY evidence covers normal/error/panic exits, broken-pipe entry, preexisting raw mode, plain/JSON no-capture, native SGR mouse decoding, and second key/SIGINT/SIGTERM exits. Independently executed PTY controls additionally verified SGR click and wheel decoding, second SIGTERM while blocked, and preexisting raw-mode preservation. Each enabled and disabled mouse capture exactly once, disabled it before leaving the alternate screen, restored cursor/termios, and the forced SIGTERM exit completed within the bounded test deadline. Independent evidence is `output/dashboard-polish/independent_mouse_pty.py` and `independent-mouse-pty.json`. Platform-specific PTY execution was on this Unix host; no Windows terminal execution is claimed.
