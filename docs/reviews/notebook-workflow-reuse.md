@@ -323,12 +323,16 @@ full expression.
 ## Thin community bridge readiness
 
 The earlier community bridge PR 18 is already merged. The fresh local checkout
-is public main `9960ba1`, with a temporary path dependency on this repository's
-isolated binding crate. A distributable follow-up must replace that local path
-with the validated FastSecDec commit and update its lockfile; the local path
-must not be published. The active GitHub account was checked as
-`ValentinHirschi`. No new community commit or publication is performed by this
-review.
+started at public main `9960ba1`, initially with a temporary path dependency on
+this repository's isolated binding crate. For delivery that path was replaced
+by the published FastSecDec commit
+`73b0442c4ba7e1e9dd3379f985f80dd11b337291`; only the four FastSecDec lockfile source
+revisions changed. The active GitHub account was verified as `ValentinHirschi`.
+The seven-file bridge follow-up is published in
+[community PR 22](https://github.com/symbolica-dev/symbolica-community/pull/22),
+commit `882ad55ef41fe9c76bcdec63efe8c831bf2fd7d3`, with that user's configured
+name and email. The isolated checkout is clean; older dirty siblings remain
+untouched.
 
 Only nine native class aliases are added to the top-level HEPKit Python package;
 their `__module__` and object identity remain owned by
@@ -351,8 +355,14 @@ Runtime-input keyword declarations and eager/default-progress values were also
 checked. The unchanged package-layout controls plus the narrow migrated
 flat-namespace control pass all ten tests in 0.16 seconds. Evidence is
 `output/notebook-workflow/stub-extraction-result.txt`, `bridge-stub-contract.txt`
-and `bridge-stub-tests.txt`. This does not replace the final commit pin or the
-coordinator's publication approval.
+and `bridge-stub-tests.txt`. After pinning the published revision, locked Cargo
+metadata and the resolved binding owner's native-dependency checker pass.
+All ten bridge controls pass again in 0.12 seconds, together with the complete
+stub's Python-3.9 grammar and installed signature/alias checks. Evidence is
+`bridge-public-metadata.json`, `bridge-public-tests.txt` and
+`bridge-public-stub-contract.txt`. The public binding Rust sources match the
+validated local binding sources; no fresh host-wheel build is claimed for this
+pin-only delivery step.
 
 One upstream documentation limitation remains: FeynKit's diagram/family
 `sector_decompose` method text signatures and maintained method stubs list the
@@ -430,12 +440,11 @@ This closes the independent native ownership, numerical/API and ecosystem-reuse
 portion of the milestone. Native calls remain atomic, including potentially
 expensive high-precision special-function preparation; the cooperative API does
 not promise mid-call preemption. Actual interactive notebook checks are owned
-by the coordinator and are not inferred from headless tests. The local community
-bridge still has exactly seven uncommitted files and a temporary path dependency.
-It must receive the final validated FastSecDec commit pin before publication in
-a new follow-up to the already merged PR 18. Historical draft-PR and earlier
-Wasm observations retain their original dates/build identities and do not
-substitute for this delivery step.
+by the coordinator and are not inferred from headless tests. The seven-file
+community bridge subsequently passed its public-pin checks and was published
+as PR 22, as recorded above. Historical draft-PR and earlier Wasm observations
+retain their original dates/build identities and do not substitute for this
+delivery step.
 
 ## Live widget lifetime and QMC caller overhead follow-up
 

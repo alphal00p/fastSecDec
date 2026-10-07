@@ -9,6 +9,8 @@ scope, milestone gates, and original requirements are in
 alongside the library. The optional [Python bindings](bindings/python/README.md)
 live in an isolated FastSecDec crate; HEPKit registers their public module through
 [merged PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18).
+The [eager notebook bridge update](https://github.com/symbolica-dev/symbolica-community/pull/22)
+pins the APIs used by the notebooks below.
 The numerical workspace and default CLI remain independent of Python.
 
 The [gg→HH marimo notebook](examples/hepkit/gghh.py) starts with native

@@ -7,6 +7,11 @@ links this FastSecDec revision. Record both revisions and the resulting wheel
 hash when validating or distributing a notebook. Older wheels lack the retained
 `GenerationSession`, explicit eager backend and runtime parameter APIs.
 
+The validated host bridge is [community PR #22](https://github.com/symbolica-dev/symbolica-community/pull/22),
+commit `882ad55ef41fe9c76bcdec63efe8c831bf2fd7d3`, which pins FastSecDec
+`73b0442c4ba7e1e9dd3379f985f80dd11b337291`. Use that community revision or a
+later revision containing it when building these notebooks.
+
 ## Native wheel
 
 Use Rust ≥1.96 and the native build tools from `nix-shell` as described in

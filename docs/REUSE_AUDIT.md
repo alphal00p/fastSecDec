@@ -1747,3 +1747,11 @@ tests, strict Clippy and formatting. Concurrent numerator-contraction work is
 excluded from this milestone. The native massless-box QMC cold 1000-digit
 polygamma preparation cost remains explicitly documented; actual execution of
 this new notebook in Pyodide remains a separate future validation.
+
+Delivery is pinned by [community PR #22](https://github.com/symbolica-dev/symbolica-community/pull/22)
+(commit `882ad55ef41fe9c76bcdec63efe8c831bf2fd7d3`) to FastSecDec
+`73b0442c4ba7e1e9dd3379f985f80dd11b337291`. Its seven-file bridge update contains
+only the public dependency pin/lock sources, reexports and generated stubs/tests.
+Locked metadata, unique native-owner checks, ten bridge/stub controls and
+Python 3.9 stub/signature validation pass against that public source. This final
+pin check does not claim an additional wheel rebuild.
