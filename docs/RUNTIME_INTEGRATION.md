@@ -7,6 +7,29 @@ last. Nested tables merge, while arrays such as stability levels replace the
 whole previous array. Unknown settings are rejected. Runtime parameters supplied
 with `--parameters` and repeated `--parameter NAME=VALUE` remain evaluator inputs.
 
+The reusable [QMC settings](../examples/integration/qmc.toml) target 0.1% on the
+complex epsilon-zero coefficient; the [discrete Havana settings](../examples/integration/discrete_mc.toml)
+target 1%. Both use eight workers, explicit seeds and evaluator chunks of 256.
+Select either method and keep the integration command identical:
+
+```sh
+method=qmc # Or: method=discrete_mc
+./target/release/fastsecdec integrate output/gghh_double_box.fsd \
+  --full-integral --parameters examples/gghh_double_box/point.toml \
+  --integration-settings "examples/integration/${method}.toml" \
+  --checkpoint "output/gghh_double_box.${method}.checkpoint.json" \
+  --save-result "output/gghh_double_box.${method}.result.json"
+```
+
+For QMC, `points` counts points per shifted lattice per sector, and `shifts`
+counts independent shifts. For discrete Havana, `points * shifts` is the global
+production allocation. Its grids update after `pilot_points * pilot_batches`
+global training samples, for `pilot_iterations` updates, then freeze for
+production. Pilot samples are excluded from the estimate. `max_rounds` caps
+production refinement, not grid updates: discrete Havana restarts training and
+doubles production points per batch each round. Reaching this cap does not
+guarantee accuracy. Evaluator chunk size is independent of all these counts.
+
 `--evaluation-batch-size N` (alias `--batch-size`) controls the maximum number
 of points prepared together for an evaluator, defaulting to 256. Its runtime TOML
 key is `evaluation_batch_size`; zero is rejected. This is independent of the
