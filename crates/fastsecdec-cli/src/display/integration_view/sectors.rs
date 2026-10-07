@@ -77,7 +77,7 @@ pub(super) fn render(
             Constraint::Length(7),
             Constraint::Length(8),
             Constraint::Length(10),
-            Constraint::Length(10),
+            Constraint::Length(12),
             Constraint::Length(7),
         ]
     } else {
@@ -108,7 +108,7 @@ pub(super) fn render(
         let max=maximum(op,order);
         let fit=|text:String,i:usize| fitted(text,columns[i].width);
         let (cells,height)=if tiny {
-            let text=format!("#{id} · {points} pts\nRe {re} {re_exp}\nIm {im} {im_exp}\nRel {relative} · f64 {f64} · max {max}");
+            let text=format!("#{id} · {points} pts\nRe {re} {re_exp}\nIm {im} {im_exp}\nRel {relative} · f64 {f64} · Max |wgt| {max}");
             let lines=wrapped(&text,inner.width.saturating_sub(2));
             let h=lines.len().min(u16::MAX as usize) as u16;
             (vec![Cell::from(lines)],h)
@@ -141,7 +141,7 @@ pub(super) fn render(
             right(""),
             right(heading("Rel err", Sort::RelativeError, view)),
             right(heading("f64 mean", Sort::F64Mean, view)),
-            right(heading("Max |wf|", Sort::Maximum, view)),
+            right(heading("Max |wgt|", Sort::Maximum, view)),
             right(""),
         ]
     } else if compact_rows {
@@ -175,7 +175,7 @@ pub(super) fn render(
             right(""),
             two(
                 heading("Imag", Sort::Imag, view),
-                heading("Max |wf|", Sort::Maximum, view),
+                heading("Max |wgt|", Sort::Maximum, view),
             ),
             right(""),
         ]

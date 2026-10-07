@@ -5,8 +5,13 @@ use std::time::Instant;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct EvaluatorTiming {
+    /// Number of evaluated points, including replays and batched rows.
     pub calls: u64,
     pub nanoseconds: u64,
+    /// Actual native matrix invocations. Historical scalar-only records are zero.
+    pub matrix_invocations: u64,
+    /// Points included in matrix invocations; the remaining calls were scalar.
+    pub matrix_points: u64,
 }
 impl EvaluatorTiming {
     pub(super) fn record(&mut self, started: Instant) {
@@ -19,7 +24,19 @@ impl EvaluatorTiming {
         Self {
             calls: self.calls.saturating_sub(previous.calls),
             nanoseconds: self.nanoseconds.saturating_sub(previous.nanoseconds),
+            matrix_invocations: self
+                .matrix_invocations
+                .saturating_sub(previous.matrix_invocations),
+            matrix_points: self.matrix_points.saturating_sub(previous.matrix_points),
         }
+    }
+    pub(super) fn add(&mut self, other: Self) {
+        self.calls = self.calls.saturating_add(other.calls);
+        self.nanoseconds = self.nanoseconds.saturating_add(other.nanoseconds);
+        self.matrix_invocations = self
+            .matrix_invocations
+            .saturating_add(other.matrix_invocations);
+        self.matrix_points = self.matrix_points.saturating_add(other.matrix_points);
     }
     pub fn seconds(self) -> f64 {
         self.nanoseconds as f64 * 1e-9

@@ -63,6 +63,7 @@ pub(super) fn run(
     kernels: &KernelSet,
     replay: &AcceptedReplay,
     frozen_replay: &AcceptedReplay,
+    batch_size: usize,
     mut poll: impl FnMut(
         Vec<IntegrationWorkerActivity>,
         &dyn Fn() -> Vec<fastsecdec::integration::McLiveBatch>,
@@ -116,7 +117,16 @@ pub(super) fn run(
             let progress = &progress[index];
             scope.spawn(move |_| {
                 let result = catch_unwind(AssertUnwindSafe(|| {
-                    evaluate(slot, task, kernels, replay, frozen_replay, stop, progress)
+                    evaluate(
+                        slot,
+                        task,
+                        kernels,
+                        replay,
+                        frozen_replay,
+                        stop,
+                        progress,
+                        batch_size,
+                    )
                 }))
                 .map_err(|payload| {
                     payload
@@ -178,6 +188,7 @@ pub(super) fn run(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn evaluate(
     slot: &mut Slot,
     task: HavanaDiscreteTask,
@@ -186,6 +197,7 @@ fn evaluate(
     frozen_replay: &AcceptedReplay,
     stop: &AtomicBool,
     progress: &Progress,
+    batch_size: usize,
 ) -> Completed {
     let _span = slot.meter.task(None);
     let batch = task.batch();
@@ -194,9 +206,10 @@ fn evaluate(
     let publication_interval = slot.meter.publication_interval();
     let mut diagnostics = EvaluationDiagnostics::default();
     let mut aborted_prefix = false;
-    let result = slot.worker.evaluate_weighted_observed(
+    let result = slot.worker.evaluate_weighted_batch_observed(
         task,
-        |id, point, weight, output| {
+        batch_size,
+        |id, points, weights, output| {
             if stop.load(Ordering::Relaxed) {
                 aborted_prefix = true;
                 return Err("discrete MC batch stopped by caller".to_owned());
@@ -220,16 +233,20 @@ fn evaluate(
                 aborted_prefix = true;
                 return Err("discrete MC batch stopped by caller".to_owned());
             }
-            super::super::evaluate_observed(
+            super::super::evaluate_batch_observed(
                 slot.contexts.get_mut(&id).expect("native selected sector"),
                 id,
-                point,
-                weight,
+                points,
+                weights,
                 output,
                 &mut diagnostics,
                 &slot.meter,
+                stop,
+                &mut aborted_prefix,
             )?;
-            progress.completed.fetch_add(1, Ordering::Relaxed);
+            progress
+                .completed
+                .fetch_add(weights.len() as u64, Ordering::Relaxed);
             Ok::<(), String>(())
         },
         |view| {

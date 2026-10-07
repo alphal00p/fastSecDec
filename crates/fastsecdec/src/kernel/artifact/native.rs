@@ -2,7 +2,7 @@
 use super::{atom, parameters, validate_orders};
 use crate::{
     kernel::{
-        KernelError, KernelSet, PrecisionPolicy,
+        CompilationSettings, KernelError, KernelSet, PrecisionPolicy,
         cancellation::Cancellation,
         metadata::PortableMetadata,
         program::{self, SectorProgram},
@@ -21,25 +21,68 @@ mod tests;
 #[cfg(feature = "native")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1";
 #[cfg(feature = "native")]
-pub(super) fn compiler_policy() -> &'static str {
-    static POLICY: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+fn policy_prefix() -> String {
+    format!(
+        "symjit-version-code={}:O2",
+        crate::kernel::symjit_version_code()
+    )
+}
+#[cfg(feature = "portable")]
+fn policy_prefix() -> String {
+    "symbolica-3.0.1:interpreter:integer-malachite:float-astro".into()
+}
+
+pub(super) fn compiler_policy_with_settings(settings: CompilationSettings) -> String {
+    let prefix = policy_prefix();
+    if settings == CompilationSettings::legacy() {
+        // Keep historical sector identities stable as well as the original envelope.
+        #[cfg(feature = "portable")]
+        return format!("{prefix}:horner-iterations=0");
+        #[cfg(feature = "native")]
+        format!("{prefix}:direct:horner-iterations=0")
+    } else {
         format!(
-            "symjit-version-code={}:O2:direct:horner-iterations=0",
-            crate::kernel::symjit_version_code()
+            "{prefix}:evaluator-settings-v1:{}",
+            serde_json::to_string(&settings).expect("scalar compilation settings serialize")
         )
-    });
+    }
+}
+
+#[cfg(test)]
+pub(super) fn compiler_policy() -> &'static str {
+    static POLICY: std::sync::LazyLock<String> =
+        std::sync::LazyLock::new(|| compiler_policy_with_settings(CompilationSettings::default()));
     POLICY.as_str()
 }
 
-#[cfg(feature = "native")]
+fn parse_policy(policy: &str, prefix: &str) -> Option<CompilationSettings> {
+    #[cfg(feature = "portable")]
+    let legacy = format!("{prefix}:horner-iterations=0");
+    #[cfg(feature = "native")]
+    let legacy = format!("{prefix}:direct:horner-iterations=0");
+    if policy == legacy {
+        return Some(CompilationSettings::legacy());
+    }
+    let settings = policy.strip_prefix(&format!("{prefix}:evaluator-settings-v1:"))?;
+    let settings: CompilationSettings = serde_json::from_str(settings).ok()?;
+    settings.validate().ok()?;
+    Some(settings)
+}
+
+pub(super) fn settings_from_policy(policy: &str) -> Option<CompilationSettings> {
+    #[cfg(feature = "native")]
+    if crate::kernel::symjit_version_code() == 22604
+        && policy == "symjit-2.26.4:O2:direct:horner-iterations=0"
+    {
+        return Some(CompilationSettings::legacy());
+    }
+    parse_policy(policy, &policy_prefix())
+}
+
+#[cfg(all(test, feature = "native"))]
 fn compiler_policy_matches(policy: &str, version_code: usize) -> bool {
-    policy
-        == format!("symjit-version-code={version_code}:O2:direct:horner-iterations=0")
-        // These artifacts contain exact Symbolica IR, recompiled on load.
-        // Preserve the historical spelling only for its actual linked backend;
-        // loaded bytes and content identities remain untouched.
-        || (version_code == 22604
-            && policy == "symjit-2.26.4:O2:direct:horner-iterations=0")
+    parse_policy(policy, &format!("symjit-version-code={version_code}:O2")).is_some()
+        || (version_code == 22604 && policy == "symjit-2.26.4:O2:direct:horner-iterations=0")
 }
 
 #[cfg(feature = "native")]
@@ -47,10 +90,6 @@ fn compiler_policy_matches(policy: &str, version_code: usize) -> bool {
 const HASH_DOMAIN: &[u8] = b"fastsecdec-portable-kernel-v3:symbolica-3:symjit-2.26:f64";
 #[cfg(feature = "portable")]
 pub(super) const CODEC: &str = "symbolica-3.0.1@98794d0d7337ba2b08e4c046dde584ad7fc1ce10:exact-evaluator-schema-v1:serde-bincode-2-standard:v1:integer-malachite:float-astro";
-#[cfg(feature = "portable")]
-pub(super) fn compiler_policy() -> &'static str {
-    "symbolica-3.0.1:interpreter:integer-malachite:float-astro:horner-iterations=0"
-}
 #[cfg(feature = "portable")]
 const HASH_DOMAIN: &[u8] =
     b"fastsecdec-portable-kernel-v3:symbolica-3:interpreter:malachite:astro:f64";
@@ -149,16 +188,10 @@ pub(super) fn component_layout(count: usize, complex: bool) -> Vec<CoefficientCo
 pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     let artifact: Artifact = serde_json::from_slice(bytes)?;
     let payload = artifact.payload;
-    #[cfg(feature = "native")]
-    let supported_compiler = compiler_policy_matches(
-        &payload.compiler_policy,
-        crate::kernel::symjit_version_code(),
-    );
-    #[cfg(feature = "portable")]
-    let supported_compiler = payload.compiler_policy == compiler_policy();
+    let settings = settings_from_policy(&payload.compiler_policy);
     if payload.version != 3
         || payload.program_codec != CODEC
-        || !supported_compiler
+        || settings.is_none()
         || payload.metadata.is_none()
     {
         return Err(KernelError::Artifact(
@@ -239,6 +272,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         metadata,
         use_complex,
         Vec::new(),
+        settings.expect("compiler policy validated"),
     )?;
     kernels.content_id = artifact.content_id;
     kernels.portable_artifact = Some(bytes.to_vec());

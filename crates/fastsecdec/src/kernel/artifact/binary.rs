@@ -2,7 +2,7 @@
 use super::{native, validate_orders};
 use crate::{
     kernel::{
-        KernelError, KernelSet, PrecisionPolicy, RuntimeMassConstraint,
+        CompilationSettings, KernelError, KernelSet, PrecisionPolicy, RuntimeMassConstraint,
         cancellation::Cancellation,
         metadata::PortableMetadata,
         program::{self, SectorProgram},
@@ -272,7 +272,7 @@ fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
     encode(Payload {
         codec: CODEC.into(),
-        compiler_policy: native::compiler_policy().into(),
+        compiler_policy: native::compiler_policy_with_settings(kernels.compilation_settings),
         orders: kernels.coefficient_orders.clone(),
         components: kernels.components.clone(),
         exact: kernels.exact_expressions.clone(),
@@ -305,8 +305,10 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
 pub(super) fn generated(
     value: &crate::generation::GeneratedIntegral,
     precision: PrecisionPolicy,
+    settings: CompilationSettings,
 ) -> Result<Vec<u8>, KernelError> {
     precision.validate()?;
+    settings.validate()?;
     let complex = value
         .sectors()
         .iter()
@@ -320,8 +322,9 @@ pub(super) fn generated(
         .sectors()
         .iter()
         .map(|sector| {
-            let program = program::build(
+            let program = program::build_with_settings(
                 sector.parameters().to_vec(),
+                &[],
                 sector.aliased_coefficients(),
                 Cancellation::new(
                     sector.cancellation_degree(),
@@ -329,6 +332,7 @@ pub(super) fn generated(
                     sector.dimension(),
                 )?
                 .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
+                settings,
             )?;
             Ok(Sector {
                 parameters: program.parameters,
@@ -341,7 +345,7 @@ pub(super) fn generated(
         .collect::<Result<_, KernelError>>()?;
     Ok(encode(Payload {
         codec: CODEC.into(),
-        compiler_policy: native::compiler_policy().into(),
+        compiler_policy: native::compiler_policy_with_settings(settings),
         orders: value.orders().to_vec(),
         components: native::component_layout(value.orders().len(), complex),
         exact: value.exact_coefficients().to_vec(),
@@ -408,7 +412,8 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
     if semantic_id(&payload, version)? != envelope.content_id {
         return Err(failure("semantic content identity mismatch"));
     }
-    if payload.codec != CODEC || payload.compiler_policy != native::compiler_policy() {
+    let settings = native::settings_from_policy(&payload.compiler_policy);
+    if payload.codec != CODEC || settings.is_none() {
         return Err(failure("unsupported codec or compiler policy"));
     }
     validate_orders(&payload.orders, payload.exact.len())?;
@@ -487,6 +492,7 @@ pub(super) fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
         metadata,
         use_complex,
         payload.runtime_parameters,
+        settings.expect("compiler policy validated"),
     )?;
     kernels.runtime_mass_constraints = payload
         .runtime_mass_constraints

@@ -81,9 +81,9 @@ impl WorkerMeter {
                 preparing_context: false,
             });
     }
-    pub(super) fn point_completed(&self) {
+    pub(super) fn points_completed(&self, points: u64) {
         if let Some(activity) = &mut self.0.lock().unwrap_or_else(|e| e.into_inner()).activity {
-            activity.completed_points += 1;
+            activity.completed_points += points;
         }
     }
     pub(super) fn task(&self, sector: Option<u64>) -> TaskSpan {
@@ -95,13 +95,13 @@ impl WorkerMeter {
             meter: self.clone(),
         }
     }
-    pub(super) fn record(
+    pub(super) fn record_batch(
         &self,
         id: u64,
         integrand: f64,
         evaluator: f64,
         diagnostics: &EvaluationDiagnostics,
-        output: Option<&[f64]>,
+        outputs: &[f64],
     ) -> Result<(), String> {
         let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
         let State {
@@ -122,7 +122,7 @@ impl WorkerMeter {
         sector.integrand_seconds += integrand;
         sector.evaluator_seconds += evaluator;
         sector.evaluations = sector.diagnostics.evaluations;
-        if let Some(output) = output {
+        for output in outputs.chunks(orders.len().max(1)) {
             let mut index = 0;
             while index < orders.len() {
                 let order = orders[index];

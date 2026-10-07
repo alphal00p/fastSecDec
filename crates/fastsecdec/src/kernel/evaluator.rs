@@ -1,7 +1,9 @@
 //! Compile-time adapter over Symbolica's existing evaluator backends.
 use super::{KernelError, program::ExactProgram};
 use symbolica::domains::float::Complex;
+mod batch;
 mod mapping;
+pub(super) use batch::evaluate as evaluate_batch;
 pub(super) use mapping::MappingRequirements;
 
 #[cfg(feature = "native")]
@@ -41,6 +43,9 @@ fn settings() -> symbolica::evaluate::JITCompilationSettings {
     symbolica::evaluate::JITCompilationSettings::default()
         .optimization_level(2)
         .direct_translation(true)
+        // Runtime workers belong to the caller; ambient SymJIT configuration
+        // must not create an additional pool inside each sector's matrix call.
+        .with_option("use_threads", "false")
 }
 
 #[cfg(test)]

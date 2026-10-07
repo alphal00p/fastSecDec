@@ -2,8 +2,8 @@
 #[cfg(feature = "native")]
 use super::SectorExpressions;
 use super::{
-    Backend, CompilationProgress, KernelError, KernelSet, PrecisionPolicy, RealKernel,
-    SectorKernel, cancellation::Cancellation, complex, evaluator, program,
+    Backend, CompilationProgress, CompilationSettings, KernelError, KernelSet, PrecisionPolicy,
+    RealKernel, SectorKernel, cancellation::Cancellation, complex, evaluator, program,
 };
 use crate::generation::{GeneratedIntegral, GenerationMetadata};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};
@@ -24,6 +24,7 @@ pub struct CompilationJob {
     sector: crate::generation::GeneratedSector,
     runtime_parameters: std::sync::Arc<Vec<Symbol>>,
     precision: PrecisionPolicy,
+    settings: CompilationSettings,
     use_complex: bool,
 }
 pub struct CompilationCompletion {
@@ -36,7 +37,7 @@ impl CompilationJob {
         self.index
     }
     pub fn run(self) -> Result<CompilationCompletion, KernelError> {
-        let program = program::build_with_parameters(
+        let program = program::build_with_settings(
             self.sector.parameters().to_vec(),
             &self.runtime_parameters,
             self.sector.aliased_coefficients(),
@@ -46,6 +47,7 @@ impl CompilationJob {
                 self.sector.dimension(),
             )?
             .with_endpoint_profiles(self.sector.endpoint_profiles().to_vec())?,
+            self.settings,
         )?;
         let sector = SectorKernel::from_program(program, &self.precision, self.use_complex)?;
         Ok(CompilationCompletion {
@@ -59,6 +61,18 @@ impl CompilationJob {
 impl GeneratedIntegral {
     pub fn compile(&self) -> Result<KernelSet, KernelError> {
         self.compile_with_precision(PrecisionPolicy::default())
+    }
+
+    pub fn compile_with_settings(
+        &self,
+        settings: CompilationSettings,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_settings_parameters_and_progress(
+            PrecisionPolicy::default(),
+            &[],
+            settings,
+            |_| ControlFlow::Continue(()),
+        )
     }
 
     pub fn compile_with_precision(
@@ -99,9 +113,25 @@ impl GeneratedIntegral {
         &self,
         precision: PrecisionPolicy,
         runtime_parameters: &[Symbol],
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_settings_parameters_and_progress(
+            precision,
+            runtime_parameters,
+            CompilationSettings::default(),
+            progress,
+        )
+    }
+
+    pub fn compile_with_settings_parameters_and_progress(
+        &self,
+        precision: PrecisionPolicy,
+        runtime_parameters: &[Symbol],
+        settings: CompilationSettings,
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
+        settings.validate()?;
         let started = Instant::now();
         let total = self.sectors().len();
         let use_complex = self.sectors().iter().any(|sector| {
@@ -119,7 +149,7 @@ impl GeneratedIntegral {
         emit(0)?;
         let mut sectors = Vec::with_capacity(total);
         for sector in self.sectors() {
-            let program = program::build_with_parameters(
+            let program = program::build_with_settings(
                 sector.parameters().to_vec(),
                 runtime_parameters,
                 sector.aliased_coefficients(),
@@ -129,6 +159,7 @@ impl GeneratedIntegral {
                     sector.dimension(),
                 )?
                 .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?,
+                settings,
             )?;
             sectors.push(SectorKernel::from_program(
                 program,
@@ -145,6 +176,7 @@ impl GeneratedIntegral {
             Some(self.metadata().clone()),
             use_complex,
             runtime_parameters.to_vec(),
+            settings,
         )?;
         kernels.initialize_artifact()?;
         Ok(kernels)
@@ -171,9 +203,27 @@ impl GeneratedIntegral {
         precision: PrecisionPolicy,
         runtime_parameters: &[Symbol],
         dispatch: &mut CompilationDispatch<'_>,
+        progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        self.compile_with_settings_parameters_and_dispatch(
+            precision,
+            runtime_parameters,
+            CompilationSettings::default(),
+            dispatch,
+            progress,
+        )
+    }
+
+    pub fn compile_with_settings_parameters_and_dispatch(
+        &self,
+        precision: PrecisionPolicy,
+        runtime_parameters: &[Symbol],
+        settings: CompilationSettings,
+        dispatch: &mut CompilationDispatch<'_>,
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
+        settings.validate()?;
         let started = Instant::now();
         let total = self.sectors().len();
         emit(&mut progress, started, 0, total)?;
@@ -198,6 +248,7 @@ impl GeneratedIntegral {
                 sector: sector.clone(),
                 runtime_parameters: std::sync::Arc::clone(&runtime),
                 precision: precision.clone(),
+                settings,
                 use_complex,
             });
         let mut completions = dispatch(&mut jobs)?;
@@ -229,6 +280,7 @@ impl GeneratedIntegral {
             Some(self.metadata().clone()),
             use_complex,
             runtime_parameters.to_vec(),
+            settings,
         )?;
         kernels.initialize_artifact()?;
         Ok(kernels)
@@ -372,7 +424,13 @@ impl KernelSet {
                     .into_iter()
                     .map(AliasedAtom::from)
                     .collect::<Vec<_>>();
-                program::build(sector.parameters, &coefficients, sector.cancellation)
+                program::build_with_settings(
+                    sector.parameters,
+                    &[],
+                    &coefficients,
+                    sector.cancellation,
+                    CompilationSettings::legacy(),
+                )
             })
             .collect::<Result<Vec<_>, _>>()?;
         Self::from_programs_for_load(
@@ -383,9 +441,11 @@ impl KernelSet {
             metadata,
             use_complex,
             Vec::new(),
+            CompilationSettings::legacy(),
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn from_programs_for_load(
         orders: Vec<i32>,
         programs: Vec<program::SectorProgram>,
@@ -394,6 +454,7 @@ impl KernelSet {
         metadata: Option<GenerationMetadata>,
         use_complex: bool,
         runtime_parameters: Vec<Symbol>,
+        settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         let mut sectors = Vec::with_capacity(programs.len());
@@ -409,7 +470,10 @@ impl KernelSet {
                 use_complex,
             )?);
         }
-        Self::finish(
+        // Loading restores programs; it is not a new user-requested optimizer
+        // log session. Exact runtime offsets need a small native reconstruction,
+        // whose transient logging must not pollute a caller's JSON/terminal.
+        let mut kernels = Self::finish(
             orders,
             sectors,
             exact_expressions,
@@ -417,9 +481,16 @@ impl KernelSet {
             metadata,
             use_complex,
             runtime_parameters,
-        )
+            CompilationSettings {
+                verbose: false,
+                ..settings
+            },
+        )?;
+        kernels.compilation_settings = settings;
+        Ok(kernels)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn finish(
         coefficient_orders: Vec<i32>,
         sectors: Vec<SectorKernel>,
@@ -428,6 +499,7 @@ impl KernelSet {
         metadata: Option<GenerationMetadata>,
         use_complex: bool,
         runtime_parameters: Vec<Symbol>,
+        compilation_settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
         if sectors
             .iter()
@@ -441,7 +513,7 @@ impl KernelSet {
             None
         } else {
             Some(SectorKernel::from_program(
-                program::build_with_parameters(
+                program::build_with_settings(
                     Vec::new(),
                     &runtime_parameters,
                     &exact_expressions
@@ -450,6 +522,7 @@ impl KernelSet {
                         .map(AliasedAtom::from)
                         .collect::<Vec<_>>(),
                     Cancellation::new(0, Some(Vec::new()), 0)?,
+                    compilation_settings,
                 )?,
                 &precision,
                 use_complex,
@@ -477,6 +550,7 @@ impl KernelSet {
         }
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
+            compilation_settings,
             runtime_parameters,
             stability: super::StabilitySettings::default(),
             runtime_mass_constraints: Vec::new(),

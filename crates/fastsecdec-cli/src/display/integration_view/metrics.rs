@@ -127,10 +127,9 @@ pub(super) fn selected(
         GOLD,
         colors,
     )
-    .title_bottom(Line::from(format!(
-        " ¹Accepted: current phase · f64 mean {} · worker-local times ",
-        f64_time(op)
-    )));
+    .title_bottom(Line::from(
+        " ¹Accepted: current phase · times exclude coordinator ",
+    ));
     let inner = panel.inner(area);
     frame.render_widget(panel, area);
     let columns = Layout::horizontal([
@@ -170,7 +169,7 @@ pub(super) fn selected(
     }
     coverage.extend([
         ("Mean/point".into(), sample.clone()),
-        ("Max |wf|".into(), maximum(op, view.order(data))),
+        ("Max |wgt|".into(), maximum(op, view.order(data))),
     ]);
     if inner.height < 4 {
         coverage = vec![
@@ -183,7 +182,7 @@ pub(super) fn selected(
                 ),
             ),
             ("Mean/point".into(), sample.clone()),
-            ("Max |wf|".into(), maximum(op, view.order(data))),
+            ("Max |wgt|".into(), maximum(op, view.order(data))),
         ];
     }
     facts(frame, columns[0], coverage, BLUE, colors);

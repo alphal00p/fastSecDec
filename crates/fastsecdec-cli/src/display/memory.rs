@@ -14,7 +14,12 @@ pub(super) struct Snapshot {
     pub observed_peak_rss_bytes: Option<u64>,
     pub system_used_bytes: Option<u64>,
     pub system_total_bytes: Option<u64>,
-    /// Native OS accounting: this need not equal total minus used.
+    /// Native free RAM. On macOS this excludes speculative pages; it is not
+    /// the broader, overlapping active/inactive reclaimable-memory counter.
+    pub system_free_bytes: Option<u64>,
+    /// Native OS accounting, preserved for JSON consumers. On macOS this
+    /// includes active and inactive pages already counted as used memory, so
+    /// it is neither free RAM nor total minus used.
     pub system_available_bytes: Option<u64>,
     pub sample_interval_ms: u64,
     /// OS user+system CPU across all process threads, since this invocation.
@@ -82,6 +87,7 @@ impl Monitor {
         let total = system.total_memory();
         self.snapshot.system_total_bytes = (total > 0).then_some(total);
         self.snapshot.system_used_bytes = (total > 0).then(|| system.used_memory());
+        self.snapshot.system_free_bytes = (total > 0).then(|| system.free_memory());
         self.snapshot.system_available_bytes = (total > 0).then(|| system.available_memory());
         self.snapshot.process_rss_bytes = self.pid.and_then(|pid| {
             let updated = system.refresh_processes_specifics(
@@ -118,6 +124,17 @@ impl Monitor {
 }
 
 impl Snapshot {
+    /// macOS's broad VM "available" counter includes used active pages. Prefer
+    /// genuinely free pages there; retain native available memory elsewhere.
+    /// Keep this label/value pair shared by every dashboard presentation.
+    pub fn free_or_available(&self) -> (&'static str, Option<u64>) {
+        if cfg!(target_os = "macos") {
+            ("Free", self.system_free_bytes)
+        } else {
+            ("Available", self.system_available_bytes)
+        }
+    }
+
     pub fn process_line(&self) -> String {
         format!(
             "Process RSS {} · observed peak {}",
@@ -127,11 +144,12 @@ impl Snapshot {
     }
 
     pub fn system_line(&self) -> String {
+        let (label, value) = self.free_or_available();
         format!(
-            "System RAM · used {} / {} · available {} (OS)",
+            "System RAM · used {} / {} · {label} {} (OS)",
             bytes(self.system_used_bytes),
             bytes(self.system_total_bytes),
-            bytes(self.system_available_bytes),
+            bytes(value),
         )
     }
 }

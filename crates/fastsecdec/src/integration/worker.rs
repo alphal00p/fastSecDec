@@ -106,12 +106,41 @@ impl QmcWorker {
         self.evaluate_inner(task, true, evaluate)
     }
 
+    /// Evaluate bounded point-major matrices after the native periodization
+    /// transform. The callback writes final weighted complete Laurent vectors;
+    /// the native partial receives rows in their original lattice order.
+    pub fn evaluate_weighted_batch<E: Display>(
+        &mut self,
+        task: QmcTask,
+        batch_size: usize,
+        evaluate: impl FnMut(&[f64], &[f64], &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<QmcReturn> {
+        self.evaluate_batch_inner(task, batch_size, true, evaluate)
+    }
+
     fn evaluate_inner<E: Display>(
         &mut self,
         task: QmcTask,
         already_weighted: bool,
         mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
     ) -> Result<QmcReturn> {
+        self.evaluate_batch_inner(task, 1, already_weighted, |point, weights, out| {
+            evaluate(point, weights[0], out)
+        })
+    }
+
+    fn evaluate_batch_inner<E: Display>(
+        &mut self,
+        task: QmcTask,
+        batch_size: usize,
+        already_weighted: bool,
+        mut evaluate: impl FnMut(&[f64], &[f64], &mut [f64]) -> std::result::Result<(), E>,
+    ) -> Result<QmcReturn> {
+        if batch_size == 0 {
+            return Err(IntegrationError::InvalidReturn(
+                "evaluation batch size must be positive".into(),
+            ));
+        }
         if task.content_id != self.content_id
             || task.epoch != self.epoch
             || task.sector_id != self.sector_id
@@ -123,24 +152,41 @@ impl QmcWorker {
         }
         let mut partial = QmcPartial::new(&self.plan, task.work, self.output_count)?;
         self.point.resize(self.plan.dimension(), 0.0);
-        self.values.resize(self.output_count, 0.0);
+        let mut points = Vec::new();
+        let mut weights = Vec::new();
         let started = Instant::now();
-        for index in task.work.start()..task.work.start() + task.work.point_count() {
-            self.plan.point(index, &mut self.point)?;
-            let weight = match self.periodization {
-                Periodization::None => 1.0,
-                Periodization::Korobov3 => Korobov3::transform_in_place(&mut self.point)?,
-                Periodization::Korobov2 => Korobov2::transform_in_place(&mut self.point)?,
-            };
-            self.values.fill(f64::NAN);
-            evaluate(&self.point, weight, &mut self.values)
-                .map_err(|error| IntegrationError::Evaluation(error.to_string()))?;
-            if !already_weighted {
-                for value in &mut self.values {
-                    *value *= weight;
-                }
+        let end = task.work.start() + task.work.point_count();
+        for start in (task.work.start()..end).step_by(batch_size) {
+            let rows = (batch_size as u64).min(end - start) as usize;
+            points.clear();
+            weights.clear();
+            for index in start..start + rows as u64 {
+                self.plan.point(index, &mut self.point)?;
+                let weight = match self.periodization {
+                    Periodization::None => 1.0,
+                    Periodization::Korobov3 => Korobov3::transform_in_place(&mut self.point)?,
+                    Periodization::Korobov2 => Korobov2::transform_in_place(&mut self.point)?,
+                };
+                points.extend_from_slice(&self.point);
+                weights.push(weight);
             }
-            partial.push(&self.values)?;
+            let output_len = rows.checked_mul(self.output_count).ok_or_else(|| {
+                IntegrationError::InvalidReturn("evaluation batch dimensions overflow".into())
+            })?;
+            self.values.resize(output_len, f64::NAN);
+            self.values.fill(f64::NAN);
+            evaluate(&points, &weights, &mut self.values)
+                .map_err(|error| IntegrationError::Evaluation(error.to_string()))?;
+            for (row, weight) in weights.iter().enumerate() {
+                let values =
+                    &mut self.values[row * self.output_count..(row + 1) * self.output_count];
+                if !already_weighted {
+                    for value in values.iter_mut() {
+                        *value *= weight;
+                    }
+                }
+                partial.push(values)?;
+            }
         }
         QmcReturn::from_partial(task, partial, started.elapsed().as_secs_f64())
     }

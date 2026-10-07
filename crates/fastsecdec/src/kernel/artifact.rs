@@ -6,7 +6,7 @@ mod legacy;
 mod native;
 mod sector_identity;
 
-use super::{KernelError, KernelSet, PrecisionPolicy};
+use super::{CompilationSettings, KernelError, KernelSet, PrecisionPolicy};
 use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
 
 pub(super) fn atom(expression: String) -> Result<Atom, KernelError> {
@@ -66,7 +66,16 @@ impl crate::generation::GeneratedIntegral {
     /// This performs native expression-to-IR translation; it does not materialize
     /// aliased coefficients or compile host executable machine code.
     pub fn to_kernel_bytes(&self, precision: PrecisionPolicy) -> Result<Vec<u8>, KernelError> {
-        binary::generated(self, precision)
+        self.to_kernel_bytes_with_settings(precision, CompilationSettings::default())
+    }
+
+    /// Save native evaluator programs using caller-selected optimization controls.
+    pub fn to_kernel_bytes_with_settings(
+        &self,
+        precision: PrecisionPolicy,
+        settings: CompilationSettings,
+    ) -> Result<Vec<u8>, KernelError> {
+        binary::generated(self, precision, settings)
     }
 }
 

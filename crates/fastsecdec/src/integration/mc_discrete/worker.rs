@@ -1,9 +1,8 @@
-use crate::integration::{
-    IntegrationError, McLiveView, Result, mc::training_envelope, mc_live::CenteredAccumulator,
-};
-use numerica::numerical_integration::{DiscreteGrid, MonteCarloRng, Sample};
+use crate::integration::{McLiveView, Result};
+use numerica::numerical_integration::DiscreteGrid;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, time::Instant};
+use std::fmt::Display;
+mod batch;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HavanaDiscreteTask {
@@ -95,108 +94,33 @@ impl HavanaDiscreteWorker {
     ) -> Result<HavanaDiscreteReturn> {
         self.evaluate_inner(task, true, evaluate, observe)
     }
+    /// Evaluate bounded native sample chunks, grouped by sector. Every sector
+    /// callback receives point-major coordinates, full sampling weights and a
+    /// point-major output matrix. Within each sector the original sample order
+    /// is preserved, then results are reduced/trained in global sample order.
+    pub fn evaluate_weighted_batch_observed<E: Display>(
+        &mut self,
+        task: HavanaDiscreteTask,
+        batch_size: usize,
+        evaluate: impl FnMut(u64, &[f64], &[f64], &mut [f64]) -> std::result::Result<(), E>,
+        observe: impl FnMut(McLiveView<'_>),
+    ) -> Result<HavanaDiscreteReturn> {
+        self.evaluate_batch_inner(task, batch_size, true, evaluate, observe)
+    }
+
     fn evaluate_inner<E: Display>(
         &mut self,
         task: HavanaDiscreteTask,
         weighted: bool,
         mut evaluate: impl FnMut(u64, &[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
-        mut observe: impl FnMut(McLiveView<'_>),
+        observe: impl FnMut(McLiveView<'_>),
     ) -> Result<HavanaDiscreteReturn> {
-        if task.grid_id != self.grid_id || task.points != self.points || task.rng_state == [0; 32] {
-            return Err(IntegrationError::InvalidReturn(
-                "discrete Havana task has a different grid or batch design".into(),
-            ));
-        }
-        let started = Instant::now();
-        let mut grid = super::grid::clone_without_samples(&self.grid)?;
-        let mut rng = MonteCarloRng::import(task.rng_state);
-        let mut sample = Sample::new();
-        let mut values = vec![f64::NAN; self.outputs];
-        let mut total = CenteredAccumulator::new(self.outputs);
-        let mut sectors = (0..self.sector_ids.len())
-            .map(|_| CenteredAccumulator::new(self.outputs))
-            .collect::<Vec<_>>();
-        let mut counts = vec![0u64; self.sector_ids.len()];
-        let mut seconds = vec![0.0; self.sector_ids.len()];
-        for point_index in 0..task.points {
-            let point_started = Instant::now();
-            grid.sample(&mut rng, &mut sample);
-            let Sample::Discrete(weight, index, Some(child)) = &sample else {
-                unreachable!("native nested discrete grid sample")
-            };
-            let Sample::Continuous(_, point) = child.as_ref() else {
-                unreachable!("native continuous child sample")
-            };
-            if !weight.is_finite() || *weight <= 0.0 {
-                return Err(IntegrationError::Evaluation(
-                    "native discrete importance weight must be finite and positive".into(),
-                ));
-            }
-            values.fill(f64::NAN);
-            evaluate(self.sector_ids[*index], point, *weight, &mut values)
-                .map_err(|e| IntegrationError::Evaluation(e.to_string()))?;
-            if values
-                .iter()
-                .any(|value| !value.is_finite() || (!weighted && !(value * weight).is_finite()))
-            {
-                return Err(IntegrationError::Evaluation(
-                    "nonfinite discrete importance-weighted coefficient".into(),
-                ));
-            }
-            if self.training {
-                let envelope = values.iter().map(|v| v.abs()).fold(0.0, f64::max);
-                grid.add_training_sample(
-                    &sample,
-                    if weighted {
-                        training_envelope(envelope, *weight)?
-                    } else {
-                        envelope
-                    },
-                )
-                .map_err(IntegrationError::Evaluation)?;
-            }
-            if !weighted {
-                for value in &mut values {
-                    *value *= weight;
-                }
-            }
-            total.add(&values);
-            sectors[*index].add(&values);
-            counts[*index] += 1;
-            let point_seconds = point_started.elapsed().as_secs_f64();
-            seconds[*index] += point_seconds;
-            observe(McLiveView {
-                batch: task.batch,
-                sector_id: None,
-                points: point_index as u64 + 1,
-                total: Some(&total),
-                last_point_timing: Some((self.sector_ids[*index], point_seconds)),
-                sectors: &sectors,
-                sector_ids: &self.sector_ids,
-            });
-        }
-        let mean = total.mean(task.points);
-        let sector_means = sectors
-            .into_iter()
-            .map(|acc| acc.mean(task.points))
-            .collect::<Vec<_>>();
-        if mean
-            .iter()
-            .chain(sector_means.iter().flatten())
-            .any(|v| !v.is_finite())
-        {
-            return Err(IntegrationError::Evaluation(
-                "nonfinite discrete batch mean".into(),
-            ));
-        }
-        Ok(HavanaDiscreteReturn {
+        self.evaluate_batch_inner(
             task,
-            mean,
-            sector_means,
-            counts,
-            sector_seconds: seconds,
-            worker_seconds: started.elapsed().as_secs_f64(),
-            training: self.training.then_some(grid),
-        })
+            1,
+            weighted,
+            |id, point, weights, out| evaluate(id, point, weights[0], out),
+            observe,
+        )
     }
 }

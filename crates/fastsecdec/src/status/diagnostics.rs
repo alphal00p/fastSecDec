@@ -124,6 +124,8 @@ impl EvaluationDiagnostics {
             Ok::<_, DiagnosticsOverflow>(EvaluatorTiming {
                 calls: sum(a.calls, b.calls)?,
                 nanoseconds: sum(a.nanoseconds, b.nanoseconds)?,
+                matrix_invocations: sum(a.matrix_invocations, b.matrix_invocations)?,
+                matrix_points: sum(a.matrix_points, b.matrix_points)?,
             })
         };
         let combined = Self {

@@ -1,7 +1,7 @@
 //! Native symbolic-to-numeric boundary. One exact program owns every numeric path.
 #[cfg(test)]
 mod captured;
-use super::{KernelError, cancellation::Cancellation};
+use super::{CompilationSettings, KernelError, cancellation::Cancellation};
 use symbolica::{
     atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol},
     domains::{float::Complex, rational::Rational},
@@ -21,6 +21,7 @@ pub(super) struct SectorProgram {
 
 /// Coordinate-image maps are flat and shared within one generated vector.
 /// Empty maps are allowed for exact zero padding or plain legacy expressions.
+#[cfg(test)]
 pub(super) fn build(
     parameters: Vec<Symbol>,
     coefficients: &[AliasedAtom],
@@ -29,12 +30,30 @@ pub(super) fn build(
     build_with_parameters(parameters, &[], coefficients, cancellation)
 }
 
+#[cfg(test)]
 pub(super) fn build_with_parameters(
     parameters: Vec<Symbol>,
     runtime_parameters: &[Symbol],
     coefficients: &[AliasedAtom],
     cancellation: Cancellation,
 ) -> Result<SectorProgram, KernelError> {
+    build_with_settings(
+        parameters,
+        runtime_parameters,
+        coefficients,
+        cancellation,
+        CompilationSettings::default(),
+    )
+}
+
+pub(super) fn build_with_settings(
+    parameters: Vec<Symbol>,
+    runtime_parameters: &[Symbol],
+    coefficients: &[AliasedAtom],
+    cancellation: Cancellation,
+    settings: CompilationSettings,
+) -> Result<SectorProgram, KernelError> {
+    settings.validate()?;
     let mut seen = std::collections::HashSet::new();
     if parameters
         .iter()
@@ -67,9 +86,8 @@ pub(super) fn build_with_parameters(
         .chain(runtime_parameters)
         .map(|p| Atom::var(*p))
         .collect::<Vec<_>>();
-    let mut builder = Atom::evaluator_multiple(&roots, &variables)
-        .direct_translation(true)
-        .horner_iterations(0);
+    let mut builder =
+        Atom::evaluator_multiple(&roots, &variables).optimization_settings(settings.native());
     if let Some(aliases) = aliases {
         // Register a shared map once; native AliasedAtom::evaluator_multiple
         // would register identical definitions again for each coefficient.

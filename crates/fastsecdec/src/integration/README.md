@@ -5,6 +5,22 @@ their evaluation settings, ordered `(Laurent order, real/imaginary component)`
 pairs, whole-sector dimensions, and exact whole zero-dimensional contributions.
 The caller supplies the evaluator and owns all worker threads and stopping loops.
 
+Workers also accept bounded evaluator matrices through
+`evaluate_weighted_batch` (QMC) and `evaluate_weighted_batch_observed` (Havana).
+The caller supplies a positive chunk size and a callback over point-major
+coordinates, one weight per row, and point-major complete Laurent outputs.
+These chunks are execution units, not statistical replicas or checkpoint units.
+Existing scalar callbacks use the same worker implementation with chunk size one.
+
+Havana fills each chunk with the native fixed-proposal sampler. Discrete Havana
+groups its rows by sector, preserving each sector's encounter order, and restores
+the original global sample order for training and all vector reductions. QMC
+applies native periodization before forming the matrix and inserts results into
+its native partial in lattice order. A failed callback never produces an
+admissible partial return. Cancellation is caller controlled; incomplete work
+and its replay state are discarded. Discrete sector grouping can change which
+independent sector failure is encountered first, but never admits a failed prefix.
+
 `QmcSession` issues canonical point packages. A reusable `QmcWorker` generates
 coordinates, applies the selected periodization, evaluates the complete vector,
 and returns Numerica partials. Democratic uncertainty intersects complete shift

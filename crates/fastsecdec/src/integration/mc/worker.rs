@@ -1,9 +1,12 @@
-use std::{fmt::Display, time::Instant};
+use std::fmt::Display;
 
-use numerica::numerical_integration::{ContinuousGrid, MonteCarloRng, Sample};
+#[cfg(test)]
+use numerica::numerical_integration::MonteCarloRng;
+use numerica::numerical_integration::{ContinuousGrid, Sample};
 use serde::{Deserialize, Serialize};
 
-use crate::integration::{IntegrationError, McLiveView, Result, mc_live::CenteredAccumulator};
+use crate::integration::{IntegrationError, McLiveView, Result};
+mod batch;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HavanaTask {
@@ -103,88 +106,34 @@ impl HavanaWorker {
     ) -> Result<HavanaReturn> {
         self.evaluate_inner(task, true, evaluate, observe)
     }
+    /// Evaluate bounded, point-major chunks through a caller's batch evaluator.
+    /// Weights and outputs have one row per sampled point; output rows contain
+    /// the complete weighted Laurent vector. Training and reduction retain the
+    /// original native RNG order, independently of the chosen chunk size.
+    pub fn evaluate_weighted_batch_observed<E: Display>(
+        &mut self,
+        task: HavanaTask,
+        batch_size: usize,
+        evaluate: impl FnMut(&[f64], &[f64], &mut [f64]) -> std::result::Result<(), E>,
+        observe: impl FnMut(McLiveView<'_>),
+    ) -> Result<HavanaReturn> {
+        self.evaluate_batch_inner(task, batch_size, true, evaluate, observe)
+    }
+
     fn evaluate_inner<E: Display>(
         &mut self,
         task: HavanaTask,
         already_weighted: bool,
         mut evaluate: impl FnMut(&[f64], f64, &mut [f64]) -> std::result::Result<(), E>,
-        mut observe: impl FnMut(McLiveView<'_>),
+        observe: impl FnMut(McLiveView<'_>),
     ) -> Result<HavanaReturn> {
-        if task.sector_id != self.sector_id
-            || task.grid_id != self.grid_id
-            || task.points != self.points
-            || task.rng_state == [0; 32]
-        {
-            return Err(IntegrationError::InvalidReturn(
-                "Havana task belongs to another integral, grid or production design".into(),
-            ));
-        }
-        let started = Instant::now();
-        let mut grid = self.grid.clone_without_samples();
-        let mut rng = MonteCarloRng::import(task.rng_state);
-        let mut accumulator = CenteredAccumulator::new(self.outputs);
-        let mut weighted_values = vec![0.0; self.outputs];
-        self.values.resize(self.outputs, f64::NAN);
-        for index in 0..task.points {
-            grid.sample(&mut rng, &mut self.sample);
-            let Sample::Continuous(weight, point) = &self.sample else {
-                unreachable!("ContinuousGrid produces continuous samples")
-            };
-            if !weight.is_finite() || *weight <= 0.0 {
-                return Err(IntegrationError::Evaluation(
-                    "native Havana sampled weight must be finite and strictly positive".into(),
-                ));
-            }
-            self.values.fill(f64::NAN);
-            evaluate(point, *weight, &mut self.values)
-                .map_err(|e| IntegrationError::Evaluation(e.to_string()))?;
-            if self
-                .values
-                .iter()
-                .any(|v| !v.is_finite() || (!already_weighted && !(v * weight).is_finite()))
-            {
-                return Err(IntegrationError::Evaluation(
-                    "nonfinite importance-weighted coefficient".into(),
-                ));
-            }
-            for (out, value) in weighted_values.iter_mut().zip(&self.values) {
-                *out = if already_weighted {
-                    *value
-                } else {
-                    value * weight
-                };
-            }
-            accumulator.add(&weighted_values);
-            if self.training {
-                let mut envelope = self.values.iter().map(|v| v.abs()).fold(0.0, f64::max);
-                if already_weighted {
-                    envelope = training_envelope(envelope, *weight)?;
-                }
-                grid.add_training_sample(&self.sample, envelope)
-                    .map_err(IntegrationError::Evaluation)?;
-            }
-            observe(McLiveView {
-                batch: task.batch,
-                sector_id: Some(self.sector_id),
-                points: index as u64 + 1,
-                total: None,
-                last_point_timing: None,
-                sectors: std::slice::from_ref(&accumulator),
-                sector_ids: &[self.sector_id],
-            });
-        }
-        let mean = accumulator.conditional_mean();
-        if mean.iter().any(|v| !v.is_finite()) {
-            return Err(IntegrationError::Evaluation(
-                "nonfinite Monte Carlo batch mean".into(),
-            ));
-        }
-        Ok(HavanaReturn {
+        self.evaluate_batch_inner(
             task,
-            mean,
-            worker_seconds: started.elapsed().as_secs_f64(),
-            training: self.training.then_some(grid),
-        })
+            1,
+            already_weighted,
+            |point, weights, out| evaluate(point, weights[0], out),
+            observe,
+        )
     }
 }
 

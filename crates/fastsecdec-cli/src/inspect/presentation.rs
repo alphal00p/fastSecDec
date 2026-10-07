@@ -224,7 +224,7 @@ fn sector(
     ));
     out.push('\n');
     out.push_str(&heading("Evaluator size is serialized exact program data; SymJIT size is its compressed application. Neither is machine-code size.",width,colors,Color::FG_BRIGHT_BLACK));
-    out.push_str(&heading("Operations describe the shared Laurent-vector program before real/complex lowering and optimization.",width,colors,Color::FG_BRIGHT_BLACK));
+    out.push_str(&heading("Operations describe the shared Laurent-vector program after native symbolic optimization, before real/complex lowering and backend optimization.",width,colors,Color::FG_BRIGHT_BLACK));
     let Some(metadata) = kernels.generation_metadata() else {
         return Ok(out);
     };

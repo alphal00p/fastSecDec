@@ -1,5 +1,43 @@
 # FastSecDec first-phase implementation plan
 
+## Batched evaluator execution follow-up (2026-10-07)
+
+Carry configurable point batches through QMC and both Havana integration paths,
+with `evaluation_batch_size = 256` by default. Use native SymJIT matrix evaluation
+for SIMD across eligible f64 points, including complex outputs and runtime
+parameters. Keep native eager, DoubleFloat and arbitrary-precision fallback
+available; reuse native evaluator owners without adding a second interpreter.
+Preserve sample order, complete Laurent-vector covariance, per-point stability
+and previous-maximum semantics, caller-owned workers, responsive cancellation,
+and deterministic task admission. Evaluation batches are operational chunks,
+independent of statistical batches, lattices and checkpoint compatibility.
+Validate tails, heterogeneous precision routing, scalar/batch numerical agreement,
+live statistics and checkpoint continuation. Do not commit or push until this
+follow-up is implemented and validated. Other examples and permanent test/gate
+migration remain deferred.
+
+## Dashboard counter semantics follow-up (2026-10-07)
+
+Explain the per-sector maximum as the largest importance-weighted complex
+coefficient magnitude of an individual sample. Distinguish live estimates from
+estimates based on complete batches/shifts, show explicit waiting reasons, and
+retain a clearly labeled previous completed allocation during refinement.
+Historical display values must not enter sampling, checkpoints or convergence.
+Keep the maximum-contribution label compact as `|wgt|`.
+On macOS, distinguish native free RAM from sysinfo's overlapping available-memory
+estimate; retain raw OS counters in structured observations. Reuse native APIs
+and validate accounting and displayed estimate provenance independently.
+
+Evaluator generation must use 10 native Horner-optimization iterations by
+default, with a user-configurable iteration count. Also expose the native
+maximum `cpe_rounds` setting, defaulting to 1000. Preserve deterministic
+generation, native eager/portable consumers, local SymJIT O2, and the ability to
+read existing artifacts generated with the previous zero-iteration policy.
+Expose the remaining meaningful native builder tuning controls under
+`[generation.evaluator]`, including maximum common-pair distance, cache size,
+Horner variable limit, direct translation and verbosity. Document upstream
+controls that are currently ineffective; do not invent an alternate optimizer.
+
 ## Integration dashboard presentation follow-up (2026-10-07)
 
 Restore a structured, colorful Ratatui layout around the integration data:

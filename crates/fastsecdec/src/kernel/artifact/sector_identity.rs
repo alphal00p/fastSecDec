@@ -47,9 +47,10 @@ impl KernelSet {
         let sector = self.sectors.get(index).ok_or_else(|| {
             KernelError::Artifact(format!("unknown numerical sector index {index}"))
         })?;
+        let compiler_policy = native::compiler_policy_with_settings(self.compilation_settings);
         let identity = SectorIdentity {
             program_codec: native::CODEC,
-            compiler_policy: native::compiler_policy(),
+            compiler_policy: &compiler_policy,
             parameters: parameter_names(&sector.parameters),
             runtime_parameters: parameter_names(&sector.runtime_parameters),
             runtime_mass_constraints: self

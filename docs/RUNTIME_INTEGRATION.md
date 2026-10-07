@@ -7,6 +7,31 @@ last. Nested tables merge, while arrays such as stability levels replace the
 whole previous array. Unknown settings are rejected. Runtime parameters supplied
 with `--parameters` and repeated `--parameter NAME=VALUE` remain evaluator inputs.
 
+`--evaluation-batch-size N` (alias `--batch-size`) controls the maximum number
+of points prepared together for an evaluator, defaulting to 256. Its runtime TOML
+key is `evaluation_batch_size`; zero is rejected. This is independent of the
+statistical Havana batches, QMC shifts and work-package sizes. Batch size and
+worker count may change on checkpoint resume. Effective runtime settings record
+the requested size in result provenance.
+
+QMC batches transformed coordinates; Havana batches native samples. Discrete
+Havana groups each chunk by sector for evaluation and restores the original
+sampling order for training and statistical accumulation. Real and complex
+SymJIT f64 evaluators use their native matrix/SIMD interface. Eager evaluation,
+DoubleFloat and arbitrary precision keep native scalar arithmetic inside the
+batch adapter because their upstream evaluators do not expose a matrix API.
+Stability admission, maximum-weight comparisons and reference updates retain
+the original point order within each sector. SIMD may change floating-point
+rounding; it does not change the sample sequence or covariance definition.
+
+Evaluator timing `calls` counts evaluated points, while `matrix_invocations`
+and `matrix_points` identify native matrix work. Average f64 time is the native
+elapsed span divided by the evaluated point count. A matrix span is indivisible;
+per-point reports receive shares that sum to that span. Cancellation is checked
+before a matrix call and between subsequent pointwise precision rescues. An
+interrupted statistical package remains unaccepted, even when some primary f64
+work was already performed; operational counters retain that attempted work.
+
 `--target-order 0` selects the complex ε⁰ coefficient for stopping. Its error is
 `sqrt(C_RR + C_II)` from the full total covariance, and its mean magnitude is
 `hypot(mean_R, mean_I)`. The accepted complete production allocation must satisfy
@@ -117,6 +142,23 @@ describe attributed work; unassigned coordinator work remains in global totals.
 Dashboard durations use plain decimal µs, ms and s values.
 Sample and operational counts use four significant digits with K, M and B
 suffixes (base 1000); small counts remain plain integers.
+
+`Max |wgt|` is the largest observed magnitude of an individual sample's
+importance-weighted coefficient, for that sector and epsilon order. It is
+measured before averaging and includes the complex real/imaginary magnitude.
+
+`Accepted batches` or `Accepted shifts` uses complete independent statistical
+units, so the column can wait throughout a wave when all batches run together.
+Explicit pilot/coverage labels replace an unexplained unavailable value. During
+refinement, `Previous allocation` retains the last completed production result
+for reference; it does not substitute for current statistics or convergence.
+Numerical failures remain visible and do not fall back to a previous result.
+
+On macOS, the RAM panel shows native **Free** memory. The OS available-memory
+estimate includes active pages also counted as used; it is not free memory and
+cannot be added to used memory. Other platforms retain their native
+**Available** reading. Structured observations preserve both counters; process
+RSS remains a single process-wide resident-memory reading including workers.
 
 Havana's mid-batch display is a current-iteration preview. Discrete-sector
 marginal errors include the implicit zeros from draws of other sectors; the

@@ -144,6 +144,9 @@ pub struct GenerationRecord {
     /// The requested route can use its supported per-sector physical fallback;
     /// this field does not claim every sector followed the named-series route.
     pub requested_coefficient_expansion: fastsecdec::generation::CoefficientExpansionMethod,
+    /// Actual native evaluator settings. Missing on artifacts from older producers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evaluator: Option<fastsecdec::kernel::CompilationSettings>,
 }
 
 #[derive(Serialize, Deserialize)]

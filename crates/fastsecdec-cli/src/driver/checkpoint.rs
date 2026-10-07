@@ -33,6 +33,10 @@ pub(super) struct RestoredCheckpoint {
 pub(super) fn settings_identity(settings: &IntegrationInput) -> CliResult<serde_json::Value> {
     let mut value = serde_json::to_value(settings)?;
     value.as_object_mut().unwrap().remove("workers");
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("evaluation_batch_size");
     Ok(value)
 }
 
@@ -81,7 +85,7 @@ pub(super) fn restore_checkpoint(
         || settings_identity(&historical)? != settings_identity(settings)?
         || checkpoint.round_index >= settings.max_rounds
     {
-        return Err("checkpoint input identity or integration settings differ; only the worker count may change during resume".into());
+        return Err("checkpoint input identity or integration settings differ; only the worker count and evaluation batch size may change during resume".into());
     }
     Ok(RestoredCheckpoint {
         round_index: checkpoint.round_index,

@@ -3,7 +3,8 @@ use crate::{
     CliResult,
     artifact::Artifact,
     generation_report::{
-        duration, expansion_method, facts_table, heading, short_id, terminal_text, timing_rows,
+        duration, evaluator_rows, expansion_method, facts_table, facts_table_with_labels, heading,
+        short_id, terminal_text, timing_rows,
     },
     math_display,
     terminal_policy::ColorPolicy,
@@ -130,39 +131,47 @@ pub(super) fn render(
         .into_iter()
         .collect::<Vec<_>>()
         .join(", ");
-    out.push_str(&facts_table(
-        vec![
-            [
-                "Workers".into(),
-                artifact
-                    .generation
-                    .as_ref()
-                    .map(|record| record.workers.to_string())
-                    .unwrap_or_else(|| "Not recorded".into()),
-            ],
-            [
-                "Requested expansion".into(),
-                artifact
-                    .generation
-                    .as_ref()
-                    .map(|record| expansion_method(record.requested_coefficient_expansion))
-                    .unwrap_or("Not recorded")
-                    .into(),
-            ],
-            [
-                "Backend".into(),
-                if backend.is_empty() {
-                    "Exact coefficients only".into()
-                } else {
-                    backend
-                },
-            ],
-            [
-                "Runtime inputs".into(),
-                kernels.runtime_parameters().len().to_string(),
-            ],
+    let mut generation_facts = vec![
+        [
+            "Workers".into(),
+            artifact
+                .generation
+                .as_ref()
+                .map(|record| record.workers.to_string())
+                .unwrap_or_else(|| "Not recorded".into()),
         ],
+        [
+            "Requested expansion".into(),
+            artifact
+                .generation
+                .as_ref()
+                .map(|record| expansion_method(record.requested_coefficient_expansion))
+                .unwrap_or("Not recorded")
+                .into(),
+        ],
+        [
+            "Backend".into(),
+            if backend.is_empty() {
+                "Exact coefficients only".into()
+            } else {
+                backend
+            },
+        ],
+        [
+            "Runtime inputs".into(),
+            kernels.runtime_parameters().len().to_string(),
+        ],
+    ];
+    generation_facts.extend(evaluator_rows(
+        artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.evaluator.as_ref()),
+    ));
+    out.push_str(&facts_table_with_labels(
+        generation_facts,
         width,
+        20,
         colors,
     ));
     out.push('\n');

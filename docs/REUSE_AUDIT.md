@@ -1,5 +1,70 @@
 # Ecosystem reuse evidence
 
+## Batched numerical execution (2026-10-07)
+
+The f64 runtime uses Symbolica's public real/complex
+`JITCompiledEvaluator::batch_evaluate`, which delegates to SymJIT's native matrix
+evaluator and SIMD tail handling. Point-major input matrices include the bound
+runtime parameters. SymJIT's internal threading is explicitly disabled so the
+CLI remains the worker-pool owner. Native eager and higher-precision evaluator
+owners currently expose scalar evaluation only; the batch adapter retains those
+owners for portable consumers and selective precision rescue.
+
+QMC transforms points before batching. Both Havana paths retain Numerica's
+sampling, training and accumulators; discrete-sector chunks group by sector for
+evaluation and restore original sample order for training and covariance.
+Precision admission and maximum-weight updates retain sector-local point order.
+No alternative sampler, evaluator interpreter, graph representation, algebra or
+one-loop reference implementation is introduced. The independent
+[batch API and numerical review](reviews/batched-evaluation-reuse.md) records
+native ownership evidence and validation limits. The
+[runtime validation report](reviews/batched-evaluation-results.md) records actual
+ggHH comparisons, checkpoint continuation, portable eager execution and terminal
+cleanup, including the deferred permanent-test coverage boundary.
+
+## Configurable native evaluator optimization (2026-10-07)
+
+`CompilationSettings` is a serializable adapter around Symbolica's public
+`OptimizationSettings` and `EvaluatorBuilder`, not an optimizer implementation.
+The native defaults are retained except for the explicit CPE cap of 1000 rounds;
+Horner iterations now default to 10 instead of the previous local override of
+zero. Serial and caller-dispatched compilation use the same settings, including
+runtime-dependent exact offsets. Native eager and SymJIT O2 consumers share the
+same exact optimized program.
+
+Native seeded single-core searches preserve deterministic sector compilation.
+Generation workers remain caller-owned. Maximum common-pair distance is passed
+through and recorded but is currently unused by the pinned upstream optimizer;
+the cache-entry limit is active. Native expression hot starts and abort callbacks
+are programmatic hooks, not scalar run-card options. Verbose generation requires
+plain human output, and loading an artifact never replays optimizer log output.
+
+The existing artifact policy string binds the full requested settings without a
+new binary layout. Legacy zero-Horner policies restore their original settings,
+bytes and identities. Independent API/IR evidence is recorded in the
+[native optimizer review](reviews/horner-reuse-review.md),
+[implementation controls](reviews/horner-defaults.md), and
+[CLI/metadata review](reviews/evaluator-settings-cli-review.md). Native graph,
+algebra, one-loop master and reduction owners remain unchanged; no alternative
+CAS, optimizer, graph representation or integration method was introduced.
+
+## Dashboard estimate and macOS memory semantics (2026-10-07)
+
+Completed-batch/lattice estimates remain native `VectorEstimate` values. The
+dashboard keeps a separately labeled last completed allocation for display
+during later refinement, without changing admission, checkpoint or accuracy
+logic. Waiting states distinguish pilot work and insufficient independent
+coverage. The peak-sample display reuses the existing per-sector maximum of the
+importance-weighted complex coefficient magnitude.
+
+The macOS memory correction reuses sysinfo's native free-memory query. Its
+available-memory estimate includes active pages and overlaps used memory;
+it cannot be presented as free RAM. Raw counters remain available in structured
+observations. Independent native-source/probe evidence is recorded in the
+[memory and counter review](reviews/dashboard-counter-semantics.md) and
+[accepted-estimate audit](reviews/accepted-estimate-audit.md). No algebra,
+numerical reference, graph, integrator or evaluator implementation changed.
+
 ## Integration dashboard layout and mouse interaction (2026-10-07)
 
 The integration presentation reuses Ratatui blocks, tables, gauges, Unicode

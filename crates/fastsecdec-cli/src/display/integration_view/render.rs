@@ -5,7 +5,7 @@ use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span},
+    text::Line,
     widgets::{Block, BorderType, Borders, Gauge, Paragraph, Row, Table},
 };
 
@@ -76,6 +76,7 @@ pub(in crate::display) fn render(
 
 fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: ColorPolicy) {
     let wide = area.width >= 110;
+    let (memory_label, memory_capacity) = data.memory.free_or_available();
     let chunks = Layout::horizontal(if wide {
         vec![Constraint::Percentage(70), Constraint::Percentage(30)]
     } else {
@@ -96,7 +97,7 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
     );
     let title = if area.height < 5 {
         format!(
-            " {} · ε{} · rel {} · {} / accepted ",
+            " {} · ε{} · rel {} · {} / {} ",
             if data.scope.is_full_integral() {
                 "Full sum"
             } else {
@@ -108,6 +109,11 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
                 "preview"
             } else {
                 "current"
+            },
+            if super::accepted::previous(data).is_some() {
+                "previous allocation"
+            } else {
+                "accepted"
             }
         )
     } else {
@@ -116,12 +122,13 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
     let panel = card(title, TEAL, colors);
     let panel = if !wide {
         panel.title_bottom(Line::from(format!(
-            " RSS {} · peak {} · RAM {}/{} · avail {} ",
+            " RSS {} · peak {} · RAM {}/{} · {} {} ",
             ram(data.memory.process_rss_bytes),
             ram(data.memory.observed_peak_rss_bytes),
             ram(data.memory.system_used_bytes),
             ram(data.memory.system_total_bytes),
-            ram(data.memory.system_available_bytes)
+            memory_label,
+            ram(memory_capacity)
         )))
     } else {
         panel
@@ -148,18 +155,6 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
         },
         relative(data, None, (real, imag))
     );
-    let accepted = &data.observation.contributions.total;
-    let get_accepted = |i: Option<usize>| {
-        i.and_then(|i| {
-            accepted
-                .as_ref()
-                .and_then(|v| v.mean.get(i).zip(v.standard_error.get(i)))
-        })
-        .map_or_else(
-            || "unavailable".into(),
-            |(&v, &e)| number::uncertainty(v, Some(e)),
-        )
-    };
     let summary_area = Rect {
         height: inner.height.min(3),
         ..inner
@@ -174,7 +169,7 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
     let columns = Layout::horizontal(widths).spacing(1).split(summary_area);
     let make_row = |label: &str, index, color| {
         let (value, exponent) = super::sectors::split(value(data, None, index));
-        let (accepted, accepted_exp) = super::sectors::split(get_accepted(index));
+        let (accepted, accepted_exp) = super::sectors::split(super::accepted::value(data, index));
         Row::new(vec![
             right(label),
             right(super::sectors::fitted(value, columns[1].width)),
@@ -192,7 +187,7 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
                 right(""),
                 right(live_label),
                 right(""),
-                right("Accepted"),
+                right(super::accepted::label(data)),
                 right(""),
             ])
             .style(bold(colors, GOLD)),
@@ -201,30 +196,6 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
         table
     };
     frame.render_widget(table, summary_area);
-    if !wide && inner.height > 3 {
-        frame.render_widget(
-            Paragraph::new(Line::from(vec![
-                Span::styled(
-                    format!(" RSS {} ", ram(data.memory.process_rss_bytes)),
-                    colors.foreground(BLUE),
-                ),
-                Span::raw(format!(
-                    "peak {}  ",
-                    ram(data.memory.observed_peak_rss_bytes)
-                )),
-                Span::styled(
-                    format!(
-                        "RAM {}/{} ",
-                        ram(data.memory.system_used_bytes),
-                        ram(data.memory.system_total_bytes)
-                    ),
-                    colors.foreground(PURPLE),
-                ),
-                Span::raw(format!("free {}", ram(data.memory.system_available_bytes))),
-            ])),
-            Rect::new(inner.x, inner.y + 3, inner.width, 1),
-        );
-    }
     if wide {
         let panel = card(" Memory · process / machine ", BLUE, colors);
         let inner = panel.inner(chunks[1]);
@@ -246,7 +217,7 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
                     ram(data.memory.system_total_bytes)
                 ),
             ),
-            ("Available", ram(data.memory.system_available_bytes)),
+            (memory_label, ram(memory_capacity)),
         ];
         frame.render_widget(
             Table::new(
@@ -276,6 +247,11 @@ fn progress(
     } else {
         " Iteration progress · accepted work "
     };
+    let title = if data.observation.contributions.total.is_none() && !cancelling {
+        format!("{title}· {} ", super::accepted::waiting(data))
+    } else {
+        title.to_owned()
+    };
     let panel = card(title, if cancelling { RED } else { BLUE }, colors);
     let panel = if is_qmc(data) {
         panel.title_bottom(Line::from(format!(
@@ -292,6 +268,14 @@ fn progress(
             } else {
                 ""
             }
+        )))
+    } else {
+        panel
+    };
+    let panel = if !is_qmc(data) && data.observation.contributions.total.is_none() {
+        panel.title_bottom(Line::from(format!(
+            " {} ",
+            super::accepted::explanation(data)
         )))
     } else {
         panel

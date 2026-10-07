@@ -55,6 +55,8 @@ pub fn generate_with_workers(
     };
     dashboard.generation(&status)?;
     let loaded = input::load(path)?;
+    let evaluator_settings = loaded.card.generation.evaluator;
+    evaluator_settings.validate()?;
     status.timings.input_seconds = loaded.input_seconds;
     status.timings.parametrization_seconds = loaded.parametrization_seconds;
     status.stage = GenerationStage::Parametrization;
@@ -262,8 +264,10 @@ pub fn generate_with_workers(
                 )
                 .map_err(fastsecdec::kernel::KernelError::Compilation)
             };
-        generated.compile_with_parameters_and_dispatch(
+        generated.compile_with_settings_parameters_and_dispatch(
+            fastsecdec::kernel::PrecisionPolicy::default(),
             &loaded.runtime_parameters,
+            evaluator_settings,
             &mut compile_dispatch,
             |progress| {
                 let mut ui = ui.borrow_mut();
@@ -318,6 +322,7 @@ pub fn generate_with_workers(
     artifact.generation = Some(GenerationRecord {
         workers,
         requested_coefficient_expansion: options.coefficient_expansion.method,
+        evaluator: Some(evaluator_settings),
     });
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());

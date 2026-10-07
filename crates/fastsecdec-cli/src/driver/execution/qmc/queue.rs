@@ -54,7 +54,17 @@ struct Completed {
     aborted_prefix: bool,
 }
 
-fn evaluate(mut slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
+#[cfg(test)]
+fn evaluate(slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
+    evaluate_batch(slot, task, stop, 1)
+}
+
+fn evaluate_batch(
+    mut slot: QmcSlot,
+    task: QmcTask,
+    stop: &AtomicBool,
+    batch_size: usize,
+) -> Completed {
     let sector = task.sector_id() as usize;
     let _span = slot.meter.task(Some(sector as u64));
     slot.meter.activity(
@@ -65,25 +75,28 @@ fn evaluate(mut slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
     let active = slot.active.as_mut().unwrap();
     let mut diagnostics = EvaluationDiagnostics::default();
     let mut aborted_prefix = false;
-    let result = active
-        .worker
-        .evaluate_weighted(task, |point, weight, output| {
-            if stop.load(Ordering::Relaxed) {
-                aborted_prefix = true;
-                return Err("QMC package stopped by caller".to_owned());
-            }
-            super::super::evaluate_observed(
-                &mut active.context,
-                sector as u64,
-                point,
-                weight,
-                output,
-                &mut diagnostics,
-                &slot.meter,
-            )?;
-            slot.meter.point_completed();
-            Ok::<(), String>(())
-        });
+    let result =
+        active
+            .worker
+            .evaluate_weighted_batch(task, batch_size, |points, weights, output| {
+                if stop.load(Ordering::Relaxed) {
+                    aborted_prefix = true;
+                    return Err("QMC package stopped by caller".to_owned());
+                }
+                super::super::evaluate_batch_observed(
+                    &mut active.context,
+                    sector as u64,
+                    points,
+                    weights,
+                    output,
+                    &mut diagnostics,
+                    &slot.meter,
+                    stop,
+                    &mut aborted_prefix,
+                )?;
+                slot.meter.points_completed(weights.len() as u64);
+                Ok::<(), String>(())
+            });
     let state = result.as_ref().ok().map(|_| active.context.state().clone());
     Completed {
         slot,
@@ -105,8 +118,9 @@ impl Drop for StopOnDrop<'_> {
 }
 
 impl Phase<'_> {
-    pub(super) fn run(
+    pub(super) fn run_batched(
         self,
+        batch_size: usize,
         poll: impl FnMut(
             &QmcSession,
             &EvaluationDiagnostics,
@@ -114,7 +128,9 @@ impl Phase<'_> {
             bool,
         ) -> CliResult<Outcome>,
     ) -> CliResult<Outcome> {
-        self.run_with(poll, &evaluate)
+        self.run_with(poll, &|slot, task, stop| {
+            evaluate_batch(slot, task, stop, batch_size)
+        })
     }
 
     // The private execution seam lets tests force completion/failure order

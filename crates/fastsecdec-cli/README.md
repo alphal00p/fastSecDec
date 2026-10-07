@@ -72,6 +72,13 @@ fastsecdec integrate output/gghh_double_box.fsd --full-integral \
   --parameters examples/gghh_double_box/point.toml --workers 8
 ```
 
+Integration uses evaluator batches of 256 points by default. Set
+`--evaluation-batch-size N` (alias `--batch-size`), or `evaluation_batch_size = N`
+in runtime integration settings, to change this operational chunk size. It is
+independent of statistical batches/shifts and may change when resuming a
+checkpoint. SymJIT evaluates eligible f64 rows through its native SIMD matrix
+interface; eager and higher-precision evaluation retain their native owners.
+
 `--plain` disables the live terminal dashboard and report/run-time error colors. Setting
 `NO_COLOR` keeps the live dashboard but uses terminal-default colors throughout
 the dashboard, boundary report and errors. Redirected reports omit color.
@@ -146,8 +153,49 @@ input names `native_named` and `physical` remain accepted aliases respectively;
 new configuration examples and status output use the descriptive names.
 The Python `coefficient_expansion` argument accepts these same names.
 
-The three limits are optional caller caps, shown here as an example. They apply
-only to `coefficient_series`. Existing subtraction limits govern the exact
+Native evaluator optimization is configured separately:
+
+```toml
+[generation.evaluator]
+horner_iterations = 10
+cpe_rounds = 1000
+cores = 1
+max_horner_scheme_variables = 500
+max_common_pair_cache_entries = 1000000
+max_common_pair_distance = 1000
+verbose = false
+direct_translation = true
+```
+
+These are the defaults. `horner_iterations` controls native Horner-scheme
+optimization. `cpe_rounds` caps native common-pair elimination rounds; `0`
+disables those rounds and `"unlimited"` uses the native unlimited setting.
+`max_cpe_rounds` is accepted as an alias. With the direct translator,
+`horner_iterations = 0` selects the native immediate linearization path, which
+also bypasses its subsequent common-subexpression/common-pair optimization.
+`direct_translation = false` requests the native expression-tree route; native
+non-inlined function boundaries can still require direct translation.
+
+The variable and cache limits are passed directly to Symbolica. The pinned
+native optimizer stores `max_common_pair_distance` but does not yet consult it;
+changing it currently has no optimization effect. Only `cores = 1` is supported
+because parallel native Horner candidates can resolve equal-cost choices in a
+scheduling-dependent order. Use `generate --workers` for deterministic parallel
+sector compilation. Native expression hot starts and cancellation callbacks
+are not run-card tuning settings; the callback-only abort level is not exposed.
+
+`verbose = true` enables native optimizer logging and requires `--plain` without
+`--json` or `--status-json`. Scalar settings are saved in generation metadata and
+the evaluator artifact policy. Existing artifacts retain their original zero
+Horner/unlimited-CPE settings, bytes and identities when loaded. These settings
+apply to sector evaluators and runtime-dependent exact offsets, including native
+eager/portable artifacts; local SymJIT compilation remains at O2. Auxiliary
+literal-zero checks and mass-constraint predicates keep their separate fixed
+settings.
+
+The coefficient-expansion limits `max_series_attempts`, `max_relative_width`,
+and `max_unique_requests` are optional caller caps, shown above as an example.
+They apply only to `coefficient_series`. Existing subtraction limits govern the exact
 `full_expression` fallback when an unregulated endpoint needs its pruning
 decision. Failed series, resource limits and cancellation return errors; they do
 not trigger a different algorithm. Relative depth is measured from each native series' leading epsilon power,

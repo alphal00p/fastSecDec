@@ -241,3 +241,50 @@ the former 14-cell label budget; a single-line fit is not claimed. The half-widt
 clamp and below-32 stacked guard remain safe, and generation retains its original
 wrapper budget. No production edits were made by the reviewer for these
 corrections.
+
+## Accepted reference and memory clarification (2026-10-07)
+
+The compact maximum label is now `Max |wgt|`, following the user's wording.
+Its existing native meaning is unchanged: per selected sector and Laurent
+order, the largest magnitude of the final importance-weighted coefficient seen
+in this invocation, including pilot/discarded work and excluding exact offsets.
+The underlying meter receives the successful weighted output and uses `hypot`
+over the real/imaginary components for that order; it is not the maximum bare
+sampling weight or a statistical error.
+
+Missing current accepted totals now distinguish pilot work, incomplete batches,
+incomplete shifts and statistical failure. The CLI retains a display-only clone
+of the last native completed production allocation. A current accepted total,
+including a partial allocation of complete statistical units, always takes
+precedence. Historical values are explicitly headed **Previous allocation** and
+identified as completed in the status caption; they never become current totals,
+JSON statistics, checkpoint content or inputs to stopping decisions. Cache
+compatibility requires matching method, scope, sector IDs, Laurent orders and
+components. Starting another integration clears the cache. Statistical/range
+failure prevents historical fallback, and exact-only inputs cannot inherit a
+stochastic reference. Existing forced completion observations capture completed
+rounds before the next pilot begins without changing the one-second cadence.
+
+The integration memory cards now share the monitor's `free_or_available()`
+policy: macOS labels the native free-pages reading **Free**; other platforms
+retain **Available**. This avoids implying that macOS's broader VM-reclaimable
+counter is unused RAM. Native JSON retains the original available counter and
+adds a separate free counter; used memory is not inferred by subtraction.
+
+Focused native probes in ignored `output/dashboard-accepted` passed complete-only
+retention, current partial precedence, compatibility invalidation, statistical
+and numerical-range failure handling, unchanged numerical observations and
+80/120/160-column rendering of each waiting/reference state. They also repeat
+the native mouse, exact-count sorting, alignment and no-color controls. The
+memory fixture distinguishes 488.3 MiB free from approximately 14 GiB broadly
+available. Probe sources were removed from the CLI examples directory after
+execution; no permanent tests or numerical code were changed.
+
+The final-release two-round ggHH control also passed in plain output and a
+120-by-32 native PTY. The previous completed allocation remained visible during
+the next pilot with its historical label, current waiting reasons and macOS
+Free counter. Terminal attributes, alternate screen and cursor were restored.
+Plain and PTY results had identical final means, errors and full covariance,
+with 1024 accepted production points and zero failures. See
+[the final-release CLI review](evaluator-settings-cli-review.md) and ignored
+`output/dashboard-accepted/multiround-*` for the bounded evidence.

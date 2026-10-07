@@ -83,37 +83,40 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             replay: &mut replay,
             operations: &operations,
         }
-        .run(|session, diagnostics, replay, force| {
-            dashboard.integration_work(operations.activities());
+        .run_batched(
+            settings.evaluation_batch_size,
+            |session, diagnostics, replay, force| {
+                dashboard.integration_work(operations.activities());
 
-            let cancelled = dashboard.cancelled();
-            let mut failure = None;
-            let bookkeeping = operations.coordinator(false);
-            super::observe_live(
-                dashboard,
-                &operations,
-                diagnostics,
-                started,
-                force || cancelled,
-                || session.live_observation(),
-                || session.diagnostic_observation(),
-                &mut failure,
-            )?;
-            if last_checkpoint.elapsed().as_secs() >= 5 {
-                save_checkpoint(
-                    checkpoint,
-                    artifact,
-                    settings,
-                    round,
-                    session.checkpoint()?,
+                let cancelled = dashboard.cancelled();
+                let mut failure = None;
+                let bookkeeping = operations.coordinator(false);
+                super::observe_live(
+                    dashboard,
+                    &operations,
                     diagnostics,
-                    replay,
+                    started,
+                    force || cancelled,
+                    || session.live_observation(),
+                    || session.diagnostic_observation(),
+                    &mut failure,
                 )?;
-                last_checkpoint = Instant::now();
-            }
-            drop(bookkeeping);
-            Ok(queue::Outcome { cancelled, failure })
-        })?;
+                if last_checkpoint.elapsed().as_secs() >= 5 {
+                    save_checkpoint(
+                        checkpoint,
+                        artifact,
+                        settings,
+                        round,
+                        session.checkpoint()?,
+                        diagnostics,
+                        replay,
+                    )?;
+                    last_checkpoint = Instant::now();
+                }
+                drop(bookkeeping);
+                Ok(queue::Outcome { cancelled, failure })
+            },
+        )?;
         dashboard.integration_work(Vec::new());
         cancelled = outcome.cancelled;
         failure = outcome.failure;

@@ -32,6 +32,34 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    pub(super) fn evaluate_primary_batch(
+        &mut self,
+        input: &[f64],
+        output: &mut [f64],
+        rows: usize,
+    ) -> Vec<super::EvaluatorTiming> {
+        let input = input
+            .iter()
+            .map(|v| Complex::new(*v, 0.0))
+            .collect::<Vec<_>>();
+        let mut values = vec![Complex::new(0.0, 0.0); rows * self.output.len()];
+        let timings = evaluator::evaluate_batch(
+            &mut self.evaluator,
+            &input,
+            &mut values,
+            rows,
+            self.input.len(),
+            self.output.len(),
+        );
+        for (out, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(values) {
+            out.copy_from_slice(&[value.re, value.im]);
+        }
+        for timing in &timings {
+            self.f64_timing.add(*timing);
+        }
+        timings
+    }
+
     pub(super) fn evaluation_metrics(&self) -> super::EvaluationTimings {
         super::EvaluationTimings {
             f64: self.f64_timing,
@@ -189,7 +217,7 @@ impl ComplexKernel {
         point: &[f64],
         output: &mut [f64],
     ) -> Result<PrecisionReport, KernelError> {
-        self.evaluate_scaled(point, output, 1.0)
+        self.evaluate_scaled(point, output, 1.0, None)
     }
 
     pub(super) fn evaluate_scaled(
@@ -197,6 +225,7 @@ impl ComplexKernel {
         point: &[f64],
         output: &mut [f64],
         weight: f64,
+        primary: Option<&[f64]>,
     ) -> Result<PrecisionReport, KernelError> {
         if point.len() != self.input.len() {
             return Err(KernelError::Dimension {
@@ -220,9 +249,15 @@ impl ComplexKernel {
         for (input, value) in self.input.iter_mut().zip(point) {
             *input = Complex::new(*value, 0.0);
         }
-        let started = std::time::Instant::now();
-        self.evaluator.evaluate(&self.input, &mut self.output);
-        self.f64_timing.record(started);
+        if let Some(primary) = primary {
+            for (out, value) in self.output.iter_mut().zip(primary.as_chunks::<2>().0) {
+                *out = Complex::new(value[0], value[1]);
+            }
+        } else {
+            let started = std::time::Instant::now();
+            self.evaluator.evaluate(&self.input, &mut self.output);
+            self.f64_timing.record(started);
+        }
         for (target, value) in output.as_chunks_mut::<2>().0.iter_mut().zip(&self.output) {
             target.copy_from_slice(&[value.re, value.im]);
         }

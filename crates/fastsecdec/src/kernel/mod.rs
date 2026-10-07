@@ -7,6 +7,8 @@ pub use backend_version::symjit_version_code;
 mod cancellation;
 mod compilation;
 pub use compilation::{CompilationCompletion, CompilationDispatch, CompilationJob};
+mod compilation_settings;
+pub use compilation_settings::CompilationSettings;
 mod complex;
 mod distance;
 mod evaluator;
@@ -38,7 +40,9 @@ use symbolica::{
     },
     evaluate::ExpressionEvaluator,
 };
-pub use weighted::{ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationContext};
+pub use weighted::{
+    BatchEvaluationError, ReplayPolicy, ReplayReport, ReplayState, WeightedEvaluationContext,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
@@ -165,8 +169,18 @@ impl SectorKernel {
         output: &mut [f64],
         weight: f64,
     ) -> Result<PrecisionReport, KernelError> {
+        self.evaluate_scaled_with_primary(point, output, weight, None)
+    }
+
+    fn evaluate_scaled_with_primary(
+        &mut self,
+        point: &[f64],
+        output: &mut [f64],
+        weight: f64,
+        primary: Option<&[f64]>,
+    ) -> Result<PrecisionReport, KernelError> {
         let before = self.evaluation_metrics();
-        let mut report = self.evaluate_scaled_inner(point, output, weight)?;
+        let mut report = self.evaluate_scaled_inner(point, output, weight, primary)?;
         report.timings = self.evaluation_metrics().since(before);
         Ok(report)
     }
@@ -176,6 +190,7 @@ impl SectorKernel {
         point: &[f64],
         output: &mut [f64],
         weight: f64,
+        primary: Option<&[f64]>,
     ) -> Result<PrecisionReport, KernelError> {
         if point.len() != self.dimension() {
             return Err(KernelError::Dimension {
@@ -201,16 +216,35 @@ impl SectorKernel {
         self.input[..point.len()].copy_from_slice(point);
         if self.stability.mode == StabilityMode::Distance {
             let class = self.routing.class(point);
+            if let Some(primary) = primary {
+                debug_assert_eq!(class, PrecisionClass::F64);
+                for (out, value) in output.iter_mut().zip(primary) {
+                    *out = value * weight;
+                }
+                if output.iter().all(|v| v.is_finite()) {
+                    return Ok(PrecisionReport {
+                        bits: 53,
+                        ..Default::default()
+                    });
+                }
+                return self.evaluate_distance_class(output, weight, PrecisionClass::DoubleFloat);
+            }
             return self.evaluate_distance_class(output, weight, class);
         }
         let point = self.input.as_slice();
         let backend = match &mut self.backend {
-            Backend::Complex(kernel) => return kernel.evaluate_scaled(point, output, weight),
+            Backend::Complex(kernel) => {
+                return kernel.evaluate_scaled(point, output, weight, primary);
+            }
             Backend::Real(kernel) => kernel,
         };
-        let started = std::time::Instant::now();
-        backend.evaluator.evaluate(point, output);
-        backend.f64_timing.record(started);
+        if let Some(primary) = primary {
+            output.copy_from_slice(primary);
+        } else {
+            let started = std::time::Instant::now();
+            backend.evaluator.evaluate(point, output);
+            backend.f64_timing.record(started);
+        }
         // Native replay must scale before conversion: an amplifying weight can
         // make a raw zero/subnormal result materially inaccurate.
         let range_loss = weight > 1.0
@@ -347,6 +381,7 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    compilation_settings: CompilationSettings,
     stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
     runtime_mass_constraints: Vec<RuntimeMassConstraint>,
@@ -365,6 +400,11 @@ pub struct KernelSet {
 }
 
 impl KernelSet {
+    /// Settings used to construct the immutable native evaluator programs.
+    pub fn compilation_settings(&self) -> &CompilationSettings {
+        &self.compilation_settings
+    }
+
     /// Ordered real scalar inputs appended after integration coordinates in the native evaluator.
     pub fn runtime_parameters(&self) -> &[Symbol] {
         &self.runtime_parameters

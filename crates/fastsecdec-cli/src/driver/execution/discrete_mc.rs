@@ -151,6 +151,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 kernels,
                 &replay,
                 &frozen_replay,
+                settings.evaluation_batch_size,
                 |activity, collect_live, completed| {
                     dashboard.integration_work(activity);
                     if completed {

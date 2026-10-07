@@ -28,6 +28,7 @@ pub struct Summary<'a> {
     pub sectors: usize,
     pub workers: Option<usize>,
     pub requested_coefficient_expansion: Option<fastsecdec::generation::CoefficientExpansionMethod>,
+    pub evaluator: Option<fastsecdec::kernel::CompilationSettings>,
     pub runtime_inputs: usize,
     pub backends: Vec<String>,
     pub regulator: Atom,
@@ -81,6 +82,10 @@ pub fn print(
             .generation
             .as_ref()
             .map(|generation| generation.requested_coefficient_expansion),
+        evaluator: artifact
+            .generation
+            .as_ref()
+            .and_then(|record| record.evaluator),
         runtime_inputs: kernels.runtime_parameters().len(),
         backends: kernels
             .sectors()
@@ -103,6 +108,57 @@ pub fn print(
         render(&summary, width, ColorPolicy::for_stream(plain, terminal))
     );
     Ok(())
+}
+
+/// Saved generation controls, not values inferred from this process's defaults.
+/// Reused by artifact inspection so both views describe the same producer.
+pub(crate) fn evaluator_rows(
+    settings: Option<&fastsecdec::kernel::CompilationSettings>,
+) -> Vec<[String; 2]> {
+    let Some(settings) = settings else {
+        return vec![["Evaluator settings".into(), "Not recorded".into()]];
+    };
+    vec![
+        [
+            "Horner iterations".into(),
+            settings.horner_iterations.to_string(),
+        ],
+        [
+            "CPE rounds".into(),
+            settings
+                .cpe_rounds
+                .map_or_else(|| "Unlimited".into(), |n| n.to_string()),
+        ],
+        [
+            "Optimizer cores".into(),
+            format!("{} (deterministic)", settings.cores),
+        ],
+        [
+            "Horner variables".into(),
+            format!("{} maximum", settings.max_horner_scheme_variables),
+        ],
+        [
+            "CPE cache".into(),
+            format!("{} entries maximum", settings.max_common_pair_cache_entries),
+        ],
+        [
+            "Pair distance".into(),
+            format!("{} (upstream inactive)", settings.max_common_pair_distance),
+        ],
+        [
+            "Direct translation".into(),
+            if settings.direct_translation {
+                "Yes"
+            } else {
+                "No"
+            }
+            .into(),
+        ],
+        [
+            "Verbose optimizer".into(),
+            if settings.verbose { "Yes" } else { "No" }.into(),
+        ],
+    ]
 }
 
 pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> String {
@@ -146,8 +202,9 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
             expansion_method(method).into(),
         ]);
     }
+    facts.extend(evaluator_rows(summary.evaluator.as_ref()));
     let mut result = heading("Generation complete", width, colors, Color::FG_GREEN);
-    result.push_str(&facts_table(facts, width, colors));
+    result.push_str(&facts_table_with_labels(facts, width, 20, colors));
     result.push_str("\n\n");
     result.push_str(&heading(
         "Laurent coefficients",

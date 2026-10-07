@@ -46,6 +46,7 @@ pub struct Dashboard {
     generation_worker_offset: std::cell::Cell<usize>,
     integration_workers: Vec<IntegrationWorkerActivity>,
     cached_integration: Option<integration_view::Cached>,
+    previous_completed: Option<integration_view::CompletedAllocation>,
     cached_generation: Option<GenerationSnapshot>,
     integration_view: integration_view::View,
     live: Option<fastsecdec::integration::LiveObservation>,
@@ -85,6 +86,7 @@ impl Dashboard {
             generation_worker_offset: std::cell::Cell::new(0),
             integration_workers: Vec::new(),
             cached_integration: None,
+            previous_completed: None,
             cached_generation: None,
             integration_view: Default::default(),
             live: None,
@@ -235,6 +237,8 @@ impl Dashboard {
 
     pub fn begin_integration(&mut self) {
         self.memory.begin_integration();
+        self.previous_completed = None;
+        self.cached_integration = None;
         self.cached_generation = None;
     }
 
@@ -309,7 +313,13 @@ impl Dashboard {
         } else {
             self.memory.sample()
         };
+        integration_view::CompletedAllocation::update(
+            &mut self.previous_completed,
+            observation,
+            &self.scope,
+        );
         let cached = integration_view::Cached {
+            previous_completed: self.previous_completed.clone(),
             observation: observation.clone(),
             workers: self.integration_workers.clone(),
             live: self.live.clone(),

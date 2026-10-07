@@ -5,6 +5,8 @@ use super::{
     StabilitySettings,
 };
 use serde::{Deserialize, Serialize};
+mod batch;
+pub use batch::BatchEvaluationError;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -166,7 +168,7 @@ impl WeightedEvaluationContext {
         output: &mut [f64],
     ) -> Result<ReplayReport, KernelError> {
         let before = self.evaluation_metrics();
-        let mut report = self.evaluate_weighted_inner(point, weight, output)?;
+        let mut report = self.evaluate_weighted_inner(point, weight, output, None)?;
         report.precision.timings = self.evaluation_metrics().since(before);
         Ok(report)
     }
@@ -176,11 +178,14 @@ impl WeightedEvaluationContext {
         point: &[f64],
         weight: f64,
         output: &mut [f64],
+        primary: Option<&[f64]>,
     ) -> Result<ReplayReport, KernelError> {
         if !weight.is_finite() || weight < 0.0 {
             return Err(KernelError::InvalidWeight);
         }
-        let mut precision = self.kernel.evaluate_scaled(point, output, weight)?;
+        let mut precision = self
+            .kernel
+            .evaluate_scaled_with_primary(point, output, weight, primary)?;
         if self.state.stability.mode == StabilityMode::Distance {
             return self.distance_weight_check(weight, output, precision);
         }

@@ -42,6 +42,7 @@ pub(super) fn run(
     kernels: &KernelSet,
     replay: &AcceptedReplay,
     frozen: &AcceptedReplay,
+    batch_size: usize,
     mut poll: impl FnMut(
         Vec<IntegrationWorkerActivity>,
         &dyn Fn() -> Vec<McLiveBatch>,
@@ -81,7 +82,9 @@ pub(super) fn run(
             let activity = &activity[index];
             scope.spawn(move |_| {
                 let result = catch_unwind(AssertUnwindSafe(|| {
-                    evaluate(slot, task, session, kernels, replay, frozen, stop, activity)
+                    evaluate(
+                        slot, task, session, kernels, replay, frozen, stop, activity, batch_size,
+                    )
                 }))
                 .map_err(|p| {
                     p.downcast_ref::<String>()
@@ -142,6 +145,7 @@ fn evaluate(
     frozen: &AcceptedReplay,
     stop: &AtomicBool,
     activity: &std::sync::Mutex<IntegrationWorkerActivity>,
+    batch_size: usize,
 ) -> Completed {
     let id = task.sector_id();
     let batch = task.batch();
@@ -185,21 +189,24 @@ fn evaluate(
         slot.workers
             .get_mut(&id)
             .unwrap()
-            .evaluate_weighted_observed(
+            .evaluate_weighted_batch_observed(
                 task,
-                |point, weight, out| {
+                batch_size,
+                |points, weights, out| {
                     if stop.load(Ordering::Relaxed) {
                         aborted = true;
                         return Err("batch cancelled by caller".to_owned());
                     }
-                    super::super::evaluate_observed(
+                    super::super::evaluate_batch_observed(
                         context,
                         id,
-                        point,
-                        weight,
+                        points,
+                        weights,
                         out,
                         &mut diagnostics,
                         &slot.meter,
+                        stop,
+                        &mut aborted,
                     )
                 },
                 |view| {

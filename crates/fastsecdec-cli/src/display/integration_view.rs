@@ -15,6 +15,8 @@ use ratatui::{
     widgets::TableState,
 };
 
+mod accepted;
+pub(super) use accepted::CompletedAllocation;
 mod metrics;
 mod render;
 mod sectors;
@@ -24,6 +26,7 @@ use std::{cmp::Ordering, collections::BTreeSet};
 #[derive(Clone)]
 pub(super) struct Cached {
     pub observation: IntegrationObservation,
+    pub previous_completed: Option<CompletedAllocation>,
     pub live: Option<LiveObservation>,
     pub operational: OperationalMetrics,
     pub stability_mode: fastsecdec::kernel::StabilityMode,
@@ -78,7 +81,7 @@ impl Sort {
             Self::Time => "worker time",
             Self::RelativeError => "relative error",
             Self::F64Mean => "f64 mean time",
-            Self::Maximum => "max weighted",
+            Self::Maximum => "Max |wgt|",
             Self::F64 => "f64 fraction",
             Self::Double => "DoubleFloat fraction",
             Self::Arb => "Arb fraction",
@@ -524,7 +527,7 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
         "Imag",
         "Rel error",
         "f64 mean",
-        "Max |weighted|",
+        "Max |wgt|",
         "f64",
         "DoubleFloat",
         super::diagnostic_summary::arbitrary_label(data.stability_mode),
@@ -550,7 +553,7 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
     let mut table = builder.build();
     table.with(Style::modern());
     format!(
-        "{} · {:?} {:?} · {}\nε{} sum Re {} · Im {}\nCoverage: {}\n{}\n{}",
+        "{} · {:?} {:?} · {}\nε{} sum Re {} · Im {}\n{}: Re {} · Im {}\n{}\nCoverage: {}\n{}\n{}",
         data.scope,
         data.observation.snapshot.method,
         data.observation.snapshot.stage,
@@ -558,6 +561,10 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
         number::superscript(order),
         value(data, None, real),
         value(data, None, imag),
+        accepted::label(data),
+        accepted::value(data, real),
+        accepted::value(data, imag),
+        accepted::explanation(data),
         if is_qmc(data) {
             format!(
                 "{} used points / {} complete shifts",

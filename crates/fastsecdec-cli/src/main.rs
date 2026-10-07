@@ -61,6 +61,27 @@ struct Cli {
     command: Action,
 }
 
+impl Cli {
+    fn validate_generation_settings(&self) -> CliResult<()> {
+        let input = match &self.command {
+            Action::Generate { input, .. } => input,
+            Action::Run {
+                input, integration, ..
+            } if !integration.resume => input,
+            _ => return Ok(()),
+        };
+        let card: config::RunCard = toml::from_str(&std::fs::read_to_string(input)?)?;
+        card.generation.evaluator.validate()?;
+        if card.generation.evaluator.verbose && (!self.plain || self.json || self.status_json) {
+            return Err(
+                "generation.evaluator.verbose=true requires --plain and cannot be combined with --json or --status-json; native optimizer logs are human-readable"
+                    .into(),
+            );
+        }
+        Ok(())
+    }
+}
+
 #[derive(Subcommand)]
 enum Action {
     /// Generate portable O2 kernels from a native TOML run card.
@@ -185,6 +206,9 @@ struct IntegrationArgs {
     seed: Option<u64>,
     #[arg(long)]
     workers: Option<usize>,
+    /// Points per evaluator call (default 256); independent of statistical batches.
+    #[arg(long, visible_alias = "batch-size")]
+    evaluation_batch_size: Option<std::num::NonZeroUsize>,
     #[arg(long)]
     absolute_tolerance: Option<f64>,
     #[arg(long)]
@@ -308,6 +332,9 @@ impl IntegrationArgs {
         if let Some(value) = self.workers {
             settings.workers = value;
         }
+        if let Some(value) = self.evaluation_batch_size {
+            settings.evaluation_batch_size = value.get();
+        }
         if let Some(value) = self.absolute_tolerance {
             settings.absolute_tolerance = value;
         }
@@ -319,6 +346,9 @@ impl IntegrationArgs {
         }
         if let Some(rounds) = self.max_rounds {
             settings.max_rounds = rounds;
+        }
+        if settings.evaluation_batch_size == 0 {
+            return Err("evaluation_batch_size must be greater than zero".into());
         }
         Ok(())
     }
@@ -372,7 +402,10 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     // Check the public artifact name before run-card/reference I/O, terminal
     // setup or generation. In particular this also covers `run --resume`.
-    let preflight = cli.command.validate_generation_output();
+    let preflight = cli
+        .command
+        .validate_generation_output()
+        .and_then(|()| cli.validate_generation_settings());
     let json = cli.json;
     let color =
         terminal_policy::ColorPolicy::for_stream(cli.plain, std::io::stderr().is_terminal());

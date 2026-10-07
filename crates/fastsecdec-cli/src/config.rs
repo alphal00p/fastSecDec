@@ -125,6 +125,7 @@ pub struct GenerationInput {
     pub max_sectors: usize,
     pub max_support_pairs: usize,
     pub coefficient_expansion: fastsecdec::generation::CoefficientExpansionOptions,
+    pub evaluator: fastsecdec::kernel::CompilationSettings,
     /// Native graph-family preparation; unlike the library policy's default,
     /// historical CLI cards keep their original propagator representation.
     pub family_preparation: fastsecdec::parametric::FamilyPreparationPolicy,
@@ -138,6 +139,7 @@ impl Default for GenerationInput {
             max_sectors: 1_000_000,
             max_support_pairs: 10_000_000,
             coefficient_expansion: Default::default(),
+            evaluator: Default::default(),
             family_preparation: fastsecdec::parametric::FamilyPreparationPolicy::Original,
         }
     }
@@ -158,6 +160,8 @@ pub struct IntegrationInput {
     pub seed: u64,
     pub package_points: u64,
     pub workers: usize,
+    /// Operational chunk size, independent of statistical batches and checkpoints.
+    pub evaluation_batch_size: usize,
     pub periodization: String,
     /// Omitted in legacy/default serialization to preserve old checkpoint settings.
     #[serde(skip_serializing_if = "is_legacy_lattice")]
@@ -213,6 +217,7 @@ impl Default for IntegrationInput {
             seed: 0,
             package_points: 1024,
             workers: 1,
+            evaluation_batch_size: 256,
             periodization: "korobov3".into(),
             lattice: "kuo33002".into(),
             absolute_tolerance: 1e-8,
