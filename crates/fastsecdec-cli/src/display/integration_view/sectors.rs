@@ -49,7 +49,39 @@ pub(super) fn render(
     let ids = view.ids(data);
     let order = view.order(data);
     let (real, imag) = indices(data, order);
-    let wide = area.width >= 120;
+    // Measure the complete formatted suffix, including the explicit unknown
+    // uncertainty marker. A fixed exponent width silently clipped that marker
+    // while the flexible mantissa columns still held unused space.
+    let values = ids
+        .iter()
+        .map(|&id| {
+            (
+                split(value(data, Some(id), real)),
+                split(value(data, Some(id), imag)),
+                split(maximum(operation(data, id), order)),
+            )
+        })
+        .collect::<Vec<_>>();
+    let suffix_width = |part: usize| {
+        values
+            .iter()
+            .map(|(re, im, max)| {
+                let suffix = match part {
+                    0 => &re.1,
+                    1 => &im.1,
+                    _ => &max.1,
+                };
+                Line::from(suffix.as_str()).width()
+            })
+            .max()
+            .unwrap_or(0)
+            .min(u16::MAX as usize) as u16
+    };
+    let [re_width, im_width, max_width] = [suffix_width(0), suffix_width(1), suffix_width(2)];
+    // Keep usable mantissa space; use the existing two-line table when the
+    // complete suffixes and auxiliary columns would crowd both estimates out.
+    let wide_minimum = 5 + 12 + 10 + re_width + 10 + im_width + 8 + 10 + 12 + max_width + 9 * 2 + 4; // column gaps, selection marker and borders
+    let wide = area.width >= 120 && area.width >= wide_minimum;
     let tiny = area.width < 65;
     let compact_rows = !wide && !tiny && area.height <= 7;
     let header_height = if wide || tiny || compact_rows { 1 } else { 2 };
@@ -72,22 +104,22 @@ pub(super) fn render(
             Constraint::Length(5),
             Constraint::Length(12),
             Constraint::Fill(1),
-            Constraint::Length(7),
+            Constraint::Length(re_width),
             Constraint::Fill(1),
-            Constraint::Length(7),
+            Constraint::Length(im_width),
             Constraint::Length(8),
             Constraint::Length(10),
             Constraint::Length(12),
-            Constraint::Length(7),
+            Constraint::Length(max_width),
         ]
     } else {
         vec![
             Constraint::Length(4),
             Constraint::Length(11),
             Constraint::Fill(1),
-            Constraint::Length(7),
+            Constraint::Length(re_width),
             Constraint::Fill(1),
-            Constraint::Length(7),
+            Constraint::Length(im_width.max(max_width)),
         ]
     };
     let spacing = if wide { 2 } else { 1 };
@@ -98,27 +130,23 @@ pub(super) fn render(
         .spacing(spacing)
         .split(columns_area);
     let mut heights = Vec::with_capacity(ids.len());
-    let rows=ids.iter().enumerate().map(|(index,&id)| {
+    let rows=ids.iter().zip(values).enumerate().map(|(index,(&id,((re,re_exp),(im,im_exp),(max,max_exp))))| {
         let op=operation(data,id);
-        let (re,re_exp)=split(value(data,Some(id),real));
-        let (im,im_exp)=split(value(data,Some(id),imag));
         let points=used_points(data,Some(id));
         let relative=relative(data,Some(id),(real,imag));
         let f64=f64_time(op);
-        let max=maximum(op,order);
         let fit=|text:String,i:usize| fitted(text,columns[i].width);
         let (cells,height)=if tiny {
-            let text=format!("#{id} · {points} pts\nRe {re} {re_exp}\nIm {im} {im_exp}\nRel {relative} · f64 {f64} · Max |wgt| {max}");
+            let text=format!("#{id} · {points} pts\nRe {re} {re_exp}\nIm {im} {im_exp}\nRel {relative} · f64 {f64} · Max |wgt| {max} {max_exp}");
             let lines=wrapped(&text,inner.width.saturating_sub(2));
             let h=lines.len().min(u16::MAX as usize) as u16;
             (vec![Cell::from(lines)],h)
         } else if wide {
-            (vec![right(id.to_string()),right(fit(points,1)),right(fit(re,2)),Cell::from(re_exp),right(fit(im,4)),Cell::from(im_exp),right(fit(relative,6)),right(fit(f64,7)),right(fit(split(max.clone()).0,8)),Cell::from(split(max).1)],1)
+            (vec![right(id.to_string()),right(fit(points,1)),right(fit(re,2)),Cell::from(fit(re_exp,3)),right(fit(im,4)),Cell::from(fit(im_exp,5)),right(fit(relative,6)),right(fit(f64,7)),right(fit(max,8)),Cell::from(fit(max_exp,9))],1)
         } else if compact_rows {
-            (vec![right(id.to_string()),right(fit(points,1)),right(fit(re,2)),Cell::from(re_exp),right(fit(im,4)),Cell::from(im_exp)],1)
+            (vec![right(id.to_string()),right(fit(points,1)),right(fit(re,2)),Cell::from(fit(re_exp,3)),right(fit(im,4)),Cell::from(fit(im_exp,5))],1)
         } else {
-            let (max,max_exp)=split(max);
-            (vec![right(id.to_string()),two(fit(points,1),relative),two(fit(re,2),fit(f64,2)),left_two(re_exp,String::new()),two(fit(im,4),fit(max,4)),left_two(im_exp,max_exp)],2)
+            (vec![right(id.to_string()),two(fit(points,1),fit(relative,1)),two(fit(re,2),fit(f64,2)),left_two(fit(re_exp,3),String::new()),two(fit(im,4),fit(max,4)),left_two(fit(im_exp,5),fit(max_exp,5))],2)
         };
         heights.push(height);
         let mut style=colors.foreground(if index%2==0 {Color::White}else{Color::Rgb(191,208,224)});

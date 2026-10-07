@@ -20,6 +20,8 @@ pub(super) use accepted::CompletedAllocation;
 mod metrics;
 mod render;
 mod sectors;
+#[cfg(test)]
+mod tests;
 pub(super) use render::render;
 use std::{cmp::Ordering, collections::BTreeSet};
 

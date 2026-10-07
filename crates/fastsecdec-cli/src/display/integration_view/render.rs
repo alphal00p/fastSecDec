@@ -159,27 +159,47 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
         height: inner.height.min(3),
         ..inner
     };
+    let values = [("Re", real, TEAL), ("Im", imag, PURPLE)].map(|(label, index, color)| {
+        (
+            label,
+            super::sectors::split(value(data, None, index)),
+            super::sectors::split(super::accepted::value(data, index)),
+            color,
+        )
+    });
+    let preview_width = values
+        .iter()
+        .map(|(_, (_, suffix), _, _)| Line::from(suffix.as_str()).width())
+        .max()
+        .unwrap_or(0) as u16;
+    let accepted_width = values
+        .iter()
+        .map(|(_, _, (_, suffix), _)| Line::from(suffix.as_str()).width())
+        .max()
+        .unwrap_or(0) as u16;
     let widths = [
         Constraint::Length(3),
         Constraint::Fill(1),
-        Constraint::Length(7),
+        Constraint::Length(preview_width),
         Constraint::Fill(1),
-        Constraint::Length(7),
+        Constraint::Length(accepted_width),
     ];
     let columns = Layout::horizontal(widths).spacing(1).split(summary_area);
-    let make_row = |label: &str, index, color| {
-        let (value, exponent) = super::sectors::split(value(data, None, index));
-        let (accepted, accepted_exp) = super::sectors::split(super::accepted::value(data, index));
-        Row::new(vec![
-            right(label),
-            right(super::sectors::fitted(value, columns[1].width)),
-            ratatui::widgets::Cell::from(exponent),
-            right(super::sectors::fitted(accepted, columns[3].width)),
-            ratatui::widgets::Cell::from(accepted_exp),
-        ])
-        .style(colors.foreground(color))
-    };
-    let rows = [make_row("Re", real, TEAL), make_row("Im", imag, PURPLE)];
+    let rows = values.map(
+        |(label, (value, exponent), (accepted, accepted_exp), color)| {
+            Row::new(vec![
+                right(label),
+                right(super::sectors::fitted(value, columns[1].width)),
+                ratatui::widgets::Cell::from(super::sectors::fitted(exponent, columns[2].width)),
+                right(super::sectors::fitted(accepted, columns[3].width)),
+                ratatui::widgets::Cell::from(super::sectors::fitted(
+                    accepted_exp,
+                    columns[4].width,
+                )),
+            ])
+            .style(colors.foreground(color))
+        },
+    );
     let table = Table::new(rows, widths).column_spacing(1);
     let table = if inner.height >= 3 {
         table.header(

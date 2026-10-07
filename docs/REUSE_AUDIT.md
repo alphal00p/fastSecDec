@@ -1,5 +1,14 @@
 # Ecosystem reuse evidence
 
+## QMC dashboard uncertainty width (2026-10-07)
+
+The compact `(σ n/a)` label and dynamic exponent/status columns reuse Ratatui's
+native terminal-width measurement and layout constraints. Native QMC remains
+responsible for complete-lattice admission and sampling errors; missing errors
+remain absent until enough independent shifts complete. Render controls reuse
+the native QMC session and Ratatui test backend. The [focused review](reviews/qmc-dashboard-uncertainty-width.md)
+records the clipping cause, unchanged statistical semantics and validation.
+
 ## Notebook default correction (2026-10-07)
 
 The user subsequently selected the existing symbolic generation lane for the

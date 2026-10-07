@@ -51,7 +51,7 @@ pub(crate) fn uncertainty(value: f64, error: Option<f64>) -> String {
     };
     mean = mean.abs();
     let Some(error) = error else {
-        return format!("{} (σ unavailable)", scientific(value));
+        return format!("{} (σ n/a)", scientific(value));
     };
     if error == 0.0 {
         return format!("{sign}{mean}(0) ·10{}", superscript(exponent));

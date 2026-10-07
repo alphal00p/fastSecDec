@@ -1,5 +1,14 @@
 # FastSecDec first-phase implementation plan
 
+## QMC dashboard uncertainty labels (2026-10-07)
+
+Use the compact `(σ n/a)` label while a central value has no sampling-error
+estimate. Size dashboard value/exponent columns from their full terminal
+display width, preserving aligned multiplication dots and avoiding silently
+clipped uncertainty labels in sector rows and the full-sum panel. Retain the
+existing complete-lattice rules: one completed shift supplies a mean, and at
+least two independent completed shifts are needed for QMC uncertainty.
+
 ## Notebook symbolic default and immediate publication (2026-10-07)
 
 The user's latest correction selects `symbolic` generation in both ggHH Marimo
