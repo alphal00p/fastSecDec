@@ -3,9 +3,9 @@
 This input uses the supplied **D05 s-channel** `g g -> H H` diagram. Six
 massive top propagators form a hexagon, and an internal gluon joins opposite
 vertices. Both incoming gluons attach to one four-edge circuit; both outgoing
-Higgs legs attach to the other. The exact supplied source is retained in
-`source-diagram.dot`, including its vertex and edge labels, fermion flow,
-tensor numerator, and loop routing (loop edges `4` and `7`).
+Higgs legs attach to the other. The complete input is retained in `graph.dot`,
+including its vertex and edge labels, fermion flow, projected tensor numerator
+and loop routing (loop edges `4` and `7`).
 
 HEPKit generates the Standard-Model diagrams using only `ttg` and `ttH`
 interactions. Linnet verifies circuits of lengths `4, 4, 6` and external boxes
@@ -17,12 +17,13 @@ The model's internal gluon propagator is in Feynman gauge,
 
 The point uses `sqrt(s) = 300`, `mt = ymt = 172.5`, `mH = 125`, zero widths and
 `cos(theta) = 4/5`. The incoming gluons are massless; each outgoing Higgs has
-momentum squared `125^2`. Exact external momentum components preserve momentum
-conservation and these invariants. Incoming `(+,+)` gluon wavefunctions use
-HEPKit's shared GammaLoop/MadGraph convention, with metric `+---`. Their supplied
-binary floating-point components are transported losslessly as native rational
-coefficients. The generator checks transversality, circular-polarization null
-products, normalization and the complete finite Gram data before export.
+momentum squared `125^2`. The input construction checks exact momentum
+conservation and these invariants.
+Incoming `(+,+)` gluon wavefunctions use HEPKit's shared GammaLoop/MadGraph
+convention, with metric `+---`. The generator checks transversality,
+circular-polarization null products, normalization and the complete finite Gram
+data before export. `point.toml` contains ordinary decimal floating-point values,
+with enough digits to preserve the original runtime f64 inputs exactly.
 
 Color is contracted with **unnormalized `delta_ab`**. There is no color average,
 spin average, helicity sum or sum over diagrams. This individual contribution
@@ -191,23 +192,20 @@ defaults; explicit CLI options take precedence. These settings do not recompile
 the generated expressions. See the [runtime settings guide](../../docs/RUNTIME_INTEGRATION.md)
 for precision settings and live diagnostics.
 
-`raw-diagram.json`, `raw-diagram.dot` and the `raw-*.txt` files retain D05's native
-supplied numerator and its separate factors. `graph.dot` carries the native
-color-projected numerator and the remaining Lorentz projector, and evaluates
-the generated bookkeeping factor through HEPKit's existing factor API.
-`color-projected-numerator.txt` records that numerator. Its couplings and diagram
-weight enter exactly once; the diagnostic symmetry factor is not multiplied again.
-`generation.json` and `provenance.json` record selection and input construction.
-The full native model and numeric parameter card are included.
+The directory contains the six files needed to document, generate and integrate
+this example: `README.md`, `run.toml`, `graph.dot`, `model.json`,
+`parameters.json` and `point.toml`. The complete graph, color-projected tensor
+numerator, Lorentz projector and native evaluated overall factor are in
+`graph.dot`. These factors enter exactly once; the diagnostic symmetry factor
+is not multiplied again. Separate numerator snapshots are not required.
 
-D05's original model fingerprint is verified by strictly importing its source
-against HEPKit's embedded `Model::standard_model()`. The exporter then applies
-the native numeric parameter card. Since HEPKit has no public model-rebinding
-method, Linnet's native DOT object transports the updated model fingerprint.
-A complete native serialized-payload comparison checks that only the model
-fingerprint and derived diagram identity change: labels, tensor fragments,
-factors, half-edge order and momentum signatures remain identical. The source
-and physical model fingerprints and source hash are recorded in provenance.
+D05's original model fingerprint is verified by strictly importing its developer
+fixture against HEPKit's embedded `Model::standard_model()`. The exporter then
+applies the native numeric parameter card. Since HEPKit has no public
+model-rebinding method, Linnet's native DOT object transports the updated model
+fingerprint. A complete native serialized-payload comparison checks that only
+the model fingerprint and derived diagram identity change: labels, tensor
+fragments, factors, half-edge order and momentum signatures remain identical.
 
 To regenerate into a fresh directory, use the ordinary Cargo dependencies
 described in the [development guide](../../docs/DEVELOPMENT.md). Supply the

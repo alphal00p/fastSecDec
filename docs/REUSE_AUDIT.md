@@ -1,5 +1,23 @@
 # Ecosystem reuse evidence
 
+## Minimal ggHH example inputs (2026-10-07)
+
+The three CLI ggHH example directories retain only their README and five input
+files. Native graph import remains the sole source of diagram structure,
+numerators and factors; removed text snapshots and construction reports were
+not consumed by generation or integration. The developer exporter still needs
+the original unprojected D05 to apply its external projection exactly once.
+That unchanged source now lives in the existing test-fixture area, while normal
+exports produce only the five input files.
+
+Runtime point conversion uses Symbolica's public `Atom::evaluate` with the same
+f64 domain used by CLI binding. All 57 values across the three cards retain their
+previous f64 bits, and the exporter writes round-trip decimal floats. Exact
+generation-time mass shells, runtime parameter ownership and native numerical
+algorithms are unchanged. The [independent review](reviews/gghh-minimal-inputs.md)
+records native graph/topology checks, the exchange color structure, resource
+and point equivalence, exporter validation and the scope of the cleanup.
+
 ## Lightweight inspection and evaluator loading (2026-10-07)
 
 Default CLI inspection reads the existing JSON kernel summary, leaving the native

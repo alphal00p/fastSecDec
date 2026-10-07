@@ -8,7 +8,6 @@ use fastsecdec::{
     parametric::ParametricIntegrand,
 };
 
-use feynkit_generator::{GenerationOptions, GenerationReport, Process};
 use feynkit_graph::{ExternalState, FeynmanDiagram, expressions::evaluate_overall_factor, symbols};
 use feynkit_model::{Model, ParameterCard};
 use idenso::representations::ColorAdjoint;
@@ -23,44 +22,7 @@ use symbolica::{
 use super::{
     Result,
     point::{self, Point},
-    select::{Selection, Topology},
 };
-
-pub fn raw(
-    output: &Path,
-    model: &Model,
-    original_model: &str,
-    diagram: &FeynmanDiagram,
-    process: &Process,
-    options: &GenerationOptions,
-    report: &GenerationReport,
-) -> Result<()> {
-    std::fs::write(output.join("source-diagram.dot"), super::source::DOT)?;
-    std::fs::write(output.join("model.json"), model.to_json_pretty()?)?;
-    std::fs::write(output.join("raw-diagram.json"), diagram.to_json()?)?;
-    std::fs::write(output.join("raw-diagram.dot"), diagram.to_dot()?)?;
-    for (name, atom) in [
-        ("numerator", diagram.numerator()),
-        ("numerator-prefactor", diagram.numerator_prefactor()),
-        ("overall-factor", diagram.overall_factor()),
-        ("projector", diagram.projector()),
-    ] {
-        std::fs::write(
-            output.join(format!("raw-{name}.txt")),
-            atom.to_canonical_string(),
-        )?;
-    }
-    std::fs::write(
-        output.join("generation.json"),
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "process": process, "options": options, "report": report,
-            "source_model_blake3": blake3::hash(original_model.as_bytes()).to_hex().as_str(),
-            "diagram_id": diagram.id().to_string(), "diagram_name": diagram.name(),
-            "symmetry_factor_is_diagnostic_only": true,
-        }))?,
-    )?;
-    Ok(())
-}
 
 pub fn projected(raw: &FeynmanDiagram) -> Result<FeynmanDiagram> {
     let mut ports = Vec::new();
@@ -122,15 +84,7 @@ pub fn parameter_card(model: &Model) -> Result<ParameterCard> {
     Ok(card)
 }
 
-pub fn fixture(
-    output: &Path,
-    raw: &FeynmanDiagram,
-    projected: &FeynmanDiagram,
-    point: &Point,
-    topology: &Topology,
-    selection: &Selection,
-    elapsed: f64,
-) -> Result<()> {
+pub fn fixture(output: &Path, projected: &FeynmanDiagram, point: &Point) -> Result<()> {
     let dot = super::dot::pretty(projected)?;
     let loaded = FeynmanDiagram::from_dot(projected.model_arc(), &dot)?;
     if loaded.to_json()? != projected.to_json()? {
@@ -138,8 +92,8 @@ pub fn fixture(
     }
     std::fs::write(output.join("graph.dot"), dot)?;
     std::fs::write(
-        output.join("color-projected-numerator.txt"),
-        projected.numerator().to_canonical_string(),
+        output.join("model.json"),
+        projected.model().to_json_pretty()?,
     )?;
     let parameters = parameter_card(projected.model())?;
     let mut cli_model = projected.model().clone();
@@ -215,8 +169,8 @@ pub fn fixture(
         if !on_shell {
             writeln!(
                 runtime_point,
-                "{name} = {}",
-                serde_json::to_string(&product.value)?
+                "{name} = {:?}",
+                point::real_value(&product.value)?
             )?;
         }
     }
@@ -251,32 +205,5 @@ pub fn fixture(
     card.push_str("]\n\n[integral]\ndimension = \"4-2*eps\"\nregulator = \"eps\"\nmeasure_multiplier = \"1\"\n\n[generation]\norder = 0\n\n[generation.coefficient_expansion]\nmethod = \"coefficient_series\"\n");
     std::fs::write(output.join("run.toml"), card)?;
     std::fs::write(output.join("point.toml"), runtime_point)?;
-    std::fs::write(
-        output.join("provenance.json"),
-        serde_json::to_vec_pretty(&serde_json::json!({
-            "format": "native-generated-gghh-double-box", "version": 2,
-            "selected_diagram": raw.name(), "selected_diagram_id": raw.id().to_string(),
-            "selection": topology,
-            "source": selection.source,
-            "matching_generation_indices": selection.channel_matches.iter().map(|(i, _)| *i).collect::<Vec<_>>(),
-            "exact_native_generation_matches": selection.target_matches,
-            "selection_rule": "supplied D05 with its labels, tensor numerator and routing; native canonical-key membership; six-top hexagon, central gluon, circuits [4,4,6], external boxes [g,g] and [H,H]",
-            "generation_seconds": elapsed, "external_point": point,
-            "external_dimension": 4, "internal_dimension": "4-2*eps", "helicities": [1, 1],
-            "color_projection": "unnormalized delta_ab; no color or spin average",
-            "overall_factor": "native evaluate_overall_factor(raw factor), included exactly once",
-            "projected_numerator_is_raw": false,
-            "color_reduction": {
-                "owner": "Idenso SymbolicTensor::simplify_algebra with_cof_dimension_invariants",
-                "convention": "native SU(3), T_F=1/2; unnormalized external delta_ab applied once",
-                "symbolic_to_explicit_exact_check": true,
-                "lorentz_and_dirac_reduction": "retained for ordinary native input contraction in D dimensions",
-            },
-            "couplings": "native analytic model definitions with independent runtime inputs; card supplies metadata defaults and zero-width restrictions",
-            "model_parameter_defaults": runtime.defaults(),
-            "gauge_invariant_sum": false, "threshold_admission": "caller responsibility; generation performs no threshold certification",
-            "parametric_generation_complete": false, "numerical_integral_complete": false,
-        }))?,
-    )?;
     Ok(())
 }

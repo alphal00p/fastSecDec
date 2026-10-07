@@ -9,20 +9,6 @@ use serde::Serialize;
 
 use super::Result;
 
-#[derive(Serialize)]
-pub struct GeneratedMatch {
-    pub index: usize,
-    pub name: String,
-    pub id: String,
-}
-
-#[derive(Serialize)]
-pub struct Selection {
-    pub source: super::source::Provenance,
-    pub channel_matches: Vec<(usize, Topology)>,
-    pub target_matches: Vec<GeneratedMatch>,
-}
-
 pub fn interactions(model: &Model) -> Result<Vec<VertexSelector>> {
     let mut allowed = Vec::new();
     let mut signatures = BTreeSet::new();

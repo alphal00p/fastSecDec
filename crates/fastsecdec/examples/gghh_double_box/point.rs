@@ -64,6 +64,15 @@ fn constant(atom: &Atom) -> Result<Complex<f64>> {
     Ok(value)
 }
 
+/// Match runtime binding's native f64 evaluation, then export a TOML float.
+pub fn real_value(expression: &str) -> Result<f64> {
+    let value = self::expression(expression)?.evaluate(&HashMap::<Atom, f64>::new())?;
+    if !value.is_finite() {
+        return Err("external Gram entry is not a finite real constant".into());
+    }
+    Ok(value)
+}
+
 fn near(atom: &Atom, target: f64) -> Result<()> {
     let value = constant(atom)?;
     if (value.re - target).abs() > 2e-12 || value.im.abs() > 2e-12 {
@@ -212,5 +221,26 @@ impl Point {
             dependent_coordinates: dependent,
             polarization_gram_checks_complete: true,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exported_float_preserves_native_runtime_value() -> Result<()> {
+        for text in ["0", "45000", "1/3", "-22500+3000*11^(1/2)"] {
+            let expected = expression(text)?.evaluate(&HashMap::<Atom, f64>::new())?;
+            let literal = format!("{:?}", real_value(text)?);
+            assert_eq!(literal.parse::<f64>()?.to_bits(), expected.to_bits());
+            assert!(literal.contains('.') || literal.contains('e'));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn point_export_rejects_complex_inputs() {
+        assert!(real_value(&(Atom::one() + Atom::i()).to_canonical_string()).is_err());
     }
 }

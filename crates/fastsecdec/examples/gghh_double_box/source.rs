@@ -5,24 +5,12 @@ use std::sync::Arc;
 use feynkit_graph::FeynmanDiagram;
 use feynkit_model::Model;
 use linnet::parser::DotGraph;
-use serde::Serialize;
 
 use super::{Result, export};
 
-pub const DOT: &str = include_str!("../../../../examples/gghh_double_box/source-diagram.dot");
+pub const DOT: &str = include_str!("../../tests/fixtures/gghh-double-box-source.dot");
 
-#[derive(Serialize)]
-pub struct Provenance {
-    path: &'static str,
-    blake3: String,
-    original_model_fingerprint: String,
-    physical_model_fingerprint: String,
-    original_diagram_id: String,
-    model_adaptation: &'static str,
-    native_payload_preserved: bool,
-}
-
-pub fn physical_diagram(requested_model: &Model) -> Result<(FeynmanDiagram, Provenance)> {
+pub fn physical_diagram(requested_model: &Model) -> Result<FeynmanDiagram> {
     // The supplied D05 was exported with HEPKit's unmodified embedded SM.
     // Strict native import first verifies that exact model fingerprint, all
     // tensor fragments and the stored routing before applying our numeric card.
@@ -62,14 +50,5 @@ pub fn physical_diagram(requested_model: &Model) -> Result<(FeynmanDiagram, Prov
     if payload(&original)? != payload(&physical)? {
         return Err("applying the physical card changed the supplied D05 diagram payload".into());
     }
-    let provenance = Provenance {
-        path: "source-diagram.dot",
-        blake3: blake3::hash(DOT.as_bytes()).to_hex().to_string(),
-        original_model_fingerprint: original_model.fingerprint().to_string(),
-        physical_model_fingerprint: physical.model().fingerprint().to_string(),
-        original_diagram_id: original.id().to_string(),
-        model_adaptation: "native ParameterCard applied to the original SM; only model fingerprint and derived diagram ID change",
-        native_payload_preserved: true,
-    };
-    Ok((physical, provenance))
+    Ok(physical)
 }

@@ -1,5 +1,25 @@
 # FastSecDec first-phase implementation plan
 
+## Minimal ggHH example inputs (2026-10-07)
+
+Reduce the double-box and both triple-box run directories to their README,
+`graph.dot`, `model.json`, `parameters.json`, `run.toml` and `point.toml`.
+Remove diagnostic text, duplicate diagrams, source snapshots, renderings and
+construction reports from those directories. Preserve any source fixture actually
+required by a developer exporter in the existing test-fixture area, and update
+that exporter so ordinary output no longer recreates the diagnostic clutter.
+Write every point-card input as a finite TOML float, preserving the currently
+evaluated f64 values rather than changing the physical point or idealizing its
+polarization normalization. Keep all model and kinematic evaluator inputs
+parametric and retain the existing generation-time on-shell constraints.
+
+Independently verify the actual native graphs: `_bis` is the single outer
+eight-top loop with two gluon rungs; the original triple box has two closed
+four-top loops connected by two gluons. Explain the color-singlet exchange
+precisely from its external states and color structure. Do not contract or
+generate three-loop integrals during this cleanup. Validate native imports,
+point equivalence and affected exporter/test builds, then commit and push.
+
 ## Lightweight inspection and observable evaluator loading (2026-10-07)
 
 Show bracketed elapsed time beside the active generation step and frozen elapsed

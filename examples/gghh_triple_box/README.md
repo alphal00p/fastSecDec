@@ -4,9 +4,11 @@ This supplied native **D020** graph contributes to `g g -> H H`. It has eight
 vertices, ten internal propagators and three independent loop momenta. Its
 eight top propagators form **two separate four-edge fermion loops**, connected
 by two gluon propagators. Both incoming gluons attach to the first top loop;
-both outgoing Higgs legs attach to the second.
-
-![Native D020 graph](diagram.svg)
+both outgoing Higgs legs attach to the second. The two exchanged gluons are in
+a **color-singlet channel**: the top loop attached to the two Higgs bosons supplies
+`tr(T^a T^b) = T_F delta_ab = delta_ab/2`. This is two-gluon exchange. The
+separate projector on the incoming gluons remains the unnormalized color delta
+already stored in the graph; no extra color factor or average is introduced.
 
 The top cycles have edges `[4,5,9,11]` and `[6,7,8,12]`; the connecting gluons
 are edges `10` and `13`. Native loop routing uses edges `[4,7,10]`, with
@@ -17,8 +19,7 @@ one eight-edge outer loop with two gluon rungs. Neither input is a complete
 Standard-Model amplitude or a cross section.
 
 The original enumeration recipe and generation report for D020 are unavailable.
-`source-diagram.dot` preserves the actual supplied three-loop graph, and
-`provenance.json` records its native identity, source hash and verified topology.
+`graph.dot` supplies the complete three-loop graph and its native factors.
 No new diagram enumeration is claimed.
 
 ## Generation and runtime inputs
@@ -37,9 +38,10 @@ parameterization and sector finding. The other thirteen Gram products remain
 runtime symbols, including polarization products that vanish at the default
 point. Model masses and couplings remain analytic runtime inputs. The point
 card contains the thirteen Gram values and six model leaves (`model::Gf`,
-`model::MT`, `model::MZ`, `model::aEWM1`, `model::aS`, `model::ymt`). The native
-model resolves dependent couplings; its numeric card provides defaults and
-zero-width restrictions without freezing those inputs into the integrand.
+`model::MT`, `model::MZ`, `model::aEWM1`, `model::aS`, `model::ymt`). Every
+`point.toml` value is a decimal float preserving the original runtime f64 input.
+The native model resolves dependent couplings; its numeric card provides defaults
+and zero-width restrictions without freezing those inputs into the integrand.
 
 The default point uses `sqrt(s)=300`, `mH=125`, `MT=ymt=172.5`, zero widths and
 `cos(theta)=4/5`, with incoming `(+,+)` polarizations. Internal algebra retains
@@ -106,10 +108,10 @@ color tensors and delta are processed by the configured numerator contraction.
 This differs from `_bis`, whose color delta has already been consumed once by
 native color reduction.
 
-`raw-diagram.dot`, `raw-diagram.json` and `raw-*.txt` are native serializations
-of the supplied D020, including its existing projector. They are not recovered
-unprojected generator output. In `graph.dot`, its full tensor numerator is
-stored once in the native graph-level `numerator_prefactor`; the global and
+The directory contains `README.md`, `run.toml`, `graph.dot`, `model.json`,
+`parameters.json` and `point.toml`; no separate numerator snapshots are needed.
+In `graph.dot`, the complete tensor numerator is stored once in the native
+graph-level `numerator_prefactor`; the global and
 local numerators are `1`. The original prefactor is `1`, and the native
 bookkeeping owner evaluates the supplied overall factor to `+1`. Native Atom
 equality verifies the complete weighted product before and after this storage

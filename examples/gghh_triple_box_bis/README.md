@@ -8,8 +8,6 @@ separate four-edge loops joined by two gluons. The two incoming gluons attach
 to the left end box; the two outgoing Higgs legs attach to the right end box.
 The middle box has no external leg.
 
-![Native D068 triple-box diagram](diagram.svg)
-
 The selected native HEPKit diagram is **D068**. It is the unique matching
 ladder among 162 retained diagrams in a targeted three-loop generation using
 only `ttg` and `ttH` vertices, QCD order 6, QED order 2 and exactly one fermion
@@ -85,7 +83,8 @@ point card omits those fixed inputs.
 The remaining thirteen scalar products and six contributing model leaves
 (`model::Gf`, `model::MT`, `model::MZ`, `model::aEWM1`, `model::aS`,
 `model::ymt`) are runtime inputs. Their numerical values come from `point.toml`
-at integration time. The native model resolves analytic dependent couplings;
+at integration time. Every value is a decimal float preserving the original
+runtime f64 input. The native model resolves analytic dependent couplings;
 the numeric parameter card supplies metadata defaults and zero-width
 restrictions, not substitutions into the tensor numerator. Runtime top mass
 must remain finite, real and nonzero; a massless specialization needs separate
@@ -96,13 +95,13 @@ The artifact base `output/gghh_triple_box_bis.fsd` will identify adjacent human
 metadata `.fsd.json` and binary evaluator/expression `.fsd.dat` files. Move the
 pair together. Paths in this example are relative.
 
-`source-diagram.dot` and `source-model.json` retain the original native selected
-source. `raw-diagram.json`, `raw-diagram.dot` and the separate `raw-*.txt` files
-retain its tensor numerator, original prefactor, projector and bookkeeping
-factor after applying the physical model card. A complete native payload
-comparison verifies that this card transport changes only the model fingerprint
-and derived diagram ID, preserving every label, fragment, port and momentum
-signature. Reapplying `parameters.json` leaves `model.json`'s fingerprint unchanged.
+The directory contains `README.md`, `run.toml`, `graph.dot`, `model.json`,
+`parameters.json` and `point.toml`. The complete native diagram and factors are
+in `graph.dot`; separate numerator and graph snapshots are not required.
+A native payload comparison verifies that applying the physical model card
+changes only the model fingerprint and derived diagram ID, preserving every
+label, fragment, port and momentum signature. Reapplying `parameters.json`
+leaves `model.json`'s fingerprint unchanged.
 
 In `graph.dot`, the color-projected tensor appears **once**, in the graph-level
 `numerator_prefactor`, multiplied by the original raw numerator prefactor.
@@ -111,11 +110,9 @@ satisfies HEPKit's native aggregate/local-fragment invariant without repeating
 the entire tensor at `v0`. The two-polarization projector and native evaluated
 overall factor remain separate and enter once. The complete weighted product
 is checked exactly before and after export, and the finalized DOT round-trip
-preserves the complete native payload. `color-projected-numerator.txt` records
-the tensor separately for inspection; it is not an additional input factor.
+preserves the complete native payload.
 
-`generation.json` and `provenance.json` describe this three-loop selection and
-its construction. Native graph/color/routing/model/Gram checks have passed.
+Native graph/color/routing/model/Gram checks have passed.
 FastSecDec parameterization, sector generation, evaluator compilation and
 integration have deliberately **not** been run for this new example; no sector
 counts, timing forecast or numerical result is claimed. The original

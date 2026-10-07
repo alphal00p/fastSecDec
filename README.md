@@ -88,10 +88,15 @@ for scope, checkpoint and reference-export rules.
 The [gg→HH double-box guide](examples/gghh_double_box/README.md) includes
 eight-worker Havana and QMC commands targeting respectively 1% and 0.1% in ε⁰.
 Two three-loop inputs use `numerical_dual` and exact incoming-gluon mass shells:
-the [two-fermion-loop triple box](examples/gghh_triple_box/README.md) uses native
-`to_dots` contraction, and the [outer-loop triple-box ladder](examples/gghh_triple_box_bis/README.md)
-has two gluon rungs and keeps minimal contraction. Their guides include separate
-generation and integration commands; neither has a validated integral yet.
+the [two-fermion-loop triple box](examples/gghh_triple_box/README.md) exchanges a
+color-singlet gluon pair and uses native `to_dots` contraction; the
+[outer-loop triple-box ladder](examples/gghh_triple_box_bis/README.md) has one
+top-quark loop with two gluon rungs and keeps minimal contraction. Their guides
+include separate generation and integration commands; neither has a validated
+integral yet.
+Each ggHH example directory contains only its README, `graph.dot`, `model.json`,
+`parameters.json`, `run.toml` and `point.toml`. The graph carries the complete
+numerator and factors; runtime point values are decimal floats.
 The [runtime integration guide](docs/RUNTIME_INTEGRATION.md) explains precision
 routing, live estimates and timing diagnostics.
 
