@@ -316,6 +316,107 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
         metadata: kernels.metadata.as_ref().map(PortableMetadata::from_native),
     })
 }
+
+/// One independent archive record. The native evaluator codec is unchanged;
+/// only the selected chart group's ordinals are localized for standalone load.
+pub(super) fn partition(
+    kernels: &KernelSet,
+    index: Option<usize>,
+) -> Result<(String, Vec<u8>, Vec<usize>), KernelError> {
+    let sector = index
+        .map(|index| {
+            kernels
+                .sectors
+                .get(index)
+                .ok_or_else(|| failure("unknown partition sector"))
+        })
+        .transpose()?;
+    let mut source_indices = Vec::new();
+    let metadata = kernels
+        .metadata
+        .as_ref()
+        .map(|metadata| {
+            let mut local = crate::generation::GenerationMetadata {
+                domain: metadata.domain.clone(),
+                charts: metadata
+                    .charts
+                    .iter()
+                    .filter(|chart| chart.kernel_sector == index)
+                    .cloned()
+                    .collect(),
+            };
+            source_indices = local
+                .charts
+                .iter()
+                .map(|chart| chart.source_index)
+                .collect();
+            let indices = source_indices
+                .iter()
+                .enumerate()
+                .map(|(local, original)| (*original, local))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            for (ordinal, chart) in local.charts.iter_mut().enumerate() {
+                chart.source_index = ordinal;
+                chart.representative = *indices
+                    .get(&chart.representative)
+                    .ok_or_else(|| failure("partition omits its chart representative"))?;
+                chart.kernel_sector = index.map(|_| 0);
+            }
+            Ok::<_, KernelError>(
+                (!local.charts.is_empty()).then(|| PortableMetadata::from_native(&local)),
+            )
+        })
+        .transpose()?
+        .flatten();
+    let (orders, components) = sector
+        .and_then(|s| s.projection.as_ref())
+        .map(|projection| {
+            (
+                projection.local_orders.clone(),
+                projection.local_components.clone(),
+            )
+        })
+        .unwrap_or_else(|| {
+            (
+                kernels.coefficient_orders.clone(),
+                kernels.components.clone(),
+            )
+        });
+    let payload = Payload {
+        codec: CODEC.into(),
+        compiler_policy: native::compiler_policy_with_settings(kernels.compilation_settings),
+        exact: if index.is_none() {
+            kernels.exact_expressions.clone()
+        } else {
+            vec![Atom::Zero; orders.len()]
+        },
+        orders,
+        components,
+        runtime_parameters: kernels.runtime_parameters.clone(),
+        runtime_mass_constraints: kernels
+            .runtime_mass_constraints
+            .iter()
+            .map(|constraint| MassConstraint {
+                name: constraint.name.clone(),
+                expression: constraint.expression.clone(),
+            })
+            .collect(),
+        precision: kernels.precision.clone(),
+        sectors: sector
+            .into_iter()
+            .map(|sector| Sector {
+                parameters: sector.parameters.clone(),
+                program: sector.program_bytes.to_vec(),
+                cancellation_degree: sector.cancellation.degree(),
+                cancellation_terms: sector.cancellation.terms().map(<[Vec<usize>]>::to_vec),
+                endpoint_profiles: sector.cancellation.endpoint_profiles().map(<[_]>::to_vec),
+            })
+            .collect(),
+        metadata,
+    };
+    let (id, bytes) = encode(payload)?;
+    Ok((id, bytes, source_indices))
+}
 pub(super) fn generated(
     value: &crate::generation::GeneratedIntegral,
     precision: PrecisionPolicy,

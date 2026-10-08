@@ -1,3 +1,5 @@
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use std::{
     fs,
     path::Path,
@@ -432,7 +434,7 @@ fn inspect_uses_retained_native_metadata_and_missing_graph_has_structured_error(
         serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
     assert!(stored["kernel"].get("payload").is_none());
     assert_eq!(inspect["sectors"], stored["kernel"]["sectors"]);
-    assert!(artifact.with_extension("fsd.dat").exists());
+    assert!(artifact_data::data_path(&artifact).exists());
     assert!(!artifact.exists());
     assert_eq!(
         inspect["generation_metadata"]["charts"]

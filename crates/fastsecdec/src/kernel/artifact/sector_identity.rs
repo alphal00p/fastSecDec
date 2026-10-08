@@ -9,6 +9,8 @@ use serde::Serialize;
 #[cfg(test)]
 mod tests;
 
+type ProjectionIdentity<'a> = (&'a [usize], usize, &'a [i32], &'a [CoefficientComponent]);
+
 #[derive(Serialize)]
 struct SectorIdentity<'a> {
     program_codec: &'a str,
@@ -27,6 +29,8 @@ struct SectorIdentity<'a> {
     endpoint_profiles: Option<&'a [crate::generation::EndpointProfileRow]>,
     // None explicitly distinguishes old artifacts without retained semantics.
     metadata: Option<PortableMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    output_projection: Option<ProjectionIdentity<'a>>,
 }
 
 impl KernelSet {
@@ -74,6 +78,14 @@ impl KernelSet {
                 .metadata
                 .as_ref()
                 .map(|metadata| PortableMetadata::for_sector(metadata, index)),
+            output_projection: sector.projection.as_ref().map(|projection| {
+                (
+                    projection.indices.as_slice(),
+                    projection.output_count,
+                    projection.local_orders.as_slice(),
+                    projection.local_components.as_slice(),
+                )
+            }),
         };
         let mut hash = blake3::Hasher::new();
         hash.update(b"fastsecdec-sector-content-v1\0");

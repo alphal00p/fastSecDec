@@ -1,3 +1,5 @@
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use std::{
     fs,
     path::Path,
@@ -255,13 +257,14 @@ fn original_and_native_fallback_remain_explicit_and_invalid_uses_save_nothing() 
         !cli()
             .arg("inspect")
             .arg(&artifact)
+            .arg("--validate-artifact")
             .output()
             .unwrap()
             .status
             .success()
     );
+    fs::remove_file(artifact_data::data_path(&artifact)).unwrap();
     fs::remove_file(artifact.with_extension("fsd.json")).unwrap();
-    fs::remove_file(artifact.with_extension("fsd.dat")).unwrap();
     for (source, error) in [
         (
             "[direct]\ndomain='unit_cube'\nparameters=['x']\nterms=[]\n[generation.family_preparation.SingleUnitTerm]\nmax_states=32",

@@ -1,15 +1,19 @@
 mod checkpoint;
 mod contributions;
 mod observation;
+mod refinement;
 mod results;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use numerica::numerical_integration::{ContinuousGrid, MonteCarloRng, Sample};
+use numerica::numerical_integration::{ContinuousGrid, Sample};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    integration::{IntegrationError, IntegrationProblem, Result},
+    integration::{
+        IntegrationError, IntegrationProblem, Result,
+        streams::{Streams, mc_draws},
+    },
     status::IntegrationStage,
 };
 
@@ -41,7 +45,7 @@ pub struct HavanaSession {
     stage: IntegrationStage,
     epoch: u64,
     runs: Vec<SectorRun>,
-    next_rng: [u8; 32],
+    streams: Streams,
     cursor: usize,
 }
 
@@ -69,7 +73,7 @@ impl HavanaSession {
             .map(|s| settings.grid(s.dimension))
             .collect::<Result<Vec<_>>>()?;
         let mut session = Self {
-            next_rng: MonteCarloRng::new(settings.seed, 0).export(),
+            streams: Streams::new(settings.seed),
             problem,
             settings,
             stage,
@@ -99,16 +103,16 @@ impl HavanaSession {
     }
 
     fn install_grids(&mut self, grids: Vec<ContinuousGrid<f64>>) -> Result<()> {
-        let mut rng = MonteCarloRng::import(self.next_rng);
+        let mut streams = self.streams.clone();
         let mut runs = Vec::new();
         for (i, grid) in grids.into_iter().enumerate() {
+            let draws = mc_draws(
+                self.settings.points_per_batch as u64,
+                self.problem.sectors[i].dimension,
+            )?;
             let seeds = (0..self.settings.batches)
-                .map(|_| {
-                    let state = rng.export();
-                    rng.jump();
-                    state
-                })
-                .collect();
+                .map(|_| streams.reserve(draws).map(|(_, state)| state))
+                .collect::<Result<_>>()?;
             runs.push(SectorRun {
                 grid_id: self.grid_id(i, &grid)?,
                 training: grid.clone_without_samples(),
@@ -121,7 +125,7 @@ impl HavanaSession {
             });
         }
         self.runs = runs;
-        self.next_rng = rng.export();
+        self.streams = streams;
         self.cursor = 0;
         Ok(())
     }
@@ -131,6 +135,9 @@ impl HavanaSession {
     }
     pub fn stage(&self) -> IntegrationStage {
         self.stage
+    }
+    pub fn settings(&self) -> &HavanaSettings {
+        &self.settings
     }
     pub fn is_complete(&self) -> bool {
         self.runs
@@ -293,7 +300,7 @@ impl HavanaSession {
             stage,
             epoch: self.epoch,
             runs: Vec::new(),
-            next_rng: self.next_rng,
+            streams: self.streams.clone(),
             cursor: 0,
         };
         next.settings.points_per_batch = points;

@@ -48,6 +48,7 @@ fn cached(session: &QmcSession) -> Cached {
         operational: OperationalMetrics::default(),
         stability_mode: fastsecdec::kernel::StabilityMode::Distance,
         memory: memory::Snapshot::default(),
+        serial: None,
         elapsed: 1.0,
         scope: Default::default(),
         workers: vec![],

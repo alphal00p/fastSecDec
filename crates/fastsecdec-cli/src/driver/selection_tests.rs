@@ -54,7 +54,7 @@ fn partial_selected_checkpoint_resumes_only_selected_contexts_with_original_id()
         shifts: 8,
         package_points: 1024,
         lattice: "hkkn-alpha3".into(),
-        max_rounds: 1,
+        max_rounds: Some(1),
         ..Default::default()
     };
     let projected = problem(&artifact, &kernels, &settings.scope).unwrap();

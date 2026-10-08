@@ -1,7 +1,7 @@
 use super::super::{
     IntegrationReport,
-    checkpoint::save_mc_checkpoint,
-    refinement::mc_points,
+    checkpoint::save_mc_checkpoint_with_previous as save_mc_checkpoint,
+    refinement::{PreviousProduction, mc_design},
     report::{ExecutionOutcome, finish},
 };
 use super::{Context, final_report, observe, submit_package};
@@ -56,7 +56,23 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
     let mut round = restored
         .as_ref()
         .map_or(0, |checkpoint| checkpoint.round_index);
-    let mut current_points = mc_points(settings.points, round)?;
+    let (mut current_points, mut current_batches) = mc_design(settings, round)?;
+    let mut previous_complete = restored.as_ref().and_then(|c| c.previous_complete.clone());
+    if let Some(previous) = &previous_complete {
+        previous.validate(&problem, round)?;
+        dashboard
+            .integration_observation(&previous.observation, started.elapsed().as_secs_f64())?;
+    }
+    if restored.is_some() {
+        let mut expected = options.clone();
+        expected.points_per_batch = current_points.try_into()?;
+        expected.batches = current_batches;
+        if session.settings() != &expected {
+            return Err(
+                "checkpoint native MC design differs from the outer refinement settings".into(),
+            );
+        }
+    }
     let mut resumed_phase = restored.is_some();
     drop(initialization);
     'rounds: loop {
@@ -201,6 +217,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                     &session,
                     &diagnostics,
                     &replay,
+                    previous_complete.as_ref(),
                 )?;
                 last_checkpoint = Instant::now();
             }
@@ -211,7 +228,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         resumed_phase = false;
         let _refinement_span = operations.coordinator(false);
         if session.stage() == IntegrationStage::Pilot {
-            session.freeze_production(0.5, current_points.try_into()?, settings.shifts)?;
+            session.freeze_production(0.5, current_points.try_into()?, current_batches)?;
             continue;
         }
         let meets = match session
@@ -224,11 +241,31 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                 break;
             }
         };
-        if meets || round + 1 >= settings.max_rounds {
+        if meets || round + 1 >= settings.ordinary_max_rounds() {
             break;
         }
+        save_mc_checkpoint(
+            checkpoint,
+            artifact,
+            settings,
+            round,
+            &session,
+            &diagnostics,
+            &replay,
+            previous_complete.as_ref(),
+        )?;
+        last_checkpoint = Instant::now();
         round += 1;
-        current_points = mc_points(settings.points, round)?;
+        (current_points, current_batches) = mc_design(settings, round)?;
+        previous_complete = Some(PreviousProduction {
+            round: round - 1,
+            observation: session.diagnostic_observation()?,
+            qmc_design: None,
+        });
+        if !settings.double_points {
+            session.extend_production_batches(current_batches)?;
+            continue;
+        }
         let mut next = options.clone();
         next.points_per_batch = current_points.try_into()?;
         session = if method == "adaptive_mc" {
@@ -246,9 +283,10 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         &session,
         &diagnostics,
         &replay,
+        previous_complete.as_ref(),
     )?;
     drop(checkpoint_span);
-    let report = finish(
+    let mut report = finish(
         artifact,
         session.diagnostic_observation()?,
         &diagnostics,
@@ -265,5 +303,8 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             qmc_design: None,
         },
     )?;
+    if session.stage() != IntegrationStage::Production || !session.is_complete() {
+        report.previous_complete = previous_complete;
+    }
     final_report(dashboard, report)
 }

@@ -13,7 +13,7 @@ use fastsecdec::{
 
 use crate::CliResult;
 
-pub use storage::assemble;
+pub use storage::assemble_manifest;
 
 pub fn check_destination(
     path: &Path,
@@ -24,6 +24,7 @@ pub fn check_destination(
 ) -> CliResult<()> {
     let (metadata, data) = crate::artifact::paths(artifact_path)?;
     let mut protected = vec![metadata, data, checkpoint.to_path_buf()];
+    protected.push(artifact.data_path(artifact_path)?);
     protected.extend(artifact.source_paths());
     if let Some(reference) = reference {
         protected.push(reference.settings.path.clone());

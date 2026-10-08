@@ -195,7 +195,12 @@ impl QmcSettings {
         self.allocation_rule(dimension, points, shifts).map(|_| ())
     }
 
-    fn allocation_rule(&self, dimension: usize, points: u64, shifts: u32) -> Result<Rank1Rule> {
+    pub(crate) fn allocation_rule(
+        &self,
+        dimension: usize,
+        points: u64,
+        shifts: u32,
+    ) -> Result<Rank1Rule> {
         self.validate()?;
         if shifts < 2 || points.checked_mul(shifts as u64).is_none() {
             return Err(IntegrationError::Invalid(

@@ -120,6 +120,8 @@ impl Default for IntegralInput {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct GenerationInput {
+    /// Complete and persist one sector per recyclable worker process.
+    pub serial: bool,
     pub order: i32,
     pub mode: fastsecdec::generation::GenerationMode,
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
@@ -137,6 +139,7 @@ pub struct GenerationInput {
 impl Default for GenerationInput {
     fn default() -> Self {
         Self {
+            serial: false,
             order: 0,
             mode: Default::default(),
             subtraction: Default::default(),
@@ -177,7 +180,14 @@ pub struct IntegrationInput {
     #[serde(skip_serializing_if = "fastsecdec::integration::AccuracyTarget::is_default")]
     pub accuracy_target: fastsecdec::integration::AccuracyTarget,
     pub production_seconds: f64,
-    pub max_rounds: usize,
+    /// Minimum sampling residence, excluding loading/JIT and pauses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub serial_seconds: Option<f64>,
+    /// Grow points per replica; false appends replicas of the frozen design.
+    pub double_points: bool,
+    /// Omission means one ordinary allocation or unlimited serial allocations.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_rounds: Option<usize>,
     pub replay: fastsecdec::kernel::ReplayPolicy,
     pub stability: fastsecdec::kernel::StabilitySettings,
     /// Explicit steering for the global discrete-sector Havana lane only.
@@ -230,7 +240,9 @@ impl Default for IntegrationInput {
             relative_tolerance: 1e-3,
             accuracy_target: Default::default(),
             production_seconds: 10.0,
-            max_rounds: 1,
+            serial_seconds: None,
+            double_points: true,
+            max_rounds: None,
             replay: Default::default(),
             stability: Default::default(),
             discrete_mc: None,
@@ -243,6 +255,25 @@ fn is_legacy_lattice(value: &str) -> bool {
 }
 
 impl IntegrationInput {
+    pub fn ordinary_max_rounds(&self) -> usize {
+        self.max_rounds.unwrap_or(1)
+    }
+
+    pub fn validate_execution(&self) -> crate::CliResult<()> {
+        if self.workers == 0 || self.max_rounds == Some(0) || self.evaluation_batch_size == 0 {
+            return Err("workers, max_rounds and evaluation_batch_size must be positive".into());
+        }
+        if let Some(seconds) = self.serial_seconds {
+            if !seconds.is_finite() || seconds <= 0.0 {
+                return Err("serial_seconds must be finite and greater than zero".into());
+            }
+            if self.method.replace('-', "_") == "discrete_mc" {
+                return Err("discrete_mc does not support --serial; use --method mc or --method adaptive_mc for per-sector Havana sampling".into());
+            }
+        }
+        Ok(())
+    }
+
     /// Historical checkpoints predate distance routing and retain their policy.
     /// Explicit overlays still apply afterwards and are checked for compatibility.
     pub fn restore_historical_policy(&mut self, path: &std::path::Path) -> crate::CliResult<()> {
@@ -260,19 +291,7 @@ impl IntegrationInput {
     /// Merge only explicitly supplied runtime keys, preserving artifact defaults.
     /// Arrays (including stability levels) replace their entire previous value.
     pub fn apply_overlay(&mut self, path: &std::path::Path) -> crate::CliResult<()> {
-        let overlay: toml::Value = toml::from_str(&std::fs::read_to_string(path)?)?;
-        let mut overlay = serde_json::to_value(overlay)?;
-        if let Some(table) = overlay.as_object_mut()
-            && table.contains_key("integration")
-        {
-            if table.len() != 1 {
-                return Err("runtime settings with an [integration] table cannot contain other top-level tables".into());
-            }
-            overlay = table.remove("integration").unwrap();
-        }
-        if !overlay.is_object() {
-            return Err("runtime integration settings must be a TOML table".into());
-        }
+        let mut overlay = read_integration_overlay(path)?;
         if let Some(parameters) = overlay.get_mut("parameters") {
             let values = serde_json::from_value::<BTreeMap<String, f64>>(parameters.clone())?;
             *parameters = serde_json::to_value(canonical_parameter_names(values)?)?;
@@ -331,6 +350,26 @@ impl IntegrationInput {
         settings.validate()?;
         Ok(settings)
     }
+}
+
+/// Parse steering without registering symbols before native artifact import.
+pub(crate) fn read_integration_overlay(
+    path: &std::path::Path,
+) -> crate::CliResult<serde_json::Value> {
+    let overlay: toml::Value = toml::from_str(&std::fs::read_to_string(path)?)?;
+    let mut overlay = serde_json::to_value(overlay)?;
+    if let Some(table) = overlay.as_object_mut()
+        && table.contains_key("integration")
+    {
+        if table.len() != 1 {
+            return Err("runtime settings with an [integration] table cannot contain other top-level tables".into());
+        }
+        overlay = table.remove("integration").unwrap();
+    }
+    if !overlay.is_object() {
+        return Err("runtime integration settings must be a TOML table".into());
+    }
+    Ok(overlay)
 }
 
 #[derive(Clone, Debug, Deserialize)]

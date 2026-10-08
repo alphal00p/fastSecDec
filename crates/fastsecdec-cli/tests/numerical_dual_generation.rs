@@ -1,5 +1,7 @@
 //! Saved observations and caller-owned formula preparation are independent of
 //! the portable evaluator identity and worker count.
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use serde_json::{Value, json};
 use std::{
     fs,
@@ -111,7 +113,7 @@ order=1
         assert_eq!(inspected["generation_timings"], saved["generation_timings"]);
         artifacts.push((
             report["content_id"].clone(),
-            fs::read(artifact.with_extension("fsd.dat")).unwrap(),
+            fs::read(artifact_data::data_path(&artifact)).unwrap(),
         ));
     }
     assert_eq!(artifacts[0], artifacts[1]);

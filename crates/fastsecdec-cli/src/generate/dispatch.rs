@@ -10,7 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Worker {
     pub index: usize,
     pub activity: String,
@@ -19,9 +19,9 @@ pub(crate) struct Worker {
     pub active_seconds: f64,
     pub busy_seconds: f64,
     #[serde(skip)]
-    started: Option<Instant>,
+    pub(super) started: Option<Instant>,
 }
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Progress {
     pub completed: usize,
     pub total: usize,

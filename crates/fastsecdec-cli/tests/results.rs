@@ -1,3 +1,5 @@
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use std::{
     fs,
     path::Path,
@@ -153,7 +155,7 @@ independence_evidence = "The stored test target was not derived from this run."
     for path in [
         input,
         artifact.with_extension("fsd.json"),
-        artifact.with_extension("fsd.dat"),
+        artifact_data::data_path(&artifact),
         checkpoint,
         reference_path,
     ] {

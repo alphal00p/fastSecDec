@@ -1,6 +1,5 @@
 use fastsecdec::{
     integration::Tolerance,
-    kernel::KernelSet,
     reference::{ReferenceProvenance, ReferenceValidation},
     results::{KernelResultManifest, ResultTimings, SavedIntegrationResult},
 };
@@ -10,9 +9,10 @@ use crate::{
     reference::PreparedReference,
 };
 
-pub fn assemble(
+/// Result assembly from compact metadata; serial callers need no resident evaluators.
+pub fn assemble_manifest(
     artifact: &Artifact,
-    kernels: &KernelSet,
+    manifest: KernelResultManifest,
     settings: &IntegrationInput,
     report: &IntegrationReport,
     reference: Option<&PreparedReference>,
@@ -61,8 +61,11 @@ pub fn assemble(
             serde_json::to_value(reference.source())?,
         );
     }
+    let stored_reference = reference
+        .map(|reference| reference.stored(&manifest.kernel_content_id))
+        .transpose()?;
     let result = SavedIntegrationResult {
-        manifest: KernelResultManifest::from_kernels(kernels),
+        manifest,
         scope: settings.scope.clone(),
         contributions: report.contributions.clone(),
         stopping_reason: report
@@ -79,9 +82,7 @@ pub fn assemble(
         qmc_design: report.qmc_design.clone(),
         provenance,
         validation: ReferenceValidation::Unverified,
-        stored_reference: reference
-            .map(|reference| reference.stored(kernels.content_id()))
-            .transpose()?,
+        stored_reference,
         timings: ResultTimings {
             elapsed_seconds: Some(report.elapsed_seconds),
             artifact_load_seconds: Some(report.loading_seconds),

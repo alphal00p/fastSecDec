@@ -18,7 +18,7 @@ pub(in crate::generation) struct DiscoveredChart {
     pub key: Option<Key>,
 }
 
-pub(super) fn discover(
+pub(in crate::generation) fn discover(
     context: &Context,
     map: SectorMap,
     index: usize,
@@ -68,7 +68,7 @@ pub(super) fn discover(
     })
 }
 
-pub(super) fn instantiate(
+pub(in crate::generation) fn instantiate(
     context: &Context,
     chart: DiscoveredChart,
     recipe: Option<Arc<super::subtraction::Recipe>>,

@@ -14,6 +14,10 @@ pub mod mc_discrete;
 mod mc_live;
 mod observation;
 mod qmc;
+#[cfg(test)]
+mod refinement_tests;
+pub mod serial;
+mod streams;
 mod worker;
 
 pub use crate::status::CoefficientComponent;

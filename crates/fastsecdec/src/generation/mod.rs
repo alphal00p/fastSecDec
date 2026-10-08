@@ -25,6 +25,7 @@ pub use fastsecdec_sectors::{
 pub use metadata_display::MetadataView;
 #[cfg(test)]
 pub(crate) mod profiling;
+pub mod streaming;
 mod subtraction;
 mod support;
 mod symmetry;

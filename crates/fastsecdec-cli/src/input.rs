@@ -113,7 +113,7 @@ pub fn load_observed(
         Ok(text)
     };
     let text = read(path, &mut sources)?;
-    sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardWithoutReference;
+    sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardScientificInput;
     sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
     let card: RunCard = toml::from_str(&text)?;
     observe(LoadProgress::Parsed(&card))?;

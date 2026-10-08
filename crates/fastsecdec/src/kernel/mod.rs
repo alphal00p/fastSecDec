@@ -1,5 +1,9 @@
 //! Native O2 or portable interpreted vector kernels. Worker ownership is explicit.
 mod artifact;
+/// Sector-addressable native artifacts and synchronous caller-owned I/O.
+pub mod indexed {
+    pub use super::artifact::indexed::*;
+}
 #[cfg(feature = "native")]
 mod backend_version;
 #[cfg(feature = "native")]
@@ -22,6 +26,7 @@ pub use model_constraints::RuntimeMassConstraint;
 mod precision;
 mod precision_cache;
 mod program;
+mod projection;
 mod stability;
 mod statistics;
 mod timing;
@@ -112,6 +117,7 @@ pub enum KernelLoadProgress {
 }
 
 pub struct SectorKernel {
+    projection: Option<projection::OutputProjection>,
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
     stability: StabilitySettings,
@@ -160,6 +166,9 @@ impl SectorKernel {
         self.cancellation.endpoint_profiles()
     }
     pub fn output_count(&self) -> usize {
+        if let Some(projection) = &self.projection {
+            return projection.output_count;
+        }
         self.exact_zero.len()
             * if matches!(self.backend, Backend::Complex(_)) {
                 2
@@ -196,6 +205,11 @@ impl SectorKernel {
         weight: f64,
         primary: Option<&[f64]>,
     ) -> Result<PrecisionReport, KernelError> {
+        if self.projection.is_some() {
+            return self.project_output(output, primary, |kernel, values, primary| {
+                kernel.evaluate_scaled_with_primary(point, values, weight, primary)
+            });
+        }
         let before = self.evaluation_metrics();
         let mut report = self.evaluate_scaled_inner(point, output, weight, primary)?;
         report.timings = self.evaluation_metrics().since(before);
@@ -342,6 +356,11 @@ impl SectorKernel {
         weight: f64,
         minimum_bits: u32,
     ) -> Result<PrecisionReport, KernelError> {
+        if self.projection.is_some() {
+            return self.project_output(output, None, |kernel, values, _| {
+                kernel.replay_scaled(point, values, weight, minimum_bits)
+            });
+        }
         if !self.parameters_bound {
             return Err(KernelError::UnboundParameters);
         }
@@ -372,6 +391,7 @@ impl SectorKernel {
     /// Clone native evaluator state and buffers for an independently owned worker.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            projection: self.projection.clone(),
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
             stability: self.stability.clone(),

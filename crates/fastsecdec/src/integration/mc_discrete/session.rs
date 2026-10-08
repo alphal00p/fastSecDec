@@ -1,14 +1,18 @@
 mod checkpoint;
 mod observation;
+mod refinement;
 use super::grid::clone_without_samples;
 use super::{
     HavanaDiscreteReturn, HavanaDiscreteSettings, HavanaDiscreteTask, HavanaDiscreteWorker,
 };
 use crate::{
-    integration::{IntegrationError, IntegrationProblem, Result},
+    integration::{
+        IntegrationError, IntegrationProblem, Result,
+        streams::{Streams, mc_draws},
+    },
     status::IntegrationStage,
 };
-use numerica::numerical_integration::{DiscreteGrid, Grid, MonteCarloRng};
+use numerica::numerical_integration::{DiscreteGrid, Grid};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -30,7 +34,7 @@ pub struct HavanaDiscreteSession {
     training: Option<DiscreteGrid<f64>>,
     grid_id: [u8; 32],
     seeds: Vec<[u8; 32]>,
-    next_rng: [u8; 32],
+    streams: Streams,
     records: BTreeMap<u32, BatchRecord>,
     pending: BTreeSet<u32>,
     waiting_training: BTreeMap<u32, DiscreteGrid<f64>>,
@@ -60,7 +64,7 @@ impl HavanaDiscreteSession {
             Some(settings.grid(&problem)?)
         };
         let mut session = Self {
-            next_rng: MonteCarloRng::new(settings.batch.seed, 0).export(),
+            streams: Streams::new(settings.batch.seed),
             problem,
             settings,
             stage,
@@ -108,15 +112,12 @@ impl HavanaDiscreteSession {
     fn install(&mut self) -> Result<()> {
         self.grid_id = self.identity()?;
         self.training = self.grid.as_ref().map(clone_without_samples).transpose()?;
-        let mut rng = MonteCarloRng::import(self.next_rng);
+        let draws = self.batch_draws()?;
+        let mut streams = self.streams.clone();
         self.seeds = (0..self.settings.batch.batches)
-            .map(|_| {
-                let s = rng.export();
-                rng.jump();
-                s
-            })
-            .collect();
-        self.next_rng = rng.export();
+            .map(|_| streams.reserve(draws).map(|(_, state)| state))
+            .collect::<Result<_>>()?;
+        self.streams = streams;
         self.records.clear();
         self.pending.clear();
         self.waiting_training.clear();

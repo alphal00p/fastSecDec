@@ -62,6 +62,13 @@ Evaluator batches default to 256 points (`--evaluation-batch-size`), independent
 of statistical batches and QMC lattices. Performance comparisons also require a
 release build of the Rust orchestration code.
 
+For bounded sector residency, use `generate --serial --workers 8` and
+`integrate --serial 60 --workers 8`. Generation and integration modes are
+independent and share the same indexed artifact format. The integration value
+is a minimum sampling residence in seconds; complete replicas update live
+results throughout the stay. See the [serial execution guide](docs/SERIAL_MODE.md)
+for refinement, recovery, seed partitioning and measured memory bounds.
+
 Native HEPKit master and reduction comparisons now cover twelve scalar and
 eight numerator points, including rank five and a zero Gram determinant. An
 additional coupled two-loop numerator agrees with independent parameterization

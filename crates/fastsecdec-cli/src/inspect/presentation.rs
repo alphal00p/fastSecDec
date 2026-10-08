@@ -171,9 +171,57 @@ fn sector(
     width: usize,
     colors: ColorPolicy,
 ) -> CliResult<String> {
+    sector_labeled(artifact, kernels, id, id, None, expressions, width, colors)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn render_record(
+    path: &Path,
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    id: usize,
+    sources: &[usize],
+    expressions: bool,
+    width: usize,
+    colors: ColorPolicy,
+) -> CliResult<String> {
+    let mut output = super::overview::render(
+        path,
+        artifact,
+        &artifact.kernel_summary()?,
+        None,
+        width,
+        colors,
+    )?;
+    output.push('\n');
+    output.push_str(&sector_labeled(
+        artifact,
+        kernels,
+        0,
+        id,
+        Some(sources),
+        expressions,
+        width,
+        colors,
+    )?);
+    Ok(output)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn sector_labeled(
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    id: usize,
+    display_id: usize,
+    source_indices: Option<&[usize]>,
+    expressions: bool,
+    width: usize,
+    colors: ColorPolicy,
+) -> CliResult<String> {
+    let chart_id = |id| source_indices.map_or(id, |indices| indices[id]);
     let kernel = &kernels.sectors()[id];
     let stats = kernel.statistics();
-    let chart_modes = super::source_chart_modes(artifact, kernels, id);
+    let chart_modes = super::source_chart_modes_mapped(artifact, kernels, id, source_indices);
     let mode_names = chart_modes
         .as_ref()
         .into_iter()
@@ -183,11 +231,16 @@ fn sector(
         .into_iter()
         .collect::<Vec<_>>();
     let content_id = kernels.sector_content_id(id)?;
-    let mut out = heading(&format!("Sector {id}"), width, colors, Color::FG_GREEN);
+    let mut out = heading(
+        &format!("Sector {display_id}"),
+        width,
+        colors,
+        Color::FG_GREEN,
+    );
     let ops = stats.operations;
     out.push_str(&facts_table(
         vec![
-            ["Sector ID".into(), id.to_string()],
+            ["Sector ID".into(), display_id.to_string()],
             [
                 "Generation mode".into(),
                 if mode_names.is_empty() {
@@ -278,7 +331,7 @@ fn sector(
         out.push_str(&section(
             &format!(
                 "Pre-subtraction monomial factors · representative chart {}",
-                chart.source_index()
+                chart_id(chart.source_index())
             ),
             vec!["Group", "Terms", "Monomial"],
             rows,
@@ -314,7 +367,7 @@ fn sector(
                     "Term",
                     match chart_modes
                         .as_ref()
-                        .and_then(|modes| modes.get(&chart.source_index()))
+                        .and_then(|modes| modes.get(&chart_id(chart.source_index())))
                     {
                         Some(fastsecdec::generation::GenerationMode::NumericalDual) => {
                             "Source bytes"
@@ -361,8 +414,8 @@ fn sector(
         out.push_str(&section(
             &format!(
                 "Chart {} → representative {}",
-                chart.source_index(),
-                chart.representative()
+                chart_id(chart.source_index()),
+                chart_id(chart.representative())
             ),
             vec!["Input", "Sector expression"],
             rows,

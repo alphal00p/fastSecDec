@@ -68,7 +68,12 @@ fn failed(data: &Cached) -> bool {
 
 pub(super) fn previous(data: &Cached) -> Option<&VectorEstimate> {
     if data.observation.contributions.sectors.is_empty()
-        || data.observation.contributions.total.is_some()
+        || data
+            .observation
+            .contributions
+            .total
+            .as_ref()
+            .is_some_and(|e| e.production_complete)
         || failed(data)
     {
         return None;
@@ -110,12 +115,7 @@ pub(super) fn value(data: &Cached, index: Option<usize>) -> String {
     let Some(index) = index else {
         return "—".into();
     };
-    let estimate = data
-        .observation
-        .contributions
-        .total
-        .as_ref()
-        .or_else(|| previous(data));
+    let estimate = previous(data).or(data.observation.contributions.total.as_ref());
     estimate
         .and_then(|e| {
             e.mean

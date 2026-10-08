@@ -46,6 +46,41 @@ impl QmcAccumulator {
         self.output_count
     }
 
+    /// Append independent shifts to a complete unchanged lattice design.
+    /// Existing coordinates must be bitwise identical; their accepted sums are
+    /// retained and only their enclosing plan identity changes. No old point
+    /// becomes missing work again. Outstanding tasks must be drained by callers.
+    pub fn extend_plan(&mut self, plan: QmcPlan) -> Result<(), QmcError> {
+        if !self.is_complete()
+            || plan.rule() != self.plan.rule()
+            || plan.shift_count() <= self.plan.shift_count()
+            || self
+                .plan
+                .shifts()
+                .iter()
+                .flatten()
+                .map(|v| v.to_bits())
+                .ne(plan.shifts()[..self.plan.shift_count()]
+                    .iter()
+                    .flatten()
+                    .map(|v| v.to_bits()))
+        {
+            return Err(QmcError::InvalidPlan(
+                "shift extension requires a complete lattice and identical existing shifts".into(),
+            ));
+        }
+        self.output_count
+            .checked_mul(plan.shift_count())
+            .ok_or_else(|| {
+                QmcError::InvalidPlan("extended replica buffer length overflow".into())
+            })?;
+        for partial in self.partials.values_mut() {
+            partial.work = plan.work(partial.work.start, partial.work.count)?;
+        }
+        self.plan = plan;
+        Ok(())
+    }
+
     /// Merge a completed package. Errors leave the accumulator unchanged.
     pub fn merge(&mut self, partial: QmcPartial) -> Result<(), QmcError> {
         let range = self.plan.validate_work(partial.work)?;

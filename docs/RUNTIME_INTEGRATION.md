@@ -1,5 +1,9 @@
 # Runtime integration settings and observations
 
+For sector-at-a-time generation, bounded worker residency, `--serial SECONDS`,
+refinement and crash recovery, see [serial execution](SERIAL_MODE.md). Generation
+and integration scheduling are independent and use one indexed artifact format.
+
 `integrate BASENAME --integration-settings settings.toml` reads a TOML overlay.
 Use either integration keys at the top level or a single `[integration]` table.
 Only supplied keys override artifact defaults; explicit command-line flags apply
@@ -50,8 +54,10 @@ counts independent shifts. For discrete Havana, `points * shifts` is the global
 production allocation. Its grids update after `pilot_points * pilot_batches`
 global training samples, for `pilot_iterations` updates, then freeze for
 production. Pilot samples are excluded from the estimate. `max_rounds` caps
-production refinement, not grid updates: discrete Havana restarts training and
-doubles production points per batch each round. Reaching this cap does not
+production refinement, not grid updates. With the default `double_points=true`,
+discrete Havana restarts training and doubles production points per batch each
+round. With `double_points=false`, it retains its frozen proposal and appends
+new production batches. Reaching this cap does not
 guarantee accuracy. Evaluator chunk size is independent of all these counts.
 
 `--evaluation-batch-size N` (alias `--batch-size`) controls the maximum number

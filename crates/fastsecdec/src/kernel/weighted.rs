@@ -246,11 +246,7 @@ impl WeightedEvaluationContext {
                 replayed: false,
             });
         }
-        let width = if matches!(self.kernel.backend, super::Backend::Complex(_)) {
-            2
-        } else {
-            1
-        };
+        let width = self.kernel.output_width();
         let magnitude = |value: &[f64]| {
             if width == 2 {
                 value[0].hypot(value[1])
@@ -350,7 +346,7 @@ impl KernelSet {
                 if self.stability.mode == StabilityMode::Validated {
                     kernel.output_count()
                 } else {
-                    kernel.exact_zero.len()
+                    kernel.output_count() / kernel.output_width()
                 }
             ],
             verified: false,

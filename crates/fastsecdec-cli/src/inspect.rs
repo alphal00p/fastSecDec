@@ -3,6 +3,7 @@
 mod lightweight;
 mod overview;
 mod presentation;
+mod selected;
 mod tables;
 
 use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
@@ -32,6 +33,12 @@ pub fn artifact(
             );
         }
         return Ok(());
+    }
+    if let Some(id) = sector {
+        let artifact = Artifact::load_metadata_with_options(path, options)?;
+        if artifact.catalogue().is_some() {
+            return selected::inspect(path, artifact, options, id, expressions, plain, json);
+        }
     }
     let (artifact, kernels) = Artifact::load_with_options(path, options)?;
     if let Some(id) = sector
@@ -112,6 +119,15 @@ fn source_chart_modes(
     kernels: &KernelSet,
     id: usize,
 ) -> Option<std::collections::BTreeMap<usize, fastsecdec::generation::GenerationMode>> {
+    source_chart_modes_mapped(artifact, kernels, id, None)
+}
+
+fn source_chart_modes_mapped(
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    id: usize,
+    source_indices: Option<&[usize]>,
+) -> Option<std::collections::BTreeMap<usize, fastsecdec::generation::GenerationMode>> {
     let recorded = artifact.generation.as_ref()?.source_chart_modes.as_ref()?;
     Some(
         kernels
@@ -121,8 +137,17 @@ fn source_chart_modes(
             .filter(|chart| chart.kernel_sector() == Some(id))
             .filter_map(|chart| {
                 recorded
-                    .get(&chart.source_index())
-                    .map(|mode| (chart.source_index(), *mode))
+                    .get(&source_indices.map_or(chart.source_index(), |indices| {
+                        indices[chart.source_index()]
+                    }))
+                    .map(|mode| {
+                        (
+                            source_indices.map_or(chart.source_index(), |indices| {
+                                indices[chart.source_index()]
+                            }),
+                            *mode,
+                        )
+                    })
             })
             .collect(),
     )

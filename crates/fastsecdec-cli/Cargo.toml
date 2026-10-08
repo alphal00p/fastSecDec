@@ -26,10 +26,8 @@ tabled = { version = "0.22", default-features = false, features = ["std", "ansi"
 signal-hook = "0.3"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system"] }
 blake3.workspace = true
+tempfile.workspace = true
 
 [build-dependencies]
 blake3.workspace = true
 toml.workspace = true
-
-[dev-dependencies]
-tempfile.workspace = true

@@ -4,6 +4,7 @@ mod geometry_dispatch;
 mod progress;
 #[cfg(test)]
 mod record_tests;
+pub(crate) mod serial;
 
 use progress::{observe_generation, publish_generation, worker_activity};
 
@@ -326,7 +327,7 @@ pub fn generate_with_workers(
     if let Some(error) = display_error {
         return Err(error.into());
     }
-    let kernels = kernels?.with_runtime_mass_constraints(loaded.runtime_mass_constraints)?;
+    let mut kernels = kernels?.with_runtime_mass_constraints(loaded.runtime_mass_constraints)?;
     drop(generated);
     if let Some(reference) = reference.filter(|_| kernels.runtime_parameters().is_empty()) {
         reference.validate_identity(kernels.content_id())?;
@@ -360,6 +361,7 @@ pub fn generate_with_workers(
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
     let mut artifact = Artifact::new(&kernels, provenance)?;
+    artifact.align_kernel_identity(&mut kernels)?;
     artifact.reference = reference.map(|value| value.settings.clone());
     artifact.relocate_sources(
         path.parent().unwrap_or_else(|| Path::new(".")),
@@ -386,6 +388,9 @@ pub fn generate_with_workers(
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
     artifact.save(output)?;
+    // The manifest owns the generation-specific immutable data filename.
+    // Return that published handle, without retaining a second archive buffer.
+    let artifact = Artifact::load_metadata(output)?;
     status.stage = GenerationStage::Complete;
     status.kernels = kernels.sectors().len();
     status.completed = status.kernels;

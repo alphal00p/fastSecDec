@@ -8,12 +8,15 @@ mod generation_report;
 mod input;
 mod inspect;
 mod integration_report;
+mod isolated;
 mod loading;
 mod math_display;
 #[cfg(test)]
 mod numerical_dual_benchmark;
+mod process;
 mod reference;
 mod results;
+mod serial_cli;
 mod status_policy;
 mod terminal_policy;
 
@@ -96,6 +99,12 @@ enum Action {
         /// Caller-owned workers for geometry, symbolic generation, and compilation.
         #[arg(long = "workers", visible_alias = "geometry-workers", default_value_t = default_generation_workers())]
         geometry_workers: std::num::NonZeroUsize,
+        /// Complete, persist and release one sector per worker process.
+        #[arg(long)]
+        serial: bool,
+        /// Reuse verified, durable receipts from an interrupted serial generation.
+        #[arg(long)]
+        resume: bool,
     },
     /// Generate and integrate a native TOML run card.
     Run {
@@ -169,6 +178,27 @@ enum Action {
         #[arg(long, value_delimiter = ',')]
         retry_scales: Vec<f64>,
     },
+    #[command(name = "__generate-worker", hide = true)]
+    GenerationWorker {
+        #[arg(long)]
+        run_id: String,
+        #[arg(long)]
+        lease_id: u64,
+    },
+    #[command(name = "__integrate-worker", hide = true)]
+    IntegrationWorker {
+        #[arg(long)]
+        run_id: String,
+        #[arg(long)]
+        lease_id: u64,
+    },
+    #[command(name = "__setup-worker", hide = true)]
+    SetupWorker {
+        #[arg(long)]
+        run_id: String,
+        #[arg(long)]
+        lease_id: u64,
+    },
 }
 
 impl Action {
@@ -185,6 +215,12 @@ impl Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    /// Minimum sampling seconds per resident sector; workers remain parallel.
+    #[arg(long = "serial", value_name = "SECONDS")]
+    serial_seconds: Option<f64>,
+    /// Grow points per refinement; false keeps points fixed and appends replicas.
+    #[arg(long, action = clap::ArgAction::Set)]
+    double_points: Option<bool>,
     /// Verify saved artifact integrity and retained metadata during loading (can be expensive).
     #[arg(long)]
     validate_artifact: bool,
@@ -245,6 +281,17 @@ struct IntegrationArgs {
 }
 
 impl IntegrationArgs {
+    fn serial_residence(&self, settings: &IntegrationInput) -> CliResult<Option<f64>> {
+        let mut seconds = settings.serial_seconds;
+        if let Some(path) = &self.integration_settings {
+            let overlay = config::read_integration_overlay(path)?;
+            if let Some(value) = overlay.get("serial_seconds") {
+                seconds = Some(serde_json::from_value(value.clone())?);
+            }
+        }
+        Ok(self.serial_seconds.or(seconds))
+    }
+
     fn apply(&self, settings: &mut IntegrationInput) -> CliResult<()> {
         settings.parameters =
             config::canonical_parameter_names(std::mem::take(&mut settings.parameters))?;
@@ -358,12 +405,18 @@ impl IntegrationArgs {
             settings.accuracy_target = fastsecdec::integration::AccuracyTarget::LaurentOrder(order);
         }
         if let Some(rounds) = self.max_rounds {
-            settings.max_rounds = rounds;
+            settings.max_rounds = Some(rounds);
+        }
+        if let Some(seconds) = self.serial_seconds {
+            settings.serial_seconds = Some(seconds);
+        }
+        if let Some(double_points) = self.double_points {
+            settings.double_points = double_points;
         }
         if settings.evaluation_batch_size == 0 {
             return Err("evaluation_batch_size must be greater than zero".into());
         }
-        Ok(())
+        settings.validate_execution()
     }
 }
 
@@ -457,10 +510,30 @@ fn run(cli: Cli) -> CliResult<()> {
             input,
             output,
             geometry_workers,
+            serial,
+            resume,
         } => {
             let reference = reference::from_card(&input, None)?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
+            let card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
+            if serial || card.generation.serial || resume {
+                let artifact = generate::serial::generate(
+                    &input,
+                    &output,
+                    &mut dashboard,
+                    reference.as_ref(),
+                    geometry_workers.get(),
+                    resume,
+                )?;
+                drop(dashboard);
+                return generation_report::print_indexed(
+                    &output,
+                    &artifact,
+                    cli.plain,
+                    render_json,
+                );
+            }
             let (artifact, kernels) = generate::generate_with_workers(
                 &input,
                 &output,
@@ -485,142 +558,68 @@ fn run(cli: Cli) -> CliResult<()> {
             let reference = reference::from_card(&input, integration.reference.as_deref())?;
             let output = output.unwrap_or_else(|| input::artifact_path(&input));
             let mut dashboard = make_dashboard()?;
-            let (artifact, mut kernels) = if integration.resume {
-                loading::load(
-                    &output,
-                    fastsecdec::kernel::KernelLoadOptions {
-                        validate: integration.validate_artifact,
-                    },
-                    &mut dashboard,
-                    |_| Ok(()),
-                )?
+            let resident = if integration.resume {
+                None
             } else {
-                generate::generate_with_workers(
-                    &input,
-                    &output,
-                    &mut dashboard,
-                    reference.as_ref(),
-                    geometry_workers.get(),
-                )?
+                let card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
+                if card.generation.serial || integration.serial_seconds.is_some() {
+                    generate::serial::generate(
+                        &input,
+                        &output,
+                        &mut dashboard,
+                        reference.as_ref(),
+                        geometry_workers.get(),
+                        false,
+                    )?;
+                    None
+                } else if integration.serial_residence(&card.integration)?.is_some() {
+                    dashboard.configure_generation(
+                        card.generation.mode,
+                        card.generation.coefficient_expansion.method,
+                    );
+                    isolated::generate(
+                        &input,
+                        &output,
+                        geometry_workers.get(),
+                        integration.reference.as_deref(),
+                        &mut dashboard,
+                    )?;
+                    None
+                } else {
+                    Some(generate::generate_with_workers(
+                        &input,
+                        &output,
+                        &mut dashboard,
+                        reference.as_ref(),
+                        geometry_workers.get(),
+                    )?)
+                }
             };
-            if integration.resume {
-                artifact.verify_input_sources(&input)?;
-            }
-            let mut settings: IntegrationInput =
-                serde_json::from_value(artifact.provenance.integration.clone())?;
-            let checkpoint = integration
-                .checkpoint
-                .clone()
-                .unwrap_or_else(|| output.with_extension("checkpoint.json"));
-            if integration.resume {
-                settings.restore_historical_policy(&checkpoint)?;
-            }
-            integration.apply(&mut settings)?;
-            bind_parameters(&mut kernels, &settings)?;
-            if let Some(reference) = &reference {
-                reference.validate_identity(kernels.content_id())?;
-            }
-            settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
-                .canonical_scope(&settings.scope)?;
-            if let Some(path) = &integration.save_result {
-                results::check_destination(
-                    path,
-                    &artifact,
-                    &output,
-                    &checkpoint,
-                    reference.as_ref(),
-                )?;
-            }
-            let result = driver::integrate(
-                &artifact,
-                &kernels,
-                &settings,
-                &checkpoint,
-                integration.resume,
-                &mut dashboard,
+            integrate_artifact(
+                &output,
+                &integration,
+                dashboard,
+                resident,
+                integration.resume.then_some(input.as_path()),
+                reference,
+                cli.plain,
+                render_json,
             )?;
-            drop(dashboard);
-            let saved =
-                results::assemble(&artifact, &kernels, &settings, &result, reference.as_ref())?;
-            if let Some(path) = &integration.save_result {
-                results::save(path, &saved)?;
-            }
-            let comparison = reference
-                .as_ref()
-                .map(|reference| reference.report_saved(&saved))
-                .transpose()?;
-            integration_report::print(&result, comparison.as_ref(), cli.plain, render_json)?;
-            if result.failed() {
-                return Err(ReportedFailure.into());
-            }
         }
         Action::Integrate {
             artifact: path,
             integration,
         } => {
-            let mut reference = None;
-            let mut dashboard = make_dashboard()?;
-            let (artifact, mut kernels) = loading::load(
+            integrate_artifact(
                 &path,
-                fastsecdec::kernel::KernelLoadOptions {
-                    validate: integration.validate_artifact,
-                },
-                &mut dashboard,
-                |artifact| {
-                    reference = reference::prepare(
-                        artifact.resolved_reference(),
-                        integration.reference.as_deref(),
-                    )?;
-                    Ok(())
-                },
+                &integration,
+                make_dashboard()?,
+                None,
+                None,
+                None,
+                cli.plain,
+                render_json,
             )?;
-            let mut settings: IntegrationInput =
-                serde_json::from_value(artifact.provenance.integration.clone())?;
-            let checkpoint = integration
-                .checkpoint
-                .clone()
-                .unwrap_or_else(|| path.with_extension("checkpoint.json"));
-            if integration.resume {
-                settings.restore_historical_policy(&checkpoint)?;
-            }
-            integration.apply(&mut settings)?;
-            bind_parameters(&mut kernels, &settings)?;
-            if let Some(reference) = &reference {
-                reference.validate_identity(kernels.content_id())?;
-            }
-            settings.scope = fastsecdec::results::KernelResultManifest::from_kernels(&kernels)
-                .canonical_scope(&settings.scope)?;
-            if let Some(result_path) = &integration.save_result {
-                results::check_destination(
-                    result_path,
-                    &artifact,
-                    &path,
-                    &checkpoint,
-                    reference.as_ref(),
-                )?;
-            }
-            let result = driver::integrate(
-                &artifact,
-                &kernels,
-                &settings,
-                &checkpoint,
-                integration.resume,
-                &mut dashboard,
-            )?;
-            drop(dashboard);
-            let saved =
-                results::assemble(&artifact, &kernels, &settings, &result, reference.as_ref())?;
-            if let Some(path) = &integration.save_result {
-                results::save(path, &saved)?;
-            }
-            let comparison = reference
-                .as_ref()
-                .map(|reference| reference.report_saved(&saved))
-                .transpose()?;
-            integration_report::print(&result, comparison.as_ref(), cli.plain, render_json)?;
-            if result.failed() {
-                return Err(ReportedFailure.into());
-            }
         }
         Action::ShowResult { path, view } => results::show(&path, &view, render_json)?,
         Action::ExportReference {
@@ -743,6 +742,125 @@ fn run(cli: Cli) -> CliResult<()> {
                 return Err(ReportedFailure.into());
             }
         }
+        Action::GenerationWorker { run_id, lease_id } => {
+            process::child::serve(run_id, lease_id, |path: PathBuf, emit| {
+                generate::serial::jobs::execute(&path, emit)
+                    .map_err(|error| std::io::Error::other(error.to_string()))
+            })?;
+        }
+        Action::IntegrationWorker { run_id, lease_id } => {
+            driver::serial::worker(run_id, lease_id)?;
+        }
+        Action::SetupWorker { run_id, lease_id } => isolated::worker(run_id, lease_id)?,
+    }
+    Ok(())
+}
+
+/// Decide residency from compact metadata before any numerical-sector decoding.
+#[allow(clippy::too_many_arguments)]
+fn integrate_artifact(
+    path: &std::path::Path,
+    args: &IntegrationArgs,
+    mut dashboard: display::Dashboard,
+    resident: Option<(artifact::Artifact, fastsecdec::kernel::KernelSet)>,
+    verify_input: Option<&std::path::Path>,
+    prepared_reference: Option<reference::PreparedReference>,
+    plain: bool,
+    json: bool,
+) -> CliResult<()> {
+    let options = fastsecdec::kernel::KernelLoadOptions {
+        validate: args.validate_artifact,
+    };
+    let (mut artifact, resident) = match resident {
+        Some((artifact, kernels)) => (artifact, Some(kernels)),
+        None => (
+            artifact::Artifact::load_metadata_with_options(path, options)?,
+            None,
+        ),
+    };
+    if let Some(input) = verify_input {
+        artifact.verify_input_sources(input)?;
+    }
+    let reference = match prepared_reference {
+        Some(value) => Some(value),
+        None => reference::prepare(artifact.resolved_reference(), args.reference.as_deref())?,
+    };
+    let mut settings: IntegrationInput = if let Some(input) = verify_input {
+        // Scheduling is excluded from mathematical artifact identity. A run
+        // still obeys its current card; checkpoint admission decides which
+        // integration changes are compatible with accepted sampling work.
+        let card: config::RunCard = toml::from_str(&std::fs::read_to_string(input)?)?;
+        card.integration
+    } else {
+        serde_json::from_value(artifact.provenance.integration.clone())?
+    };
+    let checkpoint = args
+        .checkpoint
+        .clone()
+        .unwrap_or_else(|| path.with_extension("checkpoint.json"));
+    if args.resume {
+        settings.restore_historical_policy(&checkpoint)?;
+    }
+    if let Some(result) = &args.save_result {
+        results::check_destination(result, &artifact, path, &checkpoint, reference.as_ref())?;
+    }
+    let (result, manifest) = if args.serial_residence(&settings)?.is_some() {
+        args.apply(&mut settings)?;
+        drop(resident);
+        serial_cli::integrate(
+            path,
+            &artifact,
+            &mut settings,
+            &checkpoint,
+            args.resume,
+            options,
+            reference.as_ref(),
+            &mut dashboard,
+        )?
+    } else {
+        let mut kernels = if let Some(kernels) = resident {
+            kernels
+        } else {
+            let (restored, kernels) = loading::load(path, options, &mut dashboard, |_| Ok(()))?;
+            if restored.content_id != artifact.content_id
+                || restored.kernel_content_id != artifact.kernel_content_id
+            {
+                return Err("artifact manifest changed while starting integration; restart with its completed version".into());
+            }
+            artifact = restored;
+            kernels
+        };
+        // Import the saved native symbol attributes before parameter parsing.
+        args.apply(&mut settings)?;
+        bind_parameters(&mut kernels, &settings)?;
+        if let Some(reference) = &reference {
+            reference.validate_identity(kernels.content_id())?;
+        }
+        let manifest = fastsecdec::results::KernelResultManifest::from_kernels(&kernels);
+        settings.scope = manifest.canonical_scope(&settings.scope)?;
+        let result = driver::integrate(
+            &artifact,
+            &kernels,
+            &settings,
+            &checkpoint,
+            args.resume,
+            &mut dashboard,
+        )?;
+        (result, manifest)
+    };
+    drop(dashboard);
+    let saved =
+        results::assemble_manifest(&artifact, manifest, &settings, &result, reference.as_ref())?;
+    if let Some(path) = &args.save_result {
+        results::save(path, &saved)?;
+    }
+    let comparison = reference
+        .as_ref()
+        .map(|reference| reference.report_saved(&saved))
+        .transpose()?;
+    integration_report::print(&result, comparison.as_ref(), plain, json)?;
+    if result.failed() {
+        return Err(ReportedFailure.into());
     }
     Ok(())
 }

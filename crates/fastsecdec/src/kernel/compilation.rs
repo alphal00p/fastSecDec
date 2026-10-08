@@ -385,6 +385,7 @@ impl SectorKernel {
         };
         Ok(Self {
             input: vec![0.0; inputs],
+            projection: None,
             parameters_bound: runtime_parameters.is_empty(),
             runtime_parameters,
             parameters,

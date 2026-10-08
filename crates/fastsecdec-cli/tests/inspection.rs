@@ -1,3 +1,5 @@
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use std::{fs, process::Command};
 fn cli() -> Command {
     let mut c = Command::new(env!("CARGO_BIN_EXE_fastsecdec"));
@@ -18,6 +20,99 @@ fn failure(output: std::process::Output) -> String {
     assert!(!output.status.success());
     let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     value["error"]["message"].as_str().unwrap().to_owned()
+}
+
+#[test]
+fn selected_deep_inspection_uses_only_its_record_and_keeps_global_ids() {
+    use std::io::{Read, Seek, SeekFrom, Write};
+    let directory = tempfile::tempdir().unwrap();
+    let card = directory.path().join("local.toml");
+    let artifact = directory.path().join("local.fsd");
+    fs::write(
+        &card,
+        r#"
+[direct]
+domain="unit_cube"
+parameters=["x","y"]
+[[direct.terms]]
+monomial_powers=["-1+eps","eps"]
+[[direct.terms.factors]]
+polynomial="x+y"
+exponent="-1-eps"
+[[direct.terms.factors]]
+polynomial="1+2*x+3*y"
+exponent="-1"
+[generation]
+order=0
+[generation.evaluator]
+backend="eager"
+"#,
+    )
+    .unwrap();
+    success(
+        cli()
+            .arg("generate")
+            .arg(&card)
+            .arg("--output")
+            .arg(&artifact)
+            .output()
+            .unwrap(),
+    );
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
+    let records = metadata["indexed"]["catalogue"]["records"]
+        .as_array()
+        .unwrap();
+    let sectors = records
+        .iter()
+        .filter(|r| r["sector"].as_u64().is_some())
+        .collect::<Vec<_>>();
+    assert!(sectors.len() >= 2);
+    let id = sectors[1]["sector"].as_u64().unwrap();
+    let selected = || {
+        success(
+            cli()
+                .arg("inspect")
+                .arg(&artifact)
+                .args(["--deep", "--validate-artifact", "--sector", &id.to_string()])
+                .output()
+                .unwrap(),
+        )
+    };
+    let before = selected();
+    assert_eq!(before["loaded_sectors"], 1);
+    assert_eq!(before["selected_sector"]["id"], id);
+    assert_eq!(
+        before["selected_sector"]["global_output_indices"],
+        sectors[1]["output_indices"]
+    );
+    let mut data = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(artifact_data::data_path(&artifact))
+        .unwrap();
+    let offset = sectors[0]["offset"].as_u64().unwrap();
+    data.seek(SeekFrom::Start(offset)).unwrap();
+    let mut byte = [0];
+    data.read_exact(&mut byte).unwrap();
+    byte[0] ^= 1;
+    data.seek(SeekFrom::Start(offset)).unwrap();
+    data.write_all(&byte).unwrap();
+    data.sync_all().unwrap();
+    assert_eq!(
+        selected(),
+        before,
+        "unselected payload must not be decoded or validated"
+    );
+    let error = failure(
+        cli()
+            .arg("inspect")
+            .arg(&artifact)
+            .args(["--deep", "--validate-artifact"])
+            .output()
+            .unwrap(),
+    );
+    assert!(!error.is_empty());
 }
 #[test]
 fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_in() {
@@ -93,7 +188,7 @@ fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_
         estimates.push(result["estimate"].clone());
     }
     assert_eq!(estimates[0], estimates[1]);
-    fs::remove_file(base.with_extension("fsd.dat")).unwrap();
+    fs::remove_file(artifact_data::data_path(&base)).unwrap();
     let metadata_checked = success(
         cli()
             .arg("inspect")

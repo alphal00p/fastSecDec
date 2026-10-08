@@ -23,6 +23,11 @@ impl SectorKernel {
         weight: f64,
         mut class: PrecisionClass,
     ) -> Result<PrecisionReport, KernelError> {
+        if self.projection.is_some() {
+            return self.project_output(output, None, |kernel, values, _| {
+                kernel.evaluate_distance_class(values, weight, class)
+            });
+        }
         loop {
             if class == PrecisionClass::Unstable {
                 output.fill(0.0);

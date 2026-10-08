@@ -1,4 +1,4 @@
-//! CLI-owned, bounded OS sampling. RSS belongs to the process, not its threads.
+//! CLI-owned OS sampling of the coordinator and its explicitly owned children.
 
 use std::time::{Duration, Instant};
 
@@ -12,6 +12,12 @@ pub(super) struct Snapshot {
     pub process_rss_bytes: Option<u64>,
     /// Maximum sampled RSS since monitoring began; not the OS high-water mark.
     pub observed_peak_rss_bytes: Option<u64>,
+    /// Sum for the explicitly registered live worker processes, never the host.
+    pub worker_rss_bytes: Option<u64>,
+    pub worker_processes: usize,
+    /// Parent + live children. Missing OS observations stay missing.
+    pub aggregate_rss_bytes: Option<u64>,
+    pub observed_peak_aggregate_rss_bytes: Option<u64>,
     pub system_used_bytes: Option<u64>,
     pub system_total_bytes: Option<u64>,
     /// Native free RAM. On macOS this excludes speculative pages; it is not
@@ -34,6 +40,7 @@ pub(super) struct Monitor {
     snapshot: Snapshot,
     cpu_baseline_ms: Option<u64>,
     last_cpu_ms: Option<u64>,
+    worker_pids: Vec<Pid>,
 }
 
 impl Monitor {
@@ -44,10 +51,22 @@ impl Monitor {
             sampled_at: None,
             cpu_baseline_ms: None,
             last_cpu_ms: None,
+            worker_pids: Vec::new(),
             snapshot: Snapshot {
                 sample_interval_ms: SAMPLE_INTERVAL.as_millis() as u64,
                 ..Snapshot::default()
             },
+        }
+    }
+
+    pub fn set_worker_pids(&mut self, pids: &[u32]) {
+        let mut next = pids.iter().copied().map(Pid::from_u32).collect::<Vec<_>>();
+        next.sort_unstable();
+        next.dedup();
+        next.retain(|pid| Some(*pid) != self.pid);
+        if next != self.worker_pids {
+            self.worker_pids = next;
+            self.sampled_at = None;
         }
     }
 
@@ -119,11 +138,52 @@ impl Monitor {
             self.snapshot.observed_peak_rss_bytes =
                 Some(self.snapshot.observed_peak_rss_bytes.unwrap_or(0).max(rss));
         }
+        self.snapshot.worker_processes = self.worker_pids.len();
+        self.snapshot.worker_rss_bytes = if self.worker_pids.is_empty() {
+            Some(0)
+        } else {
+            let updated = system.refresh_processes_specifics(
+                ProcessesToUpdate::Some(&self.worker_pids),
+                true,
+                ProcessRefreshKind::nothing().with_memory().without_tasks(),
+            );
+            (updated == self.worker_pids.len())
+                .then(|| {
+                    self.worker_pids.iter().try_fold(0u64, |total, pid| {
+                        total.checked_add(system.process(*pid)?.memory())
+                    })
+                })
+                .flatten()
+        };
+        self.snapshot.aggregate_rss_bytes = self
+            .snapshot
+            .process_rss_bytes
+            .zip(self.snapshot.worker_rss_bytes)
+            .and_then(|(parent, workers)| parent.checked_add(workers));
+        if let Some(rss) = self.snapshot.aggregate_rss_bytes {
+            self.snapshot.observed_peak_aggregate_rss_bytes = Some(
+                self.snapshot
+                    .observed_peak_aggregate_rss_bytes
+                    .unwrap_or(0)
+                    .max(rss),
+            );
+        }
         self.sampled_at = Some(Instant::now());
     }
 }
 
 impl Snapshot {
+    pub fn resident_bytes(&self) -> Option<u64> {
+        if self.worker_processes == 0 {
+            self.process_rss_bytes
+        } else {
+            self.aggregate_rss_bytes
+        }
+    }
+    pub fn resident_peak_bytes(&self) -> Option<u64> {
+        self.observed_peak_aggregate_rss_bytes
+            .or(self.observed_peak_rss_bytes)
+    }
     /// macOS's broad VM "available" counter includes used active pages. Prefer
     /// genuinely free pages there; retain native available memory elsewhere.
     /// Keep this label/value pair shared by every dashboard presentation.
@@ -136,6 +196,14 @@ impl Snapshot {
     }
 
     pub fn process_line(&self) -> String {
+        if self.worker_processes > 0 {
+            return format!(
+                "Parent + {} workers RSS {} · observed aggregate peak {}",
+                self.worker_processes,
+                bytes(self.aggregate_rss_bytes),
+                bytes(self.observed_peak_aggregate_rss_bytes),
+            );
+        }
         format!(
             "Process RSS {} · observed peak {}",
             bytes(self.process_rss_bytes),

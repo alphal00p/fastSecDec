@@ -7,6 +7,7 @@ mod integration_view;
 mod loading_view;
 mod memory;
 pub(crate) mod number;
+mod serial_view;
 mod terminal;
 pub(crate) use integration_activity::IntegrationWorkerActivity;
 
@@ -35,6 +36,7 @@ const TEAL: Color = Color::Rgb(68, 210, 188);
 const GOLD: Color = Color::Rgb(243, 195, 91);
 
 pub struct Dashboard {
+    generation_forward: Option<std::sync::mpsc::SyncSender<crate::isolated::Progress>>,
     interrupt: terminal::Control,
     terminal: Option<Terminal<CrosstermBackend<io::Stderr>>>,
     json_status: bool,
@@ -58,6 +60,7 @@ pub struct Dashboard {
     operational: fastsecdec::integration::OperationalMetrics,
     stability_mode: fastsecdec::kernel::StabilityMode,
     memory: memory::Monitor,
+    serial: Option<crate::driver::serial::SerialRunSnapshot>,
 }
 
 impl Dashboard {
@@ -79,6 +82,7 @@ impl Dashboard {
         };
         let interval = Duration::from_millis(interval_ms);
         Ok(Self {
+            generation_forward: None,
             interrupt,
             terminal,
             json_status,
@@ -102,11 +106,33 @@ impl Dashboard {
             operational: Default::default(),
             stability_mode: Default::default(),
             memory: memory::Monitor::new(),
+            serial: None,
         })
     }
 
     pub(crate) fn generation_workers(&mut self, progress: &crate::generate::dispatch::Progress) {
         self.generation_workers = Some(progress.clone());
+    }
+
+    /// Only CLI-owned children contribute to aggregate memory observations.
+    pub(crate) fn worker_processes(&mut self, pids: &[u32]) {
+        self.memory.set_worker_pids(pids);
+    }
+
+    pub(crate) fn serial_execution(&mut self, snapshot: &crate::driver::serial::SerialRunSnapshot) {
+        self.integration_workers = snapshot
+            .residents
+            .iter()
+            .map(|row| IntegrationWorkerActivity {
+                worker: row.worker,
+                batch: 0,
+                completed_points: row.completed_points,
+                planned_points: row.planned_points,
+                sector: Some(row.sector),
+                preparing_context: row.preparing,
+            })
+            .collect();
+        self.serial = Some(snapshot.clone());
     }
 
     pub(crate) fn generation_coordinator(&mut self) {
@@ -128,6 +154,13 @@ impl Dashboard {
     }
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
+        if let Some(forward) = &self.generation_forward {
+            forward.send(crate::isolated::Progress {
+                snapshot: snapshot.clone(),
+                workers: self.generation_workers.clone(),
+            })?;
+            return Ok(());
+        }
         self.generation_plan
             .observe(snapshot.stage, snapshot.elapsed_seconds);
         if let Some(formulas) = &snapshot.formula_preparation {
@@ -146,6 +179,13 @@ impl Dashboard {
             self.render_generation(snapshot)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn forward_generation(
+        &mut self,
+        sender: std::sync::mpsc::SyncSender<crate::isolated::Progress>,
+    ) {
+        self.generation_forward = Some(sender);
     }
 
     fn render_generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
@@ -326,6 +366,7 @@ impl Dashboard {
             memory,
             elapsed,
             scope: self.scope.clone(),
+            serial: self.serial.clone(),
         };
         if self.json_status {
             eprintln!(
@@ -339,6 +380,7 @@ impl Dashboard {
                     live: self.live.as_ref(),
                     operational: &self.operational,
                     memory,
+                    serial: self.serial.as_ref(),
                 })?
             );
         } else if self.terminal.is_none() {
@@ -496,4 +538,6 @@ struct ScopedStatus<'a> {
     live: Option<&'a fastsecdec::integration::LiveObservation>,
     operational: &'a fastsecdec::integration::OperationalMetrics,
     memory: memory::Snapshot,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    serial: Option<&'a crate::driver::serial::SerialRunSnapshot>,
 }

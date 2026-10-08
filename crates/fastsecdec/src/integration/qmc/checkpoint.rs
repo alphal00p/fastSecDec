@@ -42,7 +42,7 @@ impl QmcSession {
     /// Pending work is intentionally not restored: every unfinished canonical
     /// package becomes available for reissue. Completed packages remain merged.
     pub fn restore(bytes: &[u8], expected_problem: &IntegrationProblem) -> Result<Self> {
-        let state: Checkpoint = serde_json::from_slice(bytes)?;
+        let mut state: Checkpoint = serde_json::from_slice(bytes)?;
         expected_problem.validate()?;
         if state.version != 1
             || &state.problem != expected_problem
@@ -79,10 +79,20 @@ impl QmcSession {
                 "checkpoint does not cover every sector".into(),
             ));
         }
-        for (reference, run) in expected.iter().zip(&state.runs) {
+        for (reference, run) in expected.iter().zip(&mut state.runs) {
+            if run.package_boundaries.is_empty() {
+                run.package_boundaries = vec![0, run.accumulator.plan().total_points()];
+            }
             if reference.accumulator.plan() != run.accumulator.plan()
                 || reference.accumulator.output_count() != run.accumulator.output_count()
                 || run.costs.values().any(|v| !v.is_finite() || *v < 0.0)
+                || run.package_boundaries.first() != Some(&0)
+                || run.package_boundaries.last() != Some(&run.accumulator.plan().total_points())
+                || run.package_boundaries.windows(2).any(|v| v[0] >= v[1])
+                || run
+                    .package_boundaries
+                    .iter()
+                    .any(|end| !end.is_multiple_of(run.accumulator.plan().rule().points()))
             {
                 return Err(IntegrationError::Invalid(
                     "checkpoint plans, output shape or timings differ".into(),
@@ -91,14 +101,7 @@ impl QmcSession {
             run.seconds()?;
             let mut starts = BTreeSet::new();
             for work in run.accumulator.completed_work_packages() {
-                let plan = run.accumulator.plan();
-                let count = session
-                    .settings
-                    .package_points
-                    .min(plan.total_points().saturating_sub(work.start()));
-                if work.start() % session.settings.package_points != 0
-                    || plan.work(work.start(), count)? != work
-                {
+                if run.canonical_work(work.start(), session.settings.package_points)? != work {
                     return Err(IntegrationError::Invalid(
                         "checkpoint contains a noncanonical completed package".into(),
                     ));

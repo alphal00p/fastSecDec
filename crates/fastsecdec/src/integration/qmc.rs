@@ -1,5 +1,6 @@
 mod checkpoint;
 mod design;
+mod refinement;
 mod results;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -38,6 +39,10 @@ pub(crate) struct SectorRun {
     pub(crate) costs: BTreeMap<u64, f64>,
     #[serde(skip)]
     pending: BTreeSet<u64>,
+    /// Complete-allocation ends preserve the canonical tail package when more
+    /// shifts are appended and package size does not divide the lattice size.
+    #[serde(default)]
+    package_boundaries: Vec<u64>,
 }
 
 impl SectorRun {
@@ -160,6 +165,7 @@ impl QmcSession {
                     self.stream(i),
                 )?;
                 Ok(SectorRun {
+                    package_boundaries: vec![0, plan.total_points()],
                     accumulator: QmcAccumulator::new(plan, self.problem.orders.len())?,
                     costs: BTreeMap::new(),
                     pending: BTreeSet::new(),
@@ -188,14 +194,15 @@ impl QmcSession {
             for missing in run.accumulator.missing_ranges() {
                 let mut start = missing.start;
                 while start < missing.end {
-                    let count = self.settings.package_points.min(missing.end - start);
+                    let work = run.canonical_work(start, self.settings.package_points)?;
+                    let count = work.point_count();
                     if run.pending.insert(start) {
                         return Ok(Some(QmcTask {
                             content_id: self.problem.content_id.clone(),
                             epoch: self.epoch,
                             sector_id: self.problem.sectors[i].id,
                             periodization: self.settings.periodization,
-                            work: run.accumulator.plan().work(start, count)?,
+                            work,
                         }));
                     }
                     start += count;
@@ -248,14 +255,8 @@ impl QmcSession {
             ));
         }
         let i = self.sector_index(task.sector_id)?;
-        let plan = self.runs[i].accumulator.plan();
-        let start = task.work.start();
-        let count = self
-            .settings
-            .package_points
-            .min(plan.total_points().saturating_sub(start));
-        if !start.is_multiple_of(self.settings.package_points)
-            || plan.work(start, count)? != task.work
+        if self.runs[i].canonical_work(task.work.start(), self.settings.package_points)?
+            != task.work
         {
             return Err(IntegrationError::InvalidReturn(
                 "task is not a canonical package of this allocation".into(),

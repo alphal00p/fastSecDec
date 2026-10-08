@@ -294,7 +294,13 @@ fn actual_tiny_generation_delivers_each_configured_plan_and_only_then_finishes()
         let output = dir.path().join("value.fsd");
         crate::generate::generate_with_workers(&card, &output, &mut dashboard, None, 2).unwrap();
         assert!(output.with_extension("fsd.json").exists());
-        assert!(output.with_extension("fsd.dat").exists());
+        assert!(
+            crate::artifact::Artifact::load_metadata(&output)
+                .unwrap()
+                .data_path(&output)
+                .unwrap()
+                .exists()
+        );
         for index in 0..8 {
             assert_eq!(
                 dashboard.generation_plan.state(index),

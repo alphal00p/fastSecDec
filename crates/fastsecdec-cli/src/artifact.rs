@@ -1,4 +1,6 @@
+mod indexed;
 pub(crate) mod inspection;
+pub use indexed::IndexedStorage;
 pub use inspection::{InspectionIndex, KernelSummary};
 
 use std::{
@@ -94,6 +96,8 @@ pub enum SourceFingerprint {
     #[default]
     Bytes,
     RunCardWithoutReference,
+    /// Mathematical input only; scheduling/integration steering is observational.
+    RunCardScientificInput,
 }
 
 impl SourceFingerprint {
@@ -109,6 +113,22 @@ impl SourceFingerprint {
                 // steering, including fields unknown to this application's schema.
                 let mut card: toml::Table = toml::from_str(std::str::from_utf8(bytes)?)?;
                 card.remove("reference");
+                blake3::hash(toml::to_string(&card)?.as_bytes())
+            }
+            Self::RunCardScientificInput => {
+                let mut card: toml::Table = toml::from_str(std::str::from_utf8(bytes)?)?;
+                card.remove("reference");
+                card.remove("integration");
+                if let Some(generation) = card
+                    .get_mut("generation")
+                    .and_then(toml::Value::as_table_mut)
+                {
+                    generation.remove("serial");
+                    generation.remove("workers");
+                    if generation.is_empty() {
+                        card.remove("generation");
+                    }
+                }
                 blake3::hash(toml::to_string(&card)?.as_bytes())
             }
         };
@@ -185,6 +205,10 @@ pub struct Artifact {
     kernel: Box<RawValue>,
     #[serde(skip)]
     data: Vec<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub indexed: Option<IndexedStorage>,
+    #[serde(skip)]
+    staged_data: Option<PathBuf>,
     #[serde(skip)]
     source_root: PathBuf,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -302,11 +326,12 @@ pub enum ArtifactLoadProgress {
 
 impl Artifact {
     pub fn new(kernels: &KernelSet, provenance: Provenance) -> CliResult<Self> {
+        let (data, catalogue) = fastsecdec::kernel::indexed::to_bytes(kernels)?;
         let mut result = Self {
-            format_version: 3,
+            format_version: 4,
             content_id: String::new(),
             provenance,
-            kernel_content_id: kernels.template_content_id().to_owned(),
+            kernel_content_id: catalogue.content_id.clone(),
             kernel: RawValue::from_string(serde_json::to_string_pretty(&serde_json::json!({
                 "threshold_policy": "user_responsible", "threshold_certification": "not_performed",
                 "orders": kernels.orders(), "components": kernels.components(),
@@ -319,7 +344,12 @@ impl Artifact {
                 })).collect::<Vec<_>>(),
                 "evaluator_statistics": kernels.sectors().iter().map(|s| s.statistics()).collect::<Vec<_>>(),
             }))?)?,
-            data: kernels.to_bytes()?,
+            data,
+            indexed: Some(IndexedStorage {
+                data_file: String::new(),
+                catalogue,
+            }),
+            staged_data: None,
             source_root: PathBuf::from("."),
             generation_timings: None,
             generation: None,
@@ -335,10 +365,36 @@ impl Artifact {
         // Generation observations, wall timings and comparison settings do not
         // change the mathematical artifact or any evaluator's identity.
         let mut hasher = blake3::Hasher::new();
-        hasher.update(b"fastsecdec-artifact-v3");
-        serde_json::to_writer(&mut hasher, &self.provenance)?;
-        hasher.update(self.kernel_content_id.as_bytes());
-        serde_json::to_writer(&mut hasher, &self.kernel)?;
+        if self.format_version >= 4 {
+            hasher.update(b"fastsecdec-artifact-v4");
+            let mut provenance = serde_json::to_value(&self.provenance)?;
+            provenance
+                .as_object_mut()
+                .expect("provenance object")
+                .remove("integration");
+            if let Some(sources) = provenance
+                .get_mut("sources")
+                .and_then(serde_json::Value::as_array_mut)
+            {
+                for source in sources {
+                    source
+                        .as_object_mut()
+                        .expect("source object")
+                        .remove("path");
+                }
+            }
+            serde_json::to_writer(&mut hasher, &provenance)?;
+        } else {
+            hasher.update(b"fastsecdec-artifact-v3");
+            serde_json::to_writer(&mut hasher, &self.provenance)?;
+        }
+        // v4 distinguishes the scientific input from its saved representation.
+        // Checkpoint/session admission must bind BOTH identities: differently
+        // scheduled generation may emit different local coefficient layouts.
+        if self.format_version < 4 {
+            hasher.update(self.kernel_content_id.as_bytes());
+            serde_json::to_writer(&mut hasher, &self.kernel)?;
+        }
         Ok(hasher.finalize().to_hex().to_string())
     }
     /// Input paths enter relative to the run card and leave relative to the
@@ -386,6 +442,9 @@ impl Artifact {
                 .is_some_and(|r| r.path.is_absolute())
         {
             return Err("artifact provenance paths must be relative".into());
+        }
+        if self.indexed.is_some() {
+            return self.save_indexed(base);
         }
         // The metadata commits the pair only after the complete data is durable.
         // A interrupted overwrite can leave a mismatched pair, which loading rejects.
@@ -441,10 +500,45 @@ impl Artifact {
         let started = Instant::now();
         let (metadata, _) = paths(base)?;
         let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(metadata)?))?;
-        if artifact.format_version != 3 {
+        if !matches!(artifact.format_version, 3 | 4) {
             return Err(
                 "artifact version is unsupported; regenerate using an .fsd basename".into(),
             );
+        }
+        if artifact.format_version == 4 {
+            let indexed = artifact
+                .indexed
+                .as_ref()
+                .ok_or("indexed artifact has no catalogue")?;
+            indexed.validate(options.validate)?;
+            if indexed.catalogue.content_id != artifact.kernel_content_id {
+                return Err("indexed catalogue differs from kernel identity".into());
+            }
+            let summary = artifact.kernel_summary()?;
+            let sectors = indexed
+                .catalogue
+                .records
+                .iter()
+                .filter(|r| r.sector.is_some())
+                .collect::<Vec<_>>();
+            if summary.orders != indexed.catalogue.orders
+                || summary.components != indexed.catalogue.components
+                || summary.sectors != sectors.len()
+                || summary.dimensions.as_ref().is_some_and(|dimensions| {
+                    dimensions
+                        .iter()
+                        .copied()
+                        .ne(sectors.iter().map(|r| r.receipt.dimension.unwrap()))
+                })
+                || summary
+                    .runtime_parameters
+                    .as_ref()
+                    .is_some_and(|parameters| *parameters != indexed.catalogue.runtime_parameters)
+            {
+                return Err("indexed summary differs from its native catalogue".into());
+            }
+        } else if artifact.indexed.is_some() {
+            return Err("historical artifact unexpectedly contains an indexed catalogue".into());
         }
         if options.validate && artifact.content_id != artifact.identity()? {
             return Err("artifact complete content identity is invalid".into());
@@ -494,7 +588,7 @@ impl Artifact {
         mut observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
     ) -> CliResult<(Self, KernelSet)> {
         let started = Instant::now();
-        let (_, data) = paths(base)?;
+        paths(base)?;
         let poll = |event: &ArtifactLoadProgress,
                     observe: &mut dyn FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>|
          -> CliResult<()> {
@@ -514,6 +608,38 @@ impl Artifact {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
         preflight(&artifact)?;
+        if let Some(indexed) = &artifact.indexed {
+            let data = artifact.data_path(base)?;
+            let catalogue = indexed.catalogue.clone();
+            poll(
+                &ArtifactLoadProgress::ReadingBinary {
+                    completed: 0,
+                    total: None,
+                },
+                &mut observe,
+            )?;
+            let mut reader = fastsecdec::kernel::indexed::IndexedReader::new(
+                File::open(&data)?,
+                catalogue,
+                options,
+            )?;
+            poll(
+                &ArtifactLoadProgress::Native(fastsecdec::kernel::KernelLoadProgress::Decoding),
+                &mut observe,
+            )?;
+            let kernels = reader.load_all_with_progress(&mut |progress| {
+                observe(&ArtifactLoadProgress::Native(*progress))
+            })?;
+            artifact.staged_data = Some(data);
+            artifact.validation.binary = options.validate;
+            poll(
+                &ArtifactLoadProgress::Native(fastsecdec::kernel::KernelLoadProgress::Complete),
+                &mut observe,
+            )?;
+            artifact.loading_seconds = started.elapsed().as_secs_f64();
+            return Ok((artifact, kernels));
+        }
+        let data = artifact.data_path(base)?;
         poll(
             &ArtifactLoadProgress::ReadingBinary {
                 completed: 0,

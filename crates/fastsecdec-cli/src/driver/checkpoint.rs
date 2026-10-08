@@ -15,12 +15,17 @@ use std::{fs, path::Path};
 pub(super) struct Checkpoint {
     format_version: u32,
     content_id: String,
+    /// Indexed artifacts separate mathematical input and evaluator layout IDs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    kernel_content_id: Option<String>,
     settings: serde_json::Value,
     pub(super) round_index: usize,
     session: serde_json::Value,
     #[serde(default)]
     diagnostics: EvaluationDiagnostics,
     replay: AcceptedReplay,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    previous_complete: Option<super::refinement::PreviousProduction>,
 }
 
 pub(super) struct RestoredCheckpoint {
@@ -28,6 +33,7 @@ pub(super) struct RestoredCheckpoint {
     pub diagnostics: EvaluationDiagnostics,
     pub replay: AcceptedReplay,
     pub session: Vec<u8>,
+    pub previous_complete: Option<super::refinement::PreviousProduction>,
 }
 
 pub(super) fn settings_identity(settings: &IntegrationInput) -> CliResult<serde_json::Value> {
@@ -37,9 +43,15 @@ pub(super) fn settings_identity(settings: &IntegrationInput) -> CliResult<serde_
         .as_object_mut()
         .unwrap()
         .remove("evaluation_batch_size");
+    // Ordinary historical checkpoints serialized the implicit one-round limit.
+    // Artifact settings preserve omission so a later serial run can be unlimited.
+    if settings.serial_seconds.is_none() {
+        value["max_rounds"] = settings.ordinary_max_rounds().into();
+    }
     Ok(value)
 }
 
+#[cfg(test)]
 pub(super) fn save_checkpoint(
     path: &Path,
     artifact: &Artifact,
@@ -49,16 +61,43 @@ pub(super) fn save_checkpoint(
     diagnostics: &EvaluationDiagnostics,
     replay: &AcceptedReplay,
 ) -> CliResult<()> {
+    save_checkpoint_with_previous(
+        path,
+        artifact,
+        settings,
+        round,
+        session,
+        diagnostics,
+        replay,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn save_checkpoint_with_previous(
+    path: &Path,
+    artifact: &Artifact,
+    settings: &IntegrationInput,
+    round: usize,
+    session: Vec<u8>,
+    diagnostics: &EvaluationDiagnostics,
+    replay: &AcceptedReplay,
+    previous_complete: Option<&super::refinement::PreviousProduction>,
+) -> CliResult<()> {
     atomic_write(
         path,
         &serde_json::to_vec(&Checkpoint {
             format_version: 3,
             content_id: artifact.content_id.clone(),
+            kernel_content_id: artifact
+                .catalogue()
+                .map(|_| artifact.kernel_content_id.clone()),
             settings: settings_identity(settings)?,
             round_index: round,
             session: serde_json::from_slice(&session)?,
             diagnostics: diagnostics.clone(),
             replay: replay.clone(),
+            previous_complete: previous_complete.cloned(),
         })?,
     )
 }
@@ -82,8 +121,12 @@ pub(super) fn restore_checkpoint(
         historical.stability = fastsecdec::kernel::StabilitySettings::validated();
     }
     if checkpoint.content_id != artifact.content_id
+        || checkpoint.kernel_content_id.as_deref()
+            != artifact
+                .catalogue()
+                .map(|_| artifact.kernel_content_id.as_str())
         || settings_identity(&historical)? != settings_identity(settings)?
-        || checkpoint.round_index >= settings.max_rounds
+        || checkpoint.round_index >= settings.ordinary_max_rounds()
     {
         return Err("checkpoint input identity or integration settings differ; only the worker count and evaluation batch size may change during resume".into());
     }
@@ -92,9 +135,11 @@ pub(super) fn restore_checkpoint(
         diagnostics: checkpoint.diagnostics,
         replay: checkpoint.replay,
         session: serde_json::to_vec(&checkpoint.session)?,
+        previous_complete: checkpoint.previous_complete,
     })
 }
 
+#[cfg(test)]
 pub(super) fn save_mc_checkpoint(
     path: &Path,
     artifact: &Artifact,
@@ -104,10 +149,33 @@ pub(super) fn save_mc_checkpoint(
     diagnostics: &EvaluationDiagnostics,
     replay: &AcceptedReplay,
 ) -> CliResult<ResumeStatus> {
+    save_mc_checkpoint_with_previous(
+        path,
+        artifact,
+        settings,
+        round,
+        session,
+        diagnostics,
+        replay,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn save_mc_checkpoint_with_previous(
+    path: &Path,
+    artifact: &Artifact,
+    settings: &IntegrationInput,
+    round: usize,
+    session: &HavanaSession,
+    diagnostics: &EvaluationDiagnostics,
+    replay: &AcceptedReplay,
+    previous_complete: Option<&super::refinement::PreviousProduction>,
+) -> CliResult<ResumeStatus> {
     if session.stage() == IntegrationStage::Pilot {
         return Ok(ResumeStatus::PilotRestartRequired);
     }
-    save_checkpoint(
+    save_checkpoint_with_previous(
         path,
         artifact,
         settings,
@@ -115,6 +183,7 @@ pub(super) fn save_mc_checkpoint(
         session.checkpoint()?,
         diagnostics,
         replay,
+        previous_complete,
     )?;
     Ok(ResumeStatus::CheckpointSaved)
 }

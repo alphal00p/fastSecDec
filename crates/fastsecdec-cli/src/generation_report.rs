@@ -122,6 +122,65 @@ pub fn print(
     Ok(())
 }
 
+/// Report a completed generation from its compact catalogue, without restoring
+/// any sector program or undoing the caller's process memory reclamation.
+pub fn print_indexed(output: &Path, artifact: &Artifact, plain: bool, json: bool) -> CliResult<()> {
+    let kernels = artifact.kernel_summary()?;
+    let relative = crate::artifact::relative_path(output, Path::new("."))?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "artifact":relative, "content_id":artifact.content_id,
+                "sectors":kernels.sectors, "orders":kernels.orders, "components":kernels.components,
+                "generation_timings":artifact.generation_timings,
+                "workers":artifact.generation.as_ref().map(|g|g.workers), "generation":artifact.generation,
+            }))?
+        );
+        return Ok(());
+    }
+    let terminal = std::io::stdout().is_terminal();
+    let width = if terminal {
+        crossterm::terminal::size().map_or(80, |(w, _)| usize::from(w))
+    } else {
+        80
+    };
+    let summary = Summary {
+        artifact: relative.to_string_lossy().into_owned(),
+        content_id: &artifact.content_id,
+        sectors: kernels.sectors,
+        workers: artifact.generation.as_ref().map(|g| g.workers),
+        mode: artifact.generation.as_ref().and_then(|g| g.mode),
+        subtraction: artifact.generation.as_ref().and_then(|g| g.subtraction),
+        requested_coefficient_expansion: artifact
+            .generation
+            .as_ref()
+            .map(|g| g.requested_coefficient_expansion),
+        evaluator: artifact.generation.as_ref().and_then(|g| g.evaluator),
+        runtime_inputs: kernels.runtime_parameters.as_ref().map_or(0, Vec::len),
+        backends: kernels
+            .evaluator_statistics
+            .iter()
+            .flatten()
+            .map(|s| s.backend.clone())
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+        regulator: crate::input::expression(&artifact.provenance.regulator)?,
+        outputs: kernels.orders.into_iter().zip(kernels.components).collect(),
+        timings: artifact.generation_timings.as_ref(),
+        formula_preparation: artifact
+            .generation
+            .as_ref()
+            .and_then(|g| g.formula_preparation),
+    };
+    print!(
+        "{}",
+        render(&summary, width, ColorPolicy::for_stream(plain, terminal))
+    );
+    Ok(())
+}
+
 /// Saved route selection; historical absence remains explicit in both reports.
 pub(crate) fn generation_method_rows(
     mode: Option<fastsecdec::generation::GenerationMode>,

@@ -6,8 +6,22 @@ struct Checkpoint {
     problem: IntegrationProblem,
     settings: HavanaSettings,
     epoch: u64,
-    next_rng: [u8; 32],
+    streams: Streams,
     sectors: Vec<SectorState>,
+    integrity: [u8; 32],
+}
+impl Checkpoint {
+    fn integrity(&self) -> Result<[u8; 32]> {
+        Ok(*blake3::hash(&serde_json::to_vec(&(
+            self.version,
+            &self.problem,
+            &self.settings,
+            self.epoch,
+            &self.streams,
+            &self.sectors,
+        ))?)
+        .as_bytes())
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -27,12 +41,12 @@ impl HavanaSession {
                 "Havana checkpoints require a frozen production grid".into(),
             ));
         }
-        Ok(serde_json::to_vec(&Checkpoint {
-            version: 1,
+        let mut state = Checkpoint {
+            version: 2,
             problem: self.problem.clone(),
             settings: self.settings.clone(),
             epoch: self.epoch,
-            next_rng: self.next_rng,
+            streams: self.streams.clone(),
             sectors: self
                 .runs
                 .iter()
@@ -47,16 +61,20 @@ impl HavanaSession {
                     records: run.records.values().cloned().collect(),
                 })
                 .collect(),
-        })?)
+            integrity: [0; 32],
+        };
+        state.integrity = state.integrity()?;
+        Ok(serde_json::to_vec(&state)?)
     }
 
     pub fn restore(bytes: &[u8], expected_problem: &IntegrationProblem) -> Result<Self> {
         let state: Checkpoint = serde_json::from_slice(bytes)?;
         expected_problem.validate()?;
-        if state.version != 1
+        if state.version != 2
+            || state.integrity != state.integrity()?
             || &state.problem != expected_problem
             || state.sectors.len() != state.problem.sectors.len()
-            || state.next_rng == [0; 32]
+            || state.streams.state == [0; 32]
         {
             return Err(IntegrationError::Invalid(
                 "Havana checkpoint identity or shape differs".into(),
@@ -64,7 +82,7 @@ impl HavanaSession {
         }
         let mut session = Self::production(state.problem, state.settings)?;
         session.epoch = state.epoch;
-        session.next_rng = state.next_rng;
+        session.streams = state.streams;
         let mut all_seeds = BTreeSet::new();
         for (i, stored) in state.sectors.into_iter().enumerate() {
             if stored.partitions.len() != session.problem.sectors[i].dimension
@@ -119,6 +137,13 @@ impl HavanaSession {
                     ));
                 }
             }
+        }
+        if session.streams.next < all_seeds.len() as u64
+            || all_seeds.contains(&session.streams.state)
+        {
+            return Err(IntegrationError::Invalid(
+                "Havana checkpoint random frontier overlaps reserved batches".into(),
+            ));
         }
         Ok(session)
     }

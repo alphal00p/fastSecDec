@@ -210,7 +210,14 @@ pub(super) fn problem(
     Ok(
         fastsecdec::results::KernelResultManifest::from_kernels(kernels).integration_problem(
             scope,
-            if kernels.runtime_parameters().is_empty() {
+            if artifact.catalogue().is_some() {
+                format!(
+                    "{}:{}:{}",
+                    artifact.content_id,
+                    artifact.kernel_content_id,
+                    kernels.content_id()
+                )
+            } else if kernels.runtime_parameters().is_empty() {
                 artifact.content_id.clone()
             } else {
                 format!("{}:{}", artifact.content_id, kernels.content_id())
@@ -227,9 +234,7 @@ pub fn integrate(
     resume: bool,
     dashboard: &mut Dashboard,
 ) -> CliResult<IntegrationReport> {
-    if settings.workers == 0 || settings.max_rounds == 0 || settings.evaluation_batch_size == 0 {
-        return Err("workers, max_rounds and evaluation_batch_size must be positive".into());
-    }
+    settings.validate_execution()?;
     let problem = problem(artifact, kernels, &settings.scope)?;
     settings.accuracy_target.validate_layout(&problem.orders)?;
     dashboard.set_scope(settings.scope.clone());

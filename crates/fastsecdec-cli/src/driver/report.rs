@@ -27,6 +27,10 @@ pub struct IntegrationReport {
     /// Effective final-round design; adaptive sector allocations are authoritative.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub qmc_design: Option<QmcDesign>,
+    /// Earlier completed design while the current refinement is unfinished.
+    /// Its statistics are separate and never determine current convergence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_complete: Option<super::refinement::PreviousProduction>,
     /// Native accepted-sector statistics, with authoritative total covariance.
     pub contributions: ContributionReport,
 }
@@ -47,7 +51,7 @@ pub(super) fn with_diagnostics(
     snapshot
 }
 
-pub(super) struct ExecutionOutcome {
+pub(crate) struct ExecutionOutcome {
     pub stability_mode: fastsecdec::kernel::StabilityMode,
     pub accuracy_target: fastsecdec::integration::AccuracyTarget,
     pub operational: fastsecdec::integration::OperationalMetrics,
@@ -58,7 +62,7 @@ pub(super) struct ExecutionOutcome {
     pub qmc_design: Option<QmcDesign>,
 }
 
-pub(super) fn finish(
+pub(crate) fn finish(
     artifact: &crate::artifact::Artifact,
     observation: IntegrationObservation,
     diagnostics: &EvaluationDiagnostics,
@@ -118,6 +122,7 @@ pub(super) fn finish(
         snapshot,
         resume_status: outcome.resume_status,
         qmc_design: outcome.qmc_design,
+        previous_complete: None,
         contributions: observation.contributions,
     })
 }

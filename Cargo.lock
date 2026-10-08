@@ -881,6 +881,7 @@ dependencies = [
  "numerica",
  "one-loop-reduce",
  "oneloop",
+ "rand 0.9.5",
  "serde",
  "serde_json",
  "spenso",

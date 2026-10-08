@@ -7,7 +7,7 @@ use crate::generation::{
 };
 use std::{ops::ControlFlow, sync::Arc};
 use symbolica::{
-    atom::{Atom, Symbol},
+    atom::{Atom, AtomCore, Symbol},
     domains::rational::Rational,
 };
 
@@ -28,7 +28,7 @@ pub(in crate::generation) struct Key {
 }
 
 impl Key {
-    pub(super) fn discover(
+    pub(in crate::generation) fn discover(
         terms: &[MappedTerm],
         dimension: usize,
         regulator: Symbol,
@@ -67,7 +67,7 @@ impl Key {
 
     /// The regular bodies are supplied later by each chart's native evaluators.
     /// All their symbols have already been reserved once in the shared context.
-    fn terms(&self, regulator: Symbol) -> Vec<MappedTerm> {
+    pub(in crate::generation) fn terms(&self, regulator: Symbol) -> Vec<MappedTerm> {
         self.terms
             .iter()
             .map(|(powers, prefactor)| MappedTerm {
@@ -82,6 +82,39 @@ impl Key {
                 regular: Atom::one(),
             })
             .collect()
+    }
+}
+
+impl Key {
+    /// Portable lookup key; users must still compare the restored native key.
+    pub(in crate::generation) fn lookup_key(&self) -> String {
+        let terms = self
+            .terms
+            .iter()
+            .map(|(powers, prefactor)| {
+                (
+                    powers
+                        .iter()
+                        .map(|(a, b)| (a.to_string(), b.to_string()))
+                        .collect::<Vec<_>>(),
+                    prefactor.to_canonical_string(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let bytes = serde_json::to_vec(&(
+            self.dimension,
+            terms,
+            self.max_order,
+            self.strategy,
+            self.max_subtractions_per_axis,
+            self.max_subtraction_terms,
+            self.method,
+            self.max_series_attempts,
+            self.max_relative_width,
+            self.max_unique_requests,
+        ))
+        .expect("formula key contains native canonical strings and integers");
+        blake3::hash(&bytes).to_hex().to_string()
     }
 }
 
@@ -101,7 +134,7 @@ impl Counts {
     }
 }
 
-pub(super) fn build(
+pub(in crate::generation) fn build(
     key: &Key,
     context: &super::pipeline::Context,
     index: usize,

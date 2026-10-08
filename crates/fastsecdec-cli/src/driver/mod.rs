@@ -3,9 +3,10 @@ mod checkpoint;
 mod execution;
 mod refinement;
 mod replay;
-mod report;
+pub(crate) mod report;
 #[cfg(test)]
 mod selection_tests;
+pub(crate) mod serial;
 #[cfg(test)]
 mod tests;
 

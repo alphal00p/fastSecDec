@@ -134,7 +134,8 @@ impl WeightedEvaluationContext {
             input.extend_from_slice(&points[row * dimension..(row + 1) * dimension]);
             input.extend_from_slice(&self.kernel.input[dimension..]);
         }
-        let mut primary = vec![0.0; selected.len() * outputs];
+        let native_outputs = self.kernel.native_output_count();
+        let mut primary = vec![0.0; selected.len() * native_outputs];
         if cancelled() {
             return Err(fail(KernelError::Cancelled));
         }
@@ -145,7 +146,7 @@ impl WeightedEvaluationContext {
                     &mut primary,
                     selected.len(),
                     self.kernel.input.len(),
-                    outputs,
+                    native_outputs,
                 );
                 for timing in &timings {
                     kernel.f64_timing.add(*timing);
@@ -155,6 +156,20 @@ impl WeightedEvaluationContext {
             Backend::Complex(kernel) => {
                 kernel.evaluate_primary_batch(&input, &mut primary, selected.len())
             }
+        };
+        let primary = if let Some(projection) = &self.kernel.projection {
+            let mut scattered = vec![0.0; selected.len() * outputs];
+            for (source, target) in primary
+                .chunks_exact(native_outputs)
+                .zip(scattered.chunks_exact_mut(outputs))
+            {
+                for (value, index) in source.iter().zip(&projection.indices) {
+                    target[*index] = *value;
+                }
+            }
+            scattered
+        } else {
+            primary
         };
         let mut completed = Vec::with_capacity(rows);
         let mut next_primary = 0;

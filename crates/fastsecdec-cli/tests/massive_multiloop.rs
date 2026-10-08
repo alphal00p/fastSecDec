@@ -1,5 +1,7 @@
 //! Complete CLI diagnostics with frozen independent numerical comparisons.
 //! All sampling, precision controls and checkpoints belong to the production CLI.
+#[path = "support/artifact.rs"]
+mod artifact_data;
 #[path = "support/multiloop_reference.rs"]
 mod reference;
 use std::{
@@ -202,7 +204,7 @@ fn six_massive_multiloop_cards_generate_and_integrate_complete_vectors() {
                 // Generation is a portable template. The run card's historical
                 // point is bound only by the later integration invocation.
                 let metadata_path = artifact.with_extension("fsd.json");
-                let data_path = artifact.with_extension("fsd.dat");
+                let data_path = artifact_data::data_path(&artifact);
                 let metadata: serde_json::Value =
                     serde_json::from_slice(&fs::read(&metadata_path).unwrap()).unwrap();
                 assert!(!artifact.exists());

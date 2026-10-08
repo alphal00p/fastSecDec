@@ -62,8 +62,8 @@ pub(super) fn render(
                 Line::styled(
                     format!(
                         "RSS {} · peak {}",
-                        memory::bytes(memory.process_rss_bytes),
-                        memory::bytes(memory.observed_peak_rss_bytes)
+                        memory::bytes(memory.resident_bytes()),
+                        memory::bytes(memory.resident_peak_bytes())
                     ),
                     color.foreground(TEAL),
                 ),
@@ -139,8 +139,8 @@ pub(super) fn render(
                 Line::styled(
                     format!(
                         "RSS {} · peak {}",
-                        memory::bytes(memory.process_rss_bytes),
-                        memory::bytes(memory.observed_peak_rss_bytes)
+                        memory::bytes(memory.resident_bytes()),
+                        memory::bytes(memory.resident_peak_bytes())
                     ),
                     color.foreground(TEAL),
                 ),

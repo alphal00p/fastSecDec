@@ -57,9 +57,15 @@ pub(in crate::display) fn render(
     }
     let short = area.height < 28;
     let header_height = if short { 4 } else { 5 };
+    let serial_height = if data.serial.is_some() {
+        if short { 4 } else { 6 }
+    } else {
+        0
+    };
     let regions = Layout::vertical([
         Constraint::Length(header_height),
         Constraint::Length(3),
+        Constraint::Length(serial_height),
         Constraint::Min(5),
         Constraint::Length(if short { 6 } else { 7 }),
         Constraint::Length(if short { 5 } else { 6 }),
@@ -68,10 +74,13 @@ pub(in crate::display) fn render(
     .split(area);
     header(frame, regions[0], data, order, colors);
     progress(frame, regions[1], data, colors, cancelling);
-    super::sectors::render(frame, regions[2], data, view, colors);
-    super::metrics::selected(frame, regions[3], data, view, colors);
-    super::metrics::global(frame, regions[4], data, colors);
-    help(frame, regions[5], colors, cancelling);
+    if let Some(serial) = &data.serial {
+        super::super::serial_view::render(frame, regions[2], serial, colors);
+    }
+    super::sectors::render(frame, regions[3], data, view, colors);
+    super::metrics::selected(frame, regions[4], data, view, colors);
+    super::metrics::global(frame, regions[5], data, colors);
+    help(frame, regions[6], colors, cancelling);
 }
 
 fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: ColorPolicy) {
@@ -123,8 +132,8 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
     let panel = if !wide {
         panel.title_bottom(Line::from(format!(
             " RSS {} · peak {} · RAM {}/{} · {} {} ",
-            ram(data.memory.process_rss_bytes),
-            ram(data.memory.observed_peak_rss_bytes),
+            ram(data.memory.resident_bytes()),
+            ram(data.memory.resident_peak_bytes()),
             ram(data.memory.system_used_bytes),
             ram(data.memory.system_total_bytes),
             memory_label,
@@ -225,8 +234,8 @@ fn header(frame: &mut Frame<'_>, area: Rect, data: &Cached, order: i32, colors: 
                 "RSS / peak",
                 format!(
                     "{} / {}",
-                    ram(data.memory.process_rss_bytes),
-                    ram(data.memory.observed_peak_rss_bytes)
+                    ram(data.memory.resident_bytes()),
+                    ram(data.memory.resident_peak_bytes())
                 ),
             ),
             (

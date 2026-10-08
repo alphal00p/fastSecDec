@@ -3,6 +3,57 @@ use fastsecdec::generation::{CoefficientExpansionMethod, CoefficientExpansionOpt
 use fastsecdec::parametric::FamilyPreparationPolicy;
 
 #[test]
+fn execution_defaults_preserve_omitted_round_limit_through_artifacts_and_overlays() {
+    use super::IntegrationInput;
+    let mut settings: IntegrationInput = toml::from_str("").unwrap();
+    assert_eq!(settings.max_rounds, None);
+    assert_eq!(settings.ordinary_max_rounds(), 1);
+    assert_eq!(settings.serial_seconds, None);
+    assert!(settings.double_points);
+    assert!(!GenerationInput::default().serial);
+    let stored = serde_json::to_value(&settings).unwrap();
+    assert!(stored.get("max_rounds").is_none());
+    settings = serde_json::from_value(stored).unwrap();
+    let overlay = tempfile::NamedTempFile::new().unwrap();
+    std::fs::write(
+        overlay.path(),
+        "serial_seconds = 60.0\ndouble_points = false",
+    )
+    .unwrap();
+    settings.apply_overlay(overlay.path()).unwrap();
+    assert_eq!(settings.max_rounds, None);
+    assert_eq!(settings.serial_seconds, Some(60.0));
+    assert!(!settings.double_points);
+    std::fs::write(overlay.path(), "max_rounds = 3").unwrap();
+    settings.apply_overlay(overlay.path()).unwrap();
+    assert_eq!(settings.max_rounds, Some(3));
+    settings.validate_execution().unwrap();
+}
+
+#[test]
+fn serial_execution_rejects_invalid_residence_and_discrete_mc() {
+    use super::IntegrationInput;
+    let mut settings = IntegrationInput::default();
+    for seconds in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+        settings.serial_seconds = Some(seconds);
+        assert!(settings.validate_execution().is_err());
+    }
+    settings.serial_seconds = Some(0.001);
+    settings.method = "discrete_mc".into();
+    assert!(
+        settings
+            .validate_execution()
+            .unwrap_err()
+            .to_string()
+            .contains("per-sector Havana")
+    );
+    settings.serial_seconds = None;
+    settings.validate_execution().unwrap();
+    settings.max_rounds = Some(0);
+    assert!(settings.validate_execution().is_err());
+}
+
+#[test]
 fn periodization_reuses_native_variants_and_preserves_the_default() {
     use super::IntegrationInput;
     use fastsecdec::integration::Periodization;

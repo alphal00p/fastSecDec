@@ -63,11 +63,15 @@ fn native_pair_roundtrips_current_kernel_and_human_metadata() {
     let expected = vector(&mut kernels);
     let artifact = Artifact::new(&kernels, provenance()).unwrap();
     artifact.save(&path).unwrap();
-    let (metadata, data) = paths(&path).unwrap();
+    let metadata = paths(&path).unwrap().0;
+    let data = Artifact::load_metadata(&path)
+        .unwrap()
+        .data_path(&path)
+        .unwrap();
     assert!(!path.exists());
     assert!(metadata.exists() && data.exists());
     let human: serde_json::Value = serde_json::from_slice(&fs::read(metadata).unwrap()).unwrap();
-    assert_eq!(human["format_version"], 3);
+    assert_eq!(human["format_version"], 4);
     assert!(human["kernel"].get("payload").is_none());
     assert_eq!(
         human["kernel"]["orders"],
@@ -119,9 +123,13 @@ fn optional_validation_rejects_metadata_tampering_and_preflight_precedes_binary_
     let path = directory.path().join("tampered.fsd");
     let artifact = Artifact::new(&current_kernels(), provenance()).unwrap();
     artifact.save(&path).unwrap();
-    let (metadata, data) = paths(&path).unwrap();
+    let metadata = paths(&path).unwrap().0;
+    let data = Artifact::load_metadata(&path)
+        .unwrap()
+        .data_path(&path)
+        .unwrap();
     let original_bytes = fs::read(&metadata).unwrap();
-    let original = serde_json::to_value(&artifact).unwrap();
+    let original: serde_json::Value = serde_json::from_slice(&original_bytes).unwrap();
     for mutation in ["provenance", "kernel_id", "summary"] {
         let mut value = original.clone();
         match mutation {
@@ -184,7 +192,7 @@ fn fast_load_skips_certification_but_keeps_pair_and_dependency_admission() {
     assert!(checked.validation.metadata_identity && checked.validation.binary);
     assert_eq!(
         serde_json::to_value(&checked).unwrap(),
-        serde_json::to_value(&artifact).unwrap()
+        serde_json::from_slice::<serde_json::Value>(&original).unwrap()
     );
 
     let mut mismatched: serde_json::Value = serde_json::from_slice(&original).unwrap();
@@ -195,7 +203,7 @@ fn fast_load_skips_certification_but_keeps_pair_and_dependency_admission() {
             .err()
             .unwrap()
             .to_string()
-            .contains("kernel identity differs")
+            .contains("kernel identity")
     );
     mismatched["kernel_content_id"] = artifact.kernel_content_id.clone().into();
     mismatched["provenance"]["dependencies"][0]["revision"] = "other-revision".into();
@@ -227,6 +235,79 @@ fn suffixes_are_rejected_before_reading_or_writing_files() {
 }
 
 #[test]
+fn staged_indexed_publication_preserves_previous_generation_on_failure() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("stable.fsd");
+    let kernels = current_kernels();
+    let original = Artifact::new(&kernels, provenance()).unwrap();
+    original.save(&path).unwrap();
+    let manifest = paths(&path).unwrap().0;
+    let old_metadata = fs::read(&manifest).unwrap();
+    let old = Artifact::load_metadata(&path).unwrap();
+    let old_data = old.data_path(&path).unwrap();
+    let staged = directory.path().join("staged.dat");
+    let (bytes, catalogue) = fastsecdec::kernel::indexed::to_bytes(&kernels).unwrap();
+    fs::write(&staged, bytes).unwrap();
+    let replacement = Artifact::from_indexed_file(&staged, catalogue, provenance()).unwrap();
+    fs::remove_file(&staged).unwrap();
+    assert!(replacement.save_staged(&path).is_err());
+    assert_eq!(fs::read(&manifest).unwrap(), old_metadata);
+    assert!(old_data.exists());
+    assert!(Artifact::load(&path).is_ok());
+    original.save(&path).unwrap();
+    let new = Artifact::load_metadata(&path).unwrap();
+    assert_ne!(new.data_path(&path).unwrap(), old_data);
+    assert!(
+        old_data.exists(),
+        "existing readers retain their immutable data"
+    );
+    assert_eq!(new.content_id, old.content_id);
+}
+
+#[test]
+fn scientific_identity_excludes_scheduling_but_representation_identity_remains_explicit() {
+    let kernels = current_kernels();
+    let mut serial = provenance();
+    serial.integration = serde_json::json!({"workers":8,"serial_seconds":60,"double_points":false});
+    let ordinary = Artifact::new(&kernels, provenance()).unwrap();
+    let mut serial = Artifact::new(&kernels, serial).unwrap();
+    assert_eq!(ordinary.content_id, serial.content_id);
+    serial.kernel_content_id = "another explicitly identified representation".into();
+    assert_eq!(ordinary.identity().unwrap(), serial.identity().unwrap());
+    let fingerprint = SourceFingerprint::RunCardScientificInput;
+    assert_eq!(fingerprint.hash(b"[direct]\ndomain='unit_cube'\n").unwrap(),
+        fingerprint.hash(b"[direct]\ndomain='unit_cube'\n[generation]\nserial=true\n[integration]\nworkers=8\nserial_seconds=60\n").unwrap());
+    assert_ne!(
+        fingerprint.hash(b"[generation]\nmax_order=0\n").unwrap(),
+        fingerprint.hash(b"[generation]\nmax_order=1\n").unwrap()
+    );
+}
+
+#[test]
+fn supported_monolithic_artifacts_keep_their_original_reader() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("old.fsd");
+    let (bytes, catalogue) = fastsecdec::kernel::indexed::to_bytes(&current_kernels()).unwrap();
+    let mut reader = fastsecdec::kernel::indexed::IndexedReader::new(
+        std::io::Cursor::new(bytes),
+        catalogue,
+        KernelLoadOptions::default(),
+    )
+    .unwrap();
+    let kernels = reader.load_sector(0).unwrap();
+    let mut old = Artifact::new(&kernels, provenance()).unwrap();
+    old.format_version = 3;
+    old.indexed = None;
+    old.data = kernels.to_bytes().unwrap();
+    old.kernel_content_id = kernels.template_content_id().into();
+    old.content_id = old.identity().unwrap();
+    old.save(&path).unwrap();
+    let (loaded, restored) = Artifact::load(&path).unwrap();
+    assert!(loaded.catalogue().is_none());
+    assert_eq!(restored.sectors().len(), kernels.sectors().len());
+}
+
+#[test]
 fn interrupted_atomic_writer_preserves_destination_and_cleans_its_temporary() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("artifact.json");
@@ -238,6 +319,34 @@ fn interrupted_atomic_writer_preserves_destination_and_cleans_its_temporary() {
     .unwrap_err();
     assert_eq!(error.to_string(), "simulated write failure");
     assert_eq!(fs::read(&path).unwrap(), b"previous artifact");
+    assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn disk_full_error_preserves_published_manifest_and_removes_partial_write() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("artifact.json");
+    fs::write(&path, b"previous generation").unwrap();
+    let error = atomic_write_with(&path, |writer| {
+        writer.write_all(b"partial next generation")?;
+        // Real ENOSPC without consuming host disk space. Propagate exactly the
+        // failure produced by the data writer before its manifest commit.
+        fs::OpenOptions::new()
+            .write(true)
+            .open("/dev/full")?
+            .write_all(b"data")?;
+        Ok(())
+    })
+    .unwrap_err();
+    assert_eq!(
+        error
+            .downcast_ref::<std::io::Error>()
+            .unwrap()
+            .raw_os_error(),
+        Some(28)
+    );
+    assert_eq!(fs::read(&path).unwrap(), b"previous generation");
     assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 1);
 }
 

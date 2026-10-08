@@ -36,6 +36,7 @@ pub(super) struct Cached {
     pub elapsed: f64,
     pub scope: fastsecdec::results::ResultScope,
     pub workers: Vec<IntegrationWorkerActivity>,
+    pub serial: Option<crate::driver::serial::SerialRunSnapshot>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -555,7 +556,7 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
     let mut table = builder.build();
     table.with(Style::modern());
     format!(
-        "{} · {:?} {:?} · {}\nε{} sum Re {} · Im {}\n{}: Re {} · Im {}\n{}\nCoverage: {}\n{}\n{}",
+        "{} · {:?} {:?} · {}\nε{} sum Re {} · Im {}\n{}: Re {} · Im {}\n{}\nCoverage: {}\n{}\n{}{}",
         data.scope,
         data.observation.snapshot.method,
         data.observation.snapshot.stage,
@@ -580,6 +581,12 @@ pub(super) fn plain(data: &Cached, view: &View) -> String {
             )
         },
         table,
-        timing(data).join("\n")
+        timing(data).join("\n"),
+        data.serial
+            .as_ref()
+            .map_or_else(String::new, |status| format!(
+                "\n{}",
+                super::serial_view::plain(status)
+            ))
     )
 }

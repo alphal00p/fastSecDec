@@ -40,7 +40,7 @@ pub(in crate::driver::execution::qmc) fn fixture()
         points: 1024,
         shifts: 4,
         package_points: 1024,
-        max_rounds: 1,
+        max_rounds: Some(1),
         stability: fastsecdec::kernel::StabilitySettings::validated(),
         ..Default::default()
     };

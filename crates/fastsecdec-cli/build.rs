@@ -1,5 +1,6 @@
 use std::{env, fs, path::PathBuf, process::Command};
 
+mod build_source;
 mod build_support;
 
 fn main() {
@@ -24,6 +25,9 @@ fn main() {
     );
     let workspace_manifest = PathBuf::from(String::from_utf8(located.stdout).unwrap().trim());
     let lockfile = workspace_manifest.with_file_name("Cargo.lock");
+    let source = build_source::identity(workspace_manifest.parent().unwrap())
+        .expect("cannot fingerprint native FastSecDec build inputs");
+    println!("cargo:rustc-env=FASTSECDEC_SOURCE_IDENTITY={source}");
     let lock: toml::Table = fs::read_to_string(&lockfile)
         .unwrap_or_else(|error| panic!("cannot read resolved lock {}: {error}", lockfile.display()))
         .parse()

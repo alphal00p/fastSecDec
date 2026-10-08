@@ -5,10 +5,26 @@ struct Checkpoint {
     problem: IntegrationProblem,
     settings: HavanaDiscreteSettings,
     epoch: u64,
-    next_rng: [u8; 32],
+    streams: Streams,
     seeds: Vec<[u8; 32]>,
     proposal: Vec<(f64, Vec<Vec<f64>>)>,
     records: Vec<BatchRecord>,
+    integrity: [u8; 32],
+}
+impl Checkpoint {
+    fn integrity(&self) -> Result<[u8; 32]> {
+        Ok(*blake3::hash(&serde_json::to_vec(&(
+            self.version,
+            &self.problem,
+            &self.settings,
+            self.epoch,
+            &self.streams,
+            &self.seeds,
+            &self.proposal,
+            &self.records,
+        ))?)
+        .as_bytes())
+    }
 }
 impl HavanaDiscreteSession {
     /// Resume frozen production without serializing native mutable training
@@ -19,22 +35,26 @@ impl HavanaDiscreteSession {
                 "discrete Havana checkpoints require frozen production".into(),
             ));
         }
-        Ok(serde_json::to_vec(&Checkpoint {
-            version: 1,
+        let mut stored = Checkpoint {
+            version: 2,
             problem: self.problem.clone(),
             settings: self.settings.clone(),
             epoch: self.epoch,
-            next_rng: self.next_rng,
+            streams: self.streams.clone(),
             seeds: self.seeds.clone(),
             proposal: self.proposal(),
             records: self.records.values().cloned().collect(),
-        })?)
+            integrity: [0; 32],
+        };
+        stored.integrity = stored.integrity()?;
+        Ok(serde_json::to_vec(&stored)?)
     }
     pub fn restore(bytes: &[u8], expected_problem: &IntegrationProblem) -> Result<Self> {
         let stored: Checkpoint = serde_json::from_slice(bytes)?;
-        if stored.version != 1
+        if stored.version != 2
+            || stored.integrity != stored.integrity()?
             || &stored.problem != expected_problem
-            || stored.next_rng == [0; 32]
+            || stored.streams.state == [0; 32]
             || stored.proposal.len() != stored.problem.sectors.len()
             || stored.seeds.len() != stored.settings.batch.batches as usize
         {
@@ -47,6 +67,8 @@ impl HavanaDiscreteSession {
             .seeds
             .iter()
             .any(|s| *s == [0; 32] || !seen.insert(*s))
+            || stored.streams.next < stored.seeds.len() as u64
+            || seen.contains(&stored.streams.state)
         {
             return Err(IntegrationError::Invalid(
                 "invalid or repeated discrete random stream".into(),
@@ -93,7 +115,7 @@ impl HavanaDiscreteSession {
             }
         }
         session.epoch = stored.epoch;
-        session.next_rng = stored.next_rng;
+        session.streams = stored.streams;
         session.seeds = stored.seeds;
         session.grid_id = session.identity()?;
         session.training = session

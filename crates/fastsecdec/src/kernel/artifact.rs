@@ -1,6 +1,7 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
 //! Symbolica owns decoding of native programs from trusted cache producers.
 mod binary;
+pub(crate) mod indexed;
 #[cfg(test)]
 mod load_tests;
 mod native;
@@ -101,7 +102,10 @@ impl KernelSet {
     /// Legacy loaded artifacts retain their original bytes and identities.
     /// Executable code and mutable evaluator work stacks are excluded.
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
-        Ok(self.artifact_bytes()?.to_vec())
+        match self.portable_artifact.as_deref() {
+            Some(bytes) => Ok(bytes.to_vec()),
+            None => indexed::to_bytes(self).map(|(bytes, _)| bytes),
+        }
     }
 
     /// Borrow the retained portable artifact without copying its native programs.
@@ -159,7 +163,9 @@ impl KernelSet {
         }
         let mut restoring =
             |step: &super::CompilationProgress| progress(&KernelLoadProgress::Restoring(*step));
-        let kernels = if bytes.starts_with(binary::PREFIX) {
+        let kernels = if bytes.starts_with(indexed::MAGIC) {
+            indexed::from_bytes(bytes, options, &mut progress)
+        } else if bytes.starts_with(binary::PREFIX) {
             binary::load_with_progress(bytes, options, &mut restoring)
         } else {
             // Dispatch does not replace either codec's strict owned schema.

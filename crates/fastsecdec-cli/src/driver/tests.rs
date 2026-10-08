@@ -52,7 +52,7 @@ fn settings(method: &str) -> IntegrationInput {
         package_points: 1024,
         absolute_tolerance: 0.0,
         relative_tolerance: 0.0,
-        max_rounds: 2,
+        max_rounds: Some(2),
         stability: fastsecdec::kernel::StabilitySettings::validated(),
         ..IntegrationInput::default()
     }
@@ -315,7 +315,7 @@ fn failed_prefix_and_rejected_submission_never_advance_replay_state() {
 fn partial_weighted_checkpoint_resumes_new_work_with_different_worker_count() {
     let (dir, artifact, kernels) = fixture();
     let mut settings = settings("qmc");
-    settings.max_rounds = 1;
+    settings.max_rounds = Some(1);
     let mut accepted = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
     let mut context = accepted
         .contexts(
@@ -634,7 +634,7 @@ fn checkpoint_binds_native_catalogue_method_and_refinement_to_outer_settings() {
 fn discrete_havana_cli_reports_global_allocation_and_resumes_with_new_worker_count() {
     let (dir, artifact, kernels) = fixture();
     let mut settings = settings("discrete_mc");
-    settings.max_rounds = 1;
+    settings.max_rounds = Some(1);
     settings.workers = 2;
     settings.discrete_mc = Some(crate::config::DiscreteMcInput {
         pilot_points: 128,
@@ -694,7 +694,14 @@ fn discrete_havana_cli_reports_global_allocation_and_resumes_with_new_worker_cou
         first.snapshot.evaluation_diagnostics,
         restored.snapshot.evaluation_diagnostics
     );
-    let saved = crate::results::assemble(&artifact, &kernels, &settings, &restored, None).unwrap();
+    let saved = crate::results::assemble_manifest(
+        &artifact,
+        fastsecdec::results::KernelResultManifest::from_kernels(&kernels),
+        &settings,
+        &restored,
+        None,
+    )
+    .unwrap();
     let encoded = fastsecdec::results::encode_result(&saved).unwrap();
     assert_eq!(fastsecdec::results::read_result(&encoded).unwrap(), saved);
     let mut invalid = saved.clone();

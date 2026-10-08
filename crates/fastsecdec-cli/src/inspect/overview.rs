@@ -41,7 +41,8 @@ pub(super) fn render(
         Some(_) => "None".into(),
         None => "Not recorded".into(),
     };
-    let (json_path, data_path) = crate::artifact::paths(path)?;
+    let (json_path, _) = crate::artifact::paths(path)?;
+    let data_path = artifact.data_path(path)?;
     let file_size = |path| {
         std::fs::metadata(path)
             .ok()

@@ -49,6 +49,88 @@ pub(super) struct PreparedDensity {
     canonical: CanonicalForm<Vertex, usize>,
 }
 
+impl PreparedDensity {
+    /// Invariant lookup bucket for independently serialized charts. This is
+    /// deliberately only a graph summary; exact native verification below is
+    /// mandatory, including when two keys happen to coincide.
+    pub(super) fn lookup_key(&self) -> String {
+        let mut nodes = self
+            .canonical
+            .graph
+            .nodes()
+            .iter()
+            .map(|node| {
+                let label = match &node.data {
+                    Vertex::Root => "root".into(),
+                    Vertex::Parameter => "parameter".into(),
+                    Vertex::Constant(atom) => format!("constant:{}", atom.to_canonical_string()),
+                    Vertex::Add => "add".into(),
+                    Vertex::Multiply => "multiply".into(),
+                    Vertex::Power => "power".into(),
+                    Vertex::Function(symbol) => {
+                        format!("function:{}", Atom::var(*symbol).to_canonical_string())
+                    }
+                };
+                (label, node.valence)
+            })
+            .collect::<Vec<_>>();
+        nodes.sort();
+        let mut edges = self
+            .canonical
+            .graph
+            .edges()
+            .iter()
+            .map(|e| (e.directed, e.data))
+            .collect::<Vec<_>>();
+        edges.sort();
+        let bytes = serde_json::to_vec(&(nodes, edges))
+            .expect("native graph summary uses strings and integers");
+        blake3::hash(&bytes).to_hex().to_string()
+    }
+
+    /// Compare two restored native canonical forms and then prove the density
+    /// permutation with the same substitution used by ordinary registration.
+    pub(super) fn equivalent_to(
+        &self,
+        target: &Self,
+    ) -> Result<Option<Vec<usize>>, GenerationError> {
+        if self.canonical.graph != target.canonical.graph {
+            return Ok(None);
+        }
+        let source_vertices = &self.canonical.vertex_map[..self.parameters.len()];
+        let target_vertices = &target.canonical.vertex_map[..target.parameters.len()];
+        let permutation = parameter_permutation(source_vertices, target_vertices)?;
+        Ok(verified_permutation(
+            &self.density,
+            &self.parameters,
+            &target.density,
+            &target.parameters,
+            &permutation,
+        )
+        .then_some(permutation))
+    }
+}
+
+fn parameter_permutation(
+    source: &[usize],
+    target: &[usize],
+) -> Result<Vec<usize>, GenerationError> {
+    let destination = target
+        .iter()
+        .enumerate()
+        .map(|(axis, vertex)| (*vertex, axis))
+        .collect::<HashMap<_, _>>();
+    source
+        .iter()
+        .map(|vertex| destination.get(vertex).copied())
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| {
+            GenerationError::Invariant(
+                "canonical density map did not preserve parameter vertices".into(),
+            )
+        })
+}
+
 pub(super) fn prepare_mapped(
     source_index: usize,
     parameters: &[Symbol],
@@ -149,21 +231,8 @@ impl SymmetryRegistry {
             serde_json::json!({"count": candidates.len()}),
         );
         for representative in candidates.iter() {
-            let destination = representative
-                .canonical_parameters
-                .iter()
-                .enumerate()
-                .map(|(axis, vertex)| (*vertex, axis))
-                .collect::<HashMap<_, _>>();
-            let permutation = canonical_parameters
-                .iter()
-                .map(|vertex| destination.get(vertex).copied())
-                .collect::<Option<Vec<_>>>()
-                .ok_or_else(|| {
-                    GenerationError::Invariant(
-                        "canonical density map did not preserve parameter vertices".into(),
-                    )
-                })?;
+            let permutation =
+                parameter_permutation(&canonical_parameters, &representative.canonical_parameters)?;
             #[cfg(test)]
             profile::trace(
                 "Verification",

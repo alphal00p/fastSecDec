@@ -26,7 +26,7 @@ fn metadata(path: &Path, artifact: &Artifact) {
 fn metadata_only_inspection_never_opens_binary_and_preserves_native_summary() {
     let (_dir, path, artifact, kernels) = fixture();
     let original_id = artifact.content_id.clone();
-    let binary = crate::artifact::paths(&path).unwrap().1;
+    let binary = artifact.data_path(&path).unwrap();
     let expected = kernels
         .sectors()
         .iter()
@@ -176,7 +176,7 @@ fn metadata_inspection_tolerates_incompatible_native_dependencies_but_deep_does_
 #[test]
 fn expression_only_binary_is_rejected_without_preventing_metadata_inspection() {
     let (_dir, path, artifact, _) = fixture();
-    let binary = crate::artifact::paths(&path).unwrap().1;
+    let binary = artifact.data_path(&path).unwrap();
     for expression_only in [
         include_bytes!("../../../fastsecdec/tests/fixtures/kernel-v1-triangle.json").as_slice(),
         include_bytes!("../../../fastsecdec/tests/fixtures/kernel-v2-triangle.json").as_slice(),
@@ -190,7 +190,7 @@ fn expression_only_binary_is_rejected_without_preventing_metadata_inspection() {
         assert!(
             error
                 .to_string()
-                .contains("expression-only kernel artifacts are unsupported"),
+                .contains("missing header or truncated indexed data"),
             "{error}"
         );
     }
@@ -232,7 +232,9 @@ fn observed_loading_keeps_preflight_cancellation_and_complete_boundaries() {
         })
         .collect::<Vec<_>>();
     assert!(read.windows(2).all(|w| w[0].0 <= w[1].0));
-    assert_eq!(read.last().unwrap().0, kernels.to_bytes().unwrap().len());
+    // Indexed loading streams records directly; it does not first fill a
+    // monolithic byte buffer. Native restoring events provide the progress.
+    assert_eq!(read.first().unwrap().0, 0);
     let restored = events
         .iter()
         .filter_map(|event| {
@@ -257,7 +259,13 @@ fn observed_loading_keeps_preflight_cancellation_and_complete_boundaries() {
         e,
         ArtifactLoadProgress::Native(KernelLoadProgress::Complete)
     )));
-    fs::remove_file(crate::artifact::paths(&path).unwrap().1).unwrap();
+    fs::remove_file(
+        Artifact::load_metadata(&path)
+            .unwrap()
+            .data_path(&path)
+            .unwrap(),
+    )
+    .unwrap();
     let mut phases = Vec::new();
     let error = Artifact::load_observed(
         &path,

@@ -1,6 +1,6 @@
 //! Exact endpoint recipes with deferred native map and Taylor-jet evaluation.
-mod chart;
-mod formula;
+pub(in crate::generation) mod chart;
+pub(in crate::generation) mod formula;
 mod inspection;
 mod mapping;
 pub(crate) mod native;

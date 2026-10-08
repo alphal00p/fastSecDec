@@ -1,3 +1,5 @@
+#[path = "support/artifact.rs"]
+mod artifact_data;
 use std::{
     fs,
     io::{BufRead, BufReader},
@@ -97,7 +99,7 @@ fn shipped_bubble_reuses_one_template_at_two_runtime_points() {
             .unwrap(),
     );
     let metadata_path = artifact.with_extension("fsd.json");
-    let data_path = artifact.with_extension("fsd.dat");
+    let data_path = artifact_data::data_path(&artifact);
     let metadata = fs::read(&metadata_path).unwrap();
     let data = fs::read(&data_path).unwrap();
     let summary: serde_json::Value = serde_json::from_slice(&metadata).unwrap();
@@ -337,6 +339,27 @@ fn portable_generation_integration_resume_and_json_errors() {
     let changed: serde_json::Value = serde_json::from_slice(&changed.stdout).unwrap();
     assert!(
         changed["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("settings")
+    );
+
+    // A mathematical edit is rejected before any checkpoint is considered.
+    fs::write(&input, original.replace("[\"1\"]", "[\"2\"]")).unwrap();
+    let changed_input = cli()
+        .arg("run")
+        .arg(&input)
+        .arg("--output")
+        .arg(&artifact)
+        .arg("--checkpoint")
+        .arg(&checkpoint)
+        .arg("--resume")
+        .output()
+        .unwrap();
+    assert!(!changed_input.status.success());
+    let changed_input: serde_json::Value = serde_json::from_slice(&changed_input.stdout).unwrap();
+    assert!(
+        changed_input["error"]["message"]
             .as_str()
             .unwrap()
             .contains("changed since generation")

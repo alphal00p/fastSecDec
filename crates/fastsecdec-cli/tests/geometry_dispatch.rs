@@ -103,6 +103,10 @@ fn parallel_geometry_preserves_artifact_and_complete_analytic_vector() {
         .remove("generation_timings");
     serial_artifact["generation"]["workers"] = serde_json::Value::Null;
     parallel_artifact["generation"]["workers"] = serde_json::Value::Null;
+    // Each publication owns a unique immutable file; its contents and
+    // mathematical catalogue remain independent of worker scheduling.
+    serial_artifact["indexed"]["data_file"] = serde_json::Value::Null;
+    parallel_artifact["indexed"]["data_file"] = serde_json::Value::Null;
     assert_eq!(
         serial_artifact, parallel_artifact,
         "ordered kernels, metadata and identities"

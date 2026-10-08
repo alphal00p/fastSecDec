@@ -2177,3 +2177,67 @@ a notebook renderer. Both modular and self-contained notebooks retain the native
 pagers, runtime parameters, explicit actions and failure state. See the
 [contraction and display review](reviews/gghh-contraction-and-mathml.md) for the
 matched graph, before/after evidence and validation boundaries.
+
+## Bounded-memory serial execution: independent ownership review (2026-10-08)
+
+The [independent artifact/memory review](reviews/serial-artifact-memory-independent.md)
+checks native indexed storage, local Laurent-vector projection, disk-backed
+generation, exact symmetry/formula admission and CLI process ownership. Existing
+Symbolica Atom/state and evaluator codecs, native graph admission, HEPKit input
+loading and exact parameter binding are reused. Numerical output scattering is
+a layout operation; it does not compose or optimize symbolic programs on load.
+The new native APIs remain synchronous and caller driven.
+
+The review found a material native ownership caveat: Symbolica's locked
+`State::export_partial` exports all process-global polynomial-variable resource
+tables, and import interns them globally. A focused Rust probe confirms that
+unrelated dropped function-polynomial coefficients enlarge an empty-symbol
+export (31 to 32,264 bytes for eight controlled coefficients). No supported
+resource-scoped public export API was found. Unsafe state reset is unsuitable.
+Exact setup now runs in a recyclable CLI child, so its native resource tables
+cannot remain in the sampling coordinator. Arbitrary host-global resource tables
+still contribute to the necessary native context overhead; no scoped exporter
+or unsafe state reset has been added.
+A second probe found no polynomial-table growth through eight actual analytic
+generation/compilation/indexed-serialization builds across symbolic and
+numerical-dual modes. The initial exact-only reader unnecessarily accumulated
+rich charts, and serial workers forced expensive validation despite the caller's
+default. Both corrections were independently re-read after the coordinator
+implemented them. This is not yet a memory or failure-recovery acceptance
+sign-off for arbitrary host-global resource tables. The subsequent independent
+20 ms aggregate-RSS controls verify four and eight distinct sectors: generation
+peaks remain about 69–70 MiB with one worker and 191–193 MiB with four;
+integration peaks remain about 70 MiB and 185–186 MiB respectively. The parent
+stays below 32 MiB and live children never exceed the configured limit. Current
+ggHH staging records have tiny common native state (31-byte geometry context,
+1.4 KB mapped-chart context), not per-sector accumulated polynomial tables.
+Durable-data/missing-receipt recovery and real ENOSPC propagation controls were
+also independently inspected. See the review for precise measurement limits
+and the still-separate full scientific acceptance gates.
+
+The [independent native API review](reviews/serial-native-api-independent.md)
+confirms that native graphs, algebra, evaluator codecs and Havana remain owned
+by the HEPKit ecosystem. The additive storage, synchronous generation-job and
+sampling-reservation APIs introduce no native worker pool or Python dependency.
+The [independent sampling review](reviews/serial-seed-statistics-independent.md)
+checks Numerica's RNG jump spacing, period, draw bounds and actual sampled
+coordinate sequences, including process replacement and checkpoint restoration.
+The [serial acceptance matrix](reviews/serial-acceptance.md) records the
+executable gates and separates native, portable-host and binding evidence.
+
+Final validation covers 638 distinct workspace tests with 28 deliberately
+ignored diagnostics, 72 portable-host tests, strict workspace/all-target Clippy,
+and the isolated Python consumer with `python_stubgen`. The complete workspace
+run passed 637 tests and exposed one test-cleanup ordering error; both tests in
+that target passed after correcting the cleanup. No numerical guard was relaxed.
+The Python feature graph required an explicit `BTreeSet` collection type because
+its additional dependency traits make inference ambiguous; no dependency patch
+was needed. Portable-host and binding compilation do not establish browser/Wasm
+execution.
+
+A bounded native double-box demonstration completes all 30 sectors with two
+workers, then integrates the same indexed artifact with both serial QMC and
+Havana MC. The finite coefficients agree within 0.76 combined standard errors.
+These small controls stop at their explicit work limits and are not per-mil
+convergence or optimized performance claims. The acceptance matrix records the
+commands, debug-build timings and aggregate memory measurements.

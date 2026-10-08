@@ -1,8 +1,8 @@
 //! Caller-owned global batches with native discrete sector/continuous sampling.
 use super::super::{
     IntegrationReport, ResumeStatus,
-    checkpoint::save_checkpoint,
-    refinement::mc_points,
+    checkpoint::save_checkpoint_with_previous as save_checkpoint,
+    refinement::{PreviousProduction, mc_design},
     report::{ExecutionOutcome, finish},
 };
 use super::{Context, final_report, observe};
@@ -75,7 +75,24 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
     } else {
         HavanaDiscreteSession::pilot(problem.clone(), pilot.clone())?
     };
+    if restored.is_some() {
+        let (points, batches) = mc_design(settings, round)?;
+        production.batch.points_per_batch = points.try_into()?;
+        production.batch.batches = batches;
+        if session.settings() != &production {
+            return Err(
+                "checkpoint native discrete MC design differs from the outer refinement settings"
+                    .into(),
+            );
+        }
+    }
     let mut pilot_iteration = 0usize;
+    let mut previous_complete = restored.as_ref().and_then(|c| c.previous_complete.clone());
+    if let Some(previous) = &previous_complete {
+        previous.validate(&problem, round)?;
+        dashboard
+            .integration_observation(&previous.observation, started.elapsed().as_secs_f64())?;
+    }
     let mut cancelled = false;
     let mut failure = None;
     // Lazily cache only sectors actually selected by each caller-owned worker.
@@ -260,6 +277,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                     session.checkpoint()?,
                     &diagnostics,
                     &replay,
+                    previous_complete.as_ref(),
                 )?;
                 last_checkpoint = Instant::now();
             }
@@ -274,11 +292,12 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                     steering.continuous_learning_rate,
                 )?;
             } else {
+                let (points, batches) = mc_design(settings, round)?;
                 session.freeze_production(
                     steering.discrete_learning_rate,
                     steering.continuous_learning_rate,
-                    mc_points(settings.points, round)?.try_into()?,
-                    settings.shifts,
+                    points.try_into()?,
+                    batches,
                 )?;
             }
             continue;
@@ -293,10 +312,30 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 break;
             }
         };
-        if meets || round + 1 >= settings.max_rounds {
+        if meets || round + 1 >= settings.ordinary_max_rounds() {
             break;
         }
+        save_checkpoint(
+            checkpoint,
+            artifact,
+            settings,
+            round,
+            session.checkpoint()?,
+            &diagnostics,
+            &replay,
+            previous_complete.as_ref(),
+        )?;
+        last_checkpoint = Instant::now();
         round += 1;
+        previous_complete = Some(PreviousProduction {
+            round: round - 1,
+            observation: session.diagnostic_observation()?,
+            qmc_design: None,
+        });
+        if !settings.double_points {
+            session.extend_production_batches(mc_design(settings, round)?.1)?;
+            continue;
+        }
         session = HavanaDiscreteSession::pilot(problem.clone(), pilot.clone())?;
         pilot_iteration = 0;
     }
@@ -312,11 +351,12 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             session.checkpoint()?,
             &diagnostics,
             &replay,
+            previous_complete.as_ref(),
         )?;
         ResumeStatus::CheckpointSaved
     };
     drop(checkpoint_span);
-    let report = finish(
+    let mut report = finish(
         artifact,
         session.diagnostic_observation()?,
         &diagnostics,
@@ -333,5 +373,8 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             qmc_design: None,
         },
     )?;
+    if session.stage() != IntegrationStage::Production || !session.is_complete() {
+        report.previous_complete = previous_complete;
+    }
     final_report(dashboard, report)
 }

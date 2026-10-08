@@ -1,7 +1,7 @@
 use super::super::{
     IntegrationReport, ResumeStatus,
-    checkpoint::save_checkpoint,
-    refinement::{adaptive_budget, qmc_design},
+    checkpoint::save_checkpoint_with_previous as save_checkpoint,
+    refinement::{PreviousProduction, adaptive_budget, qmc_design},
     report::{ExecutionOutcome, finish},
 };
 use super::{Context, final_report, observe};
@@ -59,6 +59,12 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
     let mut round = restored
         .as_ref()
         .map_or(0, |checkpoint| checkpoint.round_index);
+    let mut previous_complete = restored.as_ref().and_then(|c| c.previous_complete.clone());
+    if let Some(previous) = &previous_complete {
+        previous.validate(&problem, round)?;
+        dashboard
+            .integration_observation(&previous.observation, started.elapsed().as_secs_f64())?;
+    }
     drop(initialization);
     'rounds: loop {
         dashboard.set_live_observation(None);
@@ -110,6 +116,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                         session.checkpoint()?,
                         diagnostics,
                         replay,
+                        previous_complete.as_ref(),
                     )?;
                     last_checkpoint = Instant::now();
                 }
@@ -150,12 +157,32 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                 break;
             }
         };
-        if meets || round + 1 >= settings.max_rounds {
+        if meets || round + 1 >= settings.ordinary_max_rounds() {
             break;
         }
+        save_checkpoint(
+            checkpoint,
+            artifact,
+            settings,
+            round,
+            session.checkpoint()?,
+            &diagnostics,
+            &replay,
+            previous_complete.as_ref(),
+        )?;
+        last_checkpoint = Instant::now();
         round += 1;
         let mut next = options.clone();
         (next.points, next.shifts) = qmc_design(settings, round)?;
+        previous_complete = Some(PreviousProduction {
+            round: round - 1,
+            observation: session.diagnostic_observation()?,
+            qmc_design: Some(session.design()),
+        });
+        if next.points == session.design().settings.points {
+            session.extend_production_shifts(2)?;
+            continue;
+        }
         session = if method == "adaptive_qmc" {
             QmcSession::adaptive(problem.clone(), next)?
         } else {
@@ -171,9 +198,10 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         session.checkpoint()?,
         &diagnostics,
         &replay,
+        previous_complete.as_ref(),
     )?;
     drop(checkpoint_span);
-    let report = finish(
+    let mut report = finish(
         artifact,
         session.diagnostic_observation()?,
         &diagnostics,
@@ -190,5 +218,8 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             qmc_design: Some(session.design()),
         },
     )?;
+    if session.stage() != IntegrationStage::Production || !session.is_complete() {
+        report.previous_complete = previous_complete;
+    }
     final_report(dashboard, report)
 }
