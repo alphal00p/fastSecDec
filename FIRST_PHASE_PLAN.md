@@ -1,5 +1,16 @@
 # FastSecDec first-phase implementation plan
 
+## Bounded-memory serial execution (2026-10-08)
+
+The approved [serial-mode implementation plan](SERIAL_MODE_PLAN.md) is the
+authoritative follow-up for universal indexed artifacts, sector-at-a-time
+generation and integration, recyclable caller-owned CLI workers, refinement,
+checkpointing and mandatory seed/stream-partitioning acceptance gates.
+Generation scheduling must not restrict which integration scheduling mode can
+consume an artifact. The serial residence time is a minimum, and complete
+replicas update the global estimate during that residence. Implement and audit
+all acceptance gates before marking the serial-mode goal complete.
+
 ## Example command scripts and local integration settings (2026-10-07)
 
 Add executable root `generate.sh`, `inspect.sh` and `integrate.sh` wrappers.
