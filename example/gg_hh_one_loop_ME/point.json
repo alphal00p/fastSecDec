@@ -1,0 +1,68 @@
+{
+  "sqrt_s_GeV": 300.0,
+  "cos_theta": 0.8,
+  "parameters": {
+    "MH": 125.0,
+    "MT": 172.5,
+    "ymt": 172.5,
+    "aS": 0.118,
+    "Gf": 1.16639e-05,
+    "aEWM1": 132.507,
+    "MZ": 91.188,
+    "WT": 0.0,
+    "WH": 0.0
+  },
+  "helicities": [
+    1,
+    1,
+    0,
+    0
+  ],
+  "physical_momenta_GeV": [
+    [
+      150.0,
+      0.0,
+      0.0,
+      150.0
+    ],
+    [
+      150.0,
+      0.0,
+      0.0,
+      -150.0
+    ],
+    [
+      150.0,
+      49.749371855331,
+      0.0,
+      66.33249580710799
+    ],
+    [
+      150.0,
+      -49.749371855331,
+      0.0,
+      -66.33249580710799
+    ]
+  ],
+  "exact_outgoing_spatial_components": [
+    "15*sqrt(11)",
+    "0",
+    "20*sqrt(11)"
+  ],
+  "metric": "+---",
+  "momentum_order": [
+    "incoming gluon 1",
+    "incoming gluon 2",
+    "outgoing Higgs 1",
+    "outgoing Higgs 2"
+  ],
+  "flavor_scope": "top-loop triangle and box contributions; other quark Yukawas zero",
+  "normalization": {
+    "color_tensor": "M_ab(++ -> hh) = delta_ab * A_pp",
+    "color_sum_fixed_helicity": "8 * abs(A_pp)^2",
+    "color_average_fixed_helicity": "abs(A_pp)^2 / 8",
+    "initial_helicity_average": false,
+    "final_identical_particle_phase_space_factor_included": false
+  },
+  "status": "benchmark definition; results are recorded separately by each method"
+}

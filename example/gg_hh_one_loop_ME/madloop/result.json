@@ -1,0 +1,148 @@
+{
+  "engine": "MadGraph5_aMC@NLO 3.7.0 / MadLoop / CutTools 1.9.3 / OneLOop 3.6",
+  "process": "g g > h h [sqrvirt=QCD]",
+  "model": "loop_sm-no_b_mass (1.2)",
+  "flavor_scope": "top-loop triangle and box contributions; other quark Yukawas zero",
+  "helicities": [
+    1,
+    1,
+    0,
+    0
+  ],
+  "loop_diagrams": 8,
+  "r2_amplitudes": 2,
+  "uv_counterterm_amplitudes": 0,
+  "amplitude_color_coefficient": [
+    -0.00524387711441183,
+    1.431463674588033e-33
+  ],
+  "triangle_including_r2": [
+    0.007453970457652831,
+    -3.443219655404678e-34
+  ],
+  "boxes_including_r2": [
+    -0.012697847572064663,
+    1.7757856401285005e-33
+  ],
+  "single_pole": [
+    1.734723475976807e-18,
+    -1.3295177682886096e-33
+  ],
+  "double_pole": [
+    0.0,
+    0.0
+  ],
+  "color_sum_fixed_helicity": 0.00021998597752841711,
+  "color_average_fixed_helicity": 3.4372808988815174e-06,
+  "raw_madloop_fixed_helicity": 1.7186404494407587e-06,
+  "return_code": 329,
+  "reported_relative_stability": 0.0,
+  "stability_request": 1e-12,
+  "incoming_polarizations": [
+    [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -0.7071067811865476,
+        0.0
+      ],
+      [
+        0.0,
+        -0.7071067811865476
+      ],
+      [
+        0.0,
+        0.0
+      ]
+    ],
+    [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -0.7071067811865476,
+        0.0
+      ],
+      [
+        0.0,
+        0.7071067811865476
+      ],
+      [
+        0.0,
+        0.0
+      ]
+    ]
+  ],
+  "normalization": {
+    "color": "M_ab=delta_ab*A; sole native flow Tr(Ta Tb)=delta_ab/2; A=JAMPL/2",
+    "loop_factor": "1/(16*pi^2) is already included by CT_interface.f",
+    "initial_helicity_average": false,
+    "final_identical_particle_phase_space_factor_included": false,
+    "native_squared_result_multiplier": 128,
+    "complex_phase": "native incoming HELAS VXXXXX convention, no phase fitted to FastSecDec"
+  },
+  "input_sha256": {
+    "process.mg5": "2bdf620337526dc3ab536ea273f53739522504fa719ddf9c8e62c97bf4789732",
+    "param_card.dat": "daf1a9eb3c62165300e72dc45fb661ee7360ed86cedf8b897a94eac6b7fd7117",
+    "MadLoopParams.dat": "339843ec2039d62bf51a45ac7493415b5dfbfa50132ef02fee8369793d7091f7",
+    "check_point.f": "3761fd60f8cd6ef76aa5b0ef645ff994139a457f56b8313cb6b6a5cf0006f123"
+  },
+  "point_sha256": "094adb2a778e0eb76d573e42e01dcbf57e902b2736209e43ed5f13a382668d73",
+  "generated_source_sha256": {
+    "loop_matrix.f": "7f13cdb929bf4f3cdec05fafbbf4b6f67c2a964167ce53c2df880269f19d4237",
+    "CT_interface.f": "9301370571d1d4a6382efc66dc33db44ca75e56eb36ad468839b8c9b8d57dcc7",
+    "helas_calls_ampb_1.f": "263e6d2607d12deb969f0f82880ed558a9b3b5937514458ef63e1d26d5551274",
+    "loop_CT_calls_1.f": "8ffd0fe75a53af41185743d2446aab18841fac2c11849c31b78909ec496a4ce6",
+    "compute_color_flows.f": "c30073997fef1b82a465c2d9dabaddbbaff48238e27da968d7afad6ae6e1b1ec"
+  },
+  "model_source_sha256": {
+    "parameters.py": "5de44653a32f4c213b6fc0696f3585f36bc34830e64d713c7e268814c847b58f",
+    "couplings.py": "a91df246f6a68325ead56ec30d49c0586fb9b39451ae62a5c527896acb45014f",
+    "restrict_no_b_mass.dat": "9e1839428fd3a3918fa14be2a5ba0b4907dc12134e91ff08d40cd1056208714c"
+  },
+  "raw_finite_amplitudes": {
+    "1": [
+      0.018436102704621912,
+      0.0
+    ],
+    "2": [
+      0.01161939246089616,
+      0.0
+    ],
+    "3": [
+      0.019387166965661062,
+      2.780322810721146e-33
+    ],
+    "4": [
+      0.025103755785918447,
+      -8.566721531766825e-33
+    ],
+    "5": [
+      -0.0016442742272047514,
+      3.443219655404678e-34
+    ],
+    "6": [
+      -0.0016442742272047514,
+      3.443219655404678e-34
+    ],
+    "7": [
+      0.019387166965661062,
+      2.780322810721146e-33
+    ],
+    "8": [
+      -0.022575023827203892,
+      4.010613080917179e-33
+    ],
+    "9": [
+      0.025103755785918447,
+      -8.566721531766825e-33
+    ],
+    "10": [
+      -0.022575023827203892,
+      4.010613080917179e-33
+    ]
+  }
+}

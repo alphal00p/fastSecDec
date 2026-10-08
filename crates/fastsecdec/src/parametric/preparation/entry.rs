@@ -20,7 +20,8 @@ impl ParametricIntegrand {
     /// Supply one fresh parameter per original propagator. The complete original
     /// label/numerator/dimension contract is validated before preparation, and
     /// projected inputs retain the active subset of those same labels. Graph
-    /// weights and the measure multiplier are applied once. [`Self::from_graph`]
+    /// weights, the native preparation coefficient and measure multiplier are
+    /// applied once. [`Self::from_graph`]
     /// remains the explicit original-family route.
     pub fn from_graph_prepared(
         integral: &GraphIntegral,
@@ -85,7 +86,7 @@ impl ParametricIntegrand {
         let integrand = parameterize_validated_family(
             prepared.family(),
             prepared.powers(),
-            weighted_numerator,
+            weighted_numerator * prepared.coefficient(),
             active_parameters,
             regulator,
             dimension,

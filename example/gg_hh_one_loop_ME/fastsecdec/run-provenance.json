@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-08",
+  "source_base_commit": "91d2ac9f3a129d1b2999c57c8df622a06e535ee8",
+  "source_changes": "The SingleTerm preparation extension and reproduction sources committed with this result",
+  "cli": {
+    "path": "target/release/fastsecdec",
+    "sha256": "f81391882398e5024f822b503be0413f693f0ec4570e122c9ccb6280b4b63515",
+    "profile": "release"
+  },
+  "exporter_and_summary": {
+    "path": "target/debug/examples/gghh_one_loop_me",
+    "sha256": "64a7cd4a7d83933cff4dbd4d57ddd5d623450ebdc60a92a48771087d18445d5b",
+    "profile": "debug",
+    "note": "Graph export and result bookkeeping only; numerical generation and integration use the release CLI"
+  },
+  "command": "FSD_SKIP_BUILD=1 FASTSECDEC_BIN=$PWD/target/release/fastsecdec GGHH_EXPORTER_BIN=$PWD/target/debug/examples/gghh_one_loop_me bash example/gg_hh_one_loop_ME/fastsecdec/run.sh",
+  "generation_workers": 1,
+  "integration_workers": 2,
+  "compiled_evaluator": "SymJIT O2",
+  "lattice": "kuo33002",
+  "periodization": "korobov3",
+  "points_per_shift": 4096,
+  "shifts": 32,
+  "completed_allocation_rounds_per_diagram": 1,
+  "total_sectors": 30,
+  "whole_script_wall_seconds": 5.58353686332703,
+  "summed_generation_seconds": 2.869363112,
+  "summed_integration_seconds": 2.309825033,
+  "sampled_peak_aggregate_rss_kib": 30352,
+  "rss_poll_requested_ms": 20,
+  "rss_poll_max_observed_ms": 250.877857208252,
+  "rss_note": "Sum of script parent and descendant RSS; sampled observation on a shared host, not a hardware-independent bound",
+  "wall_limit_seconds": 600,
+  "aggregate_rss_limit_kib": 15728640,
+  "exit_status": 0,
+  "limit_reached": false
+}

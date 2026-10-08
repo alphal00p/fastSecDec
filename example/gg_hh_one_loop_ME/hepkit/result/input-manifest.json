@@ -1,0 +1,387 @@
+{
+  "diagrams": [
+    {
+      "directory": "diagram_00_triangle",
+      "id": "16f0e00e8dc41b98e64b20f9a6b17627",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        25
+      ],
+      "kind": "triangle",
+      "name": "FK01",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 78139
+    },
+    {
+      "directory": "diagram_01_triangle",
+      "id": "e608ddecee3638e0e344f9084b40e16b",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        25
+      ],
+      "kind": "triangle",
+      "name": "FK02",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 182868
+    },
+    {
+      "directory": "diagram_02_box",
+      "id": "daeea06e0e2857d323b4fb085bf6048a",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK05",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 287597
+    },
+    {
+      "directory": "diagram_03_box",
+      "id": "736f4be11c21f6ddb7178df45befe83c",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK06",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 392326
+    },
+    {
+      "directory": "diagram_04_box",
+      "id": "b39b61db7640e6dd19fb46093a15bacc",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK07",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 497055
+    },
+    {
+      "directory": "diagram_05_box",
+      "id": "5f4b38e217594f7565406c2d10f2c420",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK08",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 601784
+    },
+    {
+      "directory": "diagram_06_box",
+      "id": "32e4acb58353629b37286e1257cd1c52",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK09",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 706513
+    },
+    {
+      "directory": "diagram_07_box",
+      "id": "fe180a6c305ca699c6cebc9e62877f44",
+      "internal_pdgs": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "kind": "box",
+      "name": "FK10",
+      "projected_overall_factor": "-1/8",
+      "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+      "seed": 811242
+    }
+  ],
+  "format_version": 1,
+  "generation_options": {
+    "allow_self_loops": false,
+    "allow_zero_flow_edges": true,
+    "cut_amplitude_filters": [],
+    "filter_zero_color": true,
+    "forced_cuts": [],
+    "graph_filters": [
+      {
+        "loop_count_range": [
+          1,
+          1
+        ]
+      },
+      {
+        "coupling_orders": {
+          "QCD": [
+            2,
+            2
+          ],
+          "QED": [
+            2,
+            2
+          ]
+        }
+      }
+    ],
+    "graph_prefix": "FK",
+    "loop_momentum_bases": {},
+    "max_vertices": null,
+    "named_loop_momentum_bases": {},
+    "numerator_grouping": "none",
+    "numerator_prefactor": "1",
+    "projector": "1",
+    "selected_diagram_ids": null,
+    "selected_diagram_names": null,
+    "symmetrize_external_fermions": false,
+    "symmetrize_final": false,
+    "symmetrize_initial": false,
+    "symmetrize_left_right": false,
+    "threads": 1,
+    "vetoed_diagram_ids": [],
+    "vetoed_diagram_names": []
+  },
+  "generation_report": {
+    "completed": true,
+    "interaction_assignment_count": 11,
+    "retained_count": 8,
+    "topology_count": 11,
+    "zero_numerator_count": 3
+  },
+  "model_fingerprint": "30d4ff82d738a9b819166c8ea86752d5a6d8bf426769a2949c7f71475cf8e778",
+  "normalization": {
+    "amplitude_definition": "M^{ab}_{++}=delta^{ab} A_{++}",
+    "color_projector": "delta_ab/8",
+    "color_summed_helicity_squared_multiplier": 8,
+    "dimension": "4-2*eps",
+    "extra_R2_added": false,
+    "initial_color_average": false,
+    "initial_spin_average": false,
+    "measure_multiplier": "gamma(1-2*eps)/(gamma(1+eps)*gamma(1-eps)^2)",
+    "mu_squared": 1.0,
+    "native_measure": "d^D k/(i*pi^(D/2))",
+    "physical_finite_multiplier": "1/(16*pi^2)",
+    "raw_delta_projection_multiplier": 8
+  },
+  "point": {
+    "Gf": 0.0000116639,
+    "MH": 125.0,
+    "MT": 172.5,
+    "MZ": 91.188,
+    "aEWM1": 132.507,
+    "aS": 0.118,
+    "cos_theta": 0.8,
+    "sqrt_s": 300.0,
+    "widths": 0.0,
+    "ymt": 172.5
+  },
+  "process": {
+    "incoming": [
+      {
+        "kind": "pdg",
+        "value": 21
+      },
+      {
+        "kind": "pdg",
+        "value": 21
+      }
+    ],
+    "outgoing_alternatives": [
+      [
+        {
+          "kind": "pdg",
+          "value": 25
+        },
+        {
+          "kind": "pdg",
+          "value": 25
+        }
+      ]
+    ],
+    "particle_veto": [
+      {
+        "kind": "pdg",
+        "value": 22
+      },
+      {
+        "kind": "pdg",
+        "value": 23
+      },
+      {
+        "kind": "pdg",
+        "value": 24
+      },
+      {
+        "kind": "pdg",
+        "value": -24
+      },
+      {
+        "kind": "pdg",
+        "value": 9000001
+      },
+      {
+        "kind": "pdg",
+        "value": -9000001
+      },
+      {
+        "kind": "pdg",
+        "value": 9000002
+      },
+      {
+        "kind": "pdg",
+        "value": -9000002
+      },
+      {
+        "kind": "pdg",
+        "value": 9000003
+      },
+      {
+        "kind": "pdg",
+        "value": -9000003
+      },
+      {
+        "kind": "pdg",
+        "value": 9000004
+      },
+      {
+        "kind": "pdg",
+        "value": -9000004
+      },
+      {
+        "kind": "pdg",
+        "value": 9000005
+      },
+      {
+        "kind": "pdg",
+        "value": -9000005
+      },
+      {
+        "kind": "pdg",
+        "value": 12
+      },
+      {
+        "kind": "pdg",
+        "value": -12
+      },
+      {
+        "kind": "pdg",
+        "value": 14
+      },
+      {
+        "kind": "pdg",
+        "value": -14
+      },
+      {
+        "kind": "pdg",
+        "value": 16
+      },
+      {
+        "kind": "pdg",
+        "value": -16
+      },
+      {
+        "kind": "pdg",
+        "value": 2
+      },
+      {
+        "kind": "pdg",
+        "value": -2
+      },
+      {
+        "kind": "pdg",
+        "value": 4
+      },
+      {
+        "kind": "pdg",
+        "value": -4
+      },
+      {
+        "kind": "pdg",
+        "value": 1
+      },
+      {
+        "kind": "pdg",
+        "value": -1
+      },
+      {
+        "kind": "pdg",
+        "value": 3
+      },
+      {
+        "kind": "pdg",
+        "value": -3
+      },
+      {
+        "kind": "pdg",
+        "value": 5
+      },
+      {
+        "kind": "pdg",
+        "value": -5
+      },
+      {
+        "kind": "pdg",
+        "value": 250
+      },
+      {
+        "kind": "pdg",
+        "value": 251
+      },
+      {
+        "kind": "pdg",
+        "value": -251
+      },
+      {
+        "kind": "pdg",
+        "value": 11
+      },
+      {
+        "kind": "pdg",
+        "value": -11
+      },
+      {
+        "kind": "pdg",
+        "value": 13
+      },
+      {
+        "kind": "pdg",
+        "value": -13
+      },
+      {
+        "kind": "pdg",
+        "value": 15
+      },
+      {
+        "kind": "pdg",
+        "value": -15
+      }
+    ],
+    "vertex_allow": null,
+    "vertex_veto": []
+  },
+  "scope": "complete one-loop top-quark contribution to gg -> hh, incoming ++"
+}

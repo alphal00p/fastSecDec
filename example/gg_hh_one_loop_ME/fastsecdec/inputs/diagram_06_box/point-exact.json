@@ -1,0 +1,162 @@
+{
+  "auxiliary_momenta": [
+    "gghh::{spenso::tensor,spenso::rank1}::eps1",
+    "gghh::{spenso::tensor,spenso::rank1}::eps2"
+  ],
+  "dependent_coordinates": [
+    "gammalooprs::{spenso::rank1,spenso::tensor}::P(3)"
+  ],
+  "external_index_by_coordinate": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "independent_coordinates": [
+    "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+    "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+    "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)"
+  ],
+  "physical_momenta": {
+    "0": [
+      "150",
+      "0",
+      "0",
+      "150"
+    ],
+    "1": [
+      "150",
+      "0",
+      "0",
+      "-150"
+    ],
+    "2": [
+      "150",
+      "11^(1/2)*15",
+      "0",
+      "11^(1/2)*20"
+    ],
+    "3": [
+      "150",
+      "-15*11^(1/2)",
+      "0",
+      "-20*11^(1/2)"
+    ]
+  },
+  "polarization_components": [
+    [
+      [
+        -0.0,
+        -0.0
+      ],
+      [
+        -0.7071067811865475,
+        -0.0
+      ],
+      [
+        -0.0,
+        -0.7071067811865475
+      ],
+      [
+        -0.0,
+        -0.0
+      ]
+    ],
+    [
+      [
+        -0.0,
+        -0.0
+      ],
+      [
+        -0.7071067811865475,
+        -0.0
+      ],
+      [
+        -0.0,
+        0.7071067811865475
+      ],
+      [
+        -0.0,
+        -0.0
+      ]
+    ]
+  ],
+  "polarization_gram_checks_complete": true,
+  "products": [
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "value": "45000"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "value": "-3000*11^(1/2)+22500"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(0)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "value": "11^(1/2)*3000+22500"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(1)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "value": "0"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "right": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "value": "15625"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "value": "11^(1/2)*23883943771971645/2251799813685248"
+    },
+    {
+      "left": "gammalooprs::{spenso::rank1,spenso::tensor}::P(2)",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "value": "11^(1/2)*23883943771971645/2251799813685248"
+    },
+    {
+      "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "value": "0"
+    },
+    {
+      "left": "gghh::{spenso::tensor,spenso::rank1}::eps1",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "value": "-2535301200456458353478625262249/2535301200456458802993406410752"
+    },
+    {
+      "left": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "right": "gghh::{spenso::tensor,spenso::rank1}::eps2",
+      "value": "0"
+    }
+  ]
+}

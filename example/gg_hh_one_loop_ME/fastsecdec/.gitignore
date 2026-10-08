@@ -1,0 +1,5 @@
+/work/
+/logs/
+*.fsd
+*.dat
+*.checkpoint.json

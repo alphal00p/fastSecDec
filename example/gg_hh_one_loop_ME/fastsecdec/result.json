@@ -1,0 +1,1883 @@
+{
+  "checks": {
+    "finite_relative_target_reached": true,
+    "pole_checks": [
+      {
+        "compatible_with_zero": true,
+        "component": "Real",
+        "five_sigma_bound": 3.2566345990763463e-7,
+        "mean": -5.3152625412167254e-8,
+        "order": -1,
+        "roundoff_allowance": 9.695533776465765e-14,
+        "standard_error": 6.513267259045937e-8
+      },
+      {
+        "compatible_with_zero": true,
+        "component": "Imag",
+        "five_sigma_bound": 1.4210854715202004e-14,
+        "mean": 0.0,
+        "order": -1,
+        "roundoff_allowance": 1.4210854715202004e-14,
+        "standard_error": 0.0
+      }
+    ],
+    "poles_compatible_with_zero": true
+  },
+  "color_summed_fixed_helicity_squared": 0.0002199856406612905,
+  "color_summed_fixed_helicity_squared_standard_error": 3.833640694008779e-10,
+  "color_summed_fixed_helicity_squared_uncertainty_method": "First-order propagation using full Re/Im covariance",
+  "diagram_count": 8,
+  "diagrams": [
+    {
+      "directory": "diagram_00_triangle",
+      "evaluation_diagnostics": {
+        "additional_replays": 26328,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 26328,
+        "double_float_timing": {
+          "calls": 26328,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 151381709
+        },
+        "evaluations": 393216,
+        "f64_points": 366888,
+        "f64_timing": {
+          "calls": 393216,
+          "matrix_invocations": 1536,
+          "matrix_points": 393216,
+          "nanoseconds": 38201544
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 26328,
+        "unstable_points": 0,
+        "weighted_checks": 26328
+      },
+      "kernel_content_id": "1f4ffceaa8f88633549341f96a574b0a84e4dcdd75621f34a5656f6da2364823",
+      "kind": "triangle",
+      "name": "FK01",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          2.914552079155942e-22,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          0.5885419170892816,
+          0.0
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.7072059275775556e-11,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 78139,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.865313330659803e-20,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          4.708335336714253,
+          0.0
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.3657647420620444e-10,
+          0.0
+        ]
+      },
+      "sectors": 3,
+      "seed": 78139,
+      "timings": {
+        "artifact_load_seconds": 0.007504843,
+        "elapsed_seconds": 0.169300505
+      }
+    },
+    {
+      "directory": "diagram_01_triangle",
+      "evaluation_diagnostics": {
+        "additional_replays": 26159,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 26159,
+        "double_float_timing": {
+          "calls": 26159,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 384258280
+        },
+        "evaluations": 393216,
+        "f64_points": 367057,
+        "f64_timing": {
+          "calls": 393216,
+          "matrix_invocations": 1536,
+          "matrix_points": 393216,
+          "nanoseconds": 504758527
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 26159,
+        "unstable_points": 0,
+        "weighted_checks": 26159
+      },
+      "kernel_content_id": "b2ec53a812fca125317c6e3bc24e0a4aa0578d6b271afcaddd825a82e90eb42c",
+      "kind": "triangle",
+      "name": "FK02",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.0640317104320484e-22,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          0.5885419170928297,
+          0.0
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.750437576845301e-11,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 182868,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.960980294676511e-20,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          4.708335336742637,
+          0.0
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.4003500614762407e-10,
+          0.0
+        ]
+      },
+      "sectors": 3,
+      "seed": 182868,
+      "timings": {
+        "artifact_load_seconds": 0.00652618,
+        "elapsed_seconds": 0.631141991
+      }
+    },
+    {
+      "directory": "diagram_02_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9669,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9669,
+        "double_float_timing": {
+          "calls": 9669,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 148004236
+        },
+        "evaluations": 524288,
+        "f64_points": 514619,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 95896885
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9669,
+        "unstable_points": 0,
+        "weighted_checks": 9669
+      },
+      "kernel_content_id": "c4d38a5e52dc2fb9a47ef7cbb2d51cccbb78260ced632f014a72ea9d3fe2ce75",
+      "kind": "box",
+      "name": "FK05",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          4.127188337788235e-16,
+          0.0,
+          -4.597581728025746e-15,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -4.597581728025746e-15,
+          0.0,
+          5.128773443347284e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -0.7278281789677892,
+          0.0,
+          7.291071660903456,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.031548261250083e-8,
+          0.0,
+          2.2646795453987048e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 287597,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          2.6414005361844703e-14,
+          0.0,
+          -2.9424523059364774e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.9424523059364774e-13,
+          0.0,
+          3.2824150037422616e-12,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -5.822625431742313,
+          0.0,
+          58.32857328722765,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.6252386090000663e-7,
+          0.0,
+          1.8117436363189639e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 287597,
+      "timings": {
+        "artifact_load_seconds": 0.013787142,
+        "elapsed_seconds": 0.276615402
+      }
+    },
+    {
+      "directory": "diagram_03_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9710,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9710,
+        "double_float_timing": {
+          "calls": 9710,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 137587888
+        },
+        "evaluations": 524288,
+        "f64_points": 514578,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 92616724
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9710,
+        "unstable_points": 0,
+        "weighted_checks": 9710
+      },
+      "kernel_content_id": "8b4958942b8ae079f9db5587d987415b3db0f78c0ac33ed6bf598c782c4646ad",
+      "kind": "box",
+      "name": "FK06",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.2146615390849865e-16,
+          0.0,
+          -3.6878556763287864e-15,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -3.6878556763287864e-15,
+          0.0,
+          4.239248722575099e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -0.7278281955187751,
+          0.0,
+          7.742435621187108,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.7929477234668573e-8,
+          0.0,
+          2.0589435938303651e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 392326,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          2.0573833850143914e-14,
+          0.0,
+          -2.3602276328504233e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.3602276328504233e-13,
+          0.0,
+          2.7131191824480635e-12,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -5.822625564150201,
+          0.0,
+          61.93948496949687,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.4343581787734859e-7,
+          0.0,
+          1.6471548750642921e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 392326,
+      "timings": {
+        "artifact_load_seconds": 0.012410877,
+        "elapsed_seconds": 0.258200236
+      }
+    },
+    {
+      "directory": "diagram_04_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9341,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9341,
+        "double_float_timing": {
+          "calls": 9341,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 121943759
+        },
+        "evaluations": 524288,
+        "f64_points": 514947,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 86239993
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9341,
+        "unstable_points": 0,
+        "weighted_checks": 9341
+      },
+      "kernel_content_id": "e7d8902fb42fdceff5aeb5d024f82204f5565620e403bfe5b8ac2e83a6fb02df",
+      "kind": "box",
+      "name": "FK07",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.9852465223805565e-16,
+          0.0,
+          -4.6234018440666874e-15,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -4.6234018440666874e-15,
+          0.0,
+          5.370896909506184e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -0.7278281733770893,
+          0.0,
+          7.742435362307382,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.9963082232913223e-8,
+          0.0,
+          2.3175195596814677e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 497055,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          2.550557774323556e-14,
+          0.0,
+          -2.95897718020268e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.95897718020268e-13,
+          0.0,
+          3.437374022083958e-12,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -5.822625387016714,
+          0.0,
+          61.939482898459055,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.5970465786330579e-7,
+          0.0,
+          1.8540156477451741e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 497055,
+      "timings": {
+        "artifact_load_seconds": 0.012769199,
+        "elapsed_seconds": 0.246536621
+      }
+    },
+    {
+      "directory": "diagram_05_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9549,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9549,
+        "double_float_timing": {
+          "calls": 9549,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 120815201
+        },
+        "evaluations": 524288,
+        "f64_points": 514739,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 84318993
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9549,
+        "unstable_points": 0,
+        "weighted_checks": 9549
+      },
+      "kernel_content_id": "4e624827a79f77dc66edcb018b3959553433917c76336becc2ab3ddec88317b7",
+      "kind": "box",
+      "name": "FK08",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.395314965840226e-15,
+          0.0,
+          -1.5227874219773382e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -1.5227874219773382e-14,
+          0.0,
+          1.662006585499126e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          1.4556563083926954,
+          0.0,
+          -16.03608838854877,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          3.7353915000174026e-8,
+          0.0,
+          4.076771498991728e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 601784,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          8.930015781377447e-14,
+          0.0,
+          -9.745839500654964e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -9.745839500654964e-13,
+          0.0,
+          1.0636842147194406e-11,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          11.645250467141564,
+          0.0,
+          -128.28870710839016,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.988313200013922e-7,
+          0.0,
+          3.2614171991933823e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 601784,
+      "timings": {
+        "artifact_load_seconds": 0.011926657,
+        "elapsed_seconds": 0.240729693
+      }
+    },
+    {
+      "directory": "diagram_06_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9933,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9933,
+        "double_float_timing": {
+          "calls": 9933,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 150289893
+        },
+        "evaluations": 524288,
+        "f64_points": 514355,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 95078232
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9933,
+        "unstable_points": 0,
+        "weighted_checks": 9933
+      },
+      "kernel_content_id": "03877a3b6ab7433a98f451389890ac363bf52a85b88dde26e83d5545b6308dcb",
+      "kind": "box",
+      "name": "FK09",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          4.004459019041366e-16,
+          0.0,
+          -4.4994688197706655e-15,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -4.4994688197706655e-15,
+          0.0,
+          5.061583873812706e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -0.7278281586227591,
+          0.0,
+          7.2910714468024205,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.001114444263837e-8,
+          0.0,
+          2.2497964071917053e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 706513,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          2.5628537721864743e-14,
+          0.0,
+          -2.879660044653226e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -2.879660044653226e-13,
+          0.0,
+          3.2394136792401318e-12,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          -5.8226252689820726,
+          0.0,
+          58.328571574419364,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.6008915554110697e-7,
+          0.0,
+          1.7998371257533642e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 706513,
+      "timings": {
+        "artifact_load_seconds": 0.013661652,
+        "elapsed_seconds": 0.268721709
+      }
+    },
+    {
+      "directory": "diagram_07_box",
+      "evaluation_diagnostics": {
+        "additional_replays": 9182,
+        "arbitrary_points": 0,
+        "arbitrary_timing": {
+          "calls": 0,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 0
+        },
+        "conditioning_checks": 0,
+        "cutoff_zero_points": 0,
+        "double_float_points": 9182,
+        "double_float_timing": {
+          "calls": 9182,
+          "matrix_invocations": 0,
+          "matrix_points": 0,
+          "nanoseconds": 114010801
+        },
+        "evaluations": 524288,
+        "f64_points": 515106,
+        "f64_timing": {
+          "calls": 524288,
+          "matrix_invocations": 2048,
+          "matrix_points": 524288,
+          "nanoseconds": 80902677
+        },
+        "failures": 0,
+        "max_precision_bits": 106,
+        "rescues": 9182,
+        "unstable_points": 0,
+        "weighted_checks": 9182
+      },
+      "kernel_content_id": "f0f4326f245ae8622cc4fb85ee54ceb58154665b05cfa3dbafdc0a2d7316edf5",
+      "kind": "box",
+      "name": "FK10",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.3137945311062372e-15,
+          0.0,
+          -1.4334428868405652e-14,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -1.4334428868405652e-14,
+          0.0,
+          1.5641084591758188e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          1.4556563449410918,
+          0.0,
+          -16.036088785163944,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          3.624630368887615e-8,
+          0.0,
+          3.9548811096868877e-7,
+          0.0
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 811242,
+          "shifts": 32
+        }
+      },
+      "raw_delta_contracted_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          8.408284999079918e-14,
+          0.0,
+          -9.174034475779617e-13,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          -9.174034475779617e-13,
+          0.0,
+          1.001029413872524e-11,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "mean": [
+          11.645250759528734,
+          0.0,
+          -128.28871028131155,
+          0.0
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.899704295110092e-7,
+          0.0,
+          3.16390488774951e-6,
+          0.0
+        ]
+      },
+      "sectors": 4,
+      "seed": 811242,
+      "timings": {
+        "artifact_load_seconds": 0.012151967,
+        "elapsed_seconds": 0.218578876
+      }
+    }
+  ],
+  "format_version": 1,
+  "grouped_native_laurent_estimates": {
+    "box": {
+      "components": [
+        "Real",
+        "Imag",
+        "Real",
+        "Imag"
+      ],
+      "covariance_of_mean": [
+        4.242265038775978e-15,
+        0.0,
+        -4.697061115637092e-14,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -4.697061115637092e-14,
+        0.0,
+        5.206165339599072e-13,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean": [
+        -5.3152625412167254e-8,
+        0.0,
+        -2.0051630825123468,
+        0.0
+      ],
+      "orders": [
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "production_complete": true,
+      "standard_error": [
+        6.513267259045937e-8,
+        0.0,
+        7.215376178411679e-7,
+        0.0
+      ]
+    },
+    "triangle": {
+      "components": [
+        "Real",
+        "Imag"
+      ],
+      "covariance_of_mean": [
+        5.978583789587991e-22,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean": [
+        1.1770838341821113,
+        0.0
+      ],
+      "orders": [
+        0,
+        0
+      ],
+      "production_complete": true,
+      "standard_error": [
+        2.4451142692291482e-11,
+        0.0
+      ]
+    }
+  },
+  "manifest": {
+    "diagrams": [
+      {
+        "directory": "diagram_00_triangle",
+        "id": "16f0e00e8dc41b98e64b20f9a6b17627",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          25
+        ],
+        "kind": "triangle",
+        "name": "FK01",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 78139
+      },
+      {
+        "directory": "diagram_01_triangle",
+        "id": "e608ddecee3638e0e344f9084b40e16b",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          25
+        ],
+        "kind": "triangle",
+        "name": "FK02",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 182868
+      },
+      {
+        "directory": "diagram_02_box",
+        "id": "daeea06e0e2857d323b4fb085bf6048a",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK05",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 287597
+      },
+      {
+        "directory": "diagram_03_box",
+        "id": "736f4be11c21f6ddb7178df45befe83c",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK06",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 392326
+      },
+      {
+        "directory": "diagram_04_box",
+        "id": "b39b61db7640e6dd19fb46093a15bacc",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK07",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 497055
+      },
+      {
+        "directory": "diagram_05_box",
+        "id": "5f4b38e217594f7565406c2d10f2c420",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK08",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 601784
+      },
+      {
+        "directory": "diagram_06_box",
+        "id": "32e4acb58353629b37286e1257cd1c52",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK09",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 706513
+      },
+      {
+        "directory": "diagram_07_box",
+        "id": "fe180a6c305ca699c6cebc9e62877f44",
+        "internal_pdgs": [
+          6,
+          6,
+          6,
+          6
+        ],
+        "kind": "box",
+        "name": "FK10",
+        "projected_overall_factor": "-1/8",
+        "raw_overall_factor": "(feynkit_generator_factor::{}::AutG(1))^(-1)*feynkit_generator_factor::{}::ExternalFermionOrderingSign(1)*feynkit_generator_factor::{}::InternalFermionLoopSign(-1)",
+        "seed": 811242
+      }
+    ],
+    "format_version": 1,
+    "generation_options": {
+      "allow_self_loops": false,
+      "allow_zero_flow_edges": true,
+      "cut_amplitude_filters": [],
+      "filter_zero_color": true,
+      "forced_cuts": [],
+      "graph_filters": [
+        {
+          "loop_count_range": [
+            1,
+            1
+          ]
+        },
+        {
+          "coupling_orders": {
+            "QCD": [
+              2,
+              2
+            ],
+            "QED": [
+              2,
+              2
+            ]
+          }
+        }
+      ],
+      "graph_prefix": "FK",
+      "loop_momentum_bases": {},
+      "max_vertices": null,
+      "named_loop_momentum_bases": {},
+      "numerator_grouping": "none",
+      "numerator_prefactor": "1",
+      "projector": "1",
+      "selected_diagram_ids": null,
+      "selected_diagram_names": null,
+      "symmetrize_external_fermions": false,
+      "symmetrize_final": false,
+      "symmetrize_initial": false,
+      "symmetrize_left_right": false,
+      "threads": 1,
+      "vetoed_diagram_ids": [],
+      "vetoed_diagram_names": []
+    },
+    "generation_report": {
+      "completed": true,
+      "interaction_assignment_count": 11,
+      "retained_count": 8,
+      "topology_count": 11,
+      "zero_numerator_count": 3
+    },
+    "model_fingerprint": "30d4ff82d738a9b819166c8ea86752d5a6d8bf426769a2949c7f71475cf8e778",
+    "normalization": {
+      "amplitude_definition": "M^{ab}_{++}=delta^{ab} A_{++}",
+      "color_projector": "delta_ab/8",
+      "color_summed_helicity_squared_multiplier": 8,
+      "dimension": "4-2*eps",
+      "extra_R2_added": false,
+      "initial_color_average": false,
+      "initial_spin_average": false,
+      "measure_multiplier": "gamma(1-2*eps)/(gamma(1+eps)*gamma(1-eps)^2)",
+      "mu_squared": 1.0,
+      "native_measure": "d^D k/(i*pi^(D/2))",
+      "physical_finite_multiplier": "1/(16*pi^2)",
+      "raw_delta_projection_multiplier": 8
+    },
+    "point": {
+      "Gf": 0.0000116639,
+      "MH": 125.0,
+      "MT": 172.5,
+      "MZ": 91.188,
+      "aEWM1": 132.507,
+      "aS": 0.118,
+      "cos_theta": 0.8,
+      "sqrt_s": 300.0,
+      "widths": 0.0,
+      "ymt": 172.5
+    },
+    "process": {
+      "incoming": [
+        {
+          "kind": "pdg",
+          "value": 21
+        },
+        {
+          "kind": "pdg",
+          "value": 21
+        }
+      ],
+      "outgoing_alternatives": [
+        [
+          {
+            "kind": "pdg",
+            "value": 25
+          },
+          {
+            "kind": "pdg",
+            "value": 25
+          }
+        ]
+      ],
+      "particle_veto": [
+        {
+          "kind": "pdg",
+          "value": 22
+        },
+        {
+          "kind": "pdg",
+          "value": 23
+        },
+        {
+          "kind": "pdg",
+          "value": 24
+        },
+        {
+          "kind": "pdg",
+          "value": -24
+        },
+        {
+          "kind": "pdg",
+          "value": 9000001
+        },
+        {
+          "kind": "pdg",
+          "value": -9000001
+        },
+        {
+          "kind": "pdg",
+          "value": 9000002
+        },
+        {
+          "kind": "pdg",
+          "value": -9000002
+        },
+        {
+          "kind": "pdg",
+          "value": 9000003
+        },
+        {
+          "kind": "pdg",
+          "value": -9000003
+        },
+        {
+          "kind": "pdg",
+          "value": 9000004
+        },
+        {
+          "kind": "pdg",
+          "value": -9000004
+        },
+        {
+          "kind": "pdg",
+          "value": 9000005
+        },
+        {
+          "kind": "pdg",
+          "value": -9000005
+        },
+        {
+          "kind": "pdg",
+          "value": 12
+        },
+        {
+          "kind": "pdg",
+          "value": -12
+        },
+        {
+          "kind": "pdg",
+          "value": 14
+        },
+        {
+          "kind": "pdg",
+          "value": -14
+        },
+        {
+          "kind": "pdg",
+          "value": 16
+        },
+        {
+          "kind": "pdg",
+          "value": -16
+        },
+        {
+          "kind": "pdg",
+          "value": 2
+        },
+        {
+          "kind": "pdg",
+          "value": -2
+        },
+        {
+          "kind": "pdg",
+          "value": 4
+        },
+        {
+          "kind": "pdg",
+          "value": -4
+        },
+        {
+          "kind": "pdg",
+          "value": 1
+        },
+        {
+          "kind": "pdg",
+          "value": -1
+        },
+        {
+          "kind": "pdg",
+          "value": 3
+        },
+        {
+          "kind": "pdg",
+          "value": -3
+        },
+        {
+          "kind": "pdg",
+          "value": 5
+        },
+        {
+          "kind": "pdg",
+          "value": -5
+        },
+        {
+          "kind": "pdg",
+          "value": 250
+        },
+        {
+          "kind": "pdg",
+          "value": 251
+        },
+        {
+          "kind": "pdg",
+          "value": -251
+        },
+        {
+          "kind": "pdg",
+          "value": 11
+        },
+        {
+          "kind": "pdg",
+          "value": -11
+        },
+        {
+          "kind": "pdg",
+          "value": 13
+        },
+        {
+          "kind": "pdg",
+          "value": -13
+        },
+        {
+          "kind": "pdg",
+          "value": 15
+        },
+        {
+          "kind": "pdg",
+          "value": -15
+        }
+      ],
+      "vertex_allow": null,
+      "vertex_veto": []
+    },
+    "scope": "complete one-loop top-quark contribution to gg -> hh, incoming ++"
+  },
+  "method": "native FastSecDec sector decomposition + randomized lattice QMC",
+  "native_laurent_estimate": {
+    "components": [
+      "Real",
+      "Imag",
+      "Real",
+      "Imag"
+    ],
+    "covariance_of_mean": [
+      4.242265038775978e-15,
+      0.0,
+      -4.697061115637092e-14,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -4.697061115637092e-14,
+      0.0,
+      5.206165345577656e-13,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "mean": [
+      -5.3152625412167254e-8,
+      0.0,
+      -0.8280792483302355,
+      0.0
+    ],
+    "orders": [
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "production_complete": true,
+    "standard_error": [
+      6.513267259045937e-8,
+      0.0,
+      7.215376182554626e-7,
+      0.0
+    ]
+  },
+  "physical_color_coefficient": {
+    "im": 0.0,
+    "re": -0.005243873099404801
+  },
+  "physical_color_coefficient_covariance": [
+    [
+      2.0877500411192483e-17,
+      0.0
+    ],
+    [
+      0.0,
+      0.0
+    ]
+  ],
+  "physical_color_coefficient_relative_uncertainty": 8.71338847954943e-7,
+  "physical_color_coefficient_rms_standard_error": 4.569190345257295e-9,
+  "physical_laurent_estimate": {
+    "components": [
+      "Real",
+      "Imag",
+      "Real",
+      "Imag"
+    ],
+    "covariance_of_mean": [
+      1.7012116253024195e-19,
+      0.0,
+      -1.883591643058523e-18,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -1.883591643058523e-18,
+      0.0,
+      2.0877500411192483e-17,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "mean": [
+      -3.3659293252866176e-10,
+      0.0,
+      -0.005243873099404801,
+      0.0
+    ],
+    "orders": [
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "production_complete": true,
+    "standard_error": [
+      4.124574675408871e-10,
+      0.0,
+      4.569190345257296e-9,
+      0.0
+    ]
+  },
+  "raw_delta_contracted_laurent_estimate": {
+    "components": [
+      "Real",
+      "Imag",
+      "Real",
+      "Imag"
+    ],
+    "covariance_of_mean": [
+      2.7150496248166257e-13,
+      0.0,
+      -3.006119114007739e-12,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -3.006119114007739e-12,
+      0.0,
+      3.3319458211697e-11,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "mean": [
+      -4.2522100329733803e-7,
+      0.0,
+      -6.624633986641884,
+      0.0
+    ],
+    "orders": [
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "production_complete": true,
+    "standard_error": [
+      5.210613807236749e-7,
+      0.0,
+      5.772300946043701e-6,
+      0.0
+    ]
+  },
+  "sampling_relation": "Independent diagram seeds; each native total retains shared-sector and Laurent covariance"
+}

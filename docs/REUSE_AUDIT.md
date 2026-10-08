@@ -2255,3 +2255,67 @@ parent-and-descendant RSS sampled every 20 ms peaks at 931.3 MiB ordinary and
 these single sequential observations. The serial parent peaks at 11.7 MiB;
 at most one child is resident. This is a measured reduction for this workload,
 not a claim that arbitrary native context overhead is eliminated.
+
+## Complete one-loop ggHH helicity example (2026-10-08)
+
+The [three-method reproduction](../example/gg_hh_one_loop_ME/README.md) computes
+the complete top-loop contribution at incoming `++` helicity. The native
+Standard-Model generator and exact colour filter retain two triangles and six
+boxes; the filter proves three further generated colour factors vanish. Native
+diagram weights, momentum routing, Idenso contractions, generic helicity
+wavefunctions and Linnet DOT remain authoritative. No second graph type or
+amplitude-generation algorithm was added.
+
+HEPKit's existing `oneloopreduce::reduce_family`, `OneLoopMasters` and native
+OneLOop evaluation produce the analytic reference. Its point-specialized master
+expressions retain dimension-dependent coefficients through epsilon expansion,
+including rational finite terms from divergent masters. Both Ward substitutions
+and complete pole cancellation pass. MadLoop independently generates the same
+eight loops and supplies two R2 contributions through its own implementation.
+Its fixed-helicity colour factors and loop measure are verified from generated
+source, without fitting a phase or normalization. The shared installation is
+unchanged. See the [independent review](reviews/gghh-one-loop-me-independent.md).
+
+The triangles expose a narrow preparation limitation: a loop-independent tree
+Higgs propagator requires a nonunit prefactor. Public API and source review of
+FeynKit's `IntegralFamily::partial_fraction`, `sector` and `scalar_products`
+establish existing ownership of the decomposition, basis and loop dependence.
+The new opt-in `SingleTerm` policy only admits one positive-power native term,
+checks the exact inverse-product identity including its scalar coefficient,
+preserves source indices and applies that coefficient once. Existing defaults
+and `SingleUnitTerm` semantics remain intact. Focused Rust tests cover symbolic
+tree propagators with powers one and two, a rank-two numerator, noncontiguous
+parameter labels, retained runtime invariants/masses, a scaled duplicate and a
+multiple-term fallback. Full triangle generation and integration independently
+agree with the master reference, avoiding an artificial Feynman-parameter zero
+from the timelike tree denominator.
+
+The result-combination adapter was separately audited through public APIs,
+source and the executed eight-diagram calculation. `VectorEstimate` exposes
+validation and tolerance checks but no public operation aligning and adding
+independently estimated integral vectors. Numerica's scalar sample accumulator
+merges samples rather than adding distinct integrals; it cannot supply this
+operation. The small example adapter therefore maps native Laurent/component
+layouts and sums their full covariance matrices, using existing Numerica
+`DoubleFloat` arithmetic. Distinct diagram seeds and complete authoritative
+production estimates are checked before combining them. An independent
+entry-by-entry recomputation reproduces every mean and covariance entry, as well
+as the propagated squared-amplitude error. No numerical library accumulator was
+reimplemented or changed.
+
+The executed FastSecDec amplitude is `-0.0052438730994 ± 4.57e-9`, agreeing
+with both analytic and MadLoop references within 0.879 standard errors. Every
+individual diagram's finite and pole coefficients agrees within 1.92 standard
+errors. The full relative RMS uncertainty is `8.71e-7`; the pole compatibility,
+Ward and three-method comparison gates pass. Small inputs, expressions, native
+drivers and scientific results are retained in the three method folders;
+generated binaries, caches and raw execution logs remain ignored.
+
+The fresh full workspace run passes **640 tests, zero failures and 28 intentional
+ignores** in one invocation, including all eight family-preparation tests.
+The release CLI was rebuilt and then regenerated/integrated the complete
+eight-diagram example successfully; the retained numerical result is from that
+release run. The separate clean MadLoop reproduction and native master/Ward
+runs also pass. Strict workspace/all-target Clippy with warnings denied,
+formatting and staged/unstaged diff checks pass. All new native examples compile.
+Local logs remain in `output/gghh-one-loop-*.log`.

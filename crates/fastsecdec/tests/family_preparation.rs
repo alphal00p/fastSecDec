@@ -166,6 +166,132 @@ fn native_noop_and_inadmissible_decompositions_preserve_original_density() {
 }
 
 #[test]
+fn single_term_extracts_timelike_tree_propagator_exactly_once() {
+    let k = parse!("family_prepare::bridge_k");
+    let p = parse!("family_prepare::bridge_p");
+    let q = parse!("family_prepare::bridge_q");
+    let kin = Kinematics::in_dimension(&parse!("family_prepare::D"))
+        .unwrap()
+        .with_momenta([k.clone(), p.clone(), q.clone()])
+        .unwrap()
+        .with_scalar_product(&p, &p, Atom::num(0))
+        .unwrap()
+        .with_scalar_product(&q, &q, Atom::num(0))
+        .unwrap()
+        .with_scalar_product(&p, &q, parse!("family_prepare::s/2"))
+        .unwrap();
+    let top_mass_squared = Atom::num((119025, 4));
+    let first = kin.scalar_product(&k, &k).unwrap() - &top_mass_squared;
+    let second = kin.scalar_product(&(&k + &p), &(&k + &p)).unwrap() - &top_mass_squared;
+    let third = kin
+        .scalar_product(&(&k + &p + &q), &(&k + &p + &q))
+        .unwrap()
+        - top_mass_squared;
+    let tree = parse!("family_prepare::s-family_prepare::MH^2");
+    let original = IntegralFamily::new(
+        vec![k.clone()],
+        vec![p.clone(), q.clone()],
+        vec![first.clone(), second.clone(), tree.clone(), third.clone()],
+        &kin,
+    )
+    .unwrap();
+    let control = IntegralFamily::new(
+        vec![k.clone()],
+        vec![p, q],
+        vec![first, second, third],
+        &kin,
+    )
+    .unwrap();
+    let parameters = vec![
+        symbol!("family_prepare::bridge_x0"),
+        symbol!("family_prepare::bridge_x1"),
+        symbol!("family_prepare::bridge_x2"),
+        symbol!("family_prepare::bridge_x3"),
+    ];
+    let numerator = Atom::num(7) * kin.scalar_product(&k, &k).unwrap();
+    for tree_power in [1, 2] {
+        let powers = [1, 1, tree_power, 1];
+        let prepared =
+            prepare_family(&original, &powers, Policy::SingleTerm { max_states: 32 }).unwrap();
+        assert_eq!(prepared.report().status, Status::Projected);
+        assert_eq!(prepared.report().active_original_indices, [0, 1, 3]);
+        assert_eq!(prepared.coefficient(), &tree.pow(-i64::from(tree_power)));
+        assert_eq!(prepared.family().denominators(), control.denominators());
+        assert_eq!(prepared.family().loop_momenta(), original.loop_momenta());
+        assert_eq!(
+            prepared.report().scalar_prefactor.as_deref(),
+            Some(prepared.coefficient().to_canonical_string().as_str())
+        );
+        let (actual, report) = ParametricIntegrand::from_family_prepared(
+            &original,
+            &powers,
+            numerator.clone(),
+            parameters.clone(),
+            symbol!("family_prepare::eps"),
+            parse!("4-2*family_prepare::eps"),
+            Policy::SingleTerm { max_states: 32 },
+        )
+        .unwrap();
+        let expected = ParametricIntegrand::from_family(
+            &control,
+            &[1, 1, 1],
+            &numerator / tree.pow(i64::from(tree_power)),
+            vec![parameters[0], parameters[1], parameters[3]],
+            symbol!("family_prepare::eps"),
+            parse!("4-2*family_prepare::eps"),
+        )
+        .unwrap();
+        assert_eq!(actual.density(), expected.density());
+        assert!(
+            actual
+                .density()
+                .contains(parse!("family_prepare::s").as_view())
+        );
+        assert!(
+            actual
+                .density()
+                .contains(parse!("family_prepare::MH").as_view())
+        );
+        let decoded: FamilyPreparationReport =
+            serde_json::from_slice(&serde_json::to_vec(&report).unwrap()).unwrap();
+        assert_eq!(decoded, report);
+        assert_eq!(
+            prepare_family(&original, &powers, Policy::default())
+                .unwrap()
+                .report()
+                .status,
+            Status::Original(Fallback::NonUnitCoefficient)
+        );
+    }
+}
+
+#[test]
+fn single_term_reuses_scaled_duplicate_and_keeps_multiterm_fallback() {
+    let (base, _) = family(&[Atom::one()]);
+    let denominator = &base.denominators()[0];
+    let scaled = IntegralFamily::new(
+        base.loop_momenta().to_vec(),
+        vec![],
+        vec![Atom::num(2) * denominator, denominator.clone()],
+        base.kinematics(),
+    )
+    .unwrap();
+    let prepared = prepare_family(&scaled, &[2, 2], Policy::SingleTerm { max_states: 32 }).unwrap();
+    assert_eq!(prepared.report().status, Status::Projected);
+    assert_eq!(prepared.coefficient(), &Atom::num((1, 4)));
+    assert_eq!(prepared.powers(), [4]);
+    let (shifted, _) = family(&[Atom::one(), Atom::num(2)]);
+    assert_eq!(
+        prepare_family(&shifted, &[1, 1], Policy::SingleTerm { max_states: 32 })
+            .unwrap()
+            .report()
+            .status,
+        Status::Original(Fallback::MultipleTerms)
+    );
+    assert!(prepare_family(&scaled, &[2, 2], Policy::SingleTerm { max_states: 0 }).is_err());
+}
+
+#[test]
 fn noncontiguous_source_labels_and_loop_numerator_are_preserved() {
     let k = parse!("family_prepare::q");
     let p = parse!("family_prepare::p");

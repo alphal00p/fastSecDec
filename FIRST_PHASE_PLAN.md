@@ -1,5 +1,29 @@
 # FastSecDec first-phase implementation plan
 
+## Complete one-loop ggHH helicity reproduction (2026-10-08)
+
+Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`
+and `madloop/` reproduction directories. Compare the coherent incoming `++`
+amplitude, including all top-loop triangles and boxes, at the documented
+300 GeV point. State the top-only flavour specialization explicitly; massive
+bottom cuts are outside this no-threshold benchmark. Preserve native diagram
+weights, Higgs self-coupling, external wavefunctions, dimension-dependent
+rational terms and the full Laurent covariance. Keep colour sums, averages,
+loop measures and identical-particle phase-space factors explicit.
+
+Reuse native HEPKit generation and exact colour filtering, one-loop reduction
+and OneLOop masters for the analytic reference. Locate and run the installed
+MadLoop independently without modifying the shared installation. Retain the
+small source inputs, analytic expressions, drivers and numerical results needed
+for reproduction; exclude generated binaries, caches and large build trees.
+Verify Laurent-pole cancellation, Ward identities and numerical agreement.
+
+For loop-independent tree propagators, add an explicit `SingleTerm` family
+preparation policy using the existing native partial-fraction and sector APIs.
+Admit a scalar prefactor only after checking the exact integral identity, and
+multiply it once. Preserve the existing preparation defaults and `SingleUnitTerm`
+semantics. Test and independently review this narrow extension before publishing.
+
 ## Bounded-memory serial execution (2026-10-08)
 
 The approved [serial-mode implementation plan](SERIAL_MODE_PLAN.md) is the
