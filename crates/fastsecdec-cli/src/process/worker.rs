@@ -125,6 +125,10 @@ impl ProcessPool {
                 loop {
                     match listener.accept() {
                         Ok((stream, _)) => {
+                            // Darwin inherits the listener's nonblocking mode.
+                            // Framed I/O runs on a dedicated blocking reader;
+                            // only accepting connections and polling stay async.
+                            stream.set_nonblocking(false)?;
                             stream.set_nodelay(true)?;
                             return Ok((
                                 Box::new(stream.try_clone()?),

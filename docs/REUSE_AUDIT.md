@@ -1,5 +1,23 @@
 # Ecosystem reuse evidence
 
+## macOS serial-worker socket admission (2026-10-08)
+
+The serial CLI uses native `TcpListener` / `TcpStream` with a dedicated framed
+reader. A focused Rust probe confirmed that Darwin inherits the listener's
+nonblocking mode on accepted connections. Explicitly restoring blocking mode
+with `TcpStream::set_nonblocking(false)` fixes idle and fragmented reads while
+preserving caller-owned polling, worker residency and shutdown. No transport
+replacement, additional concurrency owner or numerical change was introduced.
+The [platform review](reviews/macOS-serial-worker-control.md) records native
+source/probe evidence and the delayed fragmented-frame regression.
+The [double-box verification](reviews/gghh-serial-macos-validation.md) records
+fresh ordinary/serial generation, all four generation/integration combinations,
+the ten-second residence run, achieved QMC accuracy and completed-checkpoint
+continuation. Native readers own artifact admission and both numerical methods
+retain their existing covariance models. Higher eight-worker aggregate RSS for
+serial generation is reported explicitly; no universal memory reduction is
+claimed.
+
 ## Optional loading validation and native JIT cache audit (2026-10-08)
 
 Runtime loading now defaults to restoring trusted native artifacts without

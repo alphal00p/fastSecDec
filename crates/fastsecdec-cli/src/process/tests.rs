@@ -166,3 +166,71 @@ fn socket_control_survives_stdout_and_inherits_residency_lock() {
             .contains("native library stdout")
     );
 }
+
+/// Keep the accepted socket idle and split both headers and payloads across
+/// writes. A nonblocking connection would lose the frame at either boundary.
+#[test]
+#[ignore = "subprocess fixture"]
+fn fragmented_socket_child_fixture() {
+    use std::{io::Write, net::TcpStream};
+    let Some(address) = std::env::var_os("FASTSECDEC_WORKER_CONTROL") else {
+        return;
+    };
+    let mut stream = TcpStream::connect(address.to_str().unwrap()).unwrap();
+    stream.set_nodelay(true).unwrap();
+    for payload in ["first", "second"] {
+        let mut frame = Vec::new();
+        protocol::write(
+            &mut frame,
+            &protocol::Envelope {
+                run_id: "fragmented-socket".into(),
+                lease_id: 5,
+                payload,
+            },
+        )
+        .unwrap();
+        let mut start = 0;
+        for end in [1, 8, 10, 12, frame.len() - 1, frame.len()] {
+            std::thread::sleep(Duration::from_millis(20));
+            stream.write_all(&frame[start..end]).unwrap();
+            start = end;
+        }
+    }
+}
+
+#[test]
+fn socket_control_waits_for_delayed_fragmented_frames() {
+    let directory = tempfile::tempdir().unwrap();
+    let pool = ProcessPool::new(1).unwrap();
+    let mut command = Command::new(std::env::current_exe().unwrap());
+    command.args([
+        "--exact",
+        "process::tests::fragmented_socket_child_fixture",
+        "--ignored",
+        "--nocapture",
+    ]);
+    let mut worker = pool
+        .spawn_native::<String>(
+            &mut command,
+            "fragmented-socket".into(),
+            5,
+            &directory.path().join("worker.log"),
+        )
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut messages = Vec::new();
+    while !worker.output_closed() {
+        if let Some(message) = worker.poll().unwrap() {
+            messages.push(message);
+        }
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(messages, ["first", "second"]);
+    while worker.try_wait().unwrap().is_none() {
+        assert!(Instant::now() < deadline);
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(worker.try_wait().unwrap().unwrap().success());
+    assert_eq!(pool.live(), 0);
+}
