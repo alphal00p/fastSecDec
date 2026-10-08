@@ -143,10 +143,21 @@ pub(super) fn render(
         ],
         [
             "Inspection".into(),
-            if restored.is_some() {
+            if artifact.validation.binary {
                 "Deep · native binary validated"
+            } else if restored.is_some() {
+                "Deep · binary loaded; validation not requested"
             } else {
                 "Metadata only · binary not read or validated"
+            }
+            .into(),
+        ],
+        [
+            "Metadata identity".into(),
+            if artifact.validation.metadata_identity {
+                "Validated"
+            } else {
+                "Not checked; --validate-artifact"
             }
             .into(),
         ],

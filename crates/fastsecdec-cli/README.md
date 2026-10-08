@@ -627,8 +627,9 @@ shows saved generation facts and the ten largest sector evaluators, sorted by
 serialized evaluator size with stable kernel IDs. `--sector 5` also stays on
 this fast path and shows the selected evaluator's saved statistics. Neither
 command opens, decodes or compiles the `.dat` sibling, even for old artifacts.
-They check the JSON content identity and report native dependency compatibility,
-but do not validate the binary or authenticate optional generation observations.
+They report native dependency compatibility but skip integrity certification by
+default. Add `--validate-artifact` to check the JSON content identity without
+opening the binary. Optional generation observations remain outside that identity.
 
 Newly generated artifacts include a bounded, versioned chart preview: at most
 three monomial factors and sixteen coordinate images per representative, with
@@ -638,24 +639,40 @@ this index display available sizes/layouts and mark chart details as not indexed
 inspection never silently restores their binary.
 
 Use `inspect output/gghh_double_box.fsd --deep` for complete retained native
-chart metadata and sector identities. This explicitly reads and validates the
+chart metadata and sector identities. This explicitly reads the
 binary and restores all its evaluators, so large artifacts can take time and
 memory. `--expressions` implies `--deep` and also shows retained expressions.
+Add `--validate-artifact` to either deep mode to recompute binary integrity and
+semantic hashes and certify retained geometric metadata. These expensive checks
+are off by default; they do not regenerate or optimize sector expressions.
 The same distinction applies to `--json`: default output identifies itself as
 `metadata_only`, while deep output contains the full retained generation record.
+The independent `binary_loaded`, `binary_validated` and
+`metadata_identity_validated` fields describe what this invocation actually did.
 Human reports retain colored tables; `--plain`, `NO_COLOR` and redirected output
 remain readable without colors. Native Symbolica printing produces the saved
 math previews and the deep expression views.
 
 `integrate` and `run --resume` show artifact loading before sampling starts:
-metadata, binary-byte reading, native decoding/validation and evaluator
-restoration. Elapsed time and process/system RAM stay visible while native work
+metadata, binary-byte reading, native decoding and executable-evaluator
+preparation. Elapsed time and process/system RAM stay visible while native work
 runs; evaluator counts appear when known. Loading observations also support
 plain and `--status-json` output (`kind = "artifact_loading"`). The CLI polls
 cancellation independently of the display interval. Cancellation takes effect
 between file chunks or native restoration units; a single decode/JIT operation
 cannot be interrupted midway. Runtime binding and checkpoint checks still follow
 successful artifact restoration before numerical integration begins.
+
+Use `integrate BASENAME --validate-artifact` or
+`run CARD --resume --validate-artifact` for the additional artifact certification.
+Default loading still enforces supported formats/codecs, dependency compatibility,
+usable native layouts, matching declared JSON/binary kernel identities, runtime
+parameter/mass admission and checkpoint compatibility. Both modes are for trusted
+artifacts: optional hashes do not authenticate a producer or make arbitrary native
+program bytes safe. Validation is a loading option, not an integration setting,
+and does not change the evaluator or checkpoint identity.
+Skipping these checks does not cache machine code: SymJIT still compiles saved
+optimized instructions when preparing executable evaluators.
 
 Evaluator sizes describe the serialized shared program for the complete Laurent
 vector. Compressed SymJIT representations are identified separately; neither is

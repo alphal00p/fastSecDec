@@ -95,14 +95,19 @@ shortcut uses the existing increasing-precision rescue. FastSecDec does not
 supply a generic special-function-to-error-tracking conversion.
 
 Kernel artifacts retain native evaluator IR and are application caches from a
-trusted producer. Envelope, metadata, compatibility and byte-consumption checks
-remain; the loader does not certify arbitrary or deliberately rewritten native
-instruction streams. The experimental structural-decoder patch is no longer a
-build requirement. No faulty IR from the native generator was observed.
+trusted producer. Format, dimensions, compatibility and byte-consumption checks
+remain. Expensive content hashes and semantic/geometric revalidation are off by
+default; enable them with `--validate-artifact` or native `KernelLoadOptions`.
+The loader does not certify arbitrary native instruction streams. The
+experimental structural-decoder patch is no longer a build requirement. No
+faulty IR from the native generator was observed.
 
 Supported artifact loading restores saved optimized programs and prepares their
 eager or SymJIT execution backend without rebuilding expressions or running
-Horner/CPE. Expression-only v1/v2 kernel formats are rejected; regenerate those
+Horner/CPE. The pinned SymJIT application codec restores intermediate code and
+compiles executable code even on the same architecture; see the
+[native cache audit](reviews/symjit-cache-loading.md). Expression-only v1/v2
+kernel formats are rejected; regenerate those
 artifacts. Saved exact-offset Atoms are evaluated directly through Symbolica at
 parameter binding, with native precision escalation, rather than compiled into
 another evaluator. Mass constraints use native indeterminate discovery on load

@@ -23,11 +23,11 @@ fn phase(snapshot: &crate::loading::Snapshot) -> &'static str {
     match snapshot.phase {
         Phase::Metadata => "Reading artifact metadata",
         Phase::ReadingBinary => "Reading evaluator data",
-        Phase::Decoding => "Decoding and validating saved programs",
+        Phase::Decoding => "Decoding saved programs",
         Phase::Restoring if snapshot.completed == snapshot.total && snapshot.total.is_some() => {
             "Finalizing loaded kernels"
         }
-        Phase::Restoring => "Restoring executable evaluators",
+        Phase::Restoring => "Preparing executable evaluators",
         Phase::Complete => "Evaluators loaded",
     }
 }
@@ -214,6 +214,8 @@ mod tests {
     #[test]
     fn unknown_work_has_no_fake_percentage_and_unavailable_memory_is_explicit() {
         let cached = view(Phase::Decoding, None, None);
+        assert!(plain(&cached).contains("Decoding saved programs"));
+        assert!(!plain(&cached).contains("validating"));
         for width in [40, 80, 120] {
             let output = screen(&cached, width, false);
             assert!(output.contains("progress unavailable"), "{output}");
@@ -232,6 +234,7 @@ mod tests {
         let reading = view(Phase::ReadingBinary, Some(1 << 30), Some(2 << 30));
         assert!(screen(&reading, 80, false).contains("1.0 GiB / 2.0 GiB"));
         let restoring = view(Phase::Restoring, Some(2), Some(304));
+        assert!(plain(&restoring).contains("Preparing executable evaluators"));
         assert!(screen(&restoring, 80, false).contains("2 / 304 sectors"));
         let finalizing = view(Phase::Restoring, Some(304), Some(304));
         assert!(screen(&finalizing, 80, false).contains("Finalizing loaded kernels"));

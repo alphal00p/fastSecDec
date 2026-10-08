@@ -1,6 +1,6 @@
 use super::{KernelError, StoredAtom, atom, invalid, symbol_strings, symbols};
-use crate::generation::{ChartRecord, DomainAssessment, coordinates_from_parts};
-use fastsecdec_sectors::SectorMap;
+use crate::generation::{ChartRecord, CoordinateMap, DomainAssessment, coordinates_from_parts};
+use fastsecdec_sectors::{ParametricDomain, SectorMap};
 use serde::{Deserialize, Serialize};
 use symbolica::domains::integer::Integer;
 use symbolica::state::StateMap;
@@ -100,6 +100,7 @@ impl PortableChart {
         self,
         index: usize,
         assessment: &DomainAssessment,
+        validate: bool,
     ) -> Result<ChartRecord, KernelError> {
         let source = symbols(self.source_parameters)?;
         let target = symbols(self.target_parameters)?;
@@ -146,25 +147,67 @@ impl PortableChart {
                 .map(integers)
                 .collect::<Result<_, _>>()?,
         };
-        geometry
-            .validate(domain)
-            .map_err(|error| invalid(&error.to_string()))?;
-        if geometry.source_dimension() != source.len() || geometry.dimension() != dimension {
+        if geometry.source_dimension() != source.len()
+            || geometry.dimension() != dimension
+            || geometry
+                .exponent_matrix
+                .iter()
+                .any(|row| row.len() != dimension)
+            || geometry
+                .factor_valuations
+                .iter()
+                .any(|row| row.len() != dimension)
+        {
             return Err(invalid("coordinate map dimensions differ"));
         }
-        let coordinates = coordinates_from_parts(&source, domain, &geometry, &target);
+        match (domain, geometry.fixed_parameter) {
+            (ParametricDomain::ProjectiveSimplex, Some(pivot))
+                if source.len() == dimension.saturating_add(1) && pivot < source.len() => {}
+            (ParametricDomain::UnitCube | ParametricDomain::PositiveOrthant, None)
+                if source.len() == dimension => {}
+            _ => return Err(invalid("coordinate map domain or fixed parameter differs")),
+        }
+        if geometry.determinant <= 0 {
+            return Err(invalid("nonpositive coordinate measure determinant"));
+        }
         let images = self
             .images
             .into_iter()
             .map(atom)
             .collect::<Result<Vec<_>, _>>()?;
-        if images != coordinates.images()
-            || atom(self.measure_jacobian)? != *coordinates.measure_jacobian()
-        {
-            return Err(invalid(
-                "retained coordinate images or measure differ from exact geometry",
-            ));
+        if images.len() != source.len() {
+            return Err(invalid("coordinate image count differs"));
         }
+        let measure_jacobian = atom(self.measure_jacobian)?;
+        let coordinates = if validate {
+            geometry
+                .validate(domain)
+                .map_err(|error| invalid(&error.to_string()))?;
+            let coordinates = coordinates_from_parts(&source, domain, &geometry, &target);
+            if images != coordinates.images() || measure_jacobian != *coordinates.measure_jacobian()
+            {
+                return Err(invalid(
+                    "retained coordinate images or measure differ from exact geometry",
+                ));
+            }
+            coordinates
+        } else {
+            CoordinateMap {
+                source_parameters: source.clone(),
+                target_parameters: target.clone(),
+                images,
+                measure_jacobian,
+                measure_factor: symbolica::atom::Atom::num(geometry.determinant.clone()),
+                measure_powers: geometry
+                    .jacobian_powers
+                    .iter()
+                    .cloned()
+                    .map(symbolica::atom::Atom::num)
+                    .collect(),
+                source_domain: domain,
+                projective_fixed_parameter: geometry.fixed_parameter,
+            }
+        };
         let pre_subtraction = self
             .pre_subtraction
             .map(|record| record.into_native(&source, &target))

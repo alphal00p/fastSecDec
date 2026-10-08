@@ -1,5 +1,41 @@
 # Ecosystem reuse evidence
 
+## Optional loading validation and native JIT cache audit (2026-10-08)
+
+Runtime loading now defaults to restoring trusted native artifacts without
+repeating raw/semantic content hashing, source polynomial support analysis or
+geometric map proofs. `KernelLoadOptions` and CLI `--validate-artifact` retain
+those checks explicitly. Format, codec, dependency, dimensions and usable
+metadata structure remain checked; runtime masses and numerical stability keep
+their existing admission. Validation observations describe the current load
+and are excluded from artifact and checkpoint identities.
+
+The outer binary envelope uses Bincode's borrowed decoder, while Symbolica
+Atoms continue to use the original native context-aware decoding. Saved exact
+evaluator bytes pass into sector construction directly instead of re-encoding
+the decoded program. No alternate evaluator representation, CAS, graph parser,
+library-owned pool or machine-code loader is introduced. Native chart objects
+are restored from their saved fields; optional validation retains the original
+native geometry and polynomial checks.
+
+The [loading-options review](reviews/kernel-load-options.md) records the native
+and portable scientific checks, CLI validation/covariance checks and unchanged
+wire-format boundary. Independent source review found no blocking scientific
+equivalence or native-ownership issue.
+
+The [SymJIT cache audit](reviews/symjit-cache-loading.md) distinguishes the
+historical executable-code format from the currently pinned application format,
+which saves native intermediate code and compiles it on load. It records the
+public source and focused native probe evidence, remaining process-address
+constraints and the upstream operation needed for safe executable reuse. This
+milestone does not claim to remove SymJIT compilation, exact-program decoding,
+all instruction-copying overhead or the remaining serial loading work.
+
+The [IBP cache audit](reviews/ibp-formula-cache.md) confirms reuse of the existing
+parallel native formula preparation and exact dynamic cache for both Taylor and
+integration-by-parts subtraction, including complete key ownership and native
+jet reuse. The ggHH cards retain their current Taylor default.
+
 ## Minimal ggHH example inputs (2026-10-07)
 
 The three CLI ggHH example directories retain only their README and five input

@@ -291,6 +291,16 @@ impl SectorKernel {
         use_complex: bool,
         execution: super::EvaluatorBackend,
     ) -> Result<Self, KernelError> {
+        Self::from_program_with_bytes(program, precision, use_complex, execution, None)
+    }
+
+    fn from_program_with_bytes(
+        program: program::SectorProgram,
+        precision: &PrecisionPolicy,
+        use_complex: bool,
+        execution: super::EvaluatorBackend,
+        encoded: Option<std::sync::Arc<[u8]>>,
+    ) -> Result<Self, KernelError> {
         let program::SectorProgram {
             parameters,
             runtime_parameters,
@@ -319,9 +329,13 @@ impl SectorKernel {
                 "complex native coefficient in real output layout".into(),
             ));
         }
-        // Encode the untouched exact program, never a mapped/evaluated worker's
-        // mutable stack. All numeric variants derive from this same native IR.
-        let program_bytes: std::sync::Arc<[u8]> = program::encode(&exact)?.into();
+        // A loader already owns the untouched native program bytes. Retain them
+        // directly instead of serializing the entire decoded program again.
+        // Generation encodes before any numeric mapping mutates a workspace.
+        let program_bytes = match encoded {
+            Some(bytes) => bytes,
+            None => program::encode(&exact)?.into(),
+        };
         let operations = exact.count_operations().into();
         let backend = if use_complex {
             Backend::Complex(complex::ComplexKernel::from_program(
@@ -414,6 +428,7 @@ impl KernelSet {
             use_complex,
             runtime_parameters,
             settings,
+            None,
             &mut |_| ControlFlow::Continue(()),
         )
     }
@@ -428,11 +443,21 @@ impl KernelSet {
         use_complex: bool,
         runtime_parameters: Vec<Symbol>,
         settings: CompilationSettings,
+        encoded_programs: Option<Vec<std::sync::Arc<[u8]>>>,
         progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         let started = Instant::now();
         let total = programs.len();
+        if encoded_programs
+            .as_ref()
+            .is_some_and(|bytes| bytes.len() != total)
+        {
+            return Err(KernelError::Artifact(
+                "native program byte count differs from sector count".into(),
+            ));
+        }
+        let mut encoded_programs = encoded_programs.map(Vec::into_iter);
         if progress(&CompilationProgress {
             completed: 0,
             total,
@@ -449,11 +474,12 @@ impl KernelSet {
                     "native program Laurent output count differs".into(),
                 ));
             }
-            sectors.push(SectorKernel::from_program_with_backend(
+            sectors.push(SectorKernel::from_program_with_bytes(
                 program,
                 &precision,
                 use_complex,
                 settings.backend,
+                encoded_programs.as_mut().and_then(Iterator::next),
             )?);
             if progress(&CompilationProgress {
                 completed: sectors.len(),

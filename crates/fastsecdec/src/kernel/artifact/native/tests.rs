@@ -1,5 +1,56 @@
 use super::*;
 
+#[test]
+fn native_json_identity_is_optional_but_layout_remains_mandatory() {
+    let kernels = super::super::load_tests::template();
+    let payload = PayloadRef {
+        version: 3,
+        program_codec: CODEC,
+        compiler_policy: &compiler_policy_with_settings(kernels.compilation_settings),
+        orders: &kernels.coefficient_orders,
+        components: &kernels.components,
+        exact: kernels
+            .exact_expressions
+            .iter()
+            .map(symbolica::atom::AtomCore::to_canonical_string)
+            .collect(),
+        precision: &kernels.precision,
+        sectors: kernels
+            .sectors
+            .iter()
+            .map(|sector| PortableSectorRef {
+                parameters: super::super::parameter_names(&sector.parameters),
+                program: &sector.program_bytes,
+                cancellation_degree: sector.cancellation.degree(),
+                cancellation_terms: sector.cancellation.terms(),
+            })
+            .collect(),
+        metadata: kernels.metadata.as_ref().map(PortableMetadata::from_native),
+    };
+    let (_, bytes) = encoded(&payload).unwrap();
+    for validate in [false, true] {
+        let loaded =
+            KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate }).unwrap();
+        assert_eq!(loaded.coefficient_orders, kernels.coefficient_orders);
+        assert_eq!(loaded.artifact_bytes().unwrap(), bytes);
+    }
+    let mut record: Artifact = serde_json::from_slice(&bytes).unwrap();
+    record.content_id = "f".repeat(64);
+    let changed = serde_json::to_vec(&record).unwrap();
+    assert!(KernelSet::from_bytes(&changed).is_ok());
+    assert!(
+        KernelSet::from_bytes_with_options(&changed, KernelLoadOptions { validate: true }).is_err()
+    );
+    record.payload.components.clear();
+    let (_, broken_layout) = encoded(&record.payload).unwrap();
+    for validate in [false, true] {
+        assert!(
+            KernelSet::from_bytes_with_options(&broken_layout, KernelLoadOptions { validate })
+                .is_err()
+        );
+    }
+}
+
 #[cfg(feature = "native")]
 #[test]
 fn borrowed_v3_encoding_matches_the_previous_owned_wire_and_hash() {

@@ -36,7 +36,8 @@ impl From<&Atom> for StoredAtom {
 #[serde(deny_unknown_fields)]
 /// The same canonical semantic record used in portable kernel artifacts.
 /// This is a transport/presentation value; native computation continues to use
-/// [`GenerationMetadata`]. Loading a kernel revalidates the record natively.
+/// [`GenerationMetadata`]. Loading always checks layout and associations;
+/// optional validation also reconstructs polynomial and geometry proofs.
 pub struct PortableMetadata {
     domain: domain::PortableAssessment,
     charts: Vec<chart::PortableChart>,
@@ -90,13 +91,14 @@ impl PortableMetadata {
     pub(super) fn into_native(
         self,
         sectors: &[Vec<Symbol>],
+        validate: bool,
     ) -> Result<GenerationMetadata, KernelError> {
-        let domain = self.domain.into_native()?;
+        let domain = self.domain.into_native(validate)?;
         let charts = self
             .charts
             .into_iter()
             .enumerate()
-            .map(|(index, chart)| chart.into_native(index, &domain))
+            .map(|(index, chart)| chart.into_native(index, &domain, validate))
             .collect::<Result<Vec<_>, _>>()?;
         let mut covered = vec![false; sectors.len()];
         for chart in &charts {

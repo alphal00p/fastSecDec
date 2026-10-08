@@ -80,7 +80,7 @@ impl PortableAssessment {
                 .collect(),
         }
     }
-    pub(super) fn into_native(self) -> Result<DomainAssessment, KernelError> {
+    pub(super) fn into_native(self, validate: bool) -> Result<DomainAssessment, KernelError> {
         let parameters = symbols(self.parameters)?;
         if parameters.is_empty() && matches!(self.domain, PortableDomain::ProjectiveSimplex) {
             return Err(invalid("empty projective source parameter list"));
@@ -101,14 +101,16 @@ impl PortableAssessment {
                 {
                     return Err(invalid("factor exponent depends on source coordinates"));
                 }
-                let factor_value = PolynomialFactor::new(
-                    polynomial.clone(),
-                    exponent.clone(),
-                    FactorRole::Singularity,
-                );
-                factor_value
-                    .support(&parameters)
-                    .map_err(|error| invalid(&error.to_string()))?;
+                if validate {
+                    let factor_value = PolynomialFactor::new(
+                        polynomial.clone(),
+                        exponent.clone(),
+                        FactorRole::Singularity,
+                    );
+                    factor_value
+                        .support(&parameters)
+                        .map_err(|error| invalid(&error.to_string()))?;
+                }
                 Ok(FactorAssessment {
                     term_index: factor.term_index,
                     factor_index: factor.factor_index,

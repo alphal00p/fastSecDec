@@ -2,7 +2,8 @@
 use super::{native, validate_orders};
 use crate::{
     kernel::{
-        CompilationSettings, KernelError, KernelSet, PrecisionPolicy, RuntimeMassConstraint,
+        CompilationSettings, KernelError, KernelLoadOptions, KernelSet, PrecisionPolicy,
+        RuntimeMassConstraint,
         cancellation::Cancellation,
         metadata::PortableMetadata,
         program::{self, SectorProgram},
@@ -29,6 +30,15 @@ struct Envelope {
     digest: [u8; 32],
     state: Vec<u8>,
     payload: Vec<u8>,
+}
+/// Borrow the large transport buffers; native context decoding below owns only
+/// the actual decoded Atoms and evaluator programs, not another payload copy.
+#[derive(bincode::BorrowDecode)]
+struct EnvelopeRef<'a> {
+    content_id: &'a str,
+    digest: [u8; 32],
+    state: &'a [u8],
+    payload: &'a [u8],
 }
 #[derive(Encode, Decode)]
 #[bincode(decode_context = "StateMap")]
@@ -344,11 +354,14 @@ pub(super) fn generated(
 }
 #[cfg(test)]
 fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
-    load_with_progress(bytes, &mut |_| std::ops::ControlFlow::Continue(()))
+    load_with_progress(bytes, KernelLoadOptions::default(), &mut |_| {
+        std::ops::ControlFlow::Continue(())
+    })
 }
 
 pub(super) fn load_with_progress(
     bytes: &[u8],
+    options: KernelLoadOptions,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
     let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC) {
@@ -362,24 +375,26 @@ pub(super) fn load_with_progress(
     } else {
         return Err(failure("unsupported header"));
     };
-    let (envelope, used): (Envelope, usize) =
-        bincode::decode_from_slice(wire, bincode::config::standard()).map_err(failure)?;
+    let (envelope, used): (EnvelopeRef<'_>, usize) =
+        bincode::borrow_decode_from_slice(wire, bincode::config::standard()).map_err(failure)?;
     if used != wire.len() {
         return Err(failure("trailing envelope bytes"));
     }
-    let id = digest(magic, &envelope.state, &envelope.payload);
-    if id.as_bytes() != &envelope.digest {
+    super::validate_content_id(envelope.content_id)?;
+    if options.validate
+        && digest(magic, envelope.state, envelope.payload).as_bytes() != &envelope.digest
+    {
         return Err(failure("content identity mismatch"));
     }
     let _ = symbolica::transcendental::gamma();
-    let mut state_source = envelope.state.as_slice();
+    let mut state_source = envelope.state;
     let context = State::import(&mut state_source, None).map_err(failure)?;
     if !state_source.is_empty() {
         return Err(failure("trailing symbol context bytes"));
     }
     let (payload, used): (Payload, usize) = if version == 5 {
         let (payload, used): (PayloadV5, usize) = bincode::decode_from_slice_with_context(
-            &envelope.payload,
+            envelope.payload,
             bincode::config::standard(),
             context,
         )
@@ -387,7 +402,7 @@ pub(super) fn load_with_progress(
         (payload.into(), used)
     } else if version == 6 {
         let (payload, used): (PayloadV6, usize) = bincode::decode_from_slice_with_context(
-            &envelope.payload,
+            envelope.payload,
             bincode::config::standard(),
             context,
         )
@@ -395,7 +410,7 @@ pub(super) fn load_with_progress(
         (payload.into(), used)
     } else {
         bincode::decode_from_slice_with_context(
-            &envelope.payload,
+            envelope.payload,
             bincode::config::standard(),
             context,
         )
@@ -404,7 +419,7 @@ pub(super) fn load_with_progress(
     if used != envelope.payload.len() {
         return Err(failure("trailing payload bytes"));
     }
-    if semantic_id(&payload, version)? != envelope.content_id {
+    if options.validate && semantic_id(&payload, version)? != envelope.content_id {
         return Err(failure("semantic content identity mismatch"));
     }
     let settings = native::settings_from_policy(&payload.compiler_policy);
@@ -429,6 +444,7 @@ pub(super) fn load_with_progress(
         return Err(failure("duplicate runtime parameter"));
     }
     let mut programs = Vec::with_capacity(payload.sectors.len());
+    let mut encoded_programs = Vec::with_capacity(payload.sectors.len());
     for sector in payload.sectors {
         let coordinates = sector
             .parameters
@@ -467,6 +483,7 @@ pub(super) fn load_with_progress(
             cancellation,
             real_coefficients: vec![false; payload.orders.len()],
         });
+        encoded_programs.push(std::sync::Arc::<[u8]>::from(sector.program));
     }
     let coordinates = programs
         .iter()
@@ -474,7 +491,7 @@ pub(super) fn load_with_progress(
         .collect::<Vec<_>>();
     let metadata = payload
         .metadata
-        .map(|m| m.into_native(&coordinates))
+        .map(|m| m.into_native(&coordinates, options.validate))
         .transpose()?;
     if !use_complex
         && payload.exact.iter().any(|coefficient| {
@@ -492,6 +509,7 @@ pub(super) fn load_with_progress(
         use_complex,
         payload.runtime_parameters,
         settings.expect("compiler policy validated"),
+        Some(encoded_programs),
         progress,
     )?;
     kernels.runtime_mass_constraints = payload
@@ -503,7 +521,7 @@ pub(super) fn load_with_progress(
         })
         .collect();
     kernels.validate_runtime_mass_constraints()?;
-    kernels.content_id = envelope.content_id;
+    kernels.content_id = envelope.content_id.to_owned();
     kernels.portable_artifact = Some(bytes.to_vec());
     Ok(kernels)
 }

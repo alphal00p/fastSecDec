@@ -306,7 +306,7 @@ fn native_cancellation_preserves_the_full_vector_across_precision_routes() {
 }
 
 #[test]
-fn portable_artifact_recompiles_and_rejects_modified_content() {
+fn portable_artifact_restores_and_rejects_modified_content_with_validation() {
     let generated = run(&input(
         vec![symbol!("x")],
         vec![parse!("-1+eps")],
@@ -325,7 +325,13 @@ fn portable_artifact_recompiles_and_rejects_modified_content() {
     let mut invalid = bytes.clone();
     let last = invalid.len() - 1;
     invalid[last] ^= 1;
-    assert!(fastsecdec::kernel::KernelSet::from_bytes(&invalid).is_err());
+    assert!(
+        fastsecdec::kernel::KernelSet::from_bytes_with_options(
+            &invalid,
+            fastsecdec::kernel::KernelLoadOptions { validate: true },
+        )
+        .is_err()
+    );
 }
 
 #[test]

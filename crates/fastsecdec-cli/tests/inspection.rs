@@ -14,6 +14,11 @@ fn success(output: std::process::Output) -> serde_json::Value {
     );
     serde_json::from_slice(&output.stdout).unwrap()
 }
+fn failure(output: std::process::Output) -> String {
+    assert!(!output.status.success());
+    let value: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    value["error"]["message"].as_str().unwrap().to_owned()
+}
 #[test]
 fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_in() {
     let dir = tempfile::tempdir().unwrap();
@@ -31,7 +36,9 @@ fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_
     );
     let normal = success(cli().arg("inspect").arg(&base).output().unwrap());
     assert_eq!(normal["inspection_mode"], "metadata_only");
+    assert_eq!(normal["binary_loaded"], false);
     assert_eq!(normal["binary_validated"], false);
+    assert_eq!(normal["metadata_identity_validated"], false);
     let deep = success(
         cli()
             .arg("inspect")
@@ -40,11 +47,64 @@ fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_
             .output()
             .unwrap(),
     );
-    assert_eq!(deep["binary_validated"], true);
+    assert_eq!(deep["binary_loaded"], true);
+    assert_eq!(deep["binary_validated"], false);
+    assert_eq!(deep["metadata_identity_validated"], false);
+    let checked = success(
+        cli()
+            .arg("inspect")
+            .arg(&base)
+            .args(["--deep", "--validate-artifact"])
+            .output()
+            .unwrap(),
+    );
+    assert_eq!(checked["binary_loaded"], true);
+    assert_eq!(checked["binary_validated"], true);
+    assert_eq!(checked["metadata_identity_validated"], true);
     assert_eq!(normal["content_id"], deep["content_id"]);
     assert_eq!(normal["orders"], deep["orders"]);
     assert_eq!(normal["evaluator_statistics"], deep["evaluator_statistics"]);
+    let mut estimates = Vec::new();
+    for validate in [false, true] {
+        let checkpoint = dir.path().join(format!("integration-{validate}.json"));
+        let mut command = cli();
+        command
+            .arg("integrate")
+            .arg(&base)
+            .args([
+                "--method",
+                "mc",
+                "--points",
+                "4",
+                "--shifts",
+                "2",
+                "--workers",
+                "1",
+                "--max-rounds",
+                "1",
+            ])
+            .arg("--checkpoint")
+            .arg(&checkpoint);
+        if validate {
+            command.arg("--validate-artifact");
+        }
+        let result = success(command.output().unwrap());
+        assert_eq!(result["estimate"]["production_complete"], true);
+        estimates.push(result["estimate"].clone());
+    }
+    assert_eq!(estimates[0], estimates[1]);
     fs::remove_file(base.with_extension("fsd.dat")).unwrap();
+    let metadata_checked = success(
+        cli()
+            .arg("inspect")
+            .arg(&base)
+            .arg("--validate-artifact")
+            .output()
+            .unwrap(),
+    );
+    assert_eq!(metadata_checked["metadata_identity_validated"], true);
+    assert_eq!(metadata_checked["binary_loaded"], false);
+    assert_eq!(metadata_checked["binary_validated"], false);
     success(cli().arg("inspect").arg(&base).output().unwrap());
     let selected = success(
         cli()
@@ -77,4 +137,63 @@ fn default_and_selected_inspection_are_json_only_while_deep_and_expressions_opt_
             .status
             .success()
     );
+}
+
+#[test]
+fn certification_is_explicit_and_validation_flags_do_not_change_inspection_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let card = dir.path().join("input.toml");
+    let base = dir.path().join("input.fsd");
+    fs::write(&card,"[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='1+x'\nexponent='-1'\n[generation.evaluator]\nbackend='eager'\n").unwrap();
+    success(
+        cli()
+            .arg("generate")
+            .arg(&card)
+            .arg("--output")
+            .arg(&base)
+            .output()
+            .unwrap(),
+    );
+    let metadata_path = base.with_extension("fsd.json");
+    let original = fs::read_to_string(&metadata_path).unwrap();
+    let metadata: serde_json::Value = serde_json::from_str(&original).unwrap();
+    let changed = original.replacen(
+        metadata["content_id"].as_str().unwrap(),
+        "unchecked-recorded-identity",
+        1,
+    );
+    fs::write(&metadata_path, changed).unwrap();
+    let normal = success(cli().arg("inspect").arg(&base).output().unwrap());
+    assert_eq!(normal["metadata_identity_validated"], false);
+    let checked = cli()
+        .arg("inspect")
+        .arg(&base)
+        .arg("--validate-artifact")
+        .output()
+        .unwrap();
+    assert!(failure(checked).contains("content identity is invalid"));
+    let checked = cli()
+        .arg("integrate")
+        .arg(&base)
+        .arg("--validate-artifact")
+        .output()
+        .unwrap();
+    assert!(failure(checked).contains("content identity is invalid"));
+    let checked = cli()
+        .arg("run")
+        .arg(&card)
+        .arg("--output")
+        .arg(&base)
+        .args(["--resume", "--validate-artifact"])
+        .output()
+        .unwrap();
+    assert!(failure(checked).contains("content identity is invalid"));
+    // This flag concerns saved artifacts and never triggers run-card preparation.
+    let input = cli()
+        .arg("inspect")
+        .arg(dir.path().join("missing.toml"))
+        .arg("--validate-artifact")
+        .output()
+        .unwrap();
+    assert!(failure(input).contains("requires a generated artifact basename"));
 }

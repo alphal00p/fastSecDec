@@ -114,7 +114,7 @@ fn generation_observations_do_not_change_the_pair_identity() {
 }
 
 #[test]
-fn pair_rejects_metadata_and_binary_tampering_and_runs_preflight_before_binary_loading() {
+fn optional_validation_rejects_metadata_tampering_and_preflight_precedes_binary_loading() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("tampered.fsd");
     let artifact = Artifact::new(&current_kernels(), provenance()).unwrap();
@@ -133,10 +133,15 @@ fn pair_rejects_metadata_and_binary_tampering_and_runs_preflight_before_binary_l
         fs::write(&metadata, serde_json::to_vec(&value).unwrap()).unwrap();
         let called = Cell::new(false);
         assert!(
-            Artifact::load_with_preflight(&path, |_| {
-                called.set(true);
-                Ok(())
-            })
+            Artifact::load_observed_with_options(
+                &path,
+                KernelLoadOptions { validate: true },
+                |_| {
+                    called.set(true);
+                    Ok(())
+                },
+                |_| std::ops::ControlFlow::Continue(())
+            )
             .is_err()
         );
         assert!(!called.get());
@@ -152,6 +157,56 @@ fn pair_rejects_metadata_and_binary_tampering_and_runs_preflight_before_binary_l
     assert!(Artifact::load(&path).is_err());
     fs::remove_file(data).unwrap();
     assert!(Artifact::load(&path).is_err());
+}
+
+#[test]
+fn fast_load_skips_certification_but_keeps_pair_and_dependency_admission() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("trusted.fsd");
+    let artifact = Artifact::new(&current_kernels(), provenance()).unwrap();
+    artifact.save(&path).unwrap();
+    let metadata = paths(&path).unwrap().0;
+    let original = fs::read(&metadata).unwrap();
+    let changed = String::from_utf8(original.clone()).unwrap().replacen(
+        &artifact.content_id,
+        "unverified-recorded-id",
+        1,
+    );
+    fs::write(&metadata, changed).unwrap();
+    let (fast, mut kernels) = Artifact::load(&path).unwrap();
+    assert!(!fast.validation.metadata_identity && !fast.validation.binary);
+    assert!(vector(&mut kernels).iter().all(|value| value.is_finite()));
+    assert!(Artifact::load_with_options(&path, KernelLoadOptions { validate: true }).is_err());
+
+    fs::write(&metadata, &original).unwrap();
+    let (checked, _) =
+        Artifact::load_with_options(&path, KernelLoadOptions { validate: true }).unwrap();
+    assert!(checked.validation.metadata_identity && checked.validation.binary);
+    assert_eq!(
+        serde_json::to_value(&checked).unwrap(),
+        serde_json::to_value(&artifact).unwrap()
+    );
+
+    let mut mismatched: serde_json::Value = serde_json::from_slice(&original).unwrap();
+    mismatched["kernel_content_id"] = "other-kernel".into();
+    fs::write(&metadata, serde_json::to_vec(&mismatched).unwrap()).unwrap();
+    assert!(
+        Artifact::load(&path)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("kernel identity differs")
+    );
+    mismatched["kernel_content_id"] = artifact.kernel_content_id.clone().into();
+    mismatched["provenance"]["dependencies"][0]["revision"] = "other-revision".into();
+    fs::write(&metadata, serde_json::to_vec(&mismatched).unwrap()).unwrap();
+    assert!(
+        Artifact::load(&path)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("dependency identities differ")
+    );
 }
 
 #[test]

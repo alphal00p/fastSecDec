@@ -2,7 +2,7 @@
 use super::{atom, parameters, validate_orders};
 use crate::{
     kernel::{
-        CompilationSettings, KernelError, KernelSet, PrecisionPolicy,
+        CompilationSettings, KernelError, KernelLoadOptions, KernelSet, PrecisionPolicy,
         cancellation::Cancellation,
         metadata::PortableMetadata,
         program::{self, SectorProgram},
@@ -204,9 +204,11 @@ pub(super) fn component_layout(count: usize, complex: bool) -> Vec<CoefficientCo
 
 pub(super) fn load(
     bytes: &[u8],
+    options: KernelLoadOptions,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
     let artifact: Artifact = serde_json::from_slice(bytes)?;
+    super::validate_content_id(&artifact.content_id)?;
     let payload = artifact.payload;
     let settings = settings_from_policy(&payload.compiler_policy);
     if payload.version != 3
@@ -218,7 +220,7 @@ pub(super) fn load(
             "unsupported native program codec or compiler policy".into(),
         ));
     }
-    if content_id(&payload)? != artifact.content_id {
+    if options.validate && content_id(&payload)? != artifact.content_id {
         return Err(KernelError::Artifact(
             "kernel content identity mismatch".into(),
         ));
@@ -235,6 +237,7 @@ pub(super) fn load(
         ));
     };
     let mut programs = Vec::with_capacity(payload.sectors.len());
+    let mut encoded_programs = Vec::with_capacity(payload.sectors.len());
     for sector in payload.sectors {
         let parameters = parameters(sector.parameters)?;
         if parameters.is_empty() {
@@ -270,6 +273,7 @@ pub(super) fn load(
             cancellation,
             real_coefficients: vec![false; payload.orders.len()],
         });
+        encoded_programs.push(std::sync::Arc::<[u8]>::from(sector.program));
     }
     let coordinates = programs
         .iter()
@@ -277,7 +281,7 @@ pub(super) fn load(
         .collect::<Vec<_>>();
     let metadata = payload
         .metadata
-        .map(|m| m.into_native(&coordinates))
+        .map(|m| m.into_native(&coordinates, options.validate))
         .transpose()?;
     let exact = payload
         .exact
@@ -302,6 +306,7 @@ pub(super) fn load(
         use_complex,
         Vec::new(),
         settings.expect("compiler policy validated"),
+        Some(encoded_programs),
         progress,
     )?;
     kernels.content_id = artifact.content_id;
