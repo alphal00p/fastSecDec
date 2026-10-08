@@ -7,15 +7,17 @@ publication and goal completion.
 
 ## Validation snapshot
 
-The final full workspace run and focused rerun validate **638 distinct tests,
-with 28 intentional ignores**. The reviewer counted the full run directly from
-`output/serial-validation/workspace-final.log`: 637 passed, one failed and 28
-ignored. Its sole failure was test cleanup in `family_preparation`, which
-deleted the manifest before its helper resolved the immutable data filename.
-The two-line cleanup-order correction passes both tests in `family-final.log`.
-The already-passing repeated test is counted only once. All serial-generation,
-serial-integration, runtime/exact, process-coordinate, refinement, covariance
-and recovery controls pass; no failed scientific control is left outstanding.
+A fresh full workspace run on committed revision `fbf862b` passes **638 tests,
+with zero failures and 28 intentional ignores** in one invocation:
+`cargo test --workspace --no-fail-fast --locked -j4 -- --test-threads=1`
+under the documented licensed `nix-shell` environment. The independent reviewer
+counted all 82 target summaries in
+`output/serial-one-worker-comparison/workspace-tests.log`; the process exits
+successfully. This supersedes the earlier full run plus focused cleanup rerun.
+Both `family_preparation` tests now pass in the full suite. All
+serial-generation, serial-integration, runtime/exact, process-coordinate,
+refinement, covariance and recovery controls pass. Fresh formatting and diff
+checks also pass; no source changed during these checks.
 
 Earlier findings are resolved in the full run: relative artifact publication
 normalizes an empty parent to `.`, generation-specific data filenames are
@@ -71,6 +73,16 @@ one-per-mil convergence claims. The independent analytic sector-count RSS
 matrix remains the direct evidence for residency scaling; this larger example
 establishes that native generation and both integration paths complete within
 the bounded workload.
+
+A subsequent [matched one-worker release comparison](serial-gghh-memory-comparison.md)
+uses the unchanged shipped symbolic/Taylor card and the same executable for
+ordinary and serial generation. Both complete all 30 sectors with matching
+scientific identity and coefficient layout. The externally sampled aggregate
+RSS peaks are **931.3 MiB ordinary versus 220.0 MiB serial**, a **76.4% reduction**;
+wall times are **226.5 s versus 310.6 s**. These are single sequential runs with
+20 ms sampling, not repeated timing benchmarks or OS high-water measurements.
+This directly confirms a RAM reduction on the requested double-box workload,
+in addition to the separate sector-count scaling controls.
 
 ## Additional interface and persistence checks
 

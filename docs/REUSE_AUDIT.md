@@ -2225,11 +2225,15 @@ coordinate sequences, including process replacement and checkpoint restoration.
 The [serial acceptance matrix](reviews/serial-acceptance.md) records the
 executable gates and separates native, portable-host and binding evidence.
 
-Final validation covers 638 distinct workspace tests with 28 deliberately
-ignored diagnostics, 72 portable-host tests, strict workspace/all-target Clippy,
-and the isolated Python consumer with `python_stubgen`. The complete workspace
-run passed 637 tests and exposed one test-cleanup ordering error; both tests in
-that target passed after correcting the cleanup. No numerical guard was relaxed.
+Final validation covers 638 workspace tests with 28 deliberately ignored
+diagnostics, 72 portable-host tests, strict workspace/all-target Clippy,
+and the isolated Python consumer with `python_stubgen`. A fresh complete
+workspace run on committed revision `fbf862b` passes all 638 tests with zero
+failures, including both previously corrected cleanup tests. Its log is
+`output/serial-one-worker-comparison/workspace-tests.log`; fresh formatting and
+diff checks pass too. The unchanged earlier portable, Clippy and binding gates
+were not repeated for this measurement-only follow-up. No numerical guard was
+relaxed.
 The Python feature graph required an explicit `BTreeSet` collection type because
 its additional dependency traits make inference ambiguous; no dependency patch
 was needed. Portable-host and binding compilation do not establish browser/Wasm
@@ -2241,3 +2245,13 @@ Havana MC. The finite coefficients agree within 0.76 combined standard errors.
 These small controls stop at their explicit work limits and are not per-mil
 convergence or optimized performance claims. The acceptance matrix records the
 commands, debug-build timings and aggregate memory measurements.
+
+The subsequent [matched release double-box comparison](reviews/serial-gghh-memory-comparison.md)
+directly measures ordinary versus serial generation with the unchanged shipped
+symbolic/Taylor card, one worker and one pinned executable. Both produce all
+30 sectors with matching scientific identity and coefficient layout. Aggregate
+parent-and-descendant RSS sampled every 20 ms peaks at 931.3 MiB ordinary and
+220.0 MiB serial (76.4% lower). Wall time increases from 226.5 s to 310.6 s in
+these single sequential observations. The serial parent peaks at 11.7 MiB;
+at most one child is resident. This is a measured reduction for this workload,
+not a claim that arbitrary native context overhead is eliminated.
