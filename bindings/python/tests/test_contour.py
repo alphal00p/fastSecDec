@@ -141,7 +141,7 @@ def test_exact_only_contour_sessions_require_pilot_on_creation_and_restore(
     configured = exact_contour_template.with_parameters({}, contour=sd.ContourSettings.fixed(
         0.01, validation=policy, pilot_points=2))
     assert any(value != 0 for value in configured.exact_coefficients)
-    create = (lambda owner: owner.session(sd.QmcSettings(points=32, shifts=2))) if lane == "qmc" else (
+    create = (lambda owner: owner.session(sd.QmcSettings(points=32, shifts=2, rule="hkkn_alpha3"))) if lane == "qmc" else (
         lambda owner: owner.mc_session(sd.HavanaDiscreteSettings(points_per_batch=32, batches=2)))
     restore = (lambda owner, state: owner.restore(state)) if lane == "qmc" else (
         lambda owner, state: owner.restore_mc(state))

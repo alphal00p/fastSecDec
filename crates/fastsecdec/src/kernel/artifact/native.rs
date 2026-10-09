@@ -207,6 +207,9 @@ pub(super) fn load(
     options: KernelLoadOptions,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
+    // This historical format has no selected helper descriptor. In particular
+    // it must not inherit an unrelated caller's dynamic preparation scope.
+    let _preparing = crate::kernel::NativeProgramDescriptor::enter_optional(None);
     let artifact: Artifact = serde_json::from_slice(bytes)?;
     super::validate_content_id(&artifact.content_id)?;
     let payload = artifact.payload;

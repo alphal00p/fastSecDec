@@ -1,17 +1,24 @@
 //! Shared exact multiplicity, zero-dimensional folding and Laurent assembly.
 use super::{
-    ChartRecord, DomainAssessment, GeneratedIntegral, GeneratedSector, GenerationMetadata,
-    coefficients, conditioning::Profile,
+    ChartRecord, DomainAssessment, GeneratedIntegral, GeneratedSector, GenerationError,
+    GenerationMetadata, coefficients, conditioning::Profile, program::ProgramData,
 };
 use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
 use symbolica::atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol};
-type Pending = (SectorMap, Vec<Symbol>, BTreeMap<i32, AliasedAtom>, Profile);
+type Pending = (
+    SectorMap,
+    Vec<Symbol>,
+    BTreeMap<i32, AliasedAtom>,
+    Profile,
+    ProgramData,
+);
 pub(super) struct Assembly {
     pending: Vec<Pending>,
     exact: BTreeMap<i32, Atom>,
     minimum: i32,
     kernel_indices: BTreeMap<usize, usize>,
+    program: ProgramData,
 }
 impl Assembly {
     pub fn new(max_order: i32) -> Self {
@@ -20,6 +27,7 @@ impl Assembly {
             exact: BTreeMap::new(),
             minimum: max_order.min(0),
             kernel_indices: BTreeMap::new(),
+            program: ProgramData::default(),
         }
     }
     pub fn push(
@@ -29,7 +37,9 @@ impl Assembly {
         parameters: Vec<Symbol>,
         multiplicity: usize,
         output: coefficients::Output,
-    ) {
+        program: ProgramData,
+    ) -> Result<(), GenerationError> {
+        self.program.merge(&program)?;
         let coefficients = output
             .coefficients
             .into_iter()
@@ -65,8 +75,9 @@ impl Assembly {
             self.kernel_indices
                 .insert(representative_index, self.pending.len());
             self.pending
-                .push((map, parameters, coefficients, conditioning));
+                .push((map, parameters, coefficients, conditioning, program));
         }
+        Ok(())
     }
     pub fn finish(
         self,
@@ -82,7 +93,9 @@ impl Assembly {
             .pending
             .into_iter()
             .map(
-                |(map, parameters, coefficients, conditioning)| GeneratedSector {
+                |(map, parameters, coefficients, conditioning, program)| GeneratedSector {
+                    program_descriptor: program.descriptor,
+                    dynamic_check_sources: program.checks,
                     deferred: None,
                     cancellation_degree: conditioning.degree,
                     cancellation_terms: conditioning.rows,
@@ -103,6 +116,8 @@ impl Assembly {
             .map(|order| self.exact.get(order).cloned().unwrap_or(Atom::Zero))
             .collect();
         GeneratedIntegral {
+            program_descriptor: self.program.descriptor,
+            dynamic_check_sources: self.program.checks,
             metadata: GenerationMetadata { domain, charts },
             orders,
             sectors,

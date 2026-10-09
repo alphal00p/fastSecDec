@@ -6,6 +6,7 @@ use crate::{
     parametric::FactorSemantics,
 };
 use symbolica::atom::{Atom, Symbol};
+pub(super) mod program;
 
 pub(super) struct PreparedTerm {
     pub powers: Vec<Atom>,

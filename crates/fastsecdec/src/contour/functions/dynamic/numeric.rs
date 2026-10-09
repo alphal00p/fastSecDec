@@ -11,7 +11,7 @@ use symbolica::{
     solve::{BracketedRootConvergence, BracketedRootOptions, nsolve_bracketed},
 };
 
-pub(super) trait Number:
+pub(crate) trait Number:
     Real + RealLike + PartialOrd + EvaluationDomain + Send + Sync
 {
     fn one_at(bits: u32) -> Self;

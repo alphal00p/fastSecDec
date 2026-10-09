@@ -325,6 +325,7 @@ fn semantic_id_v10(
     serde_json::to_writer(&mut hash, descriptor)?;
     Ok(hash.finalize().to_hex().to_string())
 }
+#[cfg(test)]
 fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
     encode_with_descriptor(payload, None)
 }
@@ -544,7 +545,9 @@ pub(super) fn partition(
     let descriptor = kernels
         .program_descriptor
         .as_ref()
-        .map(|descriptor| descriptor.for_payload(&source_indices, &payload.exact))
+        .map(|descriptor| {
+            descriptor.for_payload(&source_indices, &payload.exact, kernels.metadata.as_ref())
+        })
         .transpose()?;
     let (id, bytes) = encode_with_descriptor(
         payload,
@@ -562,6 +565,10 @@ pub(super) fn generated(
     precision.validate()?;
     settings.validate()?;
     let runtime_parameters = crate::kernel::compilation::runtime_inputs(value, &[]);
+    crate::kernel::compilation::validate_descriptor(value, &runtime_parameters)?;
+    let _preparing = crate::kernel::NativeProgramDescriptor::enter_optional(
+        value.program_descriptor().map(std::sync::Arc::as_ref),
+    );
     let contour_checks =
         crate::kernel::contour::build_checks(value.metadata(), &runtime_parameters, settings)?;
     let complex = crate::kernel::compilation::requires_complex(value, &runtime_parameters);
@@ -579,19 +586,24 @@ pub(super) fn generated(
             })
         })
         .collect::<Result<_, KernelError>>()?;
-    Ok(encode(Payload {
-        codec: CODEC.into(),
-        compiler_policy: native::compiler_policy_with_settings(settings),
-        orders: value.orders().to_vec(),
-        components: native::component_layout(value.orders().len(), complex),
-        exact: value.exact_coefficients().to_vec(),
-        runtime_parameters,
-        runtime_mass_constraints: Vec::new(),
-        precision,
-        sectors,
-        metadata: Some(PortableMetadata::from_native(value.metadata())),
-        contour_checks,
-    })?
+    Ok(encode_with_descriptor(
+        Payload {
+            codec: CODEC.into(),
+            compiler_policy: native::compiler_policy_with_settings(settings),
+            orders: value.orders().to_vec(),
+            components: native::component_layout(value.orders().len(), complex),
+            exact: value.exact_coefficients().to_vec(),
+            runtime_parameters,
+            runtime_mass_constraints: Vec::new(),
+            precision,
+            sectors,
+            metadata: Some(PortableMetadata::from_native(value.metadata())),
+            contour_checks,
+        },
+        value.program_descriptor().map(|descriptor| {
+            crate::kernel::recipe::SavedProgramDescriptor::from_native(descriptor)
+        }),
+    )?
     .1)
 }
 #[cfg(test)]
@@ -713,6 +725,7 @@ pub(super) fn load_with_progress(
         )?;
         descriptor.admit_runtime()?;
     }
+    let _preparing = crate::kernel::NativeProgramDescriptor::enter_optional(descriptor.as_ref());
     let settings = native::settings_from_policy(&payload.compiler_policy);
     if payload.codec != CODEC || settings.is_none() {
         return Err(failure("unsupported codec or compiler policy"));
@@ -784,6 +797,9 @@ pub(super) fn load_with_progress(
         .metadata
         .map(|m| m.into_native(&coordinates, options.validate))
         .transpose()?;
+    if let Some(descriptor) = &descriptor {
+        descriptor.validate_generation(metadata.as_ref(), &payload.runtime_parameters)?;
+    }
     if !use_complex
         && payload.exact.iter().any(|coefficient| {
             !program::is_real_expression(coefficient, &payload.runtime_parameters)

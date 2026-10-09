@@ -27,7 +27,13 @@ pub enum GenerationSessionState {
     Complete,
 }
 
-type Representative = (SectorMap, Vec<Symbol>, Vec<MappedTerm>, usize);
+type Representative = (
+    SectorMap,
+    Vec<Symbol>,
+    Vec<MappedTerm>,
+    usize,
+    super::program::ProgramData,
+);
 type Representatives = BTreeMap<usize, Representative>;
 
 enum Stage {

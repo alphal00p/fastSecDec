@@ -101,7 +101,11 @@ pub(crate) fn options(
         max_order,
         mode,
         subtraction,
-        contour,
+        program_recipe: if contour {
+            fastsecdec::kernel::ProgramRecipe::FixedV1
+        } else {
+            fastsecdec::kernel::ProgramRecipe::UndeformedV1
+        },
         ..Default::default()
     };
     options.coefficient_expansion.method = method;

@@ -1,7 +1,7 @@
 # Dynamic contour programs and artifact selection
 
 2026-10-09. Design proposal for review after the accepted fixed-mode gates.
-This document changes no production implementation. It complements
+The proposal and subsequent implementation evidence complement
 [the dynamic algebra/solver research](contour-dynamic-implementation.md) and
 the approved [Phase B plan](../../CONTOUR_DEFORMATION_PLAN.md).
 
@@ -34,7 +34,7 @@ Undeformed generation keeps a single undeformed recipe and no contour work.
 
 | Boundary | Current behavior and implication |
 | --- | --- |
-| `generation/types.rs` | `GenerationOptions.contour` is a boolean; a generated integral contains a single set of sectors and exact coefficients. It currently means fixed construction, not a promise of dynamic support. |
+| `generation/types.rs` | `GenerationOptions.program_recipe` selects one explicit recipe, defaulting to undeformed. A generated integral contains that recipe's sectors, exact coefficients and native helper owners. Polynomial dynamic generation is staged; dynamic numerical admission remains closed. |
 | `generation/work.rs`, `mapping.rs` | Deformation enters before subtraction. The selected smooth density must be built separately for dynamic strength; rebinding the fixed lambda cannot supply its missing derivative terms. |
 | `generation/streaming/sector.rs` | One `GeneratedUnit` contains at most one stochastic sector, plus exact terms and original chart IDs. A worker consumes this unit and returns compact receipts. |
 | `kernel/compilation.rs`, `program.rs` | One `CompilationJob` lowers/optimizes a complete Laurent-vector sector. Native Symbolica exact IR is the shared source for normal, eager and precision-rescue execution. |
@@ -207,9 +207,10 @@ interchangeable without promising ordinary execution the serial RSS bound.
 
 Separate three identities:
 
-1. **Source identity:** graph/parametric input, generation mathematics and
-   geometry shared by the program set.
-2. **Selected recipe identity:** recipe version, optimized native programs,
+1. **Source identity:** canonical physical parametric input, ordered physical
+   runtime schema and mass constraints. It excludes generation options,
+   requested expansion orders and the selected contour recipe.
+2. **Selected compiled recipe identity:** recipe version, optimized native programs,
    local layouts/constraints and branch semantics.
 3. **Bound integrand identity:** selected recipe plus the complete physical
    point and lambda or S/L/R/settings.
@@ -220,6 +221,17 @@ not, alone, a complete checkpoint identity for a selected numerical problem.
 Checkpoint compatibility must include the selected recipe and bound settings.
 Policies/pilot provenance remain separate; changing validation policy alone
 must not invalidate already accepted statistics.
+
+Native v9/v10 record IDs deliberately include optimized evaluator and checker
+bytes, compiler settings and native helper transport digests. They identify a
+compiled representation, and equivalent optimizer outputs may have different
+IDs. Their historical validation rules remain unchanged. This is distinct
+from the process-independent physical source identity. New radius callback
+tags name the stable defining contract and coefficient arity rather than its
+serialized helper bytes; descriptor preparation scopes select the exact saved
+owner and never obtain another artifact's same-arity helper from a global
+fallback. Saved helper codec v1 retains its original digest-based tag; codec v2
+uses the stable contract tag with the same separately verified byte digest.
 
 Changing recipes requires a fresh statistical session and pilot, even when
 their exact integrals agree. Fixed and dynamic points are different random
@@ -309,3 +321,56 @@ separate required gate from symbolic derivative hooks.
 
 This proposal is ready for mathematical, artifact-compatibility and HEPKit API
 review. No dynamic production code or owner-library patch was added here.
+## Generation ownership transfer (implementation gate in progress)
+
+Generation now transfers the immutable native recipe owner separately from its
+symbolic expression tags. The staging adapter uses the existing saved helper
+codec; staged restoration registers helper owners before importing expressions.
+Detached compilation jobs and their completions retain an explicit strong owner
+until numerical callback workspaces have been constructed and the compiled
+integral has adopted its descriptor. Normal and caller-stepped compilation use
+the same attachment path.
+
+The association gate compares the explicit runtime schema and retained
+representative charts, including their full dimension and positive-factor
+count, before evaluator construction. Symmetry copies do not duplicate the
+executable descriptor, but a projection may omit their own descriptor only when
+the actual retained representative is selected and has its descriptor. Exact
+aggregation keeps only helpers referenced by its exact expressions.
+
+The generation-only `DynamicCheckSource` captures native polynomial/rational
+atoms for the independent future checker: direction norm, leading causal term,
+odd-order bounds and spectral data, and positive factors and their ray
+coefficients. Its F/U ray uses an independent strength input, with no production
+root callback in the source. It is transported through staging; a later slice
+will optimize and save the checker programs. No final dynamic numerical
+admission is implied by this transfer increment, and binding and restoration
+continue to reject dynamic execution explicitly until that checker is complete.
+
+Independent review confirms the ownership and representative selection
+boundaries. The transfer gate also validates the complete ordered source-output
+schema, source count and coordinate identities against the descriptor. Before
+lifting dynamic admission, the saved checker must additionally bind the actual
+causal/positive polynomial identities and their proofs. Matching dimensions,
+factor counts and output schemas alone is deliberately not treated as a
+certificate of those identities or of the causal bounds. New checker fields
+will use an explicit new wire layout, preserving existing v10 decoding.
+
+Native acceptance at this increment: descriptor/source tests 9/9, selected
+polynomial generation controls 2/2, generation streaming controls 12/12, and the
+full core library 271 passed with 16 ignored. The full library includes a detached
+compilation job that outlives its generated owner and still evaluates its native
+callback correctly. The streamed subprocess additionally evaluates after dropping
+both its generated object and its compiled kernel owner. The final
+symmetry-candidate lifetime retention passes both the focused streaming rerun
+and the complete library gate. Canonical source-identity tests additionally
+verify the artifact-writer contract and reproducibility across unrelated native
+symbol and coefficient-ring registrations in a fresh process. Stable helper
+contract tags pass reverse-registration subprocess controls; scoped owner
+routing passes nested/unwind, foreign invalid-body, failed-restore, legacy-codec
+and detached precision-mapping tests. The descriptorless native-v3 reader
+additionally rejects semantic callbacks under an unrelated outer preparation
+and restores that caller's state on failure. The complete CLI package passes
+156 tests with 7 ignored on the scoped-helper increment; the subsequent
+native-v3 guard is exercised by the final complete core gate. Strict workspace
+and all-target Clippy passes with warnings denied.

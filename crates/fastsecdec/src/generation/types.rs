@@ -7,9 +7,11 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 pub struct GenerationOptions {
     /// How sector maps and endpoint derivatives enter evaluator construction.
     pub mode: GenerationMode,
-    /// Generate a causal parameter-space map with a real runtime strength.
-    /// Disabled by default; it does not infer F from polynomial ordering.
-    pub contour: bool,
+    /// Select one mathematical evaluator recipe. Scheduling is independent of
+    /// this choice; public program archives can retain several alternatives.
+    /// Contour recipes require explicit F/U semantics and never infer them
+    /// from polynomial ordering.
+    pub program_recipe: crate::kernel::indexed::ProgramRecipe,
     /// Legacy recorded caller assertion; threshold freedom is always the
     /// caller's responsibility when no regularisation is requested.
     pub assume_no_threshold: bool,
@@ -125,7 +127,7 @@ impl Default for GenerationOptions {
     fn default() -> Self {
         Self {
             mode: GenerationMode::default(),
-            contour: false,
+            program_recipe: crate::kernel::indexed::ProgramRecipe::UndeformedV1,
             assume_no_threshold: false,
             max_order: 0,
             decomposition: DecompositionOptions::default(),
@@ -134,6 +136,13 @@ impl Default for GenerationOptions {
             subtraction: SubtractionStrategy::Taylor,
             coefficient_expansion: CoefficientExpansionOptions::default(),
         }
+    }
+}
+
+impl GenerationOptions {
+    /// Whether this selected recipe deforms the smooth sector density.
+    pub fn contour_enabled(&self) -> bool {
+        self.program_recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1
     }
 }
 
@@ -242,6 +251,8 @@ pub struct EndpointProfileRow {
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
+    pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,
+    pub(crate) dynamic_check_sources: Vec<std::sync::Arc<crate::kernel::DynamicCheckSource>>,
     pub(crate) deferred: Option<std::sync::Arc<super::numerical_dual::DualSector>>,
     pub(crate) cancellation_degree: usize,
     pub(crate) cancellation_terms: Vec<Vec<usize>>,
@@ -254,6 +265,16 @@ pub struct GeneratedSector {
 }
 
 impl GeneratedSector {
+    pub(crate) fn program_descriptor(
+        &self,
+    ) -> Option<&std::sync::Arc<crate::kernel::NativeProgramDescriptor>> {
+        self.program_descriptor.as_ref()
+    }
+    pub(crate) fn dynamic_check_sources(
+        &self,
+    ) -> &[std::sync::Arc<crate::kernel::DynamicCheckSource>] {
+        &self.dynamic_check_sources
+    }
     pub fn generation_mode(&self) -> GenerationMode {
         if self.deferred.is_some() {
             GenerationMode::NumericalDual
@@ -310,6 +331,8 @@ impl GeneratedSector {
 
 #[derive(Clone, Debug)]
 pub struct GeneratedIntegral {
+    pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,
+    pub(crate) dynamic_check_sources: Vec<std::sync::Arc<crate::kernel::DynamicCheckSource>>,
     pub(crate) metadata: super::GenerationMetadata,
     pub(crate) orders: Vec<i32>,
     pub(crate) sectors: Vec<GeneratedSector>,
@@ -317,6 +340,16 @@ pub struct GeneratedIntegral {
 }
 
 impl GeneratedIntegral {
+    pub(crate) fn program_descriptor(
+        &self,
+    ) -> Option<&std::sync::Arc<crate::kernel::NativeProgramDescriptor>> {
+        self.program_descriptor.as_ref()
+    }
+    pub(crate) fn dynamic_check_sources(
+        &self,
+    ) -> &[std::sync::Arc<crate::kernel::DynamicCheckSource>] {
+        &self.dynamic_check_sources
+    }
     pub fn metadata(&self) -> &super::GenerationMetadata {
         &self.metadata
     }

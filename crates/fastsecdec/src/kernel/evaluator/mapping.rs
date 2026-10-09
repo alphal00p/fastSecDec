@@ -4,7 +4,7 @@
 use super::super::program::ExactProgram;
 use std::{collections::HashSet, sync::Arc};
 use symbolica::{
-    atom::{Atom, Symbol},
+    atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
     evaluate::{EvaluationDomain, ExportedInstructions, ExpressionEvaluator, Instruction},
 };
@@ -16,14 +16,25 @@ struct Requirement {
     fixed_args: Option<Vec<Complex<Rational>>>,
 }
 
-pub(in crate::kernel) struct MappingRequirements(Vec<Requirement>);
+pub(in crate::kernel) struct MappingRequirements(
+    Vec<Requirement>,
+    crate::contour::functions::dynamic::ProgramScope,
+);
 
 impl MappingRequirements {
     /// Called while constructing the kernel, before caller-owned workers start.
     /// In particular, parsing canonical native tags never happens per sample.
     pub(in crate::kernel) fn new(exact: &ExactProgram) -> Result<Arc<Self>, String> {
-        let mut requirements = Self(Vec::new());
+        let mut requirements = Self(Vec::new(), Default::default());
         requirements.collect(&exact.export_instructions(), &mut HashSet::new())?;
+        requirements.1 = crate::contour::functions::dynamic::ProgramScope::capture_for(
+            requirements.0.iter().flat_map(|requirement| {
+                requirement
+                    .tags
+                    .iter()
+                    .flat_map(|tag| tag.get_all_symbols(true))
+            }),
+        )?;
         Ok(Arc::new(requirements))
     }
 
@@ -81,6 +92,7 @@ impl MappingRequirements {
         coefficient: impl Fn(&Complex<Rational>) -> T,
         bits: u32,
     ) -> Result<ExpressionEvaluator<T>, String> {
+        let _preparing = self.1.enter();
         for requirement in &self.0 {
             let info = requirement.symbol.get_evaluation_info().ok_or_else(|| {
                 format!(

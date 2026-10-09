@@ -33,6 +33,7 @@ mod precision_cache;
 mod program;
 mod recipe;
 pub(crate) use program::is_real_expression;
+pub(crate) use recipe::DynamicCheckSource;
 pub use recipe::{DynamicChartRecipe, NativeProgramDescriptor, PositiveFactorProof};
 mod projection;
 mod stability;
@@ -548,6 +549,9 @@ impl KernelSet {
         &mut self,
         values: &std::collections::BTreeMap<Symbol, f64>,
     ) -> Result<(), KernelError> {
+        if let Some(descriptor) = &self.program_descriptor {
+            descriptor.admit_runtime()?;
+        }
         if let Some(lambda) = values.get(&crate::contour::lambda_symbol())
             && (!lambda.is_finite() || *lambda <= 0.0)
         {
@@ -579,6 +583,7 @@ impl KernelSet {
         if self.runtime_parameters.is_empty() {
             return Ok(());
         }
+        let _preparing = NativeProgramDescriptor::enter_optional(self.program_descriptor.as_ref());
         let exact_coefficients = exact::evaluate(
             &self.exact_expressions,
             values,

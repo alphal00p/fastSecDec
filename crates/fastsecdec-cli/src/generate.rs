@@ -118,7 +118,7 @@ pub(crate) fn generate_with_overrides(
         mode: loaded.card.generation.mode,
         subtraction: loaded.card.generation.subtraction,
         assume_no_threshold: loaded.card.generation.assume_no_threshold,
-        contour: loaded.card.generation.contour,
+        program_recipe: loaded.card.generation.program_recipe(),
         coefficient_expansion: loaded.card.generation.coefficient_expansion.clone(),
         ..GenerationOptions::default()
     };

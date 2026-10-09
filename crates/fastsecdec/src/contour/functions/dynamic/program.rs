@@ -1,6 +1,7 @@
 //! Saved owner evaluator for the coefficient-only radius equation.
 use std::{
-    collections::HashMap,
+    cell::RefCell,
+    collections::{BTreeMap, HashMap},
     sync::{Arc, LazyLock, Mutex, Weak},
 };
 use symbolica::{
@@ -12,6 +13,7 @@ use symbolica::{
 
 type Exact = ExpressionEvaluator<Complex<Rational>>;
 const TAG_PREFIX: &str = "fastsecdec::contour::dynamic::root_program_";
+const SEMANTIC_PREFIX: &str = "fastsecdec::contour::dynamic::root_contract_v1_";
 static ACTIVE: LazyLock<Mutex<HashMap<String, Weak<Program>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -21,10 +23,65 @@ static ACTIVE: LazyLock<Mutex<HashMap<String, Weak<Program>>>> =
 pub(crate) struct RootProgram(pub(super) Arc<Program>);
 
 pub(super) struct Program {
+    version: u32,
     pub coefficient_count: usize,
     pub digest: String,
     pub exact: Exact,
     bytes: Vec<u8>,
+}
+
+thread_local! {
+    static PREPARING: RefCell<ProgramScope> = RefCell::new(ProgramScope::default());
+}
+
+/// Exact owners selected by one caller-owned descriptor, not a process-wide
+/// fallback by arity. Numeric callbacks capture the selected owner at mapping.
+#[derive(Clone, Default)]
+pub(crate) struct ProgramScope(BTreeMap<Symbol, RootProgram>);
+
+pub(crate) struct ProgramPreparation(
+    ProgramScope,
+    // Drop restores thread-local state and must run on the entering thread.
+    std::marker::PhantomData<std::rc::Rc<()>>,
+);
+
+impl Drop for ProgramPreparation {
+    fn drop(&mut self) {
+        PREPARING.replace(std::mem::take(&mut self.0));
+    }
+}
+
+impl ProgramScope {
+    pub(crate) fn new(helpers: &[RootProgram]) -> Self {
+        let mut owners = helpers.iter().collect::<Vec<_>>();
+        owners.sort_by(|left, right| left.digest().cmp(right.digest()));
+        let mut scope = Self::default();
+        for owner in owners {
+            scope.0.entry(owner.tag()).or_insert_with(|| owner.clone());
+        }
+        scope
+    }
+
+    pub(crate) fn capture_for(tags: impl Iterator<Item = Symbol>) -> Result<Self, String> {
+        PREPARING.with_borrow(|active| {
+            let mut selected = BTreeMap::new();
+            for tag in tags {
+                if let Some(owner) = active.0.get(&tag) {
+                    selected.insert(tag, owner.clone());
+                } else if tag.get_name().starts_with(SEMANTIC_PREFIX) {
+                    return Err(
+                        "dynamic root helper requires its selected descriptor preparation scope"
+                            .into(),
+                    );
+                }
+            }
+            Ok(Self(selected))
+        })
+    }
+
+    pub(crate) fn enter(&self) -> ProgramPreparation {
+        ProgramPreparation(PREPARING.replace(self.clone()), std::marker::PhantomData)
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -56,7 +113,7 @@ impl RootProgram {
             .build()
             .map_err(|error| error.to_string())?;
         let saved = Saved {
-            version: 1,
+            version: 2,
             coefficient_count,
             exact,
         };
@@ -76,7 +133,7 @@ impl RootProgram {
     }
 
     fn admit(saved: Saved, bytes: Vec<u8>) -> Result<Self, String> {
-        if saved.version != 1
+        if !matches!(saved.version, 1 | 2)
             || saved.coefficient_count == 0
             || saved.coefficient_count > (i32::MAX as usize / 2)
             || saved.coefficient_count.checked_add(1) != Some(saved.exact.get_input_len())
@@ -109,6 +166,7 @@ impl RootProgram {
             return Ok(Self(existing));
         }
         let program = Arc::new(Program {
+            version: saved.version,
             coefficient_count: saved.coefficient_count,
             digest: digest.clone(),
             exact: saved.exact,
@@ -128,7 +186,17 @@ impl RootProgram {
         &self.0.digest
     }
     pub(crate) fn tag(&self) -> Symbol {
-        symbol!(&format!("{TAG_PREFIX}{}", self.0.digest))
+        if self.0.version == 1 {
+            symbol!(&format!("{TAG_PREFIX}{}", self.0.digest))
+        } else {
+            symbol!(&format!("{SEMANTIC_PREFIX}{}", self.coefficient_count()))
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn prepare<R>(&self, prepare: impl FnOnce() -> R) -> R {
+        let _scope = ProgramScope::new(std::slice::from_ref(self)).enter();
+        prepare()
     }
 }
 
@@ -141,6 +209,15 @@ pub(super) fn resolve(tags: &[AtomView<'_>]) -> Result<Arc<Program>, String> {
     };
     let symbol = tag.get_symbol();
     let name = symbol.get_name();
+    if name.starts_with(SEMANTIC_PREFIX) {
+        let owner = PREPARING
+            .with_borrow(|scope| scope.0.get(&symbol).cloned())
+            .ok_or("dynamic root helper requires its selected descriptor preparation scope")?;
+        if tags[0] != Atom::num(owner.coefficient_count()).as_view() {
+            return Err("dynamic root helper arity differs from its callback".into());
+        }
+        return Ok(owner.0);
+    }
     let Some(digest) = name.strip_prefix(TAG_PREFIX) else {
         return Err("invalid dynamic root helper identity namespace".into());
     };
@@ -156,3 +233,6 @@ pub(super) fn resolve(tags: &[AtomView<'_>]) -> Result<Arc<Program>, String> {
     }
     Ok(owner)
 }
+
+#[cfg(test)]
+mod tests;

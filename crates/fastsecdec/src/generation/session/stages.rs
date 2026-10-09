@@ -18,7 +18,7 @@ impl GenerationSession {
                         self.domain.take().expect("admitted domain"),
                         pipeline.take_result(),
                         self.options.max_order,
-                    );
+                    )?;
                     let _ = progress(
                         &GenerationProgress::Complete {
                             sectors: result.sectors().len(),
@@ -46,7 +46,7 @@ impl GenerationSession {
                     let mut supports = Vec::new();
                     for term in self.input.terms() {
                         for factor in term.factors() {
-                            if domain::is_geometry_factor(factor, self.options.contour) {
+                            if domain::is_geometry_factor(factor, self.options.contour_enabled()) {
                                 let support = self.supports.get(factor)?;
                                 if !supports.contains(support) {
                                     supports.push(support.clone());
@@ -268,6 +268,7 @@ impl GenerationSession {
                 );
                 let work::PreparedChart { chart, symmetry } = *prepared;
                 let work::MappedChart {
+                    program,
                     map,
                     parameters,
                     coordinates,
@@ -288,7 +289,7 @@ impl GenerationSession {
                 });
                 if matched.representative == index {
                     self.representatives
-                        .insert(index, (map, parameters, mapped, 1));
+                        .insert(index, (map, parameters, mapped, 1, program));
                 } else {
                     self.representatives
                         .get_mut(&matched.representative)
@@ -321,7 +322,7 @@ impl GenerationSession {
                 index,
                 total,
             } => {
-                if let Some((representative, (map, parameters, mapped, multiplicity))) =
+                if let Some((representative, (map, parameters, mapped, multiplicity, program))) =
                     remaining.next()
                 {
                     let output = coefficients::expand(
@@ -346,7 +347,14 @@ impl GenerationSession {
                     self.assembly
                         .as_mut()
                         .expect("assembly retained until finish")
-                        .push(representative, map, parameters, multiplicity, output);
+                        .push(
+                            representative,
+                            map,
+                            parameters,
+                            multiplicity,
+                            output,
+                            program,
+                        )?;
                     self.completed_representatives += 1;
                     Stage::Coefficients {
                         remaining,

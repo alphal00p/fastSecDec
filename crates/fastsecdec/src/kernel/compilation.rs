@@ -9,6 +9,8 @@ use symbolica::{
     atom::{Atom, Symbol},
     domains::float::ErrorPropagatingFloat,
 };
+#[cfg(test)]
+mod ownership_tests;
 mod session;
 pub use session::CompilationSession;
 
@@ -29,18 +31,45 @@ pub(super) fn requires_complex(generated: &GeneratedIntegral, runtime: &[Symbol]
 
 pub(super) fn runtime_inputs(generated: &GeneratedIntegral, physics: &[Symbol]) -> Vec<Symbol> {
     let mut runtime = physics.to_vec();
-    if generated
+    let recipe = generated
+        .program_descriptor()
+        .map(|descriptor| descriptor.recipe());
+    let inputs = if let Some(recipe) = recipe {
+        recipe
+            .recipe_parameters()
+            .iter()
+            .map(|name| symbolica::symbol!(*name))
+            .collect::<Vec<_>>()
+    } else if generated
         .metadata()
         .charts()
         .iter()
         .any(|chart| chart.contour().is_some())
     {
-        let lambda = crate::contour::lambda_symbol();
-        if !runtime.contains(&lambda) {
-            runtime.push(lambda);
+        vec![crate::contour::lambda_symbol()]
+    } else {
+        Vec::new()
+    };
+    for input in inputs {
+        if !runtime.contains(&input) {
+            runtime.push(input);
         }
     }
     runtime
+}
+
+pub(super) fn validate_descriptor(
+    generated: &GeneratedIntegral,
+    runtime: &[Symbol],
+) -> Result<(), KernelError> {
+    if let Some(descriptor) = generated.program_descriptor() {
+        descriptor.validate_generation(Some(generated.metadata()), runtime)?;
+        descriptor.validate_sources(
+            generated.dynamic_check_sources(),
+            Some(generated.metadata()),
+        )?;
+    }
+    Ok(())
 }
 
 /// Caller-owned native sector compilation; jobs are tied to one compilation call.
@@ -51,6 +80,9 @@ pub type CompilationDispatch<'a> = dyn FnMut(
 
 pub struct CompilationJob {
     owner: std::sync::Arc<()>,
+    // Before numeric callbacks exist, their symbolic tags do not retain the
+    // weakly registered helper. A caller may move this job beyond generation.
+    program_descriptor: Option<std::sync::Arc<super::NativeProgramDescriptor>>,
     index: usize,
     sector: crate::generation::GeneratedSector,
     runtime_parameters: std::sync::Arc<Vec<Symbol>>,
@@ -60,6 +92,7 @@ pub struct CompilationJob {
 }
 pub struct CompilationCompletion {
     owner: std::sync::Arc<()>,
+    _program_descriptor: Option<std::sync::Arc<super::NativeProgramDescriptor>>,
     index: usize,
     sector: SectorKernel,
 }
@@ -68,6 +101,11 @@ impl CompilationJob {
         self.index
     }
     pub fn run(self) -> Result<CompilationCompletion, KernelError> {
+        let _preparing =
+            super::NativeProgramDescriptor::enter_optional(self.program_descriptor.as_deref());
+        if let Some(descriptor) = &self.program_descriptor {
+            descriptor.validate_sources(self.sector.dynamic_check_sources(), None)?;
+        }
         let program = program::build_sector(&self.sector, &self.runtime_parameters, self.settings)?;
         let sector = SectorKernel::from_program_with_backend(
             program,
@@ -77,6 +115,7 @@ impl CompilationJob {
         )?;
         Ok(CompilationCompletion {
             owner: self.owner,
+            _program_descriptor: self.program_descriptor,
             index: self.index,
             sector,
         })
@@ -159,6 +198,10 @@ impl GeneratedIntegral {
         settings.validate()?;
         let runtime = runtime_inputs(self, runtime_parameters);
         let runtime_parameters = runtime.as_slice();
+        validate_descriptor(self, runtime_parameters)?;
+        let _preparing = super::NativeProgramDescriptor::enter_optional(
+            self.program_descriptor().map(std::sync::Arc::as_ref),
+        );
         let started = Instant::now();
         let total = self.sectors().len();
         let use_complex = requires_complex(self, runtime_parameters);
@@ -187,6 +230,7 @@ impl GeneratedIntegral {
             runtime_parameters.to_vec(),
             settings,
         )?;
+        kernels.attach_program_descriptor(self.program_descriptor())?;
         kernels.initialize_artifact()?;
         Ok(kernels)
     }
@@ -235,6 +279,10 @@ impl GeneratedIntegral {
         settings.validate()?;
         let runtime_inputs = runtime_inputs(self, runtime_parameters);
         let runtime_parameters = runtime_inputs.as_slice();
+        validate_descriptor(self, runtime_parameters)?;
+        let _preparing = super::NativeProgramDescriptor::enter_optional(
+            self.program_descriptor().map(std::sync::Arc::as_ref),
+        );
         let started = Instant::now();
         let total = self.sectors().len();
         emit(&mut progress, started, 0, total)?;
@@ -247,6 +295,7 @@ impl GeneratedIntegral {
             .enumerate()
             .map(|(index, sector)| CompilationJob {
                 owner: std::sync::Arc::clone(&owner),
+                program_descriptor: sector.program_descriptor().cloned(),
                 index,
                 sector: sector.clone(),
                 runtime_parameters: std::sync::Arc::clone(&runtime),
@@ -285,6 +334,7 @@ impl GeneratedIntegral {
             runtime_parameters.to_vec(),
             settings,
         )?;
+        kernels.attach_program_descriptor(self.program_descriptor())?;
         kernels.initialize_artifact()?;
         Ok(kernels)
     }

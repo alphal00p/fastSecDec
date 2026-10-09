@@ -190,7 +190,7 @@ fn deformed(f: Atom, positive: Option<Atom>) -> KernelSet {
     generate(
         &source,
         &GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| std::ops::ControlFlow::Continue(()),
@@ -659,7 +659,7 @@ fn selected_pilot_scope_does_not_check_or_unlock_an_excluded_sector() {
     let generated = generate(
         &source,
         &GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| std::ops::ControlFlow::Continue(()),

@@ -11,11 +11,14 @@ mod conditioning;
 mod context;
 mod domain;
 mod geometry;
+mod identity;
+pub use identity::source_identity;
 mod laurent;
 mod mapping;
 mod metadata;
 mod metadata_display;
 pub(crate) mod numerical_dual;
+mod program;
 pub use crate::status::GeometryReuseStatus;
 pub use context::{GenerationContext, GenerationEvent};
 pub use fastsecdec_sectors::{
@@ -138,7 +141,7 @@ fn generate_inner(
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
-            if domain::is_geometry_factor(factor, options.contour) {
+            if domain::is_geometry_factor(factor, options.contour_enabled()) {
                 let support = source_supports.get(factor)?;
                 if !supports.contains(support) {
                     supports.push(support.clone());
@@ -248,6 +251,7 @@ fn generate_inner(
         };
         let work::PreparedChart { chart, symmetry } = prepared;
         let work::MappedChart {
+            program,
             map,
             parameters,
             coordinates,
@@ -284,7 +288,7 @@ fn generate_inner(
             contour,
         });
         if matched.representative == index {
-            representatives.insert(index, (map, parameters, mapped, 1usize));
+            representatives.insert(index, (map, parameters, mapped, 1usize, program));
         } else {
             let representative = representatives
                 .get_mut(&matched.representative)
@@ -319,7 +323,7 @@ fn generate_inner(
         )?
     } else {
         let mut expanded = Vec::with_capacity(total);
-        for (index, (representative_index, (map, parameters, mapped, multiplicity))) in
+        for (index, (representative_index, (map, parameters, mapped, multiplicity, program))) in
             representatives.into_iter().enumerate()
         {
             #[cfg(test)]
@@ -351,13 +355,27 @@ fn generate_inner(
                     seconds: output.phase_started.elapsed().as_secs_f64(),
                 },
             )?;
-            expanded.push((representative_index, map, parameters, multiplicity, output));
+            expanded.push((
+                representative_index,
+                map,
+                parameters,
+                multiplicity,
+                output,
+                program,
+            ));
         }
         expanded
     };
     let mut assembly = assembly::Assembly::new(options.max_order);
-    for (representative_index, map, parameters, multiplicity, output) in expanded {
-        assembly.push(representative_index, map, parameters, multiplicity, output);
+    for (representative_index, map, parameters, multiplicity, output, program) in expanded {
+        assembly.push(
+            representative_index,
+            map,
+            parameters,
+            multiplicity,
+            output,
+            program,
+        )?;
     }
     #[cfg(test)]
     laurent::profiling::reject_uncaptured_result()?;

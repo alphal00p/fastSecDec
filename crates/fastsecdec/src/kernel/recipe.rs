@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use symbolica::{atom::AtomCore, domains::rational::Rational};
 
+mod check_source;
 mod stored;
+pub(crate) use check_source::DynamicCheckSource;
 pub(crate) use stored::SavedProgramDescriptor;
 #[cfg(test)]
 mod tests;
@@ -39,13 +41,6 @@ pub struct DynamicChartRecipe {
 }
 
 impl DynamicChartRecipe {
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "generation-owned dynamic descriptors follow the v10 storage gate"
-        )
-    )]
     pub(crate) fn from_envelope(
         chart_index: usize,
         envelope: &crate::contour::dynamic::DynamicEnvelope,
@@ -163,6 +158,19 @@ impl std::fmt::Debug for NativeProgramDescriptor {
 }
 
 impl NativeProgramDescriptor {
+    pub(crate) fn enter_optional(
+        owner: Option<&Self>,
+    ) -> crate::contour::functions::dynamic::ProgramPreparation {
+        match owner {
+            Some(owner) => owner.enter(),
+            None => crate::contour::functions::dynamic::ProgramScope::default().enter(),
+        }
+    }
+
+    pub(crate) fn enter(&self) -> crate::contour::functions::dynamic::ProgramPreparation {
+        crate::contour::functions::dynamic::ProgramScope::new(&self.helpers).enter()
+    }
+
     pub fn recipe(&self) -> ProgramRecipe {
         self.recipe
     }
@@ -184,13 +192,6 @@ impl NativeProgramDescriptor {
         })
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "dynamic production is deliberately gated until its complete checker is validated"
-        )
-    )]
     pub(crate) fn dynamic(
         recipe: ProgramRecipe,
         mut charts: Vec<DynamicChartRecipe>,
@@ -263,6 +264,7 @@ impl NativeProgramDescriptor {
         &self,
         sources: &[usize],
         exact: &[symbolica::atom::Atom],
+        metadata: Option<&crate::generation::GenerationMetadata>,
     ) -> Result<Self, KernelError> {
         let symbols = exact
             .iter()
@@ -285,7 +287,19 @@ impl NativeProgramDescriptor {
                 let mut chart = chart.clone();
                 chart.chart_index = local;
                 charts.push(chart);
-            } else if self.recipe.is_dynamic() {
+            } else if self.recipe.is_dynamic()
+                && !metadata.is_some_and(|metadata| {
+                    metadata.charts().iter().any(|chart| {
+                        chart.source_index() == *source
+                            && chart.source_index() != chart.representative()
+                            && sources.contains(&chart.representative())
+                            && self
+                                .charts
+                                .iter()
+                                .any(|descriptor| descriptor.chart_index == chart.representative())
+                    })
+                })
+            {
                 return Err(invalid(
                     "selected source lacks its dynamic chart descriptor",
                 ));
@@ -312,11 +326,96 @@ impl NativeProgramDescriptor {
         Ok(value)
     }
 
+    /// Associate generation-owned helpers with the actual retained chart set.
+    /// Symmetry copies keep inspectable maps but share the representative's
+    /// executable recipe and checker, just as in the fixed construction.
+    pub(crate) fn validate_generation(
+        &self,
+        metadata: Option<&crate::generation::GenerationMetadata>,
+        runtime: &[symbolica::atom::Symbol],
+    ) -> Result<(), KernelError> {
+        self.validate()?;
+        self.recipe.validate_runtime_schema(
+            &runtime
+                .iter()
+                .map(|symbol| symbol.get_name().to_owned())
+                .collect::<Vec<_>>(),
+        )?;
+        if !self.recipe.is_dynamic() {
+            return Ok(());
+        }
+        let representatives = metadata
+            .into_iter()
+            .flat_map(|metadata| metadata.charts())
+            .filter(|chart| chart.source_index() == chart.representative())
+            .collect::<Vec<_>>();
+        if representatives.len() != self.charts.len() {
+            return Err(invalid(
+                "dynamic descriptors do not cover the retained representative charts",
+            ));
+        }
+        for descriptor in &self.charts {
+            let chart = representatives
+                .iter()
+                .find(|chart| chart.source_index() == descriptor.chart_index)
+                .ok_or_else(|| {
+                    invalid("dynamic descriptor references an unknown representative chart")
+                })?;
+            let contour = chart
+                .contour()
+                .ok_or_else(|| invalid("dynamic descriptor references an undeformed chart"))?;
+            if descriptor.dimension != chart.coordinates().target_parameters().len()
+                || descriptor.dimension != contour.images().len()
+                || descriptor.positive_orders.len() != contour.positive_polynomials().len()
+            {
+                return Err(invalid(
+                    "dynamic descriptor dimensions or positive factors differ from its chart",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn admit_runtime(&self) -> Result<(), KernelError> {
         if self.recipe.is_dynamic() {
             return Err(invalid(
                 "dynamic production admission awaits the complete map, radius and certified-check gate",
             ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_sources(
+        &self,
+        sources: &[std::sync::Arc<DynamicCheckSource>],
+        metadata: Option<&crate::generation::GenerationMetadata>,
+    ) -> Result<(), KernelError> {
+        if sources.len() != self.charts.len() {
+            return Err(invalid("missing or surplus dynamic check sources"));
+        }
+        let mut seen = BTreeSet::new();
+        for source in sources {
+            let chart = self
+                .charts
+                .iter()
+                .find(|chart| chart.chart_index == source.chart_index)
+                .ok_or_else(|| invalid("check source refers to an unknown dynamic chart"))?;
+            if !seen.insert(source.chart_index) {
+                return Err(invalid("duplicate dynamic check source"));
+            }
+            source.validate_for(chart)?;
+            if let Some(metadata) = metadata {
+                let actual = metadata
+                    .charts()
+                    .iter()
+                    .find(|chart| chart.source_index() == source.chart_index)
+                    .ok_or_else(|| invalid("check source has no retained chart"))?;
+                if actual.coordinates().target_parameters() != source.parameters {
+                    return Err(invalid(
+                        "check source coordinates differ from its retained chart",
+                    ));
+                }
+            }
         }
         Ok(())
     }
@@ -355,6 +454,16 @@ impl NativeProgramDescriptor {
 }
 
 impl KernelSet {
+    pub(crate) fn attach_program_descriptor(
+        &mut self,
+        descriptor: Option<&std::sync::Arc<NativeProgramDescriptor>>,
+    ) -> Result<(), KernelError> {
+        if let Some(descriptor) = descriptor {
+            descriptor.validate_generation(self.metadata.as_ref(), &self.runtime_parameters)?;
+            self.program_descriptor = Some(descriptor.as_ref().clone());
+        }
+        Ok(())
+    }
     pub fn program_descriptor(&self) -> Option<&NativeProgramDescriptor> {
         self.program_descriptor.as_ref()
     }

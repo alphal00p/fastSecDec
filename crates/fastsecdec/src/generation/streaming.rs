@@ -17,11 +17,16 @@ pub use prepare::{
 };
 pub use sector::{GeneratedUnit, generate_sector};
 
+use crate::kernel::indexed::ProgramRecipe;
 use serde::{Deserialize, Serialize};
 
 /// Immutable source context and the geometry jobs to discover independently.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Preparation {
+    /// Canonical physical source identity, independent of the selected recipe.
+    pub source_identity: String,
+    /// Selected mathematical recipe; never inferred from an old staging payload.
+    pub program_recipe: ProgramRecipe,
     pub source: RecordRef,
     pub charts: Vec<MapJob>,
     pub mode: super::GenerationMode,
@@ -38,6 +43,8 @@ pub struct MapJob {
 /// establish either a symmetry or a shared subtraction formula.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DiscoveredSector {
+    /// Selected mathematical recipe; never inferred from an old staging payload.
+    pub program_recipe: ProgramRecipe,
     pub index: usize,
     pub source_id: String,
     pub dimension: usize,
@@ -48,6 +55,8 @@ pub struct DiscoveredSector {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SymmetryAssignment {
+    pub program_recipe: ProgramRecipe,
+    pub source_id: String,
     pub source: usize,
     pub representative: usize,
     pub permutation: Vec<usize>,
@@ -55,6 +64,8 @@ pub struct SymmetryAssignment {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FormulaRecord {
+    /// Selected mathematical recipe; never inferred from an old staging payload.
+    pub program_recipe: ProgramRecipe,
     pub key: String,
     pub source_id: String,
     pub record: RecordRef,
@@ -69,6 +80,8 @@ pub struct ChartUse {
 /// One independently consumable representative, including its source charts.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SectorJob {
+    /// Selected mathematical recipe; never inferred from an old staging payload.
+    pub program_recipe: ProgramRecipe,
     pub index: usize,
     pub source: RecordRef,
     pub charts: Vec<ChartUse>,
@@ -79,6 +92,10 @@ pub struct SectorJob {
 /// Final compact work catalogue. Contains no native expression/evaluator.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PreparedGeneration {
+    /// Canonical physical source identity, independent of the selected recipe.
+    pub source_identity: String,
+    /// Selected mathematical recipe; never inferred from an old staging payload.
+    pub program_recipe: ProgramRecipe,
     pub source: RecordRef,
     pub sectors: Vec<SectorJob>,
     pub source_charts: usize,

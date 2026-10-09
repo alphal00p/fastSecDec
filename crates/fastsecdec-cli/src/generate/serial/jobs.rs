@@ -38,6 +38,9 @@ pub(crate) enum Request {
     },
     Discover {
         preparation: PathBuf,
+        program_recipe: indexed::ProgramRecipe,
+        source_id: String,
+        dimension: usize,
         index: usize,
     },
     Symmetry {
@@ -67,6 +70,8 @@ pub(crate) struct Prepared {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Compiled {
+    pub program_recipe: indexed::ProgramRecipe,
+    pub source_id: String,
     pub source_index: usize,
     pub data: PathBuf,
     pub receipts: Vec<RecordReceipt>,
@@ -147,7 +152,7 @@ pub(crate) fn execute(
                 mode: settings.mode,
                 subtraction: settings.subtraction,
                 assume_no_threshold: settings.assume_no_threshold,
-                contour: settings.contour,
+                program_recipe: settings.program_recipe(),
                 coefficient_expansion: settings.coefficient_expansion.clone(),
                 ..Default::default()
             };
@@ -194,8 +199,20 @@ pub(crate) fn execute(
                 },
             }))
         }
-        Request::Discover { preparation, index } => {
+        Request::Discover {
+            preparation,
+            program_recipe,
+            source_id,
+            dimension,
+            index,
+        } => {
             let prepared = read_prepared(&preparation)?;
+            if program_recipe != prepared.native.program_recipe
+                || source_id != prepared.native.source.blake3
+                || dimension != prepared.native.dimension
+            {
+                return Err("discovery request differs from its prepared source or recipe".into());
+            }
             let map = prepared
                 .native
                 .charts
@@ -285,6 +302,8 @@ pub(crate) fn execute(
                 let _ = fs::remove_file(&temporary);
             }
             Response::Compiled(Compiled {
+                program_recipe: sector.program_recipe,
+                source_id: sector.source.blake3.clone(),
                 source_index: sector.index,
                 data: output,
                 receipts: result?,

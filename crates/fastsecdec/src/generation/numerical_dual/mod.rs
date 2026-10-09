@@ -61,7 +61,7 @@ pub(super) fn finish(
     domain: DomainAssessment,
     prepared: Vec<PreparedChart>,
     max_order: i32,
-) -> GeneratedIntegral {
+) -> Result<GeneratedIntegral, GenerationError> {
     let minimum = prepared
         .iter()
         .flat_map(|chart| &chart.orders)
@@ -73,7 +73,12 @@ pub(super) fn finish(
     let mut charts = Vec::with_capacity(prepared.len());
     let mut sectors = Vec::with_capacity(prepared.len());
     let mut exact_coefficients = vec![Atom::Zero; orders.len()];
+    let mut program = crate::generation::program::ProgramData::default();
     for mut prepared in prepared {
+        program.merge(&crate::generation::program::ProgramData {
+            descriptor: prepared.sector.program_descriptor.clone(),
+            checks: prepared.sector.dynamic_check_sources.clone(),
+        })?;
         let coefficients = prepared
             .orders
             .into_iter()
@@ -101,12 +106,14 @@ pub(super) fn finish(
         charts.push(prepared.chart);
         sectors.push(prepared.sector);
     }
-    GeneratedIntegral {
+    Ok(GeneratedIntegral {
+        program_descriptor: program.descriptor,
+        dynamic_check_sources: program.checks,
         exact_coefficients,
         orders,
         sectors,
         metadata: GenerationMetadata { domain, charts },
-    }
+    })
 }
 
 pub(super) struct PreparedMaps {
@@ -141,7 +148,7 @@ pub(super) fn generate(
         }
         pipeline.take_result()
     };
-    let result = finish(domain, prepared, options.max_order);
+    let result = finish(domain, prepared, options.max_order)?;
     emit(
         progress,
         GenerationProgress::Complete {

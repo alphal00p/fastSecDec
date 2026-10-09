@@ -40,7 +40,7 @@ fn threshold_bubble_preserves_complex_coefficients_and_certified_pilot_after_res
         let generated = generate(
             &bubble(),
             &GenerationOptions {
-                contour: true,
+                program_recipe: fastsecdec::kernel::indexed::ProgramRecipe::FixedV1,
                 mode,
                 ..Default::default()
             },

@@ -132,7 +132,7 @@ impl PyGenerationSession {
     }
     #[getter]
     fn contour(&self) -> bool {
-        self.options.contour
+        self.options.contour_enabled()
     }
 
     /// Run at most max_units indivisible native units on this caller's thread.

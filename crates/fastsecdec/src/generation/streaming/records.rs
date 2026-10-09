@@ -19,11 +19,11 @@ use std::{collections::BTreeMap, path::Path};
 use symbolica::atom::{AliasedAtom, AtomCore, Symbol};
 
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Options {
     mode: GenerationMode,
     assume_no_threshold: bool,
-    #[serde(default)]
-    contour: bool,
+    program_recipe: crate::kernel::indexed::ProgramRecipe,
     max_order: i32,
     max_support_pairs: usize,
     max_rays: usize,
@@ -38,7 +38,7 @@ impl From<&GenerationOptions> for Options {
         Self {
             mode: x.mode,
             assume_no_threshold: x.assume_no_threshold,
-            contour: x.contour,
+            program_recipe: x.program_recipe,
             max_order: x.max_order,
             max_support_pairs: x.decomposition.max_support_pairs,
             max_rays: x.decomposition.max_rays,
@@ -55,7 +55,7 @@ impl From<Options> for GenerationOptions {
         Self {
             mode: x.mode,
             assume_no_threshold: x.assume_no_threshold,
-            contour: x.contour,
+            program_recipe: x.program_recipe,
             max_order: x.max_order,
             decomposition: DecompositionOptions {
                 max_support_pairs: x.max_support_pairs,
@@ -141,6 +141,7 @@ struct Term {
 }
 #[derive(Serialize, Deserialize)]
 struct Source {
+    source_identity: String,
     parameters: usize,
     targets: usize,
     runtime_parameters: usize,
@@ -150,6 +151,7 @@ struct Source {
     options: Options,
 }
 pub(super) struct Context {
+    pub source_identity: String,
     pub input: ParametricIntegrand,
     pub targets: Vec<Symbol>,
     pub options: GenerationOptions,
@@ -163,7 +165,7 @@ pub(super) fn write_source(
     options: &GenerationOptions,
     runtime: &[Symbol],
     constraints: &[crate::kernel::RuntimeMassConstraint],
-) -> Result<RecordRef, StreamingError> {
+) -> Result<(RecordRef, String), StreamingError> {
     let mut atoms = Atoms::default();
     let terms = input
         .terms()
@@ -184,6 +186,7 @@ pub(super) fn write_source(
         })
         .collect();
     let source = Source {
+        source_identity: crate::generation::source_identity(input, runtime, constraints)?,
         parameters: input.parameters().len(),
         targets: targets.len(),
         runtime_parameters: runtime.len(),
@@ -199,6 +202,9 @@ pub(super) fn write_source(
         terms,
         options: options.into(),
     };
+    // Physical identity uses the same native canonical representation as the
+    // public geometry-free helper; staging bytes retain process-local symbols
+    // and therefore identify only this recipe's serialized execution context.
     let symbols = input
         .parameters()
         .iter()
@@ -207,7 +213,9 @@ pub(super) fn write_source(
         .chain(targets.iter().copied())
         .chain(runtime.iter().copied())
         .collect();
-    codec::write(root, "source", "source", &source, atoms, symbols)
+    let identity = source.source_identity.clone();
+    let record = codec::write(root, "source", "source", &source, atoms, symbols)?;
+    Ok((record, identity))
 }
 pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context, StreamingError> {
     let (source, atoms, symbols): (Source, _, _) = codec::read(root, reference, "source")?;
@@ -267,6 +275,7 @@ pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context,
         })
         .collect::<Result<_, StreamingError>>()?;
     Ok(Context {
+        source_identity: source.source_identity,
         input,
         targets: symbols[source.parameters + 1..runtime_start].to_vec(),
         options: source.options.into(),
@@ -339,6 +348,7 @@ impl Contour {
     }
 }
 pub(super) struct ChartData {
+    pub program: super::super::program::ProgramData,
     pub index: usize,
     pub source_id: String,
     pub map: SectorMap,
@@ -372,7 +382,7 @@ pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, St
             })
             .collect()
     });
-    codec::write(
+    codec::write_with_program(
         root,
         &format!("chart-{}", data.index),
         "chart",
@@ -389,10 +399,12 @@ pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, St
         },
         atoms,
         vec![],
+        &data.program,
     )
 }
 pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData, StreamingError> {
-    let (chart, atoms, _): (Chart, _, _) = codec::read(root, reference, "chart")?;
+    let (chart, atoms, _, program): (Chart, _, _, _) =
+        codec::read_with_program(root, reference, "chart")?;
     let mapped = chart
         .mapped
         .into_iter()
@@ -431,6 +443,7 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
         })
         .transpose()?;
     Ok(ChartData {
+        program,
         index: chart.index,
         source_id: chart.source_id,
         map: chart.map.native()?,

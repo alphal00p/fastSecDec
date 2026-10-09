@@ -46,7 +46,11 @@ fn integrate_with_contour(
         &input,
         &GenerationOptions {
             mode,
-            contour,
+            program_recipe: if contour {
+                fastsecdec::kernel::indexed::ProgramRecipe::FixedV1
+            } else {
+                fastsecdec::kernel::indexed::ProgramRecipe::UndeformedV1
+            },
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),

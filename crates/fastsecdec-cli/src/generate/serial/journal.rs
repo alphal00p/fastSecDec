@@ -12,6 +12,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+// Native staging v2 records explicitly identify the selected evaluator recipe.
+const JOURNAL_VERSION: u32 = 2;
+
 #[derive(Serialize, Deserialize)]
 struct Entry {
     request_hash: String,
@@ -79,8 +82,13 @@ impl Journal {
         };
         let state = if resume {
             let state = previous.ok_or("no resumable generation journal exists")?;
-            if state.version != 1
-                || state.build_identity != crate::process::child::build_identity()
+            if state.version != JOURNAL_VERSION {
+                return Err(format!(
+                    "generation resume refused: staging format {} is incompatible with version {}; regenerate using a new output basename",
+                    state.version, JOURNAL_VERSION,
+                ).into());
+            }
+            if state.build_identity != crate::process::child::build_identity()
                 || state.input_hash != input_hash
                 || state.generation_overrides != generation_overrides
                 || state.dependencies != dependencies
@@ -96,7 +104,7 @@ impl Journal {
                 return Err("unfinished generation staging exists; use --resume or choose a different output basename".into());
             }
             State {
-                version: 1,
+                version: JOURNAL_VERSION,
                 build_identity: crate::process::child::build_identity(),
                 input_hash,
                 generation_overrides,
@@ -238,7 +246,17 @@ impl Journal {
 
 pub(super) fn validate(request: &Request, response: &Response, root: &Path) -> CliResult<()> {
     match (request, response) {
-        (Request::Prepare { input, .. }, Response::Prepared(prepared)) => {
+        (
+            Request::Prepare {
+                input, overrides, ..
+            },
+            Response::Prepared(prepared),
+        ) => {
+            let mut card: crate::config::RunCard = toml::from_str(&fs::read_to_string(input)?)?;
+            overrides.apply(&mut card);
+            if prepared.native.program_recipe != card.generation.program_recipe() {
+                return Err("prepared program recipe differs from its issued job".into());
+            }
             if prepared.provenance.dependencies != artifact::dependencies() {
                 return Err("prepared dependencies changed".into());
             }
@@ -261,7 +279,22 @@ pub(super) fn validate(request: &Request, response: &Response, root: &Path) -> C
                 map.map.verify(root)?;
             }
         }
-        (Request::Discover { index, .. }, Response::Discovered(chart)) if *index == chart.index => {
+        (
+            Request::Discover {
+                program_recipe,
+                source_id,
+                dimension,
+                index,
+                ..
+            },
+            Response::Discovered(chart),
+        ) if *index == chart.index => {
+            if chart.program_recipe != *program_recipe
+                || chart.source_id != *source_id
+                || chart.dimension != *dimension
+            {
+                return Err("discovery completion belongs to a different source or recipe".into());
+            }
             chart.record.verify(root)?;
         }
         (
@@ -269,33 +302,77 @@ pub(super) fn validate(request: &Request, response: &Response, root: &Path) -> C
                 chart, candidates, ..
             },
             Response::Symmetry(assignment),
-        ) if assignment.source == chart.index => {
+        ) if assignment.source == chart.index
+            && assignment.program_recipe == chart.program_recipe
+            && assignment.source_id == chart.source_id =>
+        {
             if assignment.representative != chart.index
-                && !candidates
-                    .iter()
-                    .any(|c| c.index == assignment.representative)
+                && !candidates.iter().any(|c| {
+                    c.index == assignment.representative
+                        && c.program_recipe == chart.program_recipe
+                        && c.source_id == chart.source_id
+                })
             {
                 return Err("symmetry completion contains an unissued candidate".into());
             }
-            if assignment
-                .permutation
-                .iter()
-                .copied()
-                .collect::<std::collections::BTreeSet<_>>()
-                != (0..chart.dimension).collect()
+            if assignment.permutation.len() != chart.dimension
+                || assignment
+                    .permutation
+                    .iter()
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    != (0..chart.dimension).collect()
             {
                 return Err("symmetry completion has an invalid permutation".into());
             }
         }
         (Request::Formula { chart, .. }, Response::Formula(formula))
             if chart.formula_key.as_ref() == Some(&formula.key)
+                && chart.program_recipe == formula.program_recipe
                 && chart.source_id == formula.source_id =>
         {
             formula.record.verify(root)?;
         }
         (Request::Sector { job, output, .. }, Response::Compiled(compiled))
-            if compiled.source_index == job.index && &compiled.data == output =>
+            if compiled.source_index == job.index
+                && &compiled.data == output
+                && compiled.program_recipe == job.program_recipe
+                && compiled.source_id == job.source.blake3 =>
         {
+            if compiled.receipts.is_empty()
+                || compiled
+                    .receipts
+                    .iter()
+                    .any(|receipt| receipt.program_recipe() != job.program_recipe)
+            {
+                return Err("compiled sector omits or changes its issued program recipe".into());
+            }
+            let expected = job
+                .charts
+                .iter()
+                .map(|entry| entry.chart.index)
+                .collect::<std::collections::BTreeSet<_>>();
+            let mut returned = std::collections::BTreeSet::new();
+            for index in compiled
+                .receipts
+                .iter()
+                .flat_map(|receipt| &receipt.source_indices)
+            {
+                if !returned.insert(*index) {
+                    return Err("compiled sector repeats a source chart".into());
+                }
+            }
+            if expected.len() != job.charts.len()
+                || returned != expected
+                || compiled
+                    .source_chart_modes
+                    .keys()
+                    .copied()
+                    .collect::<std::collections::BTreeSet<_>>()
+                    != expected
+            {
+                return Err("compiled sector source charts differ from its issued job".into());
+            }
             let mut file = File::open(&compiled.data)?;
             let mut buffer = [0u8; 64 * 1024];
             for receipt in &compiled.receipts {
@@ -395,6 +472,8 @@ mod tests {
         };
         journal.request("prepare", request.clone()).unwrap();
         let foreign = Response::Symmetry(fastsecdec::generation::streaming::SymmetryAssignment {
+            program_recipe: fastsecdec::kernel::indexed::ProgramRecipe::UndeformedV1,
+            source_id: "foreign".into(),
             source: 0,
             representative: 0,
             permutation: vec![],
@@ -405,6 +484,31 @@ mod tests {
         )
         .unwrap();
         assert!(journal.accept("prepare", &request).is_err());
+    }
+
+    #[test]
+    fn legacy_staging_is_rejected_without_modifying_its_receipts() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("input.toml");
+        card(&input);
+        let output = dir.path().join("integral.fsd");
+        let journal = Journal::open(&input, &output, false, "first").unwrap();
+        let path = journal.directory.join("journal.json");
+        let receipt = journal.response_path("prepare");
+        fs::write(&receipt, b"prior work remains available").unwrap();
+        drop(journal);
+        let mut state: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        state["version"] = 1.into();
+        let original = serde_json::to_vec(&state).unwrap();
+        fs::write(&path, &original).unwrap();
+        let error = Journal::open(&input, &output, true, "second")
+            .err()
+            .expect("legacy native staging was admitted");
+        assert!(error.to_string().contains("staging format 1"));
+        assert!(error.to_string().contains("new output basename"));
+        assert_eq!(fs::read(&path).unwrap(), original);
+        assert_eq!(fs::read(&receipt).unwrap(), b"prior work remains available");
     }
 
     #[test]

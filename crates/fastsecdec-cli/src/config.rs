@@ -149,6 +149,18 @@ pub struct GenerationInput {
     pub family_preparation: fastsecdec::parametric::FamilyPreparationPolicy,
 }
 
+impl GenerationInput {
+    /// Select the native program while retaining the existing card interface.
+    pub fn program_recipe(&self) -> fastsecdec::kernel::indexed::ProgramRecipe {
+        use fastsecdec::kernel::indexed::ProgramRecipe;
+        if self.contour {
+            ProgramRecipe::FixedV1
+        } else {
+            ProgramRecipe::UndeformedV1
+        }
+    }
+}
+
 impl Default for GenerationInput {
     fn default() -> Self {
         Self {

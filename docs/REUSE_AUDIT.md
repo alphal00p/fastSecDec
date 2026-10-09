@@ -2506,3 +2506,33 @@ regression and independent review. No Python/CAS implementation moved into
 Community. Its six newer citation URL initializers pass an exact-constructor
 API compile probe; complete refreshed wheel and generated stubs remain separate
 packaging gates. See [the interface audit](reviews/contour-python-interfaces.md).
+
+### Contour generation ownership and source identity (2026-10-09)
+
+The selected-recipe generation increment reuses the existing native
+`ProgramRecipe`, Symbolica directional envelopes, derivative hooks, dual jets
+and context-aware Atom/evaluator codecs. Strong helper owners now cross
+caller-owned generation, staging and compilation boundaries. No algebra engine,
+graph type, root solver or numeric serialization layer was added.
+
+The identity audit found that native transport bytes include unrelated
+process-local symbol and coefficient-ring tables. Physical source identity now
+uses Symbolica's existing `to_canonical_string`, already used for kernel
+identities, within a streamed structured digest. Transport hashes continue to
+protect individual staged records; they are not treated as mathematical source
+identities. The focused fresh-process regression deliberately changes native
+symbol and polynomial-ring registration. The
+[generation review](reviews/contour-dynamic-generation.md) records the native
+reuse and scientific controls, while the
+[recovery review](reviews/contour-generation-recovery.md) records independent
+receipt-admission findings and fixes. Dynamic production remains closed pending
+saved certified checkers and their complete factor/proof associations.
+
+The [helper identity audit](reviews/contour-helper-identity.md) used Symbolica's
+native generic-ring evaluator with `AtomField` to prove equivalence of differently
+ordered saved helper programs. The correction uses stable versioned callback
+contracts and descriptor-owned preparation scopes; it does not canonicalize or
+reinterpret native IR. Saved-byte integrity and compiled content identities remain
+separate. Independent fresh-process, concurrent-caller, unwind, legacy restoration
+and detached precision-mapping probes pass. The numerical owner codecs required
+no patch for this FastSecDec identity issue.

@@ -107,7 +107,7 @@ Community's existing wildcard reexport exposes registered native classes through
 generation, checking, execution and checkpoint behavior remains in Rust inside
 FastSecDec. The installed native tests above now cover execution of these paths.
 
-## Refreshed public-owner milestone gate (in progress)
+## Refreshed public-owner milestone gate
 
 The corrected fixed milestone `f2c2d930c4660b5fe200bf392af3e863040a37ef` was
 committed and pushed before the new immutable source snapshot was created.
@@ -138,11 +138,33 @@ compiles successfully against that newer owner in a coherent external consumer
 The staged host also receives five required citation URL initializers. These
 metadata-only fields are the subset of Community PR 25 present at `3aa2608`.
 
-A complete native wheel build is running in a private cache, with a separate
-Python environment and output directory. The earlier accepted wheel and live
-notebook remain untouched. Runtime tests and regenerated contour stubs for this
-exact milestone are pending; the earlier 205-test result does not count as this
-new gate.
+The complete native extension built successfully in 31 minutes 10 seconds,
+using the private development profile with Symbolica optimized. Maturin produced
+an ABI3 Python 3.9+ Linux wheel, SHA256
+`06c602e256e8d6eb9c690756ba749c812c24692c6f3325ff0402b3a5e7776202`.
+The wheel was installed into a new private Python 3.12.14 environment; the earlier
+accepted wheel and live notebook remain untouched. This build does not establish
+release sampling performance or a portable PyPI wheel.
+
+All **8 contour tests passed** in 0.29 seconds. The initial run exposed a test-only
+configuration error: the two new exact-only QMC cases requested 32 points with
+the default Kuo33002 rule, whose minimum is 1,024. Selecting the already used
+`hkkn_alpha3` rule fixes the fixture without changing production code. The
+corrected test-only overlay is byte-identical to the live test fix; the wheel's
+compiled FastSecDec source remains exactly `f2c2d930`.
+
+The maintained native runner then passed **210/210 tests**, with zero skips,
+failures or errors, in 73.69 seconds. It covers the complete binding tests,
+notebook/demo controls and HEPKit wavefunctions. The exact-only controls now
+exercise required preflight at QMC/MC session creation and checkpoint restoration
+under both `always` and `pilot`, plus explicit unchecked access. The separate
+bounded owner smoke passed **6/6 tests** in 0.29 seconds: native one-loop RustRed
+generation, lazy artifacts and terminal normalization, and the preserved
+48-digit Vakint numerical wrapper. No expensive four-loop reference was run.
+
+Regenerated contour/HEPKit stubs for this exact host are still pending; the
+isolated native stub-generator build has started. These accepted installed tests
+are separate from both the earlier 205-test wheel and subsequent dynamic changes.
 
 Current Community main `9a65fbb7` introduces additional default IBP dispatch,
 LiteRed2 metadata and positive-epsilon OneLoopMaster requirements. Validating

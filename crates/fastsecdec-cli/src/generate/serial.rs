@@ -96,6 +96,9 @@ pub(crate) fn generate_with_overrides(
                 format!("discover-{}", map.index),
                 Request::Discover {
                     preparation: preparation_path.clone(),
+                    program_recipe: prepared.native.program_recipe,
+                    source_id: prepared.native.source.blake3.clone(),
+                    dimension: prepared.native.dimension,
                     index: map.index,
                 },
             )
@@ -131,6 +134,8 @@ pub(crate) fn generate_with_overrides(
             let candidates = representatives.get(&key).cloned().unwrap_or_default();
             let assignment = if candidates.is_empty() {
                 native::SymmetryAssignment {
+                    program_recipe: chart.program_recipe,
+                    source_id: chart.source_id.clone(),
                     source: chart.index,
                     representative: chart.index,
                     permutation: (0..chart.dimension).collect(),
@@ -165,6 +170,8 @@ pub(crate) fn generate_with_overrides(
         }
     } else {
         assignments.extend(charts.iter().map(|chart| native::SymmetryAssignment {
+            program_recipe: chart.program_recipe,
+            source_id: chart.source_id.clone(),
             source: chart.index,
             representative: chart.index,
             permutation: (0..chart.dimension).collect(),

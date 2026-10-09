@@ -1,10 +1,10 @@
 //! Prepared native radius callbacks. No sampling loop or production RNG lives here.
-mod numeric;
+pub(crate) mod numeric;
 mod preparation;
 mod program;
 
 pub(crate) use preparation::with_precision;
-pub(crate) use program::RootProgram;
+pub(crate) use program::{ProgramPreparation, ProgramScope, RootProgram};
 use std::{cell::RefCell, sync::LazyLock};
 use symbolica::{
     atom::{Atom, AtomCore, EvaluationInfo, Symbol},
@@ -16,8 +16,12 @@ thread_local! {
     // Bounded failure information for the current caller-owned evaluation.
     static LAST_FAILURE: RefCell<Option<String>> = const { RefCell::new(None) };
 }
-fn failure(error: String) {
-    LAST_FAILURE.set(Some(error));
+pub(crate) fn failure(error: String) {
+    LAST_FAILURE.with_borrow_mut(|failure| {
+        if failure.is_none() {
+            *failure = Some(error);
+        }
+    });
 }
 pub(crate) fn take_failure() -> Option<String> {
     LAST_FAILURE.take()

@@ -19,6 +19,9 @@ fn durable_sector_without_receipt_is_regenerated_after_recovery() {
     };
     let discover = Request::Discover {
         preparation: journal.response_path("prepare"),
+        program_recipe: prepared.native.program_recipe,
+        source_id: prepared.native.source.blake3.clone(),
+        dimension: prepared.native.dimension,
         index: 0,
     };
     journal.request("discover-0", discover.clone()).unwrap();
@@ -26,11 +29,48 @@ fn durable_sector_without_receipt_is_regenerated_after_recovery() {
     let Response::Discovered(chart) = journal.accept("discover-0", &discover).unwrap() else {
         panic!()
     };
+    // The same sector number in another recipe or source is different work.
+    for change_recipe in [false, true] {
+        let mut foreign = chart.clone();
+        if change_recipe {
+            foreign.program_recipe = fastsecdec::kernel::indexed::ProgramRecipe::FixedV1;
+        } else {
+            foreign.source_id = "a different source".into();
+        }
+        assert!(
+            journal::validate(&discover, &Response::Discovered(foreign), &journal.root).is_err()
+        );
+    }
     let assignment = native::SymmetryAssignment {
+        program_recipe: chart.program_recipe,
+        source_id: chart.source_id.clone(),
         source: 0,
         representative: 0,
         permutation: (0..chart.dimension).collect(),
     };
+    let symmetry = Request::Symmetry {
+        preparation: journal.response_path("prepare"),
+        chart: chart.clone(),
+        candidates: vec![],
+    };
+    journal::validate(
+        &symmetry,
+        &Response::Symmetry(assignment.clone()),
+        &journal.root,
+    )
+    .unwrap();
+    let mut repeated = assignment.clone();
+    repeated.permutation.push(0);
+    assert!(journal::validate(&symmetry, &Response::Symmetry(repeated), &journal.root).is_err());
+    for change_recipe in [false, true] {
+        let mut foreign = assignment.clone();
+        if change_recipe {
+            foreign.program_recipe = fastsecdec::kernel::indexed::ProgramRecipe::FixedV1;
+        } else {
+            foreign.source_id = "a different source".into();
+        }
+        assert!(journal::validate(&symmetry, &Response::Symmetry(foreign), &journal.root).is_err());
+    }
     let prepared =
         native::finish_preparation(&prepared.native, vec![chart], vec![assignment], vec![])
             .unwrap();
@@ -63,6 +103,55 @@ fn durable_sector_without_receipt_is_regenerated_after_recovery() {
     let Response::Compiled(compiled) = recovered.accept("sector-0", &request).unwrap() else {
         panic!()
     };
+    for corruption in 0..3 {
+        let mut foreign = compiled.clone();
+        if corruption == 2 {
+            let mode = foreign.source_chart_modes.remove(&0).unwrap();
+            foreign.source_chart_modes.insert(1, mode);
+        } else {
+            let indices = &mut foreign
+                .receipts
+                .iter_mut()
+                .find(|receipt| !receipt.source_indices.is_empty())
+                .unwrap()
+                .source_indices;
+            if corruption == 0 {
+                indices[0] = 1;
+            } else {
+                indices.push(indices[0]);
+            }
+        }
+        assert!(
+            journal::validate(&request, &Response::Compiled(foreign), &recovered.root).is_err()
+        );
+    }
+    for change_recipe in [false, true] {
+        let mut foreign = compiled.clone();
+        if change_recipe {
+            foreign.program_recipe = fastsecdec::kernel::indexed::ProgramRecipe::FixedV1;
+        } else {
+            foreign.source_id = "a different source".into();
+        }
+        assert!(
+            journal::validate(&request, &Response::Compiled(foreign), &recovered.root).is_err()
+        );
+    }
+    // A forged matching outer receipt cannot relabel the actual native program.
+    let mut foreign_request = request.clone();
+    let Request::Sector { job, .. } = &mut foreign_request else {
+        panic!()
+    };
+    job.program_recipe = fastsecdec::kernel::indexed::ProgramRecipe::FixedV1;
+    let mut foreign = compiled.clone();
+    foreign.program_recipe = job.program_recipe;
+    assert!(
+        journal::validate(
+            &foreign_request,
+            &Response::Compiled(foreign),
+            &recovered.root
+        )
+        .is_err()
+    );
     assert!(!partial.exists());
     let mut writer = IndexedWriter::new(std::io::Cursor::new(Vec::new())).unwrap();
     let mut sector = File::open(compiled.data).unwrap();

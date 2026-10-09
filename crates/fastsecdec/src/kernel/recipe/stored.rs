@@ -46,3 +46,26 @@ impl SavedProgramDescriptor {
         Ok(value)
     }
 }
+
+impl NativeProgramDescriptor {
+    /// Generation staging retains the same native helper codec as v10 artifacts.
+    /// Restoring this owner performs no algebra or evaluator optimization.
+    pub(crate) fn to_staging_bytes(&self) -> Result<Vec<u8>, KernelError> {
+        self.validate()?;
+        bincode::serde::encode_to_vec(
+            SavedProgramDescriptor::from_native(self),
+            bincode::config::standard(),
+        )
+        .map_err(invalid)
+    }
+
+    pub(crate) fn from_staging_bytes(bytes: &[u8]) -> Result<Self, KernelError> {
+        let (saved, used): (SavedProgramDescriptor, usize) =
+            bincode::serde::decode_from_slice(bytes, bincode::config::standard())
+                .map_err(invalid)?;
+        if used != bytes.len() {
+            return Err(invalid("trailing bytes in staged native recipe descriptor"));
+        }
+        saved.restore()
+    }
+}

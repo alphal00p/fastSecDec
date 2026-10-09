@@ -18,6 +18,7 @@ use symbolica::{
     domains::{float::Complex, rational::Rational},
     parse, symbol,
 };
+mod program;
 
 fn keep(_: &crate::generation::GenerationProgress) -> ControlFlow<()> {
     ControlFlow::Continue(())
@@ -193,7 +194,7 @@ fn contour_source_semantics_and_maps_survive_streamed_generation() {
     .unwrap();
     for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
         let options = GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
             mode,
             ..Default::default()
         };

@@ -1,6 +1,81 @@
 use super::*;
 
 #[test]
+fn descriptorless_native_json_cannot_inherit_a_callers_dynamic_owner() {
+    use crate::contour::functions::dynamic::{RootProgram, strength};
+    use symbolica::atom::{Atom, AtomCore};
+    let template = super::super::load_tests::template();
+    let helper = RootProgram::build(1).unwrap();
+    let inputs = template.sectors[0]
+        .parameters
+        .iter()
+        .copied()
+        .map(Atom::var)
+        .collect::<Vec<_>>();
+    let expression = strength(
+        &helper,
+        &[Atom::one() + inputs[0].pow(2)],
+        &Atom::num((4, 5)),
+        &Atom::one(),
+    )
+    .unwrap();
+    let exact = Atom::evaluator_multiple(
+        &vec![expression; template.coefficient_orders.len()],
+        &inputs,
+    )
+    .build()
+    .unwrap();
+    let mut sectors = template
+        .sectors
+        .iter()
+        .map(|sector| PortableSector {
+            parameters: super::super::parameter_names(&sector.parameters),
+            program: sector.program_bytes.to_vec(),
+            cancellation_degree: sector.cancellation.degree(),
+            cancellation_terms: sector.cancellation.terms().map(<[_]>::to_vec),
+        })
+        .collect::<Vec<_>>();
+    sectors[0].program = program::encode(&exact).unwrap();
+    let payload = Payload {
+        version: 3,
+        program_codec: CODEC.into(),
+        compiler_policy: compiler_policy_with_settings(template.compilation_settings),
+        orders: template.coefficient_orders.clone(),
+        components: component_layout(template.coefficient_orders.len(), true),
+        exact: template
+            .exact_expressions
+            .iter()
+            .map(AtomCore::to_canonical_string)
+            .collect(),
+        precision: template.precision.clone(),
+        sectors,
+        metadata: template
+            .metadata
+            .as_ref()
+            .map(PortableMetadata::from_native),
+    };
+    let (_, bytes) = encoded(&payload).unwrap();
+    helper.prepare(|| {
+        for validate in [false, true] {
+            let error = KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate })
+                .err()
+                .expect("descriptorless native v3 must reject the semantic callback");
+            assert!(
+                error
+                    .to_string()
+                    .contains("selected descriptor preparation scope"),
+                "{error}"
+            );
+        }
+        // Failed nested loading restores the valid caller's preparation.
+        let mut evaluator = exact.map_coeff(&|value| value.re.to_f64());
+        let mut output = vec![0.0; template.coefficient_orders.len()];
+        evaluator.evaluate(&vec![0.5; inputs.len()], &mut output);
+        assert!((output[0] - 0.8 / 1.25_f64.sqrt()).abs() < 1e-14);
+    });
+}
+
+#[test]
 fn native_json_identity_is_optional_but_layout_remains_mandatory() {
     let kernels = super::super::load_tests::template();
     let payload = PayloadRef {

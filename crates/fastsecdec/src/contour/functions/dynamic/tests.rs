@@ -28,7 +28,7 @@ fn prepared_root_callback_preserves_owner_lifetimes_and_clone_independence() {
     let (helper, inputs, expression) = fixture(3);
     let weak = std::sync::Arc::downgrade(&helper.0);
     let exact = expression.evaluator(&inputs).build().unwrap();
-    let mut eager = exact.clone().map_coeff(&|c| c.re.to_f64());
+    let mut eager = helper.prepare(|| exact.clone().map_coeff(&|c| c.re.to_f64()));
     let mut other = eager.clone();
     drop(helper);
     assert!(weak.upgrade().is_some());
@@ -53,6 +53,7 @@ fn prepared_root_callback_preserves_owner_lifetimes_and_clone_independence() {
 #[test]
 fn implicit_strength_jets_match_native_closed_forms_including_zero_coefficients() {
     let helper = RootProgram::build(2).unwrap();
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
     let x = symbol!("dynamic_runtime_tests::jet_x");
     let a = Atom::one() + Atom::var(x).pow(2);
     let b = (Atom::one() - Atom::var(x)).pow(2);
@@ -96,6 +97,7 @@ where
     Complex<ErrorPropagatingFloat<T>>: symbolica::evaluate::EvaluationDomain,
 {
     let (helper, inputs, expression) = fixture(1);
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
     let exact = expression.evaluator(&inputs).build().unwrap();
     let one = T::one_at(bits);
     let tracked = |value: T| ErrorPropagatingFloat::new_with_accuracy(value, f64::INFINITY);
@@ -144,6 +146,7 @@ fn complex_root_uncertainty_survives_zero_imaginary_centres_in_all_native_domain
 #[test]
 fn callback_failures_do_not_fabricate_zero_with_validation_absent() {
     let (_helper, inputs, expression) = fixture(2);
+    let _scope = ProgramScope::new(std::slice::from_ref(&_helper)).enter();
     let mut eager = expression
         .evaluator(&inputs)
         .build()
@@ -211,6 +214,7 @@ fn fresh_process_callback_child() {
     let folder = std::path::PathBuf::from(folder);
     register();
     let helper = RootProgram::from_bytes(&std::fs::read(folder.join("helper")).unwrap()).unwrap();
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
     let bytes = std::fs::read(folder.join("main")).unwrap();
     let (exact, used): (ExpressionEvaluator<Complex<Rational>>, usize) =
         bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
@@ -224,6 +228,7 @@ fn fresh_process_callback_child() {
 #[test]
 fn native_complex_batches_and_implicit_derivatives_match_eager() {
     let (_helper, inputs, root) = fixture(3);
+    let _scope = ProgramScope::new(std::slice::from_ref(&_helper)).enter();
     let i = Atom::i();
     let expression = &i * &root + &inputs[0] / (Atom::one() + i * root);
     let coordinate = inputs[0].as_var_view().unwrap().get_symbol();
@@ -266,6 +271,7 @@ fn native_complex_batches_and_implicit_derivatives_match_eager() {
 #[test]
 fn centre_zero_real_coefficients_keep_their_root_uncertainty() {
     let (_helper, inputs, expression) = fixture(2);
+    let _scope = ProgramScope::new(std::slice::from_ref(&_helper)).enter();
     let exact = expression.evaluator(&inputs).build().unwrap();
     let tracked = |value| ErrorPropagatingFloat::new_with_accuracy(value, f64::INFINITY);
     let mut evaluator = exact.map_coeff(&|c| tracked(c.re.to_f64()));
@@ -282,6 +288,7 @@ fn centre_zero_real_coefficients_keep_their_root_uncertainty() {
 #[test]
 fn root_keeps_native_double_double_and_multiprecision_domains() {
     let (_helper, inputs, expression) = fixture(3);
+    let _scope = ProgramScope::new(std::slice::from_ref(&_helper)).enter();
     let exact = expression.evaluator(&inputs).build().unwrap();
     let mut dd = exact.clone().map_coeff(&|c| DoubleFloat::from(&c.re));
     let answer = dd.evaluate_single(&[4., 0., 0., 0.8, 1.].map(DoubleFloat::from));

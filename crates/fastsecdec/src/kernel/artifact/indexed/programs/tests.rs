@@ -41,7 +41,11 @@ fn kernel(contour: bool, complex: bool, order: i32) -> KernelSet {
     generate(
         &input,
         &GenerationOptions {
-            contour,
+            program_recipe: if contour {
+                ProgramRecipe::FixedV1
+            } else {
+                ProgramRecipe::UndeformedV1
+            },
             max_order: order,
             ..Default::default()
         },
@@ -583,7 +587,11 @@ fn exact_only_recipes_keep_their_own_offsets_and_validation_records() {
         let kernels = generate(
             &input,
             &GenerationOptions {
-                contour,
+                program_recipe: if contour {
+                    ProgramRecipe::FixedV1
+                } else {
+                    ProgramRecipe::UndeformedV1
+                },
                 max_order: i32::from(contour),
                 ..Default::default()
             },

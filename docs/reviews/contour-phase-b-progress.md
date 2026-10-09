@@ -11,13 +11,13 @@ or the required physical multiloop tests.
 | Fixed runtime | Runtime binding, eager/SymJIT and precision rescue, scoped preflight, `always`/`pilot`/`off`, selective reload and checkpoint provenance pass native tests. |
 | Caller-owned execution | Real CLI tests cover ordinary/serial generation and integration, all validation policies, cancellation during preflight, exact offsets and policy-only resume. |
 | Independent physical references | Above-threshold B0, C0 and D0 agree with native HEPKit/OneLOop in both generation modes. Full fixed-mode 400 GeV ggHH agrees with HEPKit and MadLoop at 0.39 standard errors, with relative uncertainty `2.96355e-4`, pole cancellations and Ward checks. Physical double box and required LTD cases remain pending. |
-| Native regression suite | **730 distinct enabled tests pass; 29 are ignored.** This combines 245 core scientific/integration tests, the updated library's 252 tests and the final CLI/QMC/sector gate's 233 tests on the final public matrix. The new exact-only pilot and scope regressions pass. Ignored tests are not claimed as acceptance evidence. |
+| Fixed milestone native regression suite | At `f2c2d930`, **730 distinct enabled tests passed; 29 were ignored**: 245 core scientific/integration tests, 252 library tests and 233 CLI/QMC/sector tests. Results for the subsequent dynamic generation increment are recorded separately below. Ignored tests are not acceptance evidence. |
 | Strict lint gate | Final public-matrix `cargo clippy --workspace --all-targets --locked -- -D warnings` passes, including the readiness correction and native/CLI artifact foundations. |
-| Dynamic algebra | Eight native envelope tests plus shared local-strength Jacobian and higher-jet Taylor/IBP controls pass; the combined contour foundation gate passed 51 tests. Production generation wiring remains pending. |
+| Dynamic algebra | Polynomial dynamic recipe generation now applies the full local-strength map before subtraction. Analytic Laurent controls pass for symbolic and numerical-dual generation, with Taylor and IBP. Sign-aware production generation and certified runtime admission remain pending. |
 | Dynamic numerical root | Native callback/implicit-jet and restoration foundations pass. Owner tests cover prepared eager/JIT solves, tracked hypot, certified square roots and portable domains. An independent enclosure probe passed 2,620 cases at 8/24/96/256 bits. Production checker integration remains pending. |
 | Recipe-addressable artifacts | The native descriptor gate passes five tests and the artifact gate 37. The real CLI recipe test passes all ordinary/serial integration combinations for undeformed/fixed saved programs, including covariance, selective inspection and checkpoint isolation. Production generation of a complete alternative recipe set remains pending; dynamic admission is explicitly rejected. |
 | Portable execution | The full maintained standalone portable suite passes **73 tests, zero failures or ignored**, with ordinary `--locked` Cargo on the final public source matrix. This includes fixed threshold bubbles in both generation modes, all complex Laurent components, certified pilot/production validation, fresh-process restoration, covariance and checkpoint/replay controls. Native portable execution is not an actual browser/WASM run. |
-| HEPKit/Python | A frozen full-default private Community wheel passed **3 contour tests and all 205 maintained binding/demo/notebook/wavefunction tests**. That snapshot used earlier fixed-mode prerequisites. The final public-matrix standalone binding check passes, including the new lazy validation-face getter and exact-only readiness correction. Executing these newer Python regressions in a refreshed installed wheel remains a separate gate; actual WASM execution remains pending. |
+| HEPKit/Python | The refreshed full-default private Community wheel built from fixed milestone `f2c2d930` passes **8 contour tests, 210 maintained binding/demo/notebook/wavefunction tests, and 6 owner compatibility controls**. The independent standalone binding check also passes for the subsequent generation selector increment. The wheel does not contain that dynamic increment; latest Community `9a65` and actual WASM execution remain separate gates. |
 | Variance and performance | [Matched-work protocol](contour-variance-protocol.md) and fixed/fixed executable control verify matching actual coordinates/weights, separate result identities and complete covariance. No dynamic production variance gain has been measured or claimed. |
 
 The final publicly reproducible source matrix is Symbolica/Numerica
@@ -38,11 +38,15 @@ comments. These PRs are not claimed as merged. Current Community's new required
 citation URL field also has small owner-specific compatibility PRs; the
 host-specific Vakint change preserves its existing RustRed integration.
 
-The installed Python evidence uses the frozen source snapshot
-`00b6f4c7eb0e7fb1c3535e0b0cb70f833de245270f5f5b97dc91a753bca12a62`,
-not the newer dynamic foundations. No shared notebook installation was replaced.
-The [HEPKit audit](contour-hepkit-milestone-audit.md) records remaining wrapper
-signature/stub and restored-inspector gaps explicitly.
+The refreshed installed Python evidence uses the immutable `f2c2d930` archive,
+SHA256 `355538baccb107fc81f247132f2e4001cd7cbefe63ee9dab74cad9389f7299fc`.
+Its wheel SHA256 is
+`06c602e256e8d6eb9c690756ba749c812c24692c6f3325ff0402b3a5e7776202`.
+The two exact-only QMC test fixtures explicitly select the existing
+`hkkn_alpha3` lattice for their 32-point requests; this test-only overlay does
+not modify the wheel's compiled source. No shared notebook installation was
+replaced. The [Python review](contour-python.md) records the full owner matrix,
+test evidence and remaining stub/current-host gates.
 
 The required LTD two-loop and three-loop native fixtures now have reproducible
 HEPKit graphs, source provenance and four passing importer controls, including
@@ -76,7 +80,7 @@ The final native acceptance commands were `cargo test --workspace --locked --
 was a failure for the superseded CLI assertion; only its completed successful
 core suites supply acceptance evidence.
 
-The next private installed-wheel gate deliberately preserves the complete
+The refreshed private installed-wheel gate deliberately preserves the complete
 Community `3aa2608` module set used by the earlier comparison, with corrected
 public owner dependencies. Current Community `9a65` has added IBP dispatch,
 WASM RustRed registration and positive-epsilon master dependencies; validating
@@ -90,3 +94,50 @@ use matching actual coordinate sequences, independent repeated runs, and
 frozen pilot-selected settings. Report variance gain alongside sampling cost,
 variance times runtime, and time to one-per-mil accuracy; larger deformation
 alone is not evidence of better convergence.
+
+## Dynamic generation and helper ownership milestone
+
+Explicit native recipe selection and polynomial dynamic maps now run before
+subtraction in both generation modes. The analytic Laurent controls pass for
+Taylor and IBP, and streamed staging restores native helper owners before its
+Atom context. Public physical source identities use Symbolica canonical
+expressions instead of process-local serialization state. Recipe-aware receipts
+reject foreign source identities, repeated permutations and incorrect chart
+coverage before accepting completed workers. See the
+[generation recovery review](contour-generation-recovery.md).
+
+The updated core library passes **271 tests** (16 ignored), including the final
+legacy-loader scope regression. The complete CLI package passes **156 tests**
+(7 ignored), including real process recovery and all fixed-contour execution
+combinations. The full portable consumer passes **73 tests**, with no failures
+or ignored tests. The final standalone binding check, strict workspace/all-target
+Clippy, formatting and whitespace checks pass. The portable execution gate
+predates the final three-line legacy JSON loader scope guard; the native core
+gate exercises that actual nested-load path, and the standalone binding check
+also includes it. These results do not claim portable dynamic production or a
+new installed dynamic Python wheel.
+
+An independent fresh-process probe identified and verified correction of an
+identity issue:
+equivalent native root helpers can have different optimized instruction layouts
+when helper symbols are registered in a different order. All 125 process cases
+passed native exact polynomial and derivative comparisons, rational evaluations
+and restoration checks. Versioned semantic callback tags now remain stable,
+while saved-byte checksums still identify their exact native representations.
+Descriptor-scoped callback construction prevents another loaded integral from
+supplying its helper. Independent tests cover simultaneous callers, nested
+scopes and unwinding, legacy helpers, and detached multiprecision remapping.
+The thread-local scope guard cannot move to another thread. See the
+[helper identity audit](contour-helper-identity.md).
+
+Dynamic production admission remains explicitly closed. Saved certified
+checkers, sign-aware production envelopes, shared recipe preparation, public
+runtime integration and physical multiloop validation remain required.
+
+A bounded exploratory fixed-mode `2L4P.b.K1` run using a frozen debug binary
+reached the ten-minute cap while mapping its first four of 186 source charts.
+Its observed aggregate parent/worker RSS peaked at 2,130,710,528 bytes; it
+cancelled cleanly and published no artifact. This is neither a completed
+scientific gate nor a release performance comparison. Independent native
+determinant probes point to a faster existing Symbolica alias route, which must
+preserve subtraction derivatives before it can replace the current path.

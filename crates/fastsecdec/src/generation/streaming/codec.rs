@@ -12,7 +12,9 @@ use symbolica::{
     state::{State, StateMap},
 };
 
-const MAGIC: &[u8] = b"FastSecDec\0generation-record\x01";
+// The native recipe selector replaces the former boolean contour option.
+// Reject old staging records explicitly rather than interpreting their schema.
+const MAGIC: &[u8] = b"FastSecDec\0generation-record\x02";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, thiserror::Error)]
@@ -71,6 +73,7 @@ impl RecordRef {
 
 #[derive(Encode, Decode)]
 struct Envelope {
+    program_descriptor: Option<Vec<u8>>,
     state: Vec<u8>,
     payload: Vec<u8>,
 }
@@ -81,6 +84,7 @@ struct Payload {
     metadata: Vec<u8>,
     atoms: Vec<Atom>,
     symbols: Vec<Symbol>,
+    checks: Vec<crate::kernel::DynamicCheckSource>,
 }
 
 /// A native Atom table lets the small surrounding DTO use ordinary serde
@@ -111,12 +115,38 @@ pub(super) fn write<M: Serialize>(
     atoms: Atoms,
     symbols: Vec<Symbol>,
 ) -> Result<RecordRef, StreamingError> {
+    write_with_program(
+        root,
+        name,
+        kind,
+        metadata,
+        atoms,
+        symbols,
+        &Default::default(),
+    )
+}
+
+pub(super) fn write_with_program<M: Serialize>(
+    root: &Path,
+    name: &str,
+    kind: &str,
+    metadata: &M,
+    atoms: Atoms,
+    symbols: Vec<Symbol>,
+    program: &super::super::program::ProgramData,
+) -> Result<RecordRef, StreamingError> {
     fs::create_dir_all(root)?;
     let mut exported = Atom::Zero.get_all_symbols(true);
     for atom in &atoms.atoms {
         exported.extend(atom.get_all_symbols(true));
     }
     exported.extend(symbols.iter().copied());
+    for check in &program.checks {
+        exported.extend(check.parameters.iter().copied());
+        for output in &check.outputs {
+            exported.extend(output.get_all_symbols(true));
+        }
+    }
     let mut state = Vec::new();
     State::export_partial(&mut state, exported)?;
     let payload = Payload {
@@ -124,9 +154,23 @@ pub(super) fn write<M: Serialize>(
         metadata: serde_json::to_vec(metadata).map_err(invalid)?,
         atoms: atoms.atoms,
         symbols,
+        checks: program
+            .checks
+            .iter()
+            .map(|check| check.as_ref().clone())
+            .collect(),
     };
     let payload = bincode::encode_to_vec(payload, bincode::config::standard()).map_err(invalid)?;
-    let envelope = Envelope { state, payload };
+    let envelope = Envelope {
+        program_descriptor: program
+            .descriptor
+            .as_ref()
+            .map(|descriptor| descriptor.to_staging_bytes())
+            .transpose()
+            .map_err(invalid)?,
+        state,
+        payload,
+    };
     let mut bytes = MAGIC.to_vec();
     bytes.extend(bincode::encode_to_vec(envelope, bincode::config::standard()).map_err(invalid)?);
     let digest = blake3::hash(&bytes).to_hex().to_string();
@@ -169,6 +213,20 @@ pub(super) fn read<M: DeserializeOwned>(
     reference: &RecordRef,
     kind: &str,
 ) -> Result<(M, Atoms, Vec<Symbol>), StreamingError> {
+    let (metadata, atoms, symbols, program) = read_with_program(root, reference, kind)?;
+    if program.descriptor.is_some() || !program.checks.is_empty() {
+        return Err(invalid(
+            "dynamic record requires its retained program owner",
+        ));
+    }
+    Ok((metadata, atoms, symbols))
+}
+
+pub(super) fn read_with_program<M: DeserializeOwned>(
+    root: &Path,
+    reference: &RecordRef,
+    kind: &str,
+) -> Result<(M, Atoms, Vec<Symbol>, super::super::program::ProgramData), StreamingError> {
     reference.verify(root)?;
     let bytes = fs::read(reference.resolve(root)?)?;
     let bytes = bytes
@@ -179,6 +237,15 @@ pub(super) fn read<M: DeserializeOwned>(
     if used != bytes.len() {
         return Err(invalid("trailing envelope bytes"));
     }
+    // Callback factories must own their native helper before any associated
+    // symbol context, mapped Atom or evaluator is imported in a fresh worker.
+    let descriptor = envelope
+        .program_descriptor
+        .as_deref()
+        .map(crate::kernel::NativeProgramDescriptor::from_staging_bytes)
+        .transpose()
+        .map_err(invalid)?
+        .map(std::sync::Arc::new);
     let _ = symbolica::transcendental::gamma();
     crate::contour::functions::register();
     let mut source = envelope.state.as_slice();
@@ -201,5 +268,13 @@ pub(super) fn read<M: DeserializeOwned>(
             atoms: payload.atoms,
         },
         payload.symbols,
+        super::super::program::ProgramData {
+            descriptor,
+            checks: payload
+                .checks
+                .into_iter()
+                .map(std::sync::Arc::new)
+                .collect(),
+        },
     ))
 }

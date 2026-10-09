@@ -27,20 +27,48 @@ pub(super) fn check_options(
     options: &super::GenerationOptions,
 ) -> Result<DomainAssessment, GenerationError> {
     let mut assessment = check(input, options.assume_no_threshold)?;
-    if !options.contour {
+    if options.program_recipe == crate::kernel::indexed::ProgramRecipe::DynamicSignAwareV1 {
+        return Err(GenerationError::Contour(
+            "sign-aware generation awaits cancellation-resistant positive-part callbacks".into(),
+        ));
+    }
+    if !options.contour_enabled() {
         return Ok(assessment);
     }
+    if options.program_recipe.is_dynamic() && input.terms().is_empty() {
+        return Err(GenerationError::Contour(
+            "empty dynamic input requires an explicit empty-recipe descriptor; this admission is pending".into(),
+        ));
+    }
+    let reserved = [
+        crate::contour::lambda_symbol(),
+        crate::contour::dynamic::safety_fraction_symbol(),
+        crate::contour::dynamic::lambda_cap_symbol(),
+        crate::contour::dynamic::displacement_cap_symbol(),
+        crate::contour::dynamic::radius_fraction_symbol(),
+    ];
+    let source_expressions = input.terms().iter().flat_map(|term| {
+        std::iter::once(term.prefactor())
+            .chain(term.monomial_powers())
+            .chain(
+                term.factors()
+                    .iter()
+                    .flat_map(|factor| [factor.polynomial(), factor.exponent()]),
+            )
+    });
     if input
-        .density()
-        .get_all_symbols(true)
-        .contains(&crate::contour::lambda_symbol())
-        || input
-            .parameters()
-            .contains(&crate::contour::lambda_symbol())
-        || input.regulator() == crate::contour::lambda_symbol()
+        .parameters()
+        .iter()
+        .any(|symbol| reserved.contains(symbol))
+        || reserved.contains(&input.regulator())
+        || source_expressions.into_iter().any(|expression| {
+            reserved
+                .iter()
+                .any(|symbol| expression.contains_symbol(*symbol))
+        })
     {
         return Err(GenerationError::Contour(
-            "input collides with the reserved contour strength symbol".into(),
+            "input collides with a reserved contour mathematical symbol".into(),
         ));
     }
     let mut source_f = None;

@@ -111,7 +111,7 @@ fn artifact() -> Result<Vec<u8>> {
     let generated = generation::generate(
         &input,
         &GenerationOptions {
-            contour: true,
+            program_recipe: fastsecdec::kernel::indexed::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),

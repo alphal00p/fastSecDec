@@ -77,7 +77,7 @@ pub fn prepare_with_runtime(
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
-            if domain::is_geometry_factor(factor, options.contour) {
+            if domain::is_geometry_factor(factor, options.contour_enabled()) {
                 let support = cache.get(factor).map_err(GenerationError::from)?;
                 if !supports.contains(support) {
                     supports.push(support.clone());
@@ -113,7 +113,7 @@ pub fn prepare_with_runtime(
     let mut maps = geometry.iter_mut().flat_map(Geometry::maps).peekable();
     let dimension = maps.peek().map_or(0, |map| map.dimension());
     let targets = mapping::target_parameters(input, dimension);
-    let source = records::write_source(
+    let (source, source_identity) = records::write_source(
         root,
         input,
         &targets,
@@ -141,6 +141,8 @@ pub fn prepare_with_runtime(
         charts.push(MapJob { index, map });
     }
     Ok(Preparation {
+        source_identity,
+        program_recipe: options.program_recipe,
         source,
         charts,
         mode: options.mode,
@@ -164,7 +166,10 @@ pub fn discover(
         return Err(invalid("foreign geometry job"));
     }
     let context = records::read_source(root, &preparation.source)?;
-    if context.options.mode != preparation.mode {
+    if context.options.mode != preparation.mode
+        || context.options.program_recipe != preparation.program_recipe
+        || context.source_identity != preparation.source_identity
+    {
         return Err(invalid("source generation mode mismatch"));
     }
     let (map, _, _): (records::Map, _, _) = codec::read(root, &job.map, "map")?;
@@ -202,6 +207,7 @@ pub fn discover(
                 mapped: chart.mapped,
                 deferred: None,
                 contour: chart.contour,
+                program: chart.program,
             },
             Some(key),
             None,
@@ -225,6 +231,7 @@ pub fn discover(
                 mapped: chart.mapped,
                 deferred: Some(chart.terms),
                 contour: chart.contour,
+                program: chart.program.select(&[job.index])?,
             },
             None,
             key,
@@ -232,6 +239,7 @@ pub fn discover(
     };
     let record = records::write_chart(root, &data)?;
     Ok(DiscoveredSector {
+        program_recipe: preparation.program_recipe,
         index: job.index,
         source_id: preparation.source.blake3.clone(),
         dimension: context.targets.len(),
@@ -253,6 +261,9 @@ pub fn compare_symmetry(
 ) -> Result<SymmetryAssignment, StreamingError> {
     let context = records::read_source(root, &preparation.source)?;
     let data = records::read_chart(root, &chart.record)?;
+    if chart.program_recipe != preparation.program_recipe {
+        return Err(invalid("chart program recipe mismatch"));
+    }
     if data.index != chart.index
         || data.source_id != preparation.source.blake3
         || chart.source_id != data.source_id
@@ -260,6 +271,8 @@ pub fn compare_symmetry(
         return Err(invalid("chart index or source identity mismatch"));
     }
     let identity = SymmetryAssignment {
+        program_recipe: preparation.program_recipe,
+        source_id: preparation.source.blake3.clone(),
         source: chart.index,
         representative: chart.index,
         permutation: (0..context.targets.len()).collect(),
@@ -286,10 +299,15 @@ pub fn compare_symmetry(
     };
     let prepared =
         symmetry::prepare_mapped(chart.index, &context.targets, &data.mapped, &mut abort)?;
+    let _helper_owner = data.program.descriptor.clone();
     drop(data);
     let mut previous = None;
     for candidate in candidates {
-        if candidate.index >= chart.index || previous.is_some_and(|p| p >= candidate.index) {
+        if candidate.program_recipe != preparation.program_recipe
+            || candidate.source_id != preparation.source.blake3
+            || candidate.index >= chart.index
+            || previous.is_some_and(|p| p >= candidate.index)
+        {
             return Err(invalid(
                 "symmetry candidates must be earlier ordered representatives",
             ));
@@ -306,6 +324,10 @@ pub fn compare_symmetry(
         {
             return Err(invalid("candidate chart index or source identity mismatch"));
         }
+        // The prepared symmetry form contains callback expressions but does
+        // not itself own their native helper programs. Retain this candidate's
+        // owner independently of the active chart and its helper arity.
+        let _candidate_helper_owner = target.program.descriptor.clone();
         let target = symmetry::prepare_mapped(
             candidate.index,
             &context.targets,
@@ -314,6 +336,8 @@ pub fn compare_symmetry(
         )?;
         if let Some(permutation) = prepared.equivalent_to(&target)? {
             return Ok(SymmetryAssignment {
+                program_recipe: preparation.program_recipe,
+                source_id: preparation.source.blake3.clone(),
                 source: chart.index,
                 representative: candidate.index,
                 permutation,
@@ -346,6 +370,9 @@ pub fn build_formula(
     let source = records::read_source(root, &preparation.source)?;
     let context = DualContext::new(&source.input, &source.options, source.targets);
     let data = records::read_chart(root, &chart.record)?;
+    if chart.program_recipe != preparation.program_recipe {
+        return Err(invalid("chart program recipe mismatch"));
+    }
     if data.index != chart.index
         || data.source_id != preparation.source.blake3
         || chart.source_id != data.source_id
@@ -359,6 +386,7 @@ pub fn build_formula(
     if chart.formula_key.as_ref() != Some(&lookup) {
         return Err(invalid("formula key mismatch"));
     }
+    let _helper_owner = data.program.descriptor.clone();
     drop(data);
     let recipe = numerical_dual::formula::build(
         &key,
@@ -377,6 +405,7 @@ pub fn build_formula(
         &recipe,
     )?;
     Ok(FormulaRecord {
+        program_recipe: preparation.program_recipe,
         key: lookup,
         source_id: preparation.source.blake3.clone(),
         record,
@@ -397,11 +426,16 @@ pub fn finish_preparation(
         || assignments.len() != charts.len()
         || charts.iter().enumerate().any(|(i, c)| {
             c.index != i
+                || c.program_recipe != preparation.program_recipe
                 || c.source_id != preparation.source.blake3
                 || c.dimension != preparation.dimension
         })
         || assignments.iter().enumerate().any(|(i, a)| {
-            a.source != i || a.representative > i || a.permutation.len() != preparation.dimension
+            a.program_recipe != preparation.program_recipe
+                || a.source_id != preparation.source.blake3
+                || a.source != i
+                || a.representative > i
+                || a.permutation.len() != preparation.dimension
         })
     {
         return Err(invalid(
@@ -410,7 +444,9 @@ pub fn finish_preparation(
     }
     let mut by_formula = BTreeMap::new();
     for f in formulas {
-        if f.source_id != preparation.source.blake3 {
+        if f.source_id != preparation.source.blake3
+            || f.program_recipe != preparation.program_recipe
+        {
             return Err(invalid("foreign formula source"));
         }
         if by_formula.insert(f.key.clone(), f).is_some() {
@@ -464,6 +500,7 @@ pub fn finish_preparation(
             })
             .transpose()?;
         sectors.push(SectorJob {
+            program_recipe: preparation.program_recipe,
             index,
             source: preparation.source.clone(),
             charts,
@@ -476,6 +513,7 @@ pub fn finish_preparation(
     }
     if sectors.is_empty() {
         sectors.push(SectorJob {
+            program_recipe: preparation.program_recipe,
             index: 0,
             source: preparation.source.clone(),
             charts: vec![],
@@ -484,6 +522,8 @@ pub fn finish_preparation(
         });
     }
     Ok(PreparedGeneration {
+        source_identity: preparation.source_identity.clone(),
+        program_recipe: preparation.program_recipe,
         source: preparation.source.clone(),
         source_charts: preparation.charts.len(),
         unique_formulas,

@@ -26,6 +26,7 @@ impl CompilationSession {
         precision.validate()?;
         settings.validate()?;
         let runtime_parameters = runtime_inputs(&generated, &runtime_parameters);
+        validate_descriptor(&generated, &runtime_parameters)?;
         let use_complex = requires_complex(&generated, &runtime_parameters);
         Ok(Self {
             generated,
@@ -79,6 +80,9 @@ impl CompilationSession {
         max_units: usize,
         progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<bool, KernelError> {
+        let _preparing = crate::kernel::NativeProgramDescriptor::enter_optional(
+            self.generated.program_descriptor().map(Arc::as_ref),
+        );
         if max_units == 0 {
             return Err(KernelError::Compilation(
                 "max_units must be positive".into(),
@@ -99,6 +103,9 @@ impl CompilationSession {
                 let index = self.sectors.len();
                 CompilationJob {
                     owner: self.owner.clone(),
+                    program_descriptor: self.generated.sectors()[index]
+                        .program_descriptor()
+                        .cloned(),
                     index,
                     sector: self.generated.sectors()[index].clone(),
                     runtime_parameters: self.runtime.clone(),
@@ -120,6 +127,7 @@ impl CompilationSession {
                     self.settings,
                 )
                 .and_then(|mut kernels| {
+                    kernels.attach_program_descriptor(self.generated.program_descriptor())?;
                     kernels.initialize_artifact()?;
                     self.result = Some(kernels);
                     self.complete = true;

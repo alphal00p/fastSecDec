@@ -38,7 +38,7 @@ fn worker_contour_deltas_do_not_duplicate_resident_checks_or_count_adaptation_as
     let template = generate(
         &source,
         &GenerationOptions {
-            contour: true,
+            program_recipe: fastsecdec::kernel::indexed::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),

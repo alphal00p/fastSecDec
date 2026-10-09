@@ -28,6 +28,9 @@ pub fn generate_sector(
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<GeneratedUnit, StreamingError> {
     let context = records::read_source(root, &job.source)?;
+    if job.program_recipe != context.options.program_recipe {
+        return Err(invalid("sector program recipe mismatch"));
+    }
     let domain = domain::check_options(&context.input, &context.options)?;
     let mut observe = |event: &GenerationEvent| match event {
         GenerationEvent::Progress(status) => progress(status),
@@ -75,6 +78,7 @@ pub fn generate_sector(
                 &restored
             };
             if chart.index != usage.chart.index
+                || usage.chart.program_recipe != job.program_recipe
                 || chart.source_id != job.source.blake3
                 || usage.chart.source_id != chart.source_id
                 || usage.permutation.len() != context.targets.len()
@@ -109,7 +113,14 @@ pub fn generate_sector(
             &mut observe,
         )?;
         let mut assembly = Assembly::new(context.options.max_order);
-        assembly.push(0, data.map, context.targets, job.charts.len(), output);
+        assembly.push(
+            0,
+            data.map,
+            context.targets,
+            job.charts.len(),
+            output,
+            data.program,
+        )?;
         assembly.finish(domain, charts, context.options.max_order)
     } else {
         if job.charts.len() != 1 {
@@ -122,7 +133,10 @@ pub fn generate_sector(
         let recipe = match (&job.formula, &key) {
             (None, None) => None,
             (Some(formula), Some(key)) => {
-                if formula.key != key.lookup_key() || formula.source_id != job.source.blake3 {
+                if formula.key != key.lookup_key()
+                    || formula.source_id != job.source.blake3
+                    || formula.program_recipe != job.program_recipe
+                {
                     return Err(invalid("sector formula lookup key or source mismatch"));
                 }
                 let (recipe, signature) =
@@ -149,6 +163,7 @@ pub fn generate_sector(
             context.options.max_subtractions_per_axis,
         )?;
         let discovered = DiscoveredChart {
+            program: data.program,
             contour: data.contour,
             index: job.index,
             map: data.map,
@@ -170,7 +185,7 @@ pub fn generate_sector(
         )?;
         prepared.chart.source_index = 0;
         prepared.chart.representative = 0;
-        numerical_dual::finish(domain, vec![prepared], context.options.max_order)
+        numerical_dual::finish(domain, vec![prepared], context.options.max_order)?
     };
     if generated.sectors().len() > 1 {
         return Err(generation::GenerationError::Invariant(

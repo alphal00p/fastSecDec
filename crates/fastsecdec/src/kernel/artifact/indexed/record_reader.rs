@@ -141,7 +141,7 @@ pub(super) fn load_selected(
             local.program_descriptor = local
                 .program_descriptor
                 .as_ref()
-                .map(|descriptor| descriptor.for_payload(&[], &local.exact_expressions))
+                .map(|descriptor| descriptor.for_payload(&[], &local.exact_expressions, None))
                 .transpose()?;
         } else if let Some(mut metadata) = local.metadata.take() {
             if let Some(descriptor) = &mut local.program_descriptor {

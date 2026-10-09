@@ -186,7 +186,7 @@ fn above_threshold_log_bubble_has_causal_lower_lip_and_strength_invariance() {
     );
     for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
         let options = GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
             mode,
             ..Default::default()
         };
@@ -234,7 +234,7 @@ fn deformation_precedes_taylor_and_ibp_endpoint_subtraction() {
                 SubtractionStrategy::IntegrateByParts,
             ] {
                 let options = GenerationOptions {
-                    contour: true,
+                    program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
                     subtraction,
                     mode,
                     ..Default::default()
@@ -292,7 +292,7 @@ fn generation_never_guesses_f_and_runtime_strength_is_strictly_positive() {
     )
     .unwrap();
     let options = GenerationOptions {
-        contour: true,
+        program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
         mode: GenerationMode::NumericalDual,
         ..Default::default()
     };
@@ -323,7 +323,7 @@ fn complex_causal_coefficients_are_rejected_even_without_runtime_checks() {
         Atom::num(-1),
     );
     let options = GenerationOptions {
-        contour: true,
+        program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
         ..Default::default()
     };
     let error = generation::generate(&input, &options, |_| ControlFlow::Continue(()))
@@ -364,7 +364,7 @@ fn native_dual_keeps_meromorphic_term_prefactors_outside_smooth_jets() {
         let generated = generation::generate(
             &input,
             &GenerationOptions {
-                contour: true,
+                program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
                 mode,
                 ..Default::default()
             },
@@ -403,7 +403,7 @@ fn zero_dimensional_causal_offsets_retain_contour_capability() {
     let generated = generation::generate(
         &input,
         &GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),
@@ -434,7 +434,7 @@ fn physical_contour_native_scalar_and_batch_match_eager_at_fixed_points() {
     let generated = generation::generate(
         &input,
         &GenerationOptions {
-            contour: true,
+            program_recipe: crate::kernel::indexed::ProgramRecipe::FixedV1,
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),

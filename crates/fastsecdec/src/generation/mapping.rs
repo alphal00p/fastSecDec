@@ -46,8 +46,15 @@ pub(super) fn map_terms(
     coordinates: &CoordinateMap,
     source_supports: &mut super::support::SupportCache,
 ) -> Result<Vec<MappedTerm>, GenerationError> {
-    map_terms_with_contour(input, map, coordinates, source_supports, false, true)
-        .map(|(terms, _)| terms)
+    map_terms_with_contour(
+        input,
+        map,
+        coordinates,
+        source_supports,
+        crate::kernel::indexed::ProgramRecipe::UndeformedV1,
+        true,
+    )
+    .map(|(terms, _, _)| terms)
 }
 
 pub(super) fn map_terms_with_contour(
@@ -55,9 +62,18 @@ pub(super) fn map_terms_with_contour(
     map: &SectorMap,
     coordinates: &CoordinateMap,
     source_supports: &mut super::support::SupportCache,
-    contour: bool,
+    recipe: crate::kernel::indexed::ProgramRecipe,
     combine: bool,
-) -> Result<(Vec<MappedTerm>, Option<crate::contour::ContourMetadata>), GenerationError> {
+) -> Result<
+    (
+        Vec<MappedTerm>,
+        Option<crate::contour::ContourMetadata>,
+        super::program::ProgramData,
+    ),
+    GenerationError,
+> {
+    let contour = recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1;
+    let mut program = super::program::ProgramData::default();
     #[cfg(test)]
     profile::begin_chart();
     let parameters = coordinates.target_parameters();
@@ -243,8 +259,10 @@ pub(super) fn map_terms_with_contour(
     }
     let contour_metadata = if contour {
         let (terms, metadata) =
-            contour::deform_with(parameters, contour_terms, |parameters, f, _| {
-                crate::contour::FixedContourMap::new(parameters, f).map(|map| map.into_inner())
+            contour::deform_with(parameters, contour_terms, |parameters, f, positive| {
+                let (map, owner) = contour::program::build(recipe, parameters, f, positive)?;
+                program = owner;
+                Ok(map)
             })?;
         for term in terms {
             retain_term(term, combine, &mut combined, &mut separate);
@@ -254,7 +272,7 @@ pub(super) fn map_terms_with_contour(
         None
     };
     if !combine {
-        return Ok((separate, contour_metadata));
+        return Ok((separate, contour_metadata, program));
     }
     let terms = combined
         .into_iter()
@@ -276,7 +294,7 @@ pub(super) fn map_terms_with_contour(
             })
         })
         .collect();
-    Ok((terms, contour_metadata))
+    Ok((terms, contour_metadata, program))
 }
 
 fn retain_term(

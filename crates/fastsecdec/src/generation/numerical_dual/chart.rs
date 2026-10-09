@@ -9,6 +9,7 @@ use fastsecdec_sectors::SectorMap;
 use std::{ops::ControlFlow, sync::Arc};
 
 pub(in crate::generation) struct DiscoveredChart {
+    pub program: crate::generation::program::ProgramData,
     pub index: usize,
     pub map: SectorMap,
     pub coordinates: CoordinateMap,
@@ -36,20 +37,20 @@ pub(in crate::generation) fn discover(
     )?;
     let coordinates =
         crate::generation::mapping::coordinates(&context.input, &map, &context.parameters);
-    let (mapped, terms, mut contour) = if context.options.contour {
-        let (mapped, contour) = crate::generation::mapping::map_terms_with_contour(
+    let (mapped, terms, mut contour, mut program) = if context.options.contour_enabled() {
+        let (mapped, contour, program) = crate::generation::mapping::map_terms_with_contour(
             &context.input,
             &map,
             &coordinates,
             supports,
-            true,
+            context.options.program_recipe,
             false,
         )?;
         let terms = mapped
             .iter()
             .map(|_| DualTerm { factors: vec![] })
             .collect();
-        (mapped, terms, contour)
+        (mapped, terms, contour, program)
     } else {
         let (mapped, terms) = super::mapping::prepare(
             &context.input,
@@ -58,8 +59,9 @@ pub(in crate::generation) fn discover(
             supports,
             &context.valuations,
         )?;
-        (mapped, terms, None)
+        (mapped, terms, None, Default::default())
     };
+    program.remap(&[index])?;
     let pre_subtraction = PreSubtractionMetadata::capture(
         &mapped,
         context.input.regulator(),
@@ -79,6 +81,7 @@ pub(in crate::generation) fn discover(
         None
     };
     Ok(DiscoveredChart {
+        program,
         index,
         map,
         coordinates,
@@ -99,6 +102,7 @@ pub(in crate::generation) fn instantiate(
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<PreparedChart, GenerationError> {
     let DiscoveredChart {
+        program,
         index,
         map,
         coordinates,
@@ -174,7 +178,7 @@ pub(in crate::generation) fn instantiate(
             coefficients::Observation::default()
                 .event(&representative, CoefficientExpansionStage::PhysicalFallback),
         )?;
-        let physical = if context.options.contour {
+        let physical = if context.options.contour_enabled() {
             mapped
         } else {
             crate::generation::mapping::map_terms(&context.input, &map, &coordinates, supports)?
@@ -203,6 +207,8 @@ pub(in crate::generation) fn instantiate(
     };
     let orders = coefficients.keys().copied().collect();
     let sector = GeneratedSector {
+        program_descriptor: program.descriptor,
+        dynamic_check_sources: program.checks,
         cancellation_degree: profile.degree,
         cancellation_terms: profile.rows,
         endpoint_profiles: profile.endpoint_profiles,

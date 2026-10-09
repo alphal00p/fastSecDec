@@ -1,5 +1,6 @@
 //! Opaque symbolic jobs; the caller owns threads, cancellation and scheduling.
 //! Workers invoke the existing Symbolica mapping and Laurent pipeline unchanged.
+use super::program::ProgramData;
 use super::{
     CoordinateMap, GenerationError, GenerationEvent, GenerationOptions, GenerationPhase,
     GenerationProgress, PreSubtractionMetadata, coefficients, context::emit, laurent, mapping,
@@ -60,6 +61,7 @@ enum Work {
         parameters: Vec<Symbol>,
         mapped: Vec<mapping::MappedTerm>,
         multiplicity: usize,
+        program: ProgramData,
     },
 }
 enum Output {
@@ -69,6 +71,7 @@ enum Output {
     Coefficients(Box<ExpandedChart>),
 }
 pub(super) struct MappedChart {
+    pub program: ProgramData,
     pub map: SectorMap,
     pub parameters: Vec<Symbol>,
     pub coordinates: CoordinateMap,
@@ -80,8 +83,24 @@ pub(super) struct PreparedChart {
     pub chart: MappedChart,
     pub symmetry: symmetry::PreparedDensity,
 }
-type ExpandedChart = (usize, SectorMap, Vec<Symbol>, usize, coefficients::Output);
-type Representatives = BTreeMap<usize, (SectorMap, Vec<Symbol>, Vec<mapping::MappedTerm>, usize)>;
+type ExpandedChart = (
+    usize,
+    SectorMap,
+    Vec<Symbol>,
+    usize,
+    coefficients::Output,
+    ProgramData,
+);
+type Representatives = BTreeMap<
+    usize,
+    (
+        SectorMap,
+        Vec<Symbol>,
+        Vec<mapping::MappedTerm>,
+        usize,
+        ProgramData,
+    ),
+>;
 
 impl SymbolicJob {
     pub fn id(&self) -> SymbolicJobId {
@@ -135,6 +154,7 @@ impl SymbolicJob {
                 parameters,
                 mapped,
                 multiplicity,
+                program,
             } => {
                 let mut templates = laurent::TemplateCache::default();
                 #[cfg(test)]
@@ -172,6 +192,7 @@ impl SymbolicJob {
                     parameters,
                     multiplicity,
                     output,
+                    program,
                 ))))
             }
         })();
@@ -223,12 +244,12 @@ pub(super) fn map_chart(
 ) -> Result<MappedChart, GenerationError> {
     let started = Instant::now();
     let coordinates = mapping::coordinates(input, &map, &parameters);
-    let (mapped, mut contour) = mapping::map_terms_with_contour(
+    let (mapped, mut contour, program) = mapping::map_terms_with_contour(
         input,
         &map,
         &coordinates,
         supports,
-        options.contour,
+        options.program_recipe,
         true,
     )?;
     let pre_subtraction = Some(PreSubtractionMetadata::capture(
@@ -247,6 +268,7 @@ pub(super) fn map_chart(
         },
     )?;
     Ok(MappedChart {
+        program,
         map,
         parameters,
         coordinates,
@@ -338,10 +360,11 @@ pub(super) fn map_dispatched(
 
 pub(super) fn prepare_symmetry(
     index: usize,
-    chart: MappedChart,
+    mut chart: MappedChart,
     total: usize,
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<PreparedChart, GenerationError> {
+    chart.program.remap(&[index])?;
     let symmetry = symmetry::prepare_mapped(index, &chart.parameters, &chart.mapped, || {
         emit(
             progress,
@@ -407,7 +430,7 @@ pub(super) fn expand_dispatched(
     let options = Arc::new(options.clone());
     let total = representatives.len();
     let mut jobs = representatives.into_iter().enumerate().map(
-        |(index, (representative, (map, parameters, mapped, multiplicity)))| SymbolicJob {
+        |(index, (representative, (map, parameters, mapped, multiplicity, program)))| SymbolicJob {
             owner: Arc::clone(&owner),
             id: SymbolicJobId {
                 stage: SymbolicStage::Coefficients,
@@ -422,6 +445,7 @@ pub(super) fn expand_dispatched(
                 parameters,
                 mapped,
                 multiplicity,
+                program,
             },
         },
     );
