@@ -46,7 +46,7 @@ must not be carried into ordinary-source checks.
 | FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
 | Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
 | Graphica | Registry 3.0.1 |
-| SymJIT | Compatible minimum `2.27.0`; public Git revision `33100ae869057f35d9865c933a48bac6699acdd4` supplies the complex callback fix and existing Rust API entrypoint pending upstream release |
+| SymJIT | Compatible minimum `2.27.0`; public Git revision `d74993ffd76a6fc322a7bcf3963fa786783a38a8` supplies the complex callback fix, existing Rust API entrypoint and compatible long-label codec pending upstream release |
 | OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
 | one-loop-reduce | Public source, locked at `b53a70776a43bd14c6562c52a03bc4909568e473`; development-only reference provider |
 

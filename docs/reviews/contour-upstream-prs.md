@@ -37,6 +37,76 @@ Its exact head passed 2,148 owner unit tests (one ignored) and the external Rust
 consumer test. It contains both narrow PRs and replaces the temporary local
 override in consuming workspaces.
 
+## SymJIT native label lengths
+
+[siravan/symjit#16](https://github.com/siravan/symjit/pull/16) fixes the native
+MIR and saved-function-table serializers, which previously asserted when a
+valid UTF-8 label or callback name required 256 bytes or more. A one-callback
+native reproduction isolates the issue without Symbolica or FastSecDec.
+The focused branch is based on upstream `v227`
+`41ee3e28dd4c4cd8032171400c0604b67fd691b7`, with head
+`d309b193fb610e615b84691f94a6ee0c783eac2c`; it does not include the earlier
+unmerged callback/API changes.
+
+All existing names through 255 bytes retain their exact encoding. Longer names
+use a disjoint UTF-8 escape and checked length, with bounded slice reads and
+incremental stream reads. New long-name files require the updated reader.
+Three focused regressions cover ASCII/multibyte boundaries, malformed/truncated
+records, and actual O2 callback compilation, evaluation and save/restore. The
+complete focused-branch owner suite passes **2,151 tests**, with one ignored.
+Root and runtime-agent independent source reviews found no blocker.
+
+The PR and its commit are authored/published by `ValentinHirschi`, using
+`valentin.hirschi@gmail.com`, and the PR is attached to the task. GitHub rejected
+formal reviewer assignment through `RequestReviewsByLogin`; the authorized
+[`@benruijl` review invitation](https://github.com/siravan/symjit/pull/16#issuecomment-6091096705)
+is recorded separately. This is not a successful formal assignment or a merged
+fix.
+
+The compatible combined consumer branch
+[`codex/contour-long-label-consumer`](https://github.com/ValentinHirschi/symjit_changes_for_pyamplicol/tree/codex/contour-long-label-consumer)
+is published at `d74993ffd76a6fc322a7bcf3963fa786783a38a8`, applying only this
+six-file fix to the preceding `33100ae` consumer. Its full owner suite also
+passes 2,151 tests with one ignored, and the standalone native 256-byte callback
+reproduction now passes. All three maintained manifests/lockfiles select this
+public revision, with exactly one changed revision line per file and no unrelated
+dependency migration. Their locked metadata admission passes.
+
+The consuming native contour filter passes **77 tests** after rebuilding the
+actual public dependency graph. This is a focused dependency acceptance gate,
+not a claim that the entire pending dynamic-runtime increment passes: the
+separate composed higher-jet test identified incorrectly grouped face-request
+identities, whose correction is still under validation.
+
+## Serde strict unit-variant settings
+
+The native settings regression reproduces the existing
+[Serde issue #2294](https://github.com/serde-rs/serde/issues/2294): an internally
+tagged unit variant accepts additional fields despite `deny_unknown_fields`.
+The public [container attribute contract](https://serde.rs/container-attrs.html#deny_unknown_fields)
+specifies rejection. Owner source inspection identifies the permissive unit
+visitor; a new native token regression fails on the unmodified upstream base.
+
+[Serde PR #3109](https://github.com/serde-rs/serde/pull/3109) forwards the enum
+policy to that existing private visitor. Its head is
+`71de7c9d6b0c3266562eae47e563765608cf151a`, based on upstream `master`
+`6693a89cca77e0151437da1c7f890090b9ebf04c`. The patch preserves default permissive
+behavior, serialized representation, valid empty maps/sequences, skipped newtype
+defaults and `serde(other)`. The foundation agent independently reviewed it.
+
+The stable owner suite passes 406 tests across 21 executables; its compiler
+diagnostic UI test is explicitly excluded. All 25 internally tagged enum tests
+were rerun after the final unknown-tag fallback control. An alloc-only/no-std
+owner check, changed-file formatting and whitespace checks pass. No nightly or
+complete minimum-supported-Rust matrix was run locally.
+
+The PR/commit are owned by `ValentinHirschi` with the requested email and attached
+to this task. Formal reviewer assignment was denied; the authorized
+[`@benruijl` review invitation](https://github.com/serde-rs/serde/pull/3109#issuecomment-6091204967)
+records the request without claiming formal assignment. FastSecDec retains the
+released Serde dependency and uses a narrow strict settings representation;
+this PR introduces no additional consuming dependency fork.
+
 ## Symbolica and Numerica
 
 - [Symbolica #55](https://github.com/symbolica-dev/symbolica/pull/55) adds native

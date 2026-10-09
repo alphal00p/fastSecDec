@@ -2614,3 +2614,30 @@ patch was needed for that optimization. A further native generic determinant
 probe records factorial growth at dimension eight, without expanding the
 production cache or substituting a private determinant implementation; see the
 [native API and probe evidence](reviews/contour-determinant.md).
+
+## Focused dependency corrections during dynamic validation (2026-10-09)
+
+The actual native higher-jet evaluator exposed a SymJIT serializer length limit.
+An owner-only callback reproduction confirms it without Symbolica/FastSecDec;
+the native MIR and saved-function serializers both used a one-byte length.
+The narrow owner fix preserves every existing short-name encoding and extends
+long labels through one shared codec. It is published as
+[SymJIT PR #16](https://github.com/siravan/symjit/pull/16), independently reviewed,
+and included in public consumer `d74993ffd76a6fc322a7bcf3963fa786783a38a8`.
+All maintained consumers select that public revision; the 77-test native contour
+filter passes. No replacement evaluator codec is implemented in FastSecDec.
+
+The strict native settings test independently reproduces Serde's documented
+unit-variant field-rejection defect. Public documentation, current owner source
+and a failing executable regression agree. The owner fix is
+[Serde PR #3109](https://github.com/serde-rs/serde/pull/3109); FastSecDec uses the
+existing released dependency with a private strict settings representation.
+The [upstream ledger](reviews/contour-upstream-prs.md) records owner test scopes,
+ValentinHirschi authorship, and the explicit `benruijl` invitations after GitHub
+rejected formal reviewer assignment.
+
+These accepted dependency fixes do not establish dynamic production readiness.
+The complete higher-jet observer control exposed a distinction between equal
+symbolic radii and separate subtraction-face requests. Its request identities
+are being corrected and independently tested before asserting one root solve
+per distinct coordinate/face request.

@@ -20,7 +20,7 @@ or the required physical multiloop tests.
 | HEPKit/Python | The refreshed full-default private Community wheel built from fixed milestone `f2c2d930` passes **8 contour tests, 210 maintained binding/demo/notebook/wavefunction tests, and 6 owner compatibility controls**. The independent standalone binding check also passes for the subsequent generation selector increment. The wheel does not contain that dynamic increment; latest Community `9a65` and actual WASM execution remain separate gates. |
 | Variance and performance | [Matched-work protocol](contour-variance-protocol.md) and fixed/fixed executable control verify matching actual coordinates/weights, separate result identities and complete covariance. No dynamic production variance gain has been measured or claimed. |
 
-The final publicly reproducible source matrix is Symbolica/Numerica
+The sign-aware generation milestone's publicly reproducible source matrix is Symbolica/Numerica
 `7ec1be45ef92ae3b154e0d4ce754c0bdf3d9d0ca`, SymJIT
 `33100ae869057f35d9865c933a48bac6699acdd4`, and Feynkit
 `8e3a643f388b45939d6573a648ef3a509086835e`. All three maintained manifests
@@ -29,6 +29,17 @@ override is needed. The Symbolica revision retains existing evaluator
 composition as well as the new owner fixes. SymJIT's dependency requirement is
 a compatible minimum (`2.27.0`); the temporary public Git patch selects the
 reviewable unreleased fixes.
+
+A subsequent focused dependency increment updates SymJIT alone to public
+`d74993ffd76a6fc322a7bcf3963fa786783a38a8`. It fixes a reproduced 256-byte native
+callback-name limit through [upstream PR #16](https://github.com/siravan/symjit/pull/16).
+The owner suite passes 2,151 tests (one ignored), and FastSecDec's rebuilt
+contour filter passes 77 tests. The separate higher-jet observer control
+identified incorrectly grouped subtraction-face requests; its correction and
+complete dynamic runtime admission remain under validation. A settings regression also yielded
+[Serde PR #3109](https://github.com/serde-rs/serde/pull/3109), without adding a
+Serde fork to FastSecDec. The upstream ledger records exact identities and
+review-request outcomes for both fixes.
 
 The [upstream PR ledger](contour-upstream-prs.md) records the owner patches,
 their focused tests, authorship and actual review-request outcomes. GitHub
