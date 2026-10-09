@@ -1,6 +1,6 @@
 use super::super::{RecordDescriptor, RecordReceipt, failure, transport};
 use super::{ProgramArchiveCatalogue, ProgramRecipe, ProgramRecipeCatalogue};
-use crate::kernel::KernelError;
+use crate::kernel::{KernelError, KernelSet};
 use std::{
     collections::BTreeMap,
     io::{Read, Seek, Write},
@@ -71,6 +71,26 @@ impl<W: Write + Seek> ProgramArchiveWriter<W> {
             sector: None,
         });
         self.failed = false;
+        Ok(())
+    }
+    /// Append a resident template through exactly the same record partitioner
+    /// as streamed generation. Only one temporary native sector record is held
+    /// at a time; no evaluator is decoded, restored or reoptimized.
+    pub fn append_kernels(
+        &mut self,
+        recipe: ProgramRecipe,
+        kernels: &KernelSet,
+    ) -> Result<(), KernelError> {
+        if kernels.program_recipe() != recipe || kernels.template_content_id.is_some() {
+            return Err(failure(
+                "resident archive input must be an unbound template of the requested recipe",
+            ));
+        }
+        for sector in std::iter::once(None).chain((0..kernels.sectors().len()).map(Some)) {
+            let (bytes, receipt) = super::super::writer::partition(kernels, sector)
+                .inspect_err(|_| self.failed = true)?;
+            self.append_record(recipe, &mut bytes.as_slice(), receipt)?;
+        }
         Ok(())
     }
     pub fn finish(mut self) -> Result<(W, ProgramArchiveCatalogue), KernelError> {

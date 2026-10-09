@@ -16,7 +16,7 @@ fn source(zero_causal_power: bool) -> ParametricIntegrand {
             vec![parse!("-1-shared_recipe_gate::eps")],
             vec![
                 PolynomialFactor::new(
-                    parse!("1/4-shared_recipe_gate::x"),
+                    parse!("(1/4-shared_recipe_gate::x)*(1+shared_recipe_gate::x^2)"),
                     Atom::num(if zero_causal_power { 0 } else { -1 }),
                     FactorRole::Singularity,
                 )
@@ -45,6 +45,7 @@ fn shared_geometry_and_residuals_are_built_once_with_all_zero_power_declarations
             ProgramRecipe::UndeformedV1,
             ProgramRecipe::FixedV1,
             ProgramRecipe::DynamicPolynomialV1,
+            ProgramRecipe::DynamicSignAwareV1,
         ],
         &[],
         &[],
@@ -62,7 +63,7 @@ fn shared_geometry_and_residuals_are_built_once_with_all_zero_power_declarations
     )
     .unwrap();
     assert_eq!(geometry_events, 1);
-    assert_eq!(recipes.recipes.len(), 3);
+    assert_eq!(recipes.recipes.len(), 4);
     assert!(
         recipes
             .recipes
@@ -131,6 +132,7 @@ fn cancelled_density_keeps_its_shared_branch_declarations_until_recipe_applicati
             ProgramRecipe::UndeformedV1,
             ProgramRecipe::FixedV1,
             ProgramRecipe::DynamicPolynomialV1,
+            ProgramRecipe::DynamicSignAwareV1,
         ],
         &[],
         &[],
@@ -262,6 +264,7 @@ fn shared_sources_match_selected_generation_in_both_modes_and_subtractions() {
                     ProgramRecipe::UndeformedV1,
                     ProgramRecipe::FixedV1,
                     ProgramRecipe::DynamicPolynomialV1,
+                    ProgramRecipe::DynamicSignAwareV1,
                 ],
                 &[],
                 &[],

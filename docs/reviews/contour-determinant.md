@@ -130,3 +130,26 @@ Before requesting an owner improvement:
 These are planned probes, not executed higher-dimensional performance results.
 The shared Cargo target and implementation sources were unchanged by this
 inventory (apart from the separately requested module-order formatting fix).
+
+### Bounded generic-template follow-up
+
+A subsequent direct Rust probe executes the native dense determinant on short
+independent entries, with exact `AtomField` cancellation and polynomial
+admission, at the same public Symbolica revision. It does not modify the
+production template range or use a physical-sector Jacobian.
+
+| Dimension | Native construction | Peak process RSS | Outcome |
+| --- | ---: | ---: | --- |
+| 7 | 2.723 s | 324,980,736 bytes | Completed; 133,568 native Atom bytes and 952,919 canonical-text bytes; polynomial admission passed. |
+| 8 | Interrupted after 15.756 s | 2,149,412,864 bytes | Stopped at the two-GiB RSS budget; no determinant result or polynomial admission claimed. |
+
+The monitor polled every 50 ms, so its observed peak slightly exceeds the
+threshold that triggered termination. Each probe had a separate 60-second wall
+budget and was the monitor's sole owned child. The sources, executable and raw
+measurements remain ignored under `target/contour-determinant-large-*`.
+
+This establishes that extending the current generic cache unconditionally to
+larger dimensions is inappropriate. It does not establish that native direct
+or sparse construction on an actual mapped larger sector fails. Those physical
+controls and the function-map probe remain required before choosing an owner
+API improvement. The four-to-six-dimensional production path is unchanged.

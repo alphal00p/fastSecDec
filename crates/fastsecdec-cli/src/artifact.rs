@@ -3,7 +3,7 @@ pub(crate) mod inspection;
 mod programs;
 pub use indexed::IndexedStorage;
 pub use inspection::{InspectionIndex, KernelSummary};
-pub use programs::ProgramStorage;
+pub use programs::{ProgramGeneration, ProgramStorage};
 
 use std::{
     collections::BTreeMap,
@@ -332,6 +332,7 @@ pub enum ArtifactLoadProgress {
 }
 
 impl Artifact {
+    #[cfg(test)]
     pub fn new(kernels: &KernelSet, provenance: Provenance) -> CliResult<Self> {
         let (data, catalogue) = fastsecdec::kernel::indexed::to_bytes(kernels)?;
         let mut result = Self {

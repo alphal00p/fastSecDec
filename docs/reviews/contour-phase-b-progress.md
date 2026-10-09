@@ -13,9 +13,9 @@ or the required physical multiloop tests.
 | Independent physical references | Above-threshold B0, C0 and D0 agree with native HEPKit/OneLOop in both generation modes. Full fixed-mode 400 GeV ggHH agrees with HEPKit and MadLoop at 0.39 standard errors, with relative uncertainty `2.96355e-4`, pole cancellations and Ward checks. Physical double box and required LTD cases remain pending. |
 | Fixed milestone native regression suite | At `f2c2d930`, **730 distinct enabled tests passed; 29 were ignored**: 245 core scientific/integration tests, 252 library tests and 233 CLI/QMC/sector tests. Results for the subsequent dynamic generation increment are recorded separately below. Ignored tests are not acceptance evidence. |
 | Strict lint gate | Final public-matrix `cargo clippy --workspace --all-targets --locked -- -D warnings` passes, including the readiness correction and native/CLI artifact foundations. |
-| Dynamic algebra | Polynomial dynamic recipe generation now applies the full local-strength map before subtraction. Analytic Laurent controls pass for symbolic and numerical-dual generation, with Taylor and IBP. Sign-aware production generation and certified runtime admission remain pending. |
+| Dynamic algebra | Polynomial and sign-aware recipe generation apply the full local-strength map before subtraction. Analytic complex Laurent controls now execute both symbolic and actual native numerical-dual evaluators, including repeated endpoint poles and Taylor/IBP. Certified dynamic runtime admission remains pending. |
 | Dynamic numerical root | Native callback/implicit-jet and restoration foundations pass. Owner tests cover prepared eager/JIT solves, tracked hypot, certified square roots and portable domains. An independent enclosure probe passed 2,620 cases at 8/24/96/256 bits. Production checker integration remains pending. |
-| Recipe-addressable artifacts | The native descriptor gate passes five tests and the artifact gate 37. The real CLI recipe test passes all ordinary/serial integration combinations for undeformed/fixed saved programs, including covariance, selective inspection and checkpoint isolation. Production generation of a complete alternative recipe set remains pending; dynamic admission is explicitly rejected. |
+| Recipe-addressable artifacts | Ordinary and serial generation now publish the same native v2 archive. Internal family orchestration shares source preparation and retains recipe-local symmetry/formulas, with actual-process recovery tests. Public family selection and dynamic admission remain pending; ordinary/serial integration, covariance, selective inspection and checkpoint isolation pass for undeformed/fixed programs. |
 | Portable execution | The full maintained standalone portable suite passes **73 tests, zero failures or ignored**, with ordinary `--locked` Cargo on the final public source matrix. This includes fixed threshold bubbles in both generation modes, all complex Laurent components, certified pilot/production validation, fresh-process restoration, covariance and checkpoint/replay controls. Native portable execution is not an actual browser/WASM run. |
 | HEPKit/Python | The refreshed full-default private Community wheel built from fixed milestone `f2c2d930` passes **8 contour tests, 210 maintained binding/demo/notebook/wavefunction tests, and 6 owner compatibility controls**. The independent standalone binding check also passes for the subsequent generation selector increment. The wheel does not contain that dynamic increment; latest Community `9a65` and actual WASM execution remain separate gates. |
 | Variance and performance | [Matched-work protocol](contour-variance-protocol.md) and fixed/fixed executable control verify matching actual coordinates/weights, separate result identities and complete covariance. No dynamic production variance gain has been measured or claimed. |
@@ -55,6 +55,14 @@ Their contour generation/integration gates remain pending. The six-point
 example has a strictly negative interior F and is a branch control, not
 evidence of crossing an interior threshold surface. See the
 [fixture audit](contour-ltd-fixtures.md).
+
+A subsequent bounded fixed-mode `2L4P.b.K1` probe completes generation of all
+186 charts using four workers, including intentional cancellation and resume,
+with peak aggregate RSS below 269 MB. Two integration budgets complete without
+failed evaluations but remain far too uncertain for the analytic accuracy
+gate. A larger fixed strength is rejected by the residual-U pilot guard.
+See the [measured probe](contour-ltd-fixed-probe.md); no dynamic variance or
+release speedup is claimed.
 
 The initial parallel test invocation exposed a native model-symbol registration
 collision in the existing auxiliary-momenta test binary. The documented
@@ -177,3 +185,36 @@ the installed extension, and all eight contour/provenance classes are present.
 A separate current-Community overlay preserves its newer OneLoop, RustFlow,
 RustRed and reduction features; that host has not yet been built. Neither the
 shared notebook installation nor the user's release binary was replaced.
+
+## Sign-aware generation and universal recipe publication
+
+Both approved dynamic envelopes now enter the native generation pipeline. The
+nonlinear cubic causal/positive-factor control verifies its reference using
+Symbolica's exact partial fractions and differentiation of a causal primitive.
+All fixed/polynomial/sign-aware combinations pass in symbolic and numerical-dual
+generation with Taylor and IBP. The strengthened dual tests execute native
+`Dualizer` programs without materializing coefficient expressions. A repeated
+endpoint pole additionally exercises higher local-strength jets and the required
+subtraction faces. These are complete complex Laurent-vector checks, not yet
+production validation or variance measurements.
+
+Internal CLI family orchestration shares geometry and residual extraction while
+retaining recipe-local symmetry, formula and worker identities. Journal version
+three checks the canonical family/default before completed-resume admission.
+Ordinary and serial generation now publish the same native v2 archive; ordinary
+publication retains its existing compiled owner. Optional per-recipe previews
+and observations remain outside scientific identity. Public family selection is
+still a subsequent interface step; the public contour flag retains its tested
+fixed-only behavior.
+
+The final registered source passes **297 core library tests** (16 ignored),
+**159 CLI tests** (8 ignored across 24 executables), and **73 portable tests**
+(none ignored). The five focused actual-dual/analytic controls are included in
+the core total, not counted twice. Independent generation, runtime and CLI
+reviews cover source/helper identities, fresh-process native symbol export,
+resident publication, recovery and ecosystem ownership. Strict workspace
+all-target Clippy and formatting pass. The lint-only correction removes a
+redundant default update from the native publication test without changing its
+field values. Certified runtime
+program wiring, dynamic public interfaces, repeated variance comparisons and
+the required physical multiloop accuracy gates remain open.

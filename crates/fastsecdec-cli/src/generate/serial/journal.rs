@@ -1,6 +1,9 @@
 //! Durable, exclusively owned receipt journal. Never deserialize native work.
 mod validation;
-use super::jobs::{Job, Request, Response};
+use super::{
+    family::RecipeFamily,
+    jobs::{Job, Request, Response},
+};
 use crate::{
     CliResult,
     artifact::{self, Dependency, SourceFingerprint},
@@ -13,8 +16,8 @@ use std::{
 };
 pub(super) use validation::validate;
 
-// Native staging v2 records explicitly identify the selected evaluator recipe.
-const JOURNAL_VERSION: u32 = 2;
+// Schema three binds the full canonical capability family before resume.
+const JOURNAL_VERSION: u32 = 3;
 
 #[derive(Serialize, Deserialize)]
 struct Entry {
@@ -30,6 +33,8 @@ struct State {
     #[serde(default)]
     generation_overrides: crate::config::GenerationOverrides,
     dependencies: Vec<Dependency>,
+    #[serde(default)]
+    family: Option<RecipeFamily>,
     run_directory: String,
     completed: bool,
     entries: BTreeMap<String, Entry>,
@@ -46,12 +51,33 @@ impl Journal {
         Self::open_with_overrides(input, output, resume, run_id, Default::default())
     }
 
+    #[cfg(test)]
     pub fn open_with_overrides(
         input: &Path,
         output: &Path,
         resume: bool,
         run_id: &str,
         generation_overrides: crate::config::GenerationOverrides,
+    ) -> CliResult<Self> {
+        let mut card: crate::config::RunCard = toml::from_str(&fs::read_to_string(input)?)?;
+        generation_overrides.apply(&mut card);
+        Self::open_with_family(
+            input,
+            output,
+            resume,
+            run_id,
+            generation_overrides,
+            RecipeFamily::single(card.generation.program_recipe()),
+        )
+    }
+
+    pub fn open_with_family(
+        input: &Path,
+        output: &Path,
+        resume: bool,
+        run_id: &str,
+        generation_overrides: crate::config::GenerationOverrides,
+        family: RecipeFamily,
     ) -> CliResult<Self> {
         let directory = output.with_file_name(format!(
             "{}.generation",
@@ -89,6 +115,11 @@ impl Journal {
                     state.version, JOURNAL_VERSION,
                 ).into());
             }
+            if state.family.as_ref() != Some(&family) {
+                return Err(
+                    "generation resume refused: requested recipe family or default changed".into(),
+                );
+            }
             if state.build_identity != crate::process::child::build_identity()
                 || state.input_hash != input_hash
                 || state.generation_overrides != generation_overrides
@@ -110,6 +141,7 @@ impl Journal {
                 input_hash,
                 generation_overrides,
                 dependencies,
+                family: Some(family),
                 run_directory: format!("run-{run_id}"),
                 completed: false,
                 entries: BTreeMap::new(),
@@ -189,6 +221,15 @@ impl Journal {
     pub fn request(&mut self, key: &str, request: Request) -> CliResult<(Job, Option<Response>)> {
         if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err("invalid generation job key".into());
+        }
+        if let Request::PreparePrograms { recipes, .. } = &request
+            && self
+                .state
+                .family
+                .as_ref()
+                .is_none_or(|family| family.recipes() != recipes)
+        {
+            return Err("issued preparation differs from the durable requested family".into());
         }
         let request_hash = Self::request_hash(&request)?;
         let response = self.response_path(key);
@@ -358,16 +399,23 @@ mod tests {
         drop(journal);
         let mut state: serde_json::Value =
             serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-        state["version"] = 1.into();
-        let original = serde_json::to_vec(&state).unwrap();
-        fs::write(&path, &original).unwrap();
-        let error = Journal::open(&input, &output, true, "second")
-            .err()
-            .expect("legacy native staging was admitted");
-        assert!(error.to_string().contains("staging format 1"));
-        assert!(error.to_string().contains("new output basename"));
-        assert_eq!(fs::read(&path).unwrap(), original);
-        assert_eq!(fs::read(&receipt).unwrap(), b"prior work remains available");
+        state.as_object_mut().unwrap().remove("family");
+        for version in [1, 2] {
+            state["version"] = version.into();
+            let original = serde_json::to_vec(&state).unwrap();
+            fs::write(&path, &original).unwrap();
+            let error = Journal::open(&input, &output, true, "second")
+                .err()
+                .expect("legacy native staging was admitted");
+            assert!(
+                error
+                    .to_string()
+                    .contains(&format!("staging format {version}"))
+            );
+            assert!(error.to_string().contains("new output basename"));
+            assert_eq!(fs::read(&path).unwrap(), original);
+            assert_eq!(fs::read(&receipt).unwrap(), b"prior work remains available");
+        }
     }
 
     #[test]

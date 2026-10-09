@@ -125,12 +125,23 @@ impl Runner {
                             .checked_add(1)
                             .ok_or("generation worker lease counter exhausted")?;
                         let mut command = Command::new(crate::process::executable()?);
+                        #[cfg(not(test))]
                         command
                             .arg("__generate-worker")
                             .arg("--run-id")
                             .arg(&self.run_id)
                             .arg("--lease-id")
                             .arg(lease.to_string());
+                        #[cfg(test)]
+                        command
+                            .args([
+                                "--exact",
+                                "generate::serial::family_tests::native_child_entry",
+                                "--ignored",
+                                "--nocapture",
+                            ])
+                            .env("FASTSECDEC_GENERATION_TEST_RUN", &self.run_id)
+                            .env("FASTSECDEC_GENERATION_TEST_LEASE", lease.to_string());
                         let log = journal.root.join(format!("worker-{lease}.log"));
                         let process = self.pool.spawn_native(
                             &mut command,

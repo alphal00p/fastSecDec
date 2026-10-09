@@ -90,41 +90,73 @@ fn physical_source_identity_is_recipe_independent_but_receipts_are_not() {
 #[test]
 fn dynamic_helpers_restore_before_chart_atoms_in_a_fresh_worker() {
     let directory = tempfile::tempdir().unwrap();
-    let source = dynamic_source();
-    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
-        let generated = prepared(
-            directory.path(),
-            &source,
-            &GenerationOptions {
-                program_recipe: ProgramRecipe::DynamicPolynomialV1,
-                mode,
-                ..Default::default()
-            },
-            &[],
-            &[],
-        );
-        std::fs::write(
-            directory.path().join("job.json"),
-            serde_json::to_vec(&generated.sectors[0]).unwrap(),
-        )
-        .unwrap();
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "generation::streaming::tests::program::dynamic_staged_worker",
-                "--nocapture",
-            ])
-            .env("FASTSECDEC_DYNAMIC_STAGED_WORKER", directory.path())
-            .output()
+    for recipe in [
+        ProgramRecipe::DynamicPolynomialV1,
+        ProgramRecipe::DynamicSignAwareV1,
+    ] {
+        let source = if recipe == ProgramRecipe::DynamicSignAwareV1 {
+            ParametricIntegrand::new(
+                vec![symbol!("dynamic_stream::x")],
+                symbol!("dynamic_stream::eps"),
+                ParametricDomain::UnitCube,
+                vec![ParametricTerm::new(
+                    Atom::one(),
+                    vec![Atom::Zero],
+                    vec![
+                        PolynomialFactor::new(
+                            parse!("(1/4-dynamic_stream::x)*(1+dynamic_stream::x^2)"),
+                            Atom::num(-1),
+                            FactorRole::Singularity,
+                        )
+                        .with_semantics(FactorSemantics::Causal),
+                        PolynomialFactor::new(
+                            parse!("1+dynamic_stream::x^2"),
+                            Atom::Zero,
+                            FactorRole::Singularity,
+                        )
+                        .with_semantics(FactorSemantics::Positive),
+                    ],
+                )],
+            )
+            .unwrap()
+        } else {
+            dynamic_source()
+        };
+        for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+            let generated = prepared(
+                directory.path(),
+                &source,
+                &GenerationOptions {
+                    program_recipe: recipe,
+                    mode,
+                    ..Default::default()
+                },
+                &[],
+                &[],
+            );
+            std::fs::write(
+                directory.path().join("job.json"),
+                serde_json::to_vec(&generated.sectors[0]).unwrap(),
+            )
             .unwrap();
-        assert!(
-            output.status.success(),
-            "{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert!(directory.path().join("restored.ok").is_file());
-        std::fs::remove_file(directory.path().join("restored.ok")).unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "generation::streaming::tests::program::dynamic_staged_worker",
+                    "--nocapture",
+                ])
+                .env("FASTSECDEC_DYNAMIC_STAGED_WORKER", directory.path())
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}\n{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(directory.path().join("restored.ok").is_file());
+            std::fs::remove_file(directory.path().join("restored.ok")).unwrap();
+        }
     }
 }
 
@@ -139,7 +171,7 @@ fn dynamic_staged_worker() {
     let unit = generate_sector(&directory, &job, keep).unwrap();
     assert_eq!(
         unit.generated.program_descriptor().unwrap().recipe(),
-        ProgramRecipe::DynamicPolynomialV1
+        job.program_recipe
     );
     assert_eq!(unit.generated.dynamic_check_sources().len(), 1);
     use symbolica::atom::AtomCore;
@@ -169,7 +201,7 @@ fn dynamic_staged_worker() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(kernels.program_recipe(), ProgramRecipe::DynamicPolynomialV1);
+    assert_eq!(kernels.program_recipe(), job.program_recipe);
     assert!(
         kernels
             .to_bytes()
@@ -205,10 +237,12 @@ fn legacy_generation_record_version_is_rejected_before_native_import() {
     let path = old.resolve(directory.path()).unwrap();
     let mut bytes = std::fs::read(&path).unwrap();
     let version = b"FastSecDec\0generation-record".len();
-    assert_eq!(bytes[version], 2);
-    bytes[version] = 1;
-    std::fs::write(&path, &bytes).unwrap();
-    old.blake3 = blake3::hash(&bytes).to_hex().to_string();
-    let error = records::read_source(directory.path(), &old).err().unwrap();
-    assert!(error.to_string().contains("unsupported record version"));
+    assert_eq!(bytes[version], 3);
+    for old_version in [1, 2] {
+        bytes[version] = old_version;
+        std::fs::write(&path, &bytes).unwrap();
+        old.blake3 = blake3::hash(&bytes).to_hex().to_string();
+        let error = records::read_source(directory.path(), &old).err().unwrap();
+        assert!(error.to_string().contains("unsupported record version"));
+    }
 }

@@ -289,3 +289,41 @@ wrapper and descriptor v2. The generation-only DTO containing the full-strength
 Atom and primitive-combiner source uses staging schema3. Old dynamic v10
 foundation artifacts remain explicitly unavailable for production; fixed and
 undeformed legacy payloads retain their supported readers.
+
+## Schema-three source admission and independent candidate probes
+
+The generation-only source now retains the complete mathematical strength
+callback, canonical identities for the ordered original F/U factors, an
+immutable request namespace, the independent raw polynomial outputs, and a
+Symbolica-generated primitive-to-coefficient program source. The namespace
+binds coordinates, recipe, structural orders, exact positive lower bounds and
+regularity; record-local chart indices are excluded. Admission compares actual
+retained F/U identities, helper identity and complete schemas, including a
+regression that swaps same-schema factors. The native staging schema explicitly
+advances to three. Its fresh-worker test caught and corrected an omitted export
+of the newly introduced primitive symbols; no process-local fallback is used.
+
+Focused registered gates passed: generation controls 3/3, streaming 16/16
+(including fresh processes for polynomial and sign-aware recipes), and recipe
+admission 10/10. These validate source transfer, not production admission.
+
+Separate ignored direct-rustc probes execute the proposed actual-source
+candidate and radius modules. Three ball/rational tests distinguish sufficient
+causal slack from intended-root accuracy, exercise precision-dependent slack,
+and enclose known roots of positive mixtures of powers two, four and eight.
+Three candidate tests preserve both double-float limbs exactly, reject missing
+or unknown observations, and restore nested contexts after retries/unwinding.
+These modules remain unwired while the saved-program and runtime integration
+is completed. Their strict duplicate-callback guard is a proposed execution
+invariant, not a statement about statistical sampling. Before adopting it,
+whole Laurent vectors, actual Dualizer jets, aliases, both evaluators and
+precision remaps must demonstrate that native sharing executes each required
+root once; otherwise every actual occurrence needs explicit certification.
+
+The planned v11 descriptor separates local chart coverage from self-contained
+certificate contexts. Exact records retain only contexts referenced by surviving
+exact root requests, with an optional local chart projection. This preserves
+the proof when its originating full chart is absent from that record without
+retaining every source checker in the serial coordinator. V10 remains a distinct
+legacy layout. Neither that wire format nor dynamic production admission is
+claimed complete by the source-transfer gates above.

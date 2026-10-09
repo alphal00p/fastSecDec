@@ -44,9 +44,6 @@ fn detached_compilation_job_retains_its_native_helper_owner() {
     let envelope =
         DynamicEnvelope::new(&[variable], Atom::one() + Atom::var(variable), &[]).unwrap();
     let helper = RootProgram::build(1).unwrap();
-    sector.dynamic_check_sources = vec![Arc::new(
-        crate::kernel::DynamicCheckSource::from_envelope(0, &envelope),
-    )];
     let chart = DynamicChartRecipe::from_envelope(0, &envelope, &helper).unwrap();
     let expression = strength(
         &helper,
@@ -55,6 +52,15 @@ fn detached_compilation_job_retains_its_native_helper_owner() {
         &Atom::one(),
     )
     .unwrap();
+    sector.dynamic_check_sources = vec![Arc::new(
+        crate::kernel::DynamicCheckSource::from_envelope(
+            0,
+            &envelope,
+            ProgramRecipe::DynamicPolynomialV1,
+            expression.clone(),
+        )
+        .unwrap(),
+    )];
     sector.coefficients = vec![expression.into()];
     sector.materialized = Default::default();
     let descriptor = Arc::new(

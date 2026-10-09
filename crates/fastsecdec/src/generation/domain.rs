@@ -27,11 +27,6 @@ pub(super) fn check_options(
     options: &super::GenerationOptions,
 ) -> Result<DomainAssessment, GenerationError> {
     let mut assessment = check(input, options.assume_no_threshold)?;
-    if options.program_recipe == crate::kernel::indexed::ProgramRecipe::DynamicSignAwareV1 {
-        return Err(GenerationError::Contour(
-            "sign-aware generation awaits cancellation-resistant positive-part callbacks".into(),
-        ));
-    }
     if !options.contour_enabled() {
         return Ok(assessment);
     }

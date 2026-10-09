@@ -1,5 +1,5 @@
 //! Native-process streaming, durable recovery and normal/serial artifact parity.
-use fastsecdec::kernel::{KernelLoadOptions, KernelSet, indexed::IndexedReader};
+use fastsecdec::kernel::{KernelLoadOptions, KernelSet, indexed::ProgramArchiveReader};
 use serde_json::Value;
 use std::{
     fs::{self, File},
@@ -65,13 +65,14 @@ fn load(base: &Path) -> KernelSet {
     let path = base
         .parent()
         .unwrap()
-        .join(saved["indexed"]["data_file"].as_str().unwrap());
-    let mut indexed = IndexedReader::from_reader(
+        .join(saved["programs"]["data_file"].as_str().unwrap());
+    let mut indexed = ProgramArchiveReader::from_reader(
         File::open(path).unwrap(),
         KernelLoadOptions { validate: true },
     )
     .unwrap();
-    indexed.load_all().unwrap()
+    let recipe = indexed.catalogue().recipes[0].recipe;
+    indexed.select(recipe).unwrap().load_all().unwrap()
 }
 
 fn sample(mut kernels: KernelSet) -> Vec<f64> {

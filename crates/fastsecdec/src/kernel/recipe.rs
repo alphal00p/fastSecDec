@@ -404,6 +404,25 @@ impl NativeProgramDescriptor {
                 return Err(invalid("duplicate dynamic check source"));
             }
             source.validate_for(chart)?;
+            if source.recipe != self.recipe {
+                return Err(invalid(
+                    "check source belongs to a different mathematical recipe",
+                ));
+            }
+            let helper = self
+                .helpers
+                .iter()
+                .find(|helper| helper.digest() == chart.helper_digest)
+                .ok_or_else(|| invalid("check source helper is missing"))?;
+            let strength = source
+                .full_strength
+                .as_fun_view()
+                .ok_or_else(|| invalid("check source strength is not a callback"))?;
+            if strength.get(1) != symbolica::atom::Atom::var(helper.tag()).as_view() {
+                return Err(invalid(
+                    "check source strength belongs to a different helper",
+                ));
+            }
             if let Some(metadata) = metadata {
                 let actual = metadata
                     .charts()
@@ -413,6 +432,19 @@ impl NativeProgramDescriptor {
                 if actual.coordinates().target_parameters() != source.parameters {
                     return Err(invalid(
                         "check source coordinates differ from its retained chart",
+                    ));
+                }
+                let contour = actual
+                    .contour()
+                    .ok_or_else(|| invalid("check source has no retained contour map"))?;
+                let factors = check_source::FactorIdentity::new(
+                    contour.causal_polynomial(),
+                    contour.positive_polynomials(),
+                )
+                .map_err(invalid)?;
+                if factors != source.factors {
+                    return Err(invalid(
+                        "check source causal/positive factors differ from its retained contour map",
                     ));
                 }
             }

@@ -64,6 +64,64 @@ fn kernel(contour: bool, complex: bool, order: i32) -> KernelSet {
     .unwrap()
 }
 
+#[test]
+fn resident_singleton_publication_preserves_native_objects_and_exact_archive() {
+    for contour in [false, true] {
+        let mut kernels = kernel(contour, true, 0);
+        let before = kernels.sectors().as_ptr();
+        let recipe = kernels.program_recipe();
+        let catalogue = kernels.retain_program_archive("d".repeat(64)).unwrap();
+        assert_eq!(before, kernels.sectors().as_ptr());
+        assert_eq!(catalogue.recipes.len(), 1);
+        assert_eq!(
+            kernels.content_id(),
+            catalogue.recipe(recipe).unwrap().content_id
+        );
+        let repeated = kernels.retain_program_archive("d".repeat(64)).unwrap();
+        assert_eq!(catalogue.content_id, repeated.content_id);
+        assert_eq!(
+            catalogue.recipe(recipe).unwrap().content_id,
+            repeated.recipe(recipe).unwrap().content_id
+        );
+        assert_eq!(before, kernels.sectors().as_ptr());
+        let bytes = kernels.artifact_bytes().unwrap();
+        assert!(bytes.starts_with(super::MAGIC));
+        assert_eq!(kernels.to_bytes().unwrap(), bytes);
+        let mut restored =
+            KernelSet::from_bytes_with_options(bytes, KernelLoadOptions { validate: true })
+                .unwrap();
+        assert_eq!(restored.content_id(), kernels.content_id());
+        let physics = BTreeMap::from([(symbol!("archive_recipes::p"), 1.3)]);
+        let settings = ContourSettings {
+            deformation: if contour {
+                ContourMode::Fixed { lambda: 0.03 }
+            } else {
+                ContourMode::Off
+            },
+            validation: ContourValidationOptions {
+                policy: ContourValidation::Off,
+                ..Default::default()
+            },
+        };
+        kernels
+            .bind_parameters_with_contour(&physics, &settings)
+            .unwrap();
+        restored
+            .bind_parameters_with_contour(&physics, &settings)
+            .unwrap();
+        let mut left = vec![0.; kernels.orders().len()];
+        let mut right = left.clone();
+        kernels.sectors_mut()[0]
+            .evaluate(&[0.37], &mut left)
+            .unwrap();
+        restored.sectors_mut()[0]
+            .evaluate(&[0.37], &mut right)
+            .unwrap();
+        assert!(left.iter().zip(&right).all(|(a, b)| (a - b).abs() < 1e-12));
+        assert!(kernels.retain_program_archive("d".repeat(64)).is_err());
+    }
+}
+
 fn append(
     writer: &mut ProgramArchiveWriter<Cursor<Vec<u8>>>,
     recipe: ProgramRecipe,

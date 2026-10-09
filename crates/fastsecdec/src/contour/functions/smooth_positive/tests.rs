@@ -159,7 +159,7 @@ fn native_symbolic_jets_match_the_defining_smooth_function() {
     );
     let build = |expression: &Atom| {
         expression
-        .evaluator(std::slice::from_ref(&t))
+            .evaluator(std::slice::from_ref(&t))
             .build()
             .unwrap()
             .vectorize(&dualizer)

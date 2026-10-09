@@ -1,4 +1,5 @@
 use super::*;
+use fastsecdec::kernel::indexed::IndexedWriter;
 
 #[test]
 fn durable_sector_without_receipt_is_regenerated_after_recovery() {

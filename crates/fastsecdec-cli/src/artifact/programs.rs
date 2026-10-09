@@ -15,6 +15,24 @@ pub struct ProgramStorage {
     pub data_file: String,
     pub default_recipe: ProgramRecipe,
     pub catalogue: ProgramArchiveCatalogue,
+    /// Per-recipe observations, excluded from mathematical identities.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub generation: BTreeMap<ProgramRecipe, ProgramGeneration>,
+    /// Bounded optional human previews, never recipe identity or native proof.
+    #[serde(
+        default,
+        skip_serializing_if = "BTreeMap::is_empty",
+        deserialize_with = "super::inspection::deserialize_indices"
+    )]
+    pub inspection: BTreeMap<ProgramRecipe, InspectionIndex>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProgramGeneration {
+    pub generation: GenerationRecord,
+    /// Wall observations for this recipe. Shared family stages live on the artifact.
+    pub timings: GenerationTimings,
 }
 impl ProgramStorage {
     pub(super) fn validate(&self, integrity: bool) -> CliResult<()> {
@@ -24,6 +42,9 @@ impl ProgramStorage {
         }
         self.catalogue.validate(integrity)?;
         self.catalogue.recipe(self.default_recipe)?;
+        for recipe in self.generation.keys().chain(self.inspection.keys()) {
+            self.catalogue.recipe(*recipe)?;
+        }
         Ok(())
     }
 }
@@ -123,6 +144,10 @@ impl Artifact {
         if let Some(programs) = &self.programs {
             programs.catalogue.recipe(recipe)?;
             self.selected_recipe = Some(recipe);
+            self.generation = programs
+                .generation
+                .get(&recipe)
+                .map(|observation| observation.generation.clone());
         } else if self.selected_recipe() != Some(recipe) {
             return Err(format!(
                 "artifact lacks {} capability; regenerate with that recipe enabled",
@@ -173,12 +198,29 @@ impl Artifact {
         Ok(reader)
     }
 
+    /// Attach bounded observations for each recipe without changing identities.
+    pub fn set_program_generation(
+        &mut self,
+        generation: BTreeMap<ProgramRecipe, ProgramGeneration>,
+    ) -> CliResult<()> {
+        let programs = self
+            .programs
+            .as_mut()
+            .ok_or("artifact has no recipe directory")?;
+        if generation
+            .keys()
+            .copied()
+            .ne(programs.catalogue.recipes.iter().map(|r| r.recipe))
+        {
+            return Err("generation observations do not cover the complete recipe family".into());
+        }
+        self.generation = Some(generation[&programs.default_recipe].generation.clone());
+        programs.generation = generation;
+        Ok(())
+    }
+
     /// Publish a completed recipe archive through the same immutable-file and
-    /// atomic-manifest transaction used by ordinary and serial v1 generation.
-    #[allow(
-        dead_code,
-        reason = "recipe-set generation is wired after dynamic native payload acceptance"
-    )]
+    /// atomic-manifest transaction retained from historical v1 generation.
     pub fn from_program_archive(
         staged: &Path,
         catalogue: ProgramArchiveCatalogue,
@@ -208,6 +250,8 @@ impl Artifact {
                 data_file: String::new(),
                 default_recipe,
                 catalogue,
+                generation: BTreeMap::new(),
+                inspection: BTreeMap::new(),
             }),
             selected_recipe: None,
             staged_data: Some(staged.into()),

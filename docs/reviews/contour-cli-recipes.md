@@ -113,3 +113,44 @@ No new commit blocker was found. The transport fixture is deliberately not a
 production program-set generator. Dynamic native decoding remains explicitly
 gated, and none of these passing storage/CLI controls establishes dynamic
 causal validation, dynamic scientific agreement or a variance improvement.
+
+## Shared family and universal publication reinspection
+
+The post-55c3d7c orchestration was reviewed independently against the native
+shared-preparation APIs. `RecipeFamily` canonicalizes the requested set and
+requires its default to belong to the set. Journal schema 3 persists that entire
+family before the completed-resume shortcut. Reordering requests is allowed;
+changing the family/default is rejected. Source extraction jobs are shared;
+discovery, exact symmetry, formula and sector jobs use recipe-prefixed identities
+and retain native execution-source fencing.
+
+The coordinator keeps compact source/sector receipts and copies completed native
+records into one `ProgramArchiveWriter`. It does not collect completed evaluators
+or reconstruct expressions. Ordinary singleton generation now also uses this
+writer through `KernelSet::retain_program_archive`, preserving the resident
+evaluators and adopting the selected catalogue identity without recompilation.
+Both paths use the same canonical physical source identity, separate from saved
+program identities, and the same completed-data/atomic-manifest publication.
+
+Selection precedes numerical loading. Metadata summaries derive their layout
+from the selected native recipe directory. Optional bounded inspection previews
+are keyed by recipe; an unavailable or unknown-version preview is omitted rather
+than substituted from the default recipe. The serial path may lack such a human
+preview while retaining its complete native chart records for selective deep
+inspection. The complete native directory is compared against the manifest;
+selected deep inspection loads one record and maps chart IDs through its receipt.
+
+The new real child-process family controls reported two passing tests, covering
+both generation modes, complete complex Laurent vectors, ordinary versus
+selective record restoration, canonical family resume and interrupted replacement.
+The CLI owner subsequently reported 100 unit tests passing with five ignored,
+and 59 integration tests passing with three ignored across 23 executables. That
+matrix includes all normal/serial generation/integration combinations, contour
+validation policies, exact offsets and killed-coordinator recovery using v2.
+The strengthened native-Dualizer scientific filter subsequently passed all five
+tests, including complete cubic and higher-endpoint Laurent vectors; its exact
+scope is recorded in `contour-sign-aware-generation.md`. The full core library
+also passed 297 tests with 16 ignored; Clippy and portable gates remain separate.
+No implementation or ecosystem-reuse
+blocker was found in this read-only inspection; this is not a dynamic runtime
+or performance acceptance claim.

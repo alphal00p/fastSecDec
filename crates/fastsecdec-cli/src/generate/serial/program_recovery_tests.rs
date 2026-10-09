@@ -17,15 +17,26 @@ fn shared_chart_receipts_survive_restart_and_reject_foreign_work() {
         input: input.clone(),
         workers: 1,
         overrides: Default::default(),
-        recipes,
+        recipes: recipes.clone(),
     };
-    let mut journal = Journal::open(&input, &output, false, "first").unwrap();
+    let family = family::RecipeFamily::new(recipes, ProgramRecipe::UndeformedV1).unwrap();
+    let mut journal = Journal::open_with_family(
+        &input,
+        &output,
+        false,
+        "first",
+        Default::default(),
+        family.clone(),
+    )
+    .unwrap();
     journal.request("prepare", request.clone()).unwrap();
     jobs::execute(&journal.job_path("prepare"), &mut |_| Ok(())).unwrap();
     // The child published durably, but the coordinator died before accepting it.
     let receipt = fs::read(journal.response_path("prepare")).unwrap();
     drop(journal);
-    let mut journal = Journal::open(&input, &output, true, "restart").unwrap();
+    let mut journal =
+        Journal::open_with_family(&input, &output, true, "restart", Default::default(), family)
+            .unwrap();
     let mut resumed = request.clone();
     let Request::PreparePrograms { workers, .. } = &mut resumed else {
         panic!()

@@ -19,13 +19,6 @@ pub(crate) fn register() {
     let _ = *POSITIVE;
 }
 
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "sign-aware recipe lowering follows callback validation"
-    )
-)]
 pub(crate) fn positive_part(t: &Atom, delta: &Atom) -> Atom {
     function!(*POSITIVE, t, delta)
 }

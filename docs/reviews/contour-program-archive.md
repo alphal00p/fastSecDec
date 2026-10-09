@@ -54,3 +54,21 @@ classification; dynamic admission must use an explicit native-v10 descriptor,
 not recognition of new parameter names. Native program-set generation, dynamic
 records, CLI/Python recipe selection and the full execution matrix remain
 separate delivery gates.
+
+## Recipe-family publication update (2026-10-09)
+
+The preceding CLI limitations describe the initial storage foundation. Ordinary
+and serial CLI generation now publish the same native v2 program archive, with
+explicit selected-recipe loading and inspection. Ordinary generation retains
+its compiled evaluators while the native owner partitions, adopts and retains
+the singleton archive. Serial family generation shares preparation, namespaces
+its recipe-specific jobs and publishes only after the complete requested family
+is durable. Physical source identity remains distinct from compiled native
+content identity. Optional generation observations and bounded previews are
+recipe-local and excluded from these identities.
+
+See [the recipe-family review](contour-recipe-family.md) for the current
+orchestration and public CLI gate evidence. The historical storage counts above
+remain the evidence for their original foundation. Dynamic generation/source
+transfer is available internally; dynamic runtime admission remains closed
+pending saved certificate contexts and actual-candidate validation.

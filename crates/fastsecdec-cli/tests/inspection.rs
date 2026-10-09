@@ -60,7 +60,7 @@ backend="eager"
     );
     let metadata: serde_json::Value =
         serde_json::from_slice(&fs::read(artifact.with_extension("fsd.json")).unwrap()).unwrap();
-    let records = metadata["indexed"]["catalogue"]["records"]
+    let records = metadata["programs"]["catalogue"]["recipes"][0]["records"]
         .as_array()
         .unwrap();
     let sectors = records

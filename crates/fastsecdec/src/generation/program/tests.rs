@@ -13,6 +13,9 @@ use symbolica::{
     symbol,
 };
 
+mod cubic;
+mod higher;
+
 fn pole() -> ParametricIntegrand {
     let x = symbol!("dynamic_generation_gate::x");
     let eps = symbol!("dynamic_generation_gate::eps");
@@ -105,18 +108,4 @@ fn selected_polynomial_recipe_retains_native_owners_and_analytic_subtraction() {
             assert!((totals[1].im - 4. * std::f64::consts::PI).abs() < 2e-5);
         }
     }
-}
-
-#[test]
-fn unfinished_sign_aware_recipe_never_silently_selects_fixed_or_polynomial() {
-    let error = generate(
-        &pole(),
-        &GenerationOptions {
-            program_recipe: ProgramRecipe::DynamicSignAwareV1,
-            ..Default::default()
-        },
-        |_| ControlFlow::Continue(()),
-    )
-    .unwrap_err();
-    assert!(error.to_string().contains("sign-aware"));
 }

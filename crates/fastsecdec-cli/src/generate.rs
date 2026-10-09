@@ -8,7 +8,9 @@ pub(crate) mod serial;
 
 use progress::{observe_generation, publish_generation, worker_activity};
 
-use std::{cell::RefCell, ops::ControlFlow, path::Path, sync::atomic::Ordering, time::Instant};
+use std::{
+    cell::RefCell, io::Write, ops::ControlFlow, path::Path, sync::atomic::Ordering, time::Instant,
+};
 
 use fastsecdec::{
     generation::{self, GenerationContext, GenerationEvent, GenerationOptions, GenerationProgress},
@@ -124,6 +126,11 @@ pub(crate) fn generate_with_overrides(
     };
     options.decomposition.max_sectors = loaded.card.generation.max_sectors;
     options.decomposition.max_support_pairs = loaded.card.generation.max_support_pairs;
+    let source_identity = generation::source_identity(
+        &loaded.integrand,
+        &loaded.runtime_parameters,
+        &loaded.runtime_mass_constraints,
+    )?;
     let mut display_error = None;
     let cancelled = dashboard.cancellation_handle();
     let generated = {
@@ -349,9 +356,6 @@ pub(crate) fn generate_with_overrides(
     }
     let mut kernels = kernels?.with_runtime_mass_constraints(loaded.runtime_mass_constraints)?;
     drop(generated);
-    if let Some(reference) = reference.filter(|_| kernels.runtime_parameters().is_empty()) {
-        reference.validate_identity(kernels.content_id())?;
-    }
     status.timings.compilation_seconds = compilation_started.elapsed().as_secs_f64();
     let provenance = Provenance {
         name: loaded.label,
@@ -380,14 +384,37 @@ pub(crate) fn generate_with_overrides(
     status.detail = "Preparing portable artifact; all kernels compiled".into();
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
-    let mut artifact = Artifact::new(&kernels, provenance)?;
-    artifact.align_kernel_identity(&mut kernels)?;
+    // The native owner partitions and adopts the same universal recipe archive
+    // as serial workers without rebuilding any evaluator. Its retained bytes
+    // are borrowed into a temporary staging file, not copied into another Vec.
+    let catalogue = kernels.retain_program_archive(source_identity)?;
+    if let Some(reference) = reference.filter(|_| kernels.runtime_parameters().is_empty()) {
+        reference.validate_identity(kernels.content_id())?;
+    }
+    let mut staged = tempfile::NamedTempFile::new()?;
+    staged.write_all(kernels.artifact_bytes()?)?;
+    staged.as_file().sync_all()?;
+    let mut artifact = Artifact::from_program_archive(
+        staged.path(),
+        catalogue,
+        options.program_recipe,
+        provenance,
+    )?;
+    artifact
+        .programs
+        .as_mut()
+        .expect("new recipe archive")
+        .inspection
+        .insert(
+            options.program_recipe,
+            crate::artifact::InspectionIndex::from_kernels(&kernels),
+        );
     artifact.reference = reference.map(|value| value.settings.clone());
     artifact.relocate_sources(
         path.parent().unwrap_or_else(|| Path::new(".")),
         output.parent().unwrap_or_else(|| Path::new(".")),
     )?;
-    artifact.generation = Some(GenerationRecord {
+    let generation_record = GenerationRecord {
         workers,
         mode: Some(options.mode),
         subtraction: Some(options.subtraction),
@@ -398,7 +425,14 @@ pub(crate) fn generate_with_overrides(
             .map(|_| loaded.card.generation.contraction_mode),
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(evaluator_settings),
-    });
+    };
+    artifact.set_program_generation(std::collections::BTreeMap::from([(
+        options.program_recipe,
+        crate::artifact::ProgramGeneration {
+            generation: generation_record,
+            timings: status.timings.clone(),
+        },
+    )]))?;
     status.timings.total_seconds = started.elapsed().as_secs_f64();
     artifact.generation_timings = Some(status.timings.clone());
     status.detail = format!(
@@ -407,7 +441,7 @@ pub(crate) fn generate_with_overrides(
     );
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
-    artifact.save(output)?;
+    artifact.save_staged(output)?;
     // The manifest owns the generation-specific immutable data filename.
     // Return that published handle, without retaining a second archive buffer.
     let artifact = Artifact::load_metadata(output)?;

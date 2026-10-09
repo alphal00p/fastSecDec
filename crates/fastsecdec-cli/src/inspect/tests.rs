@@ -95,6 +95,7 @@ fn missing_and_future_indexes_are_explicitly_unknown_without_binary_fallback() {
     let original_id = artifact.content_id.clone();
     let original_data = kernels.to_bytes().unwrap();
     artifact.inspection = None;
+    artifact.programs.as_mut().unwrap().inspection.clear();
     metadata(&path, &artifact);
     let legacy = Artifact::load_metadata(&path).unwrap();
     let summary = legacy.kernel_summary().unwrap();
@@ -124,6 +125,16 @@ fn missing_and_future_indexes_are_explicitly_unknown_without_binary_fallback() {
     raw.insert(
         "inspection".into(),
         serde_json::value::RawValue::from_string(r#"{"version":999,"future":"schema"}"#.into())
+            .unwrap(),
+    );
+    let mut programs: serde_json::Value = serde_json::from_str(raw["programs"].get()).unwrap();
+    let recipe = serde_json::to_value(artifact.selected_recipe().unwrap()).unwrap();
+    programs["inspection"] = serde_json::json!({
+        recipe.as_str().unwrap(): {"version":999,"future":"schema"}
+    });
+    raw.insert(
+        "programs".into(),
+        serde_json::value::RawValue::from_string(serde_json::to_string(&programs).unwrap())
             .unwrap(),
     );
     fs::write(

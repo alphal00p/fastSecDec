@@ -12,9 +12,9 @@ use symbolica::{
     state::{State, StateMap},
 };
 
-// The native recipe selector replaces the former boolean contour option.
-// Reject old staging records explicitly rather than interpreting their schema.
-const MAGIC: &[u8] = b"FastSecDec\0generation-record\x02";
+// Schema 3 retains full-sector dynamic strength, exact factor identity and the
+// independent coefficient combiner. Reject older records before native import.
+const MAGIC: &[u8] = b"FastSecDec\0generation-record\x03";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, thiserror::Error)]
@@ -143,7 +143,11 @@ pub(super) fn write_with_program<M: Serialize>(
     exported.extend(symbols.iter().copied());
     for check in &program.checks {
         exported.extend(check.parameters.iter().copied());
-        for output in &check.outputs {
+        exported.extend(check.coefficients.parameters.iter().copied());
+        for output in std::iter::once(&check.full_strength)
+            .chain(&check.outputs)
+            .chain(&check.coefficients.outputs)
+        {
             exported.extend(output.get_all_symbols(true));
         }
     }

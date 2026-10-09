@@ -95,7 +95,7 @@ fn run_serial_rebinds_hepkit_runtime_inputs_for_exact_and_sampled_integrals() {
         );
         let data_path = directory
             .path()
-            .join(metadata["indexed"]["data_file"].as_str().unwrap());
+            .join(metadata["programs"]["data_file"].as_str().unwrap());
         let data_bytes = fs::read(&data_path).unwrap();
         let second = success(
             cli()

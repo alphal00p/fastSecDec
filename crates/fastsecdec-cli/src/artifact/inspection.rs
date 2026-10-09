@@ -68,16 +68,17 @@ impl Artifact {
         Ok(summary)
     }
     pub fn inspection_index(&self) -> Option<&InspectionIndex> {
-        // A historical single-recipe preview cannot describe an alternative
-        // recipe. New recipe previews will be explicitly keyed by recipe.
-        if self.programs.is_some() {
-            return None;
+        if let Some(programs) = &self.programs {
+            return programs
+                .inspection
+                .get(&self.selected_recipe()?)
+                .filter(|index| index.version == 1);
         }
         self.inspection.as_ref().filter(|index| index.version == 1)
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InspectionIndex {
     pub version: u32,
     pub retained_metadata_available: bool,
@@ -86,7 +87,7 @@ pub struct InspectionIndex {
     pub omitted_charts: usize,
     pub charts: Vec<ChartPreview>,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChartPreview {
     pub source_index: usize,
     pub representative: usize,
@@ -94,7 +95,7 @@ pub struct ChartPreview {
     /// Only representative charts carry bounded native display previews.
     pub preview: Option<RepresentativePreview>,
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RepresentativePreview {
     pub terms: Option<usize>,
     /// First three retained terms, without inferring cancellation or poles.
@@ -213,6 +214,26 @@ pub(super) fn deserialize_index<'de, D: serde::Deserializer<'de>>(
         }
         _ => Ok(None),
     }
+}
+/// Each optional recipe preview follows the same forward-compatible display
+/// schema admission as the historical singleton index.
+pub(super) fn deserialize_indices<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<
+    std::collections::BTreeMap<fastsecdec::kernel::indexed::ProgramRecipe, InspectionIndex>,
+    D::Error,
+> {
+    let values = std::collections::BTreeMap::<
+        fastsecdec::kernel::indexed::ProgramRecipe,
+        serde_json::Value,
+    >::deserialize(deserializer)?;
+    let mut indices = std::collections::BTreeMap::new();
+    for (recipe, value) in values {
+        if let Some(index) = deserialize_index(value).map_err(serde::de::Error::custom)? {
+            indices.insert(recipe, index);
+        }
+    }
+    Ok(indices)
 }
 fn display(atom: &Atom, context: &[Atom]) -> Option<String> {
     if atom.as_view().get_byte_size() > 4096 {

@@ -83,6 +83,12 @@ fn contour_metadata() -> crate::generation::GenerationMetadata {
                     FactorRole::Singularity,
                 )
                 .with_semantics(FactorSemantics::Causal),
+                PolynomialFactor::new(
+                    Atom::one() + Atom::var(x).pow(2),
+                    Atom::Zero,
+                    FactorRole::Polynomial,
+                )
+                .with_semantics(FactorSemantics::Positive),
             ],
         )],
     )
@@ -167,6 +173,98 @@ fn descriptor_binds_chart_dimension_and_positive_factor_count_before_runtime_adm
 }
 
 #[test]
+fn checker_admission_rejects_same_schema_foreign_factors_and_forged_request_identity() {
+    let metadata = contour_metadata();
+    let chart = &metadata.charts()[0];
+    let contour = chart.contour().unwrap();
+    let envelope = DynamicEnvelope::new(
+        chart.coordinates().target_parameters(),
+        contour.causal_polynomial().clone(),
+        contour.positive_polynomials(),
+    )
+    .unwrap();
+    let helper = RootProgram::build(envelope.maximum_even_order() as usize / 2).unwrap();
+    let strength = crate::contour::functions::dynamic::strength(
+        &helper,
+        &envelope.polynomial_coefficients().unwrap(),
+        &Atom::var(crate::contour::dynamic::safety_fraction_symbol()),
+        &Atom::var(crate::contour::dynamic::lambda_cap_symbol()),
+    )
+    .unwrap();
+    let source = DynamicCheckSource::from_envelope(
+        chart.source_index(),
+        &envelope,
+        ProgramRecipe::DynamicPolynomialV1,
+        strength,
+    )
+    .unwrap();
+    let record =
+        DynamicChartRecipe::from_envelope(chart.source_index(), &envelope, &helper).unwrap();
+    let descriptor = NativeProgramDescriptor::dynamic(
+        ProgramRecipe::DynamicPolynomialV1,
+        vec![record],
+        vec![helper],
+    )
+    .unwrap();
+    let sources = [std::sync::Arc::new(source.clone())];
+    descriptor
+        .validate_sources(&sources, Some(&metadata))
+        .unwrap();
+    let mut foreign = metadata.clone();
+    foreign.charts[0]
+        .contour
+        .as_mut()
+        .unwrap()
+        .causal_polynomial += Atom::one();
+    assert!(
+        descriptor
+            .validate_sources(&sources, Some(&foreign))
+            .unwrap_err()
+            .to_string()
+            .contains("factors differ")
+    );
+    let mut foreign = metadata.clone();
+    assert!(
+        !foreign.charts[0]
+            .contour
+            .as_ref()
+            .unwrap()
+            .positive_polynomials
+            .is_empty()
+    );
+    foreign.charts[0]
+        .contour
+        .as_mut()
+        .unwrap()
+        .positive_polynomials[0] += Atom::one();
+    assert!(
+        descriptor
+            .validate_sources(&sources, Some(&foreign))
+            .unwrap_err()
+            .to_string()
+            .contains("factors differ")
+    );
+    let mut corrupt = source.clone();
+    corrupt.namespace = "a".repeat(64);
+    assert!(
+        descriptor
+            .validate_sources(&[std::sync::Arc::new(corrupt)], Some(&metadata))
+            .unwrap_err()
+            .to_string()
+            .contains("namespace")
+    );
+    let mut corrupt = source;
+    corrupt.coefficients.schema.swap(0, 1);
+    assert!(
+        descriptor
+            .validate_sources(&[std::sync::Arc::new(corrupt)], Some(&metadata))
+            .unwrap_err()
+            .to_string()
+            .contains("combiner schema")
+    );
+}
+
+#[test]
 fn check_sources_keep_full_structure_and_an_independent_strength_input() {
     let x = symbol!("recipe_check_source::x");
     let envelope = DynamicEnvelope::new(
@@ -175,8 +273,21 @@ fn check_sources_keep_full_structure_and_an_independent_strength_input() {
         &[Atom::one() + Atom::var(x).pow(2)],
     )
     .unwrap();
-    let source = DynamicCheckSource::from_envelope(4, &envelope);
     let helper = RootProgram::build(envelope.maximum_even_order() as usize / 2).unwrap();
+    let strength = crate::contour::functions::dynamic::strength(
+        &helper,
+        &envelope.polynomial_coefficients().unwrap(),
+        &Atom::var(crate::contour::dynamic::safety_fraction_symbol()),
+        &Atom::var(crate::contour::dynamic::lambda_cap_symbol()),
+    )
+    .unwrap();
+    let source = DynamicCheckSource::from_envelope(
+        4,
+        &envelope,
+        ProgramRecipe::DynamicPolynomialV1,
+        strength,
+    )
+    .unwrap();
     let chart = DynamicChartRecipe::from_envelope(4, &envelope, &helper).unwrap();
     let descriptor = NativeProgramDescriptor::dynamic(
         ProgramRecipe::DynamicPolynomialV1,

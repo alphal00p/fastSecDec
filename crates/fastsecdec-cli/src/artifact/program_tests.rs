@@ -8,13 +8,14 @@ use std::{
 fn fixture(directory: &Path) -> (Artifact, ProgramArchiveCatalogue) {
     let card = directory.join("fixed.toml");
     fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='1+x'\nexponent='-1+eps'\nsemantics='causal'\n[generation]\ncontour=true\norder=1\n[generation.evaluator]\nbackend='eager'\n").unwrap();
-    let (_, fixed) = crate::generate::generate(
+    let (fixed_artifact, fixed) = crate::generate::generate(
         &card,
         &directory.join("fixed.fsd"),
         &mut crate::display::Dashboard::new(false, false).unwrap(),
         None,
     )
     .unwrap();
+    let preview = InspectionIndex::from_kernels(&fixed);
     let plain = super::persistence_tests::current_kernels();
     let mut writer = ProgramArchiveWriter::new(
         Cursor::new(Vec::new()),
@@ -38,13 +39,28 @@ fn fixture(directory: &Path) -> (Artifact, ProgramArchiveCatalogue) {
     let (writer, catalogue) = writer.finish().unwrap();
     let staged = directory.join("recipes.dat");
     fs::write(&staged, writer.into_inner()).unwrap();
-    let artifact = Artifact::from_program_archive(
+    let mut artifact = Artifact::from_program_archive(
         &staged,
         catalogue.clone(),
         ProgramRecipe::FixedV1,
         super::persistence_tests::provenance(),
     )
     .unwrap();
+    artifact
+        .programs
+        .as_mut()
+        .unwrap()
+        .inspection
+        .insert(ProgramRecipe::FixedV1, preview);
+    let generation = fixed_artifact.generation.unwrap();
+    artifact.generation = Some(generation.clone());
+    artifact.programs.as_mut().unwrap().generation.insert(
+        ProgramRecipe::FixedV1,
+        ProgramGeneration {
+            generation,
+            timings: fixed_artifact.generation_timings.unwrap(),
+        },
+    );
     (artifact, catalogue)
 }
 
@@ -56,11 +72,21 @@ fn recipe_manifest_selects_before_loading_and_supports_offline_inspection() {
     artifact.save_staged(&path).unwrap();
     let mut metadata = Artifact::load_metadata(&path).unwrap();
     assert_eq!(metadata.selected_recipe(), Some(ProgramRecipe::FixedV1));
+    assert!(metadata.inspection_index().is_some());
+    assert!(metadata.generation.is_some());
     assert_eq!(
         metadata.kernel_summary().unwrap().orders,
         catalogue.recipe(ProgramRecipe::FixedV1).unwrap().orders
     );
     metadata.select_recipe(ProgramRecipe::UndeformedV1).unwrap();
+    assert!(
+        metadata.generation.is_none(),
+        "another recipe cannot inherit the default generation observation"
+    );
+    assert!(
+        metadata.inspection_index().is_none(),
+        "another recipe cannot inherit the default preview"
+    );
     assert_eq!(
         metadata.kernel_summary().unwrap().orders,
         catalogue
@@ -73,7 +99,12 @@ fn recipe_manifest_selects_before_loading_and_supports_offline_inspection() {
     fs::remove_file(&data).unwrap();
     let mut offline =
         Artifact::load_metadata_with_options(&path, KernelLoadOptions { validate: true }).unwrap();
+    assert!(
+        offline.inspection_index().is_some(),
+        "bounded preview works with data file absent"
+    );
     offline.select_recipe(ProgramRecipe::UndeformedV1).unwrap();
+    assert!(offline.inspection_index().is_none());
     assert_eq!(offline.kernel_summary().unwrap().sectors, 1);
     assert_eq!(offline.selected_recipe(), Some(ProgramRecipe::UndeformedV1));
     fs::write(&data, saved).unwrap();

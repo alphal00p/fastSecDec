@@ -1,5 +1,5 @@
 //! Selective recipe loading through the real CLI, including disposable workers.
-use fastsecdec::kernel::indexed::{KernelCatalogue, ProgramArchiveWriter, ProgramRecipe};
+use fastsecdec::kernel::indexed::{ProgramArchiveCatalogue, ProgramArchiveWriter, ProgramRecipe};
 use serde_json::Value;
 use std::{
     fs::{self, File},
@@ -72,19 +72,22 @@ relative_tolerance=0.0
     let data_name = "recipes.complete.dat";
     let mut writer = ProgramArchiveWriter::new(
         File::create(directory.join(data_name)).unwrap(),
-        manifest["content_id"].as_str().unwrap().to_owned(),
+        manifest["programs"]["catalogue"]["source_identity"]
+            .as_str()
+            .unwrap()
+            .to_owned(),
         sources.iter().map(|(recipe, _)| *recipe),
     )
     .unwrap();
     for (recipe, source) in sources {
-        let catalogue: KernelCatalogue =
-            serde_json::from_value(source["indexed"]["catalogue"].clone()).unwrap();
+        let catalogue: ProgramArchiveCatalogue =
+            serde_json::from_value(source["programs"]["catalogue"].clone()).unwrap();
         let mut data =
-            File::open(directory.join(source["indexed"]["data_file"].as_str().unwrap())).unwrap();
-        for record in catalogue.records {
+            File::open(directory.join(source["programs"]["data_file"].as_str().unwrap())).unwrap();
+        for record in &catalogue.recipe(recipe).unwrap().records {
             data.seek(SeekFrom::Start(record.offset)).unwrap();
             writer
-                .append_record(recipe, &mut data, record.receipt)
+                .append_record(recipe, &mut data, record.receipt.clone())
                 .unwrap();
         }
     }

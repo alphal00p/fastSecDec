@@ -2577,3 +2577,40 @@ scope callback precision and isolate failure state per attempted numeric domain,
 allowing complete-vector multiprecision rescue without swallowing failures or
 poisoning a later evaluation. These are FastSecDec ownership corrections and
 reuse existing upstream operations; they do not require another owner patch.
+
+## Recipe-family publication and dynamic source admission (2026-10-09)
+
+The CLI now schedules the existing native shared source and recipe jobs through
+one reusable pipeline. Native `ProgramArchiveWriter` owns every program record,
+offset and catalogue. Both ordinary and serial generation publish this format;
+ordinary publication adopts the native selected identity while retaining the
+already compiled evaluator. It does not restore or JIT a second copy. Family
+selection/default and recipe-specific execution identities are persisted before
+resume admission. Human previews and generation observations remain optional,
+recipe-local data outside mathematical and checkpoint identity.
+
+Independent [generation-owner review](reviews/contour-cli-recipes.md) and the
+[orchestration review](reviews/contour-recipe-family.md) found no new CAS, graph,
+serialization or scheduling duplication. They caught and resolved identity
+adoption ordering and stale default-preview/observation issues. Actual CLI child
+processes exercise recovery and bounded publication. Unknown display-index
+versions use the existing tolerant decoder without weakening native payload
+admission.
+
+Sign-aware generation uses the existing native directional polynomial machinery
+and the registered stable smooth-positive callback. Canonical causal-factor and
+full-radius request identities retain Symbolica's native printing and Atom
+codecs. Schema-three staging includes every source/combiner symbol in its native
+export, as verified by fresh-process restoration. The
+[generation review](reviews/contour-sign-aware-generation.md) records the
+Symbolica `apart`/`together`/`cancel` reference proof and distinguishes deferred
+formula checks from actual numerical-dual execution. Saved certified runtime
+programs and dynamic production admission remain a separate unfinished slice.
+
+The bounded [physical LTD probe](reviews/contour-ltd-fixed-probe.md) completes
+fixed-mode generation with the existing native determinant optimization. Its
+integration errors remain too large for scientific acceptance. No new owner
+patch was needed for that optimization. A further native generic determinant
+probe records factorial growth at dimension eight, without expanding the
+production cache or substituting a private determinant implementation; see the
+[native API and probe evidence](reviews/contour-determinant.md).

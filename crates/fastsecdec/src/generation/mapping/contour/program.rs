@@ -3,7 +3,10 @@ use crate::{
     contour::{
         FixedContourMap, SmoothContourMap,
         dynamic::{DynamicEnvelope, lambda_cap_symbol, safety_fraction_symbol},
-        functions::dynamic::{RootProgram, strength},
+        functions::{
+            dynamic::{RootProgram, strength},
+            smooth_positive::positive_part,
+        },
     },
     generation::{GenerationError, program::ProgramData},
     kernel::{
@@ -24,9 +27,15 @@ pub(in crate::generation) fn build(
             FixedContourMap::new(parameters, causal)?.into_inner(),
             ProgramData::default(),
         )),
-        ProgramRecipe::DynamicPolynomialV1 => {
+        ProgramRecipe::DynamicPolynomialV1 | ProgramRecipe::DynamicSignAwareV1 => {
             let envelope = DynamicEnvelope::new(parameters, causal.clone(), positive)?;
-            let coefficients = envelope.polynomial_coefficients()?;
+            let coefficients = if recipe == ProgramRecipe::DynamicPolynomialV1 {
+                envelope.polynomial_coefficients()?
+            } else {
+                envelope.sign_aware_coefficients_with(|part| {
+                    positive_part(part.argument(), envelope.regularity())
+                })?
+            };
             let helper =
                 RootProgram::build(coefficients.len()).map_err(GenerationError::Contour)?;
             let local_strength = strength(
@@ -38,7 +47,10 @@ pub(in crate::generation) fn build(
             .map_err(GenerationError::Contour)?;
             let chart = DynamicChartRecipe::from_envelope(0, &envelope, &helper)
                 .map_err(|e| GenerationError::Contour(e.to_string()))?;
-            let checks = vec![Arc::new(DynamicCheckSource::from_envelope(0, &envelope))];
+            let checks = vec![Arc::new(
+                DynamicCheckSource::from_envelope(0, &envelope, recipe, local_strength.clone())
+                    .map_err(|e| GenerationError::Contour(e.to_string()))?,
+            )];
             let descriptor = NativeProgramDescriptor::dynamic(recipe, vec![chart], vec![helper])
                 .map_err(|e| GenerationError::Contour(e.to_string()))?;
             let program = ProgramData {
@@ -50,9 +62,6 @@ pub(in crate::generation) fn build(
             let map = SmoothContourMap::new(parameters, causal, local_strength)?;
             Ok((map, program))
         }
-        ProgramRecipe::DynamicSignAwareV1 => Err(GenerationError::Contour(
-            "sign-aware generation awaits cancellation-resistant positive-part callbacks".into(),
-        )),
         ProgramRecipe::UndeformedV1 => Err(GenerationError::Invariant(
             "undeformed recipe reached the contour map factory".into(),
         )),

@@ -5,6 +5,10 @@ use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     id::{Pattern, Replacement},
 };
+mod coefficients;
+mod identity;
+pub(crate) use coefficients::CoefficientSource;
+pub(crate) use identity::FactorIdentity;
 
 #[derive(Clone, Debug, PartialEq, Eq, bincode::Encode, bincode::Decode)]
 pub(crate) enum DynamicCheckOutput {
@@ -24,9 +28,15 @@ pub(crate) enum DynamicCheckOutput {
 #[bincode(decode_context = "symbolica::state::StateMap")]
 pub(crate) struct DynamicCheckSource {
     pub(crate) chart_index: usize,
+    #[bincode(with_serde)]
+    pub(crate) recipe: crate::kernel::ProgramRecipe,
+    pub(crate) namespace: String,
+    pub(crate) factors: FactorIdentity,
+    pub(crate) full_strength: Atom,
     pub(crate) parameters: Vec<Symbol>,
     pub(crate) schema: Vec<DynamicCheckOutput>,
     pub(crate) outputs: Vec<Atom>,
+    pub(crate) coefficients: CoefficientSource,
 }
 
 impl DynamicCheckSource {
@@ -62,9 +72,36 @@ impl DynamicCheckSource {
             || self.parameters.len() != chart.dimension
             || self.schema != expected
             || self.outputs.len() != expected.len()
+            || !self.recipe.is_dynamic()
+            || !identity::valid_digest(&self.namespace)
         {
             return Err(super::invalid(
                 "dynamic check source schema differs from its full-sector descriptor",
+            ));
+        }
+        self.factors
+            .validate(chart.positive_orders.len())
+            .map_err(super::invalid)?;
+        self.coefficients
+            .validate_for(chart, self.recipe)
+            .map_err(super::invalid)?;
+        if identity::namespace_for_chart(self.recipe, &self.parameters, &self.factors, chart)
+            .map_err(super::invalid)?
+            != self.namespace
+        {
+            return Err(super::invalid(
+                "dynamic request namespace differs from its mathematical recipe",
+            ));
+        }
+        let strength = self.full_strength.as_fun_view().ok_or_else(|| {
+            super::invalid("dynamic check source lacks its full-strength callback")
+        })?;
+        if strength.get_symbol().get_name() != "fastsecdec::contour::dynamic::strength_v1"
+            || strength.get_nargs() != chart.coefficient_count + 4
+            || strength.get(0) != Atom::num(chart.coefficient_count).as_view()
+        {
+            return Err(super::invalid(
+                "dynamic check source full-strength schema differs from descriptor",
             ));
         }
         Ok(())
@@ -72,7 +109,12 @@ impl DynamicCheckSource {
 
     /// This is the same full-sector direction at every face. The independent
     /// lambda input permits ball enclosures without executing production roots.
-    pub(crate) fn from_envelope(chart_index: usize, envelope: &DynamicEnvelope) -> Self {
+    pub(crate) fn from_envelope(
+        chart_index: usize,
+        envelope: &DynamicEnvelope,
+        recipe: crate::kernel::ProgramRecipe,
+        full_strength: Atom,
+    ) -> Result<Self, super::KernelError> {
         let lambda = Atom::var(crate::contour::lambda_symbol());
         let rules = envelope
             .parameters()
@@ -85,11 +127,18 @@ impl DynamicCheckSource {
                 )
             })
             .collect::<Vec<_>>();
+        let factors = FactorIdentity::from_envelope(envelope).map_err(super::invalid)?;
+        let namespace = identity::namespace(recipe, envelope, &factors).map_err(super::invalid)?;
         let mut result = Self {
             chart_index,
+            recipe,
+            namespace,
+            factors,
+            full_strength,
             parameters: envelope.parameters().to_vec(),
             schema: Vec::new(),
             outputs: Vec::new(),
+            coefficients: CoefficientSource::new(envelope, recipe).map_err(super::invalid)?,
         };
         let mut push = |kind, expression| {
             result.schema.push(kind);
@@ -143,6 +192,6 @@ impl DynamicCheckSource {
                 );
             }
         }
-        result
+        Ok(result)
     }
 }

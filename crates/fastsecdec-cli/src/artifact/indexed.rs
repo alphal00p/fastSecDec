@@ -1,7 +1,9 @@
 //! Immutable data publication. The manifest is the sole commit point; a failed
 //! replacement cannot invalidate the previous manifest's data file.
 use super::*;
-use fastsecdec::kernel::indexed::{IndexedReader, KernelCatalogue};
+#[cfg(test)]
+use fastsecdec::kernel::indexed::IndexedReader;
+use fastsecdec::kernel::indexed::KernelCatalogue;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,16 +21,6 @@ impl IndexedStorage {
 }
 
 impl Artifact {
-    pub fn align_kernel_identity(&self, kernels: &mut KernelSet) -> CliResult<()> {
-        kernels.adopt_indexed_catalogue(
-            &self
-                .indexed
-                .as_ref()
-                .ok_or("artifact is not indexed")?
-                .catalogue,
-        )?;
-        Ok(())
-    }
     /// Resolve only the manifest's immutable sibling name, never arbitrary paths.
     pub fn data_path(&self, base: &Path) -> CliResult<PathBuf> {
         if let Some(data_file) = self.indexed_data_file()? {
@@ -42,6 +34,7 @@ impl Artifact {
     }
     /// Adopt a completed staged archive without reading any sector payload. The
     /// normal and serial writers share exactly the same catalogue and file codec.
+    #[cfg(test)]
     pub fn from_indexed_file(
         staged: &Path,
         catalogue: KernelCatalogue,
