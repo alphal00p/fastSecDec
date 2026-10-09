@@ -301,3 +301,15 @@ accuracy together. Record neutral or worse outcomes as well as improvements;
 larger displacement alone is not evidence of reduced variance or faster
 convergence. This monitoring extends the performance acceptance work above and
 does not delay the fixed-mode correctness milestone until dynamic mode exists.
+
+## Subsequent user requirement — upstream fixes (2026-10-09)
+
+> Continue as planned, but when you find such issue make a PR to the corresponding crate for a fix with BenRuijl as a reviewer. Make this PR owned by ValentinHirschi (valentin.hirschi@gmail.com)
+
+Publish validated narrow dependency corrections as upstream pull requests from
+the authenticated `ValentinHirschi` account, with commits authored by
+`ValentinHirschi <valentin.hirschi@gmail.com>`. Request `benruijl` as reviewer and
+record any upstream permission restriction rather than claiming the request
+succeeded. Attach every created pull request to the task. Keep independent
+owner changes separately reviewable; retain executable regressions and source
+reuse evidence. This authorizes publishing the previously prepared owner fixes.

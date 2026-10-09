@@ -19,6 +19,8 @@ The same source defect and failure were reproduced in 2.26.4.
 
 [The owner patch](../../docs/dependency-patches/symjit-complex-callback-lanes.patch)
 applies to `rust/defuns.rs` in the upstream GitHub repository's `v227` branch.
+It is submitted as [upstream PR #14](https://github.com/siravan/symjit/pull/14)
+from ValentinHirschi's fork.
 For the packaged Rust crate the corresponding file is `src/symjit/defuns.rs`.
 It gathers matching real/imaginary SIMD lanes into each scalar-complex call,
 then scatters results back into the native split layout. It does not disable
