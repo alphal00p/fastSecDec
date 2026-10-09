@@ -2495,3 +2495,14 @@ Standalone exact-coefficient inspection remains available. See
 source review, the corrected binding compile, all 252 updated native library
 tests (16 ignored), and strict workspace Clippy pass. Fresh Python runtime
 execution remains a separate pending gate.
+
+### Contour owner interface metadata (2026-10-09)
+
+The existing FeynKit diagram/family forwarders already preserve native owners
+and support the contour keywords; only their discoverable signatures and stub
+templates were stale. The narrow [owner PR 129](https://github.com/alphal00p/gammaloop/pull/129)
+updates metadata and the missing-backend text, with a passing native forwarding
+regression and independent review. No Python/CAS implementation moved into
+Community. Its six newer citation URL initializers pass an exact-constructor
+API compile probe; complete refreshed wheel and generated stubs remain separate
+packaging gates. See [the interface audit](reviews/contour-python-interfaces.md).

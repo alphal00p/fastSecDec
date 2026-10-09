@@ -155,3 +155,65 @@ rejects a formal reviewer request because `benruijl` is not a collaborator of
 this fork; the CLI's create/edit commands did not preserve the request either.
 The [explicit review invitation](https://github.com/ValentinHirschi/gammaloop/pull/1#issuecomment-6088897751)
 records the requested review without claiming a successful formal assignment.
+
+## OneLoopMaster citation compatibility
+
+The current Symbolica community API requires `Citation.url`. The isolated
+OneLoopMaster patch adds three fields using each record's existing BibTeX URL,
+without changing the scalar masters or their already-merged numerical fixes.
+It is based on public `main` `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`.
+
+- PR: [OneLoopMaster #3](https://github.com/alphal00p/oneloopmaster/pull/3).
+- Head: `62ae35d6b7ab4caa94ecf7d0caed95cc190d878d`, branch `citation-urls`.
+- Author: `ValentinHirschi`; formal reviewer request: `benruijl` (verified).
+- Native external-consumer `cargo check` of `oneloop-python` with
+  `community,prebuilt` passed against public Symbolica/Numerica `7ec1be45` and
+  SymJIT `33100ae` in 44.44 seconds. This is a compilation/API gate, not a
+  numerical integral rerun.
+- Changed-file formatting, `git diff --check` and independent source review
+  passed. Recursive formatting reported an existing attribute layout in the
+  untouched `python/src/inspection.rs`; the patch does not modify it.
+
+The corrected fixed host retains the existing main-based master APIs. The
+newest Community host separately needs the positive-epsilon branch
+`6c9874dc5670ed655b9cce84702ec27d36098a9f`; its Python citation file is identical,
+so the same three-field fix can be applied there for that later host gate.
+No unrequested numerical upgrade or second PR is included in this slice.
+
+## FeynKit contour interface metadata
+
+[FeynKit PR 129](https://github.com/alphal00p/gammaloop/pull/129), head
+`917b20751ea5b05c38b5b027e54f236e93d44699`, is a draft stacked on PR 128. It
+aligns diagram/family method signatures and stub templates with the actual
+FastSecDec contour/runtime-parameter interface and corrects the regular-backend
+error text. Native forwarding is unchanged. The actual linked owner test and
+parsed stub-schema comparison pass; independent reviews agree. The commit and
+publishing account are ValentinHirschi, and GitHub confirms a formal review
+request to `benruijl`. See [the interface audit](contour-python-interfaces.md).
+
+## Community citation metadata
+
+[Community PR 25](https://github.com/symbolica-dev/symbolica-community/pull/25),
+head `48d1d745f42233f4bd04696ea127c7d0f2e7aa58`, adds exactly six URL fields
+across three existing citation owners against current main `9a65fbb7`. It is
+authored and published by ValentinHirschi, remains draft for the coordinated
+owner API update, and has a confirmed formal `benruijl` reviewer request. The
+exact six edited constructor literals compile against public Symbolica
+`7ec1be45`; independent source review passes. No dependency rollout or live
+notebook deployment is included. A fork upload was rejected because historical
+workflow files were absent from that fork's base; the unchanged six-field
+commit was successfully published to an authorized upstream feature branch,
+without workflow edits, force-pushing or switching accounts.
+
+## Hyperbolica community adapter
+
+[Hyperbolica PR #1](https://github.com/benruijl/hyperbolica/pull/1), head
+`ac84d6ed484b09176802f86824ccb8771a871f5b`, adds three citation URL fields to
+the current `codex/hepkit-integration` adapter at `312920855`. It preserves
+that adapter and its recent owner fixes; current upstream `main` has a
+different standalone Python interface. The unchanged adapter fails with three
+missing-field errors under the current Symbolica API, and the corrected
+coherent consumer compiles successfully. The draft PR is authored and
+published by ValentinHirschi. GitHub denied formal reviewer assignment; the
+PR explicitly invites `@benruijl` and records that limitation. See the
+[focused source and compilation audit](contour-hyperbolica-citations.md).

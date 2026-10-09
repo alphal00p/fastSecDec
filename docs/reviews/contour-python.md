@@ -106,3 +106,45 @@ Community's existing wildcard reexport exposes registered native classes through
 `symbolica.community.hepkit.sector_decomposition`; the substantive settings,
 generation, checking, execution and checkpoint behavior remains in Rust inside
 FastSecDec. The installed native tests above now cover execution of these paths.
+
+## Refreshed public-owner milestone gate (in progress)
+
+The corrected fixed milestone `f2c2d930c4660b5fe200bf392af3e863040a37ef` was
+committed and pushed before the new immutable source snapshot was created.
+Its Git archive contains 1,251 files and has SHA256
+`355538baccb107fc81f247132f2e4001cd7cbefe63ee9dab74cad9389f7299fc`.
+The private staged Community `3aa2608` host points exclusively to this snapshot;
+concurrent dynamic development cannot change its compiled FastSecDec sources.
+All original default `module,native,community` modules are retained.
+
+| Owner | New private gate identity |
+|---|---|
+| Symbolica / Numerica | Public `7ec1be45` |
+| Graphica | Registry 3.0.1 |
+| SymJIT | Public `33100ae8` |
+| FeynKit companions | Public `917b2075`: citation compatibility plus reviewed signature metadata |
+| Hyperbolica | Public `ac84d6ed`: current Community adapter `31292085` plus three URL fields |
+| OneLoopMaster | Public `62ae35d6`: main `27c3723` plus three URL fields |
+| One-loop reduction | Public `fae8a926` |
+| RustFlow | Public `f0885454` |
+| Vakint | Preserved RustRed-enabled owner `854e8495` |
+| RustRed companions | Public `91a877e1` |
+
+Cargo metadata confirms one identity for each numerical and graph owner. The
+new RustFlow API requires the native RustRed feature absent at former `7c1`;
+the necessary private RustRed update is explicit. Unchanged Vakint `854e8495`
+compiles successfully against that newer owner in a coherent external consumer
+(1 minute 39 seconds). There is no additional Vakint implementation patch.
+The staged host also receives five required citation URL initializers. These
+metadata-only fields are the subset of Community PR 25 present at `3aa2608`.
+
+A complete native wheel build is running in a private cache, with a separate
+Python environment and output directory. The earlier accepted wheel and live
+notebook remain untouched. Runtime tests and regenerated contour stubs for this
+exact milestone are pending; the earlier 205-test result does not count as this
+new gate.
+
+Current Community main `9a65fbb7` introduces additional default IBP dispatch,
+LiteRed2 metadata and positive-epsilon OneLoopMaster requirements. Validating
+that latest host with its preserved owner branches is a separate required gate
+before completing Phase B; the staged fixed gate does not claim to cover it.
