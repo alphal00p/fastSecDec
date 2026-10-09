@@ -1,5 +1,13 @@
 # FastSecDec first-phase implementation plan
 
+## Phase B: causal contour deformation (2026-10-09)
+
+The approved [contour-deformation plan](CONTOUR_DEFORMATION_PLAN.md) governs the
+next phase: fixed deformation first, then smooth causal dynamic strength, with
+optional runtime validation and physical multiloop acceptance tests. Implement
+this phase on `contour_deformation`, superseding the earlier `main`-only rule.
+Retain the existing native ecosystem, scientific and bounded-memory guarantees.
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`
