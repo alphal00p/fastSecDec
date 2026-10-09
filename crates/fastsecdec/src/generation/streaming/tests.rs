@@ -19,6 +19,7 @@ use symbolica::{
     parse, symbol,
 };
 mod program;
+mod shared;
 
 fn keep(_: &crate::generation::GenerationProgress) -> ControlFlow<()> {
     ControlFlow::Continue(())
@@ -38,11 +39,19 @@ fn prepared(
         .iter()
         .map(|job| discover(root, &preparation, job, keep).unwrap())
         .collect::<Vec<_>>();
+    finish_charts(root, &preparation, charts)
+}
+
+fn finish_charts(
+    root: &Path,
+    preparation: &Preparation,
+    charts: Vec<DiscoveredSector>,
+) -> PreparedGeneration {
     let mut representatives = Vec::new();
     let mut assignments = Vec::new();
     let mut formulas = BTreeMap::new();
     for chart in &charts {
-        let candidates = if options.mode == GenerationMode::Symbolic {
+        let candidates = if preparation.mode == GenerationMode::Symbolic {
             representatives
                 .iter()
                 .filter(|c: &&DiscoveredSector| c.symmetry_key == chart.symmetry_key)
@@ -51,7 +60,7 @@ fn prepared(
         } else {
             vec![]
         };
-        let assignment = compare_symmetry(root, &preparation, chart, &candidates, keep).unwrap();
+        let assignment = compare_symmetry(root, preparation, chart, &candidates, keep).unwrap();
         if assignment.representative == chart.index {
             representatives.push(chart.clone());
         }
@@ -59,7 +68,7 @@ fn prepared(
         if let Some(key) = &chart.formula_key {
             formulas
                 .entry(key.clone())
-                .or_insert_with(|| build_formula(root, &preparation, chart, keep).unwrap());
+                .or_insert_with(|| build_formula(root, preparation, chart, keep).unwrap());
         }
     }
     // Reordered completed jobs must not change source/representative ordering.
@@ -67,7 +76,7 @@ fn prepared(
     charts.reverse();
     assignments.reverse();
     finish_preparation(
-        &preparation,
+        preparation,
         charts,
         assignments,
         formulas.into_values().collect(),

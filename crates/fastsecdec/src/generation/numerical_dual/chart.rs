@@ -28,6 +28,96 @@ pub(in crate::generation) fn discover(
     supports: &mut SupportCache,
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<DiscoveredChart, GenerationError> {
+    discover_with(context, map, index, total, progress, |map, coordinates| {
+        if context.options.contour_enabled() {
+            let (mapped, contour, program) = crate::generation::mapping::map_terms_with_contour(
+                &context.input,
+                map,
+                coordinates,
+                supports,
+                context.options.program_recipe,
+                false,
+            )?;
+            let terms = mapped
+                .iter()
+                .map(|_| DualTerm { factors: vec![] })
+                .collect();
+            Ok((mapped, terms, contour, program))
+        } else {
+            let (mapped, terms) = prepare_undeformed(context, map, coordinates, supports)?;
+            Ok((mapped, terms, None, Default::default()))
+        }
+    })
+}
+
+pub(in crate::generation) type OpaqueMapping = (Vec<MappedTerm>, Vec<DualTerm>);
+
+pub(in crate::generation) fn prepare_undeformed(
+    context: &Context,
+    map: &SectorMap,
+    coordinates: &CoordinateMap,
+    supports: &mut SupportCache,
+) -> Result<OpaqueMapping, GenerationError> {
+    super::mapping::prepare(
+        &context.input,
+        map,
+        coordinates,
+        supports,
+        &context.valuations,
+    )
+}
+
+pub(in crate::generation) fn discover_prepared(
+    context: &Context,
+    map: SectorMap,
+    index: usize,
+    total: usize,
+    prepared: Option<Vec<crate::generation::mapping::PreparedTerm>>,
+    opaque: Option<OpaqueMapping>,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<DiscoveredChart, GenerationError> {
+    discover_with(context, map, index, total, progress, |_, coordinates| {
+        if context.options.contour_enabled() {
+            let prepared = prepared.ok_or_else(|| {
+                GenerationError::Invariant("prepared source lacks complete residual terms".into())
+            })?;
+            let (mapped, contour, program) = crate::generation::mapping::apply_prepared(
+                coordinates.target_parameters(),
+                prepared,
+                context.options.program_recipe,
+                false,
+            )?;
+            let terms = mapped
+                .iter()
+                .map(|_| DualTerm { factors: vec![] })
+                .collect();
+            Ok((mapped, terms, contour, program))
+        } else {
+            let (mapped, terms) = opaque.ok_or_else(|| {
+                GenerationError::Invariant(
+                    "prepared source lacks opaque undeformed dual terms".into(),
+                )
+            })?;
+            Ok((mapped, terms, None, Default::default()))
+        }
+    })
+}
+
+type DiscoveredTerms = (
+    Vec<MappedTerm>,
+    Vec<DualTerm>,
+    Option<crate::contour::ContourMetadata>,
+    crate::generation::program::ProgramData,
+);
+
+fn discover_with(
+    context: &Context,
+    map: SectorMap,
+    index: usize,
+    total: usize,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+    build: impl FnOnce(&SectorMap, &CoordinateMap) -> Result<DiscoveredTerms, GenerationError>,
+) -> Result<DiscoveredChart, GenerationError> {
     emit(
         progress,
         GenerationProgress::NumericalMapping {
@@ -37,30 +127,7 @@ pub(in crate::generation) fn discover(
     )?;
     let coordinates =
         crate::generation::mapping::coordinates(&context.input, &map, &context.parameters);
-    let (mapped, terms, mut contour, mut program) = if context.options.contour_enabled() {
-        let (mapped, contour, program) = crate::generation::mapping::map_terms_with_contour(
-            &context.input,
-            &map,
-            &coordinates,
-            supports,
-            context.options.program_recipe,
-            false,
-        )?;
-        let terms = mapped
-            .iter()
-            .map(|_| DualTerm { factors: vec![] })
-            .collect();
-        (mapped, terms, contour, program)
-    } else {
-        let (mapped, terms) = super::mapping::prepare(
-            &context.input,
-            &map,
-            &coordinates,
-            supports,
-            &context.valuations,
-        )?;
-        (mapped, terms, None, Default::default())
-    };
+    let (mapped, terms, mut contour, mut program) = build(&map, &coordinates)?;
     program.remap(&[index])?;
     let pre_subtraction = PreSubtractionMetadata::capture(
         &mapped,

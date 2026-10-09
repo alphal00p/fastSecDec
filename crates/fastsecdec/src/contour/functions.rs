@@ -8,6 +8,7 @@
     reason = "dynamic callback foundation precedes recipe admission"
 )]
 pub(crate) mod dynamic;
+pub(crate) mod smooth_positive;
 
 use std::sync::LazyLock;
 use symbolica::{
@@ -19,6 +20,7 @@ use symbolica::{
 /// Register before importing an artifact's Symbolica state in a fresh process.
 pub(crate) fn register() {
     let _ = *CAUSAL_LOG;
+    smooth_positive::register();
 }
 
 pub(crate) fn causal_log(value: &Atom) -> Atom {

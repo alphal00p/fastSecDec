@@ -364,7 +364,39 @@ impl DynamicEnvelope {
 
     /// Dense [a2, a4, ...] in H(u), including structurally absent zero slots.
     pub fn polynomial_coefficients(&self) -> Result<Vec<Atom>, GenerationError> {
-        self.coefficients(&self.polynomial_level)
+        self.polynomial_coefficients_with_inputs(
+            self.direction.iter().map(|v| v.pow(2)).sum(),
+            |term| term.squared_bound.clone(),
+            |_, term| term.squared_bound.clone(),
+        )
+    }
+
+    /// Build the same native arithmetic combiner with independently evaluated
+    /// primitive inputs. Inputs must be radius-independent and represent the
+    /// same bounds; this does not authorize changing their proof or counts.
+    /// Certified checkers can supply native ball-enclosed primitive slots
+    /// without rebuilding or convolving the coefficient polynomial themselves.
+    pub fn polynomial_coefficients_with_inputs(
+        &self,
+        direction_norm_squared: Atom,
+        mut causal_squared: impl FnMut(&CausalEnvelopeTerm) -> Atom,
+        mut positive_squared: impl FnMut(&PositiveEnvelope, &PositiveEnvelopeTerm) -> Atom,
+    ) -> Result<Vec<Atom>, GenerationError> {
+        let radius = Atom::var(lambda_cap_symbol()) * Atom::var(radius_fraction_symbol());
+        let mut level = base_level_from_norm(&direction_norm_squared);
+        for term in &self.causal_terms {
+            level += Atom::num(self.causal_terms.len())
+                * causal_squared(term)
+                * radius.pow(i64::from(2 * term.order - 2));
+        }
+        for factor in &self.positive_factors {
+            for term in &factor.terms {
+                level += Atom::num(factor.terms.len())
+                    * positive_squared(factor, term)
+                    * radius.pow(i64::from(2 * term.order));
+            }
+        }
+        self.coefficients(&level)
     }
 
     /// The same schema for the sign-aware level. Positive-part coefficients
@@ -379,6 +411,19 @@ impl DynamicEnvelope {
     /// this hook does not authorize changing the envelope or its regularity.
     pub fn sign_aware_coefficients_with(
         &self,
+        lower: impl FnMut(&SmoothPositivePart) -> Atom,
+    ) -> Result<Vec<Atom>, GenerationError> {
+        self.sign_aware_coefficients_with_inputs(
+            self.direction.iter().map(|v| v.pow(2)).sum(),
+            lower,
+        )
+    }
+
+    /// Native sign-aware coefficient combiner with an independent direction
+    /// norm and smooth-positive primitive inputs; see the polynomial contract.
+    pub fn sign_aware_coefficients_with_inputs(
+        &self,
+        direction_norm_squared: Atom,
         mut lower: impl FnMut(&SmoothPositivePart) -> Atom,
     ) -> Result<Vec<Atom>, GenerationError> {
         let variable = Atom::var(radius_fraction_symbol());
@@ -387,7 +432,7 @@ impl DynamicEnvelope {
             .iter()
             .map(|term| lower(&term.positive_bound) * variable.pow(i64::from(term.order - 1)))
             .sum::<Atom>();
-        let mut level = base_level(&self.direction) + causal.pow(2);
+        let mut level = base_level_from_norm(&direction_norm_squared) + causal.pow(2);
         for factor in &self.positive_factors {
             let positive = factor
                 .terms
@@ -511,10 +556,12 @@ fn invalid(message: impl Into<String>) -> GenerationError {
     GenerationError::Contour(message.into())
 }
 fn base_level(direction: &[Atom]) -> Atom {
+    base_level_from_norm(&direction.iter().map(|v| v.pow(2)).sum())
+}
+fn base_level_from_norm(direction_norm_squared: &Atom) -> Atom {
     Atom::var(radius_fraction_symbol()).pow(2)
         * (Atom::one()
-            + Atom::var(lambda_cap_symbol()).pow(2)
-                * direction.iter().map(|v| v.pow(2)).sum::<Atom>()
+            + Atom::var(lambda_cap_symbol()).pow(2) * direction_norm_squared
                 / Atom::var(displacement_cap_symbol()).pow(2))
 }
 fn real(expression: &Atom) -> bool {

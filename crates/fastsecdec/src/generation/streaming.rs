@@ -8,6 +8,7 @@ mod codec;
 mod prepare;
 mod records;
 mod sector;
+mod shared;
 #[cfg(test)]
 mod tests;
 
@@ -16,6 +17,7 @@ pub use prepare::{
     build_formula, compare_symmetry, discover, finish_preparation, prepare, prepare_with_runtime,
 };
 pub use sector::{GeneratedUnit, generate_sector};
+pub use shared::{discover_prepared, prepare_chart_source, prepare_recipes_with_runtime};
 
 use crate::kernel::indexed::ProgramRecipe;
 use serde::{Deserialize, Serialize};
@@ -37,6 +39,25 @@ pub struct Preparation {
 pub struct MapJob {
     pub index: usize,
     pub map: RecordRef,
+}
+
+/// A compact directory of recipes sharing the same physical input and geometry.
+/// Every recipe still owns its exact symmetry and subtraction-formula context.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PreparedRecipeSet {
+    pub source_identity: String,
+    pub recipes: Vec<Preparation>,
+}
+
+/// Recipe-neutral monomial-extracted source for one complete chart. Heavy native
+/// residuals live in `record`; this receipt is safe to retain in the coordinator.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PreparedChartSource {
+    pub index: usize,
+    pub source_identity: String,
+    pub map: RecordRef,
+    pub dimension: usize,
+    pub record: RecordRef,
 }
 
 /// A completed mapped chart. Keys locate candidates; only native equality can

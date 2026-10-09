@@ -19,16 +19,18 @@ fn native<T: Real + EvaluationDomain>(
         .iter()
         .map(|(symbol, value)| (Atom::var(*symbol), number(*value)))
         .collect::<HashMap<_, _>>();
-    expressions
-        .iter()
-        .map(|expression| {
-            expression
-                .evaluate_with_prec(&point, bits)
-                .map(&components)
-                .map_err(|error| KernelError::Compilation(format!("exact offset: {error}")))
-        })
-        .collect::<Result<Vec<_>, _>>()
-        .map(|values| values.into_iter().flatten().collect())
+    crate::contour::functions::dynamic::with_precision(bits, || {
+        expressions
+            .iter()
+            .map(|expression| {
+                expression
+                    .evaluate_with_prec(&point, bits)
+                    .map(&components)
+                    .map_err(|error| KernelError::Compilation(format!("exact offset: {error}")))
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(|values| values.into_iter().flatten().collect())
+    })
 }
 
 pub(super) fn evaluate(
@@ -40,6 +42,7 @@ pub(super) fn evaluate(
     // nonfinite final output retries the whole coefficient vector in the
     // next numeric domain. Conversion happens after native evaluation.
     let mut confirm_zero = false;
+    let mut callback_failure = None;
     for class in [
         PrecisionClass::F64,
         PrecisionClass::DoubleFloat,
@@ -49,43 +52,54 @@ pub(super) fn evaluate(
             continue;
         }
         let bits = class.bits();
-        let values = match (class, complex) {
-            (PrecisionClass::F64, false) => native(expressions, point, bits, |v| v, |v| vec![v])?,
-            (PrecisionClass::F64, true) => native(
-                expressions,
-                point,
-                bits,
-                |v| Complex::new(v, 0.0),
-                |v| vec![v.re, v.im],
-            )?,
-            (PrecisionClass::DoubleFloat, false) => {
-                native(expressions, point, bits, DoubleFloat::from, |v| {
-                    vec![v.to_f64()]
-                })?
-            }
-            (PrecisionClass::DoubleFloat, true) => native(
-                expressions,
-                point,
-                bits,
-                |v| Complex::new(DoubleFloat::from(v), DoubleFloat::from(0.0)),
-                |v| vec![v.re.to_f64(), v.im.to_f64()],
-            )?,
-            (PrecisionClass::Arbitrary, false) => native(
-                expressions,
-                point,
-                bits,
-                |v| Float::with_val(bits, v),
-                |v| vec![v.to_f64()],
-            )?,
-            (PrecisionClass::Arbitrary, true) => native(
-                expressions,
-                point,
-                bits,
-                |v| Complex::new(Float::with_val(bits, v), Float::with_val(bits, 0)),
-                |v| vec![v.re.to_f64(), v.im.to_f64()],
-            )?,
-            (PrecisionClass::Unstable, _) => unreachable!(),
-        };
+        let (values, failure) = crate::contour::functions::dynamic::isolated_attempt(
+            || -> Result<Vec<f64>, KernelError> {
+                Ok(match (class, complex) {
+                    (PrecisionClass::F64, false) => {
+                        native(expressions, point, bits, |v| v, |v| vec![v])?
+                    }
+                    (PrecisionClass::F64, true) => native(
+                        expressions,
+                        point,
+                        bits,
+                        |v| Complex::new(v, 0.0),
+                        |v| vec![v.re, v.im],
+                    )?,
+                    (PrecisionClass::DoubleFloat, false) => {
+                        native(expressions, point, bits, DoubleFloat::from, |v| {
+                            vec![v.to_f64()]
+                        })?
+                    }
+                    (PrecisionClass::DoubleFloat, true) => native(
+                        expressions,
+                        point,
+                        bits,
+                        |v| Complex::new(DoubleFloat::from(v), DoubleFloat::from(0.0)),
+                        |v| vec![v.re.to_f64(), v.im.to_f64()],
+                    )?,
+                    (PrecisionClass::Arbitrary, false) => native(
+                        expressions,
+                        point,
+                        bits,
+                        |v| Float::with_val(bits, v),
+                        |v| vec![v.to_f64()],
+                    )?,
+                    (PrecisionClass::Arbitrary, true) => native(
+                        expressions,
+                        point,
+                        bits,
+                        |v| Complex::new(Float::with_val(bits, v), Float::with_val(bits, 0)),
+                        |v| vec![v.re.to_f64(), v.im.to_f64()],
+                    )?,
+                    (PrecisionClass::Unstable, _) => unreachable!(),
+                })
+            },
+        );
+        if failure.is_some() {
+            callback_failure = failure;
+            continue;
+        }
+        let values = values?;
         if values.iter().all(|value| value.is_finite()) {
             // Direct expression order can underflow an intermediate that the
             // optimized helper happened to avoid. Confirm a whole coefficient
@@ -105,7 +119,13 @@ pub(super) fn evaluate(
             return Ok(values);
         }
     }
-    Err(KernelError::NonFinite)
+    if let Some(reason) = callback_failure {
+        Err(KernelError::Contour(format!(
+            "exact offset did not reach a finite accepted value; last callback failure: {reason}"
+        )))
+    } else {
+        Err(KernelError::NonFinite)
+    }
 }
 
 #[cfg(test)]

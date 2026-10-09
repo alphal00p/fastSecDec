@@ -244,6 +244,68 @@ fn dense_native_coefficients_keep_schema_and_reconstruct_both_levels() {
                 .is_zero()
         );
     }
+    let norm = symbol!("dynamic_coefficients::direction_norm_squared");
+    let norm_value = envelope.direction().iter().map(|v| v.pow(2)).sum::<Atom>();
+    let mut causal_aliases = Vec::new();
+    let mut positive_aliases = Vec::new();
+    let arithmetic = envelope
+        .polynomial_coefficients_with_inputs(
+            Atom::var(norm),
+            |term| {
+                let alias = symbol!(&format!(
+                    "dynamic_coefficients::causal_squared_{}",
+                    term.order()
+                ));
+                causal_aliases.push((alias, term.squared_bound().clone()));
+                Atom::var(alias)
+            },
+            |_, term| {
+                let alias = symbol!(&format!(
+                    "dynamic_coefficients::positive_squared_{}",
+                    term.order()
+                ));
+                positive_aliases.push((alias, term.squared_bound().clone()));
+                Atom::var(alias)
+            },
+        )
+        .unwrap();
+    let primitives = std::iter::once((norm, norm_value.clone()))
+        .chain(causal_aliases)
+        .chain(positive_aliases)
+        .collect::<Vec<_>>();
+    assert_eq!(arithmetic.len(), polynomial.len());
+    for (coefficient, expected) in arithmetic.iter().zip(&polynomial) {
+        assert!(!coefficient.contains_symbol(x));
+        assert!(
+            (substitute(coefficient, &primitives) - expected)
+                .expand()
+                .together()
+                .cancel()
+                .is_zero()
+        );
+    }
+    let mut primitives = vec![(norm, norm_value)];
+    let arithmetic = envelope
+        .sign_aware_coefficients_with_inputs(Atom::var(norm), |part| {
+            let alias = symbol!(&format!(
+                "dynamic_coefficients::certified_positive_{}",
+                primitives.len()
+            ));
+            primitives.push((alias, part.expression().clone()));
+            Atom::var(alias)
+        })
+        .unwrap();
+    assert_eq!(arithmetic.len(), sign_aware.len());
+    for (coefficient, expected) in arithmetic.iter().zip(&sign_aware) {
+        assert!(!coefficient.contains_symbol(x));
+        assert!(
+            (substitute(coefficient, &primitives) - expected)
+                .expand()
+                .together()
+                .cancel()
+                .is_zero()
+        );
+    }
 }
 
 #[test]

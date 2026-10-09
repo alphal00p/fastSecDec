@@ -162,11 +162,53 @@ bounded owner smoke passed **6/6 tests** in 0.29 seconds: native one-loop RustRe
 generation, lazy artifacts and terminal normalization, and the preserved
 48-digit Vakint numerical wrapper. No expensive four-loop reference was run.
 
-Regenerated contour/HEPKit stubs for this exact host are still pending; the
-isolated native stub-generator build has started. These accepted installed tests
-are separate from both the earlier 205-test wheel and subsequent dynamic changes.
+The isolated stub-generator build passed in 29 minutes 19 seconds with
+`--no-default-features --features python_stubgen`. The matching explicit
+RustFlow build-feature metadata, private Python shared-library path and private
+`CARGO_MANIFEST_DIR` were supplied; no production source workaround was needed.
+Its six generated HEPKit-related stub files all pass Python 3.9 syntax parsing.
+Eight public signatures match the installed native wheel exactly, including
+both diagram/family `sector_decompose` methods, the direct entrypoint, contour
+settings and caller-owned pilot methods. All eight native contour settings,
+reporting and provenance classes appear in the generated sector-decomposition
+stub and the installed module.
+
+These generated stubs remain private. They are not copied wholesale into newer
+Community main, which has additional APIs requiring its own regeneration gate.
+The accepted installed tests and stub checks are separate from both the earlier
+205-test wheel and subsequent dynamic changes.
 
 Current Community main `9a65fbb7` introduces additional default IBP dispatch,
 LiteRed2 metadata and positive-epsilon OneLoopMaster requirements. Validating
 that latest host with its preserved owner branches is a separate required gate
 before completing Phase B; the staged fixed gate does not claim to cover it.
+
+## Current Community overlay prepared, not yet built
+
+A separate JJ workspace now stages current Community `9a65fbb7` plus the
+six-field citation compatibility commit `48d1d745`. The remote main revision
+was rechecked before preparation. It retains the complete module set, default
+IBP capacity dispatch and the optional runtime-arity selection feature. The
+reproduction script and owner/diff hashes are recorded locally in
+`target/prepare-contour-current-host.py` and
+`target/contour-current-host-plan.json`.
+
+This next gate preserves the newer host's actual owner behavior: OneLoop
+`6c9874dc` positive-epsilon masters, RustFlow `995e531c` capacity/remote-data
+support, all RustRed companion crates at `9cf14d3a`, and one-loop-reduce
+`87f9758a` higher-point scalar fallback. Existing citation-only patches are
+applied to isolated copies of those newer owner bases rather than replacing
+them with the earlier wheel's owner revisions. The OneLoop and RustFlow
+citation source files are unchanged between those bases; the reducer's two
+native fallback changes are retained as well. No new owner implementation or
+additional PR is introduced by these private overlays.
+
+Public contour prerequisites remain Symbolica/Numerica `7ec1be45`, SymJIT
+`33100ae`, Hyperbolica `ac84d6ed`, independent Vakint `854e8495`, and FeynKit's
+reviewed interface/citation commits. Published Community dependencies must
+first consolidate FeynKit fixes onto its upstream `feynkit` branch. The private
+manifest still references the immutable `f2c2d930` FastSecDec snapshot as a
+placeholder; a later accepted snapshot must be selected before the next build.
+Lock resolution, unique-owner verification, full current-host wheel/tests and
+regenerated current stubs are pending. No build has been started for this new
+workspace, and the live Community environment is unchanged.

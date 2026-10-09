@@ -242,16 +242,61 @@ pub(super) fn map_chart(
     supports: &mut SupportCache,
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<MappedChart, GenerationError> {
+    map_chart_with(
+        input,
+        options,
+        map,
+        parameters,
+        progress,
+        |map, coordinates| {
+            mapping::map_terms_with_contour(
+                input,
+                map,
+                coordinates,
+                supports,
+                options.program_recipe,
+                true,
+            )
+        },
+    )
+}
+
+pub(super) fn map_prepared_chart(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    map: SectorMap,
+    parameters: Vec<Symbol>,
+    terms: Vec<mapping::PreparedTerm>,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<MappedChart, GenerationError> {
+    map_chart_with(
+        input,
+        options,
+        map,
+        parameters,
+        progress,
+        |_, coordinates| {
+            mapping::apply_prepared(
+                coordinates.target_parameters(),
+                terms,
+                options.program_recipe,
+                true,
+            )
+        },
+    )
+}
+
+fn map_chart_with(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    map: SectorMap,
+    parameters: Vec<Symbol>,
+    progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+    build: impl FnOnce(&SectorMap, &CoordinateMap) -> Result<mapping::MappedOutput, GenerationError>,
+) -> Result<MappedChart, GenerationError> {
     let started = Instant::now();
     let coordinates = mapping::coordinates(input, &map, &parameters);
-    let (mapped, mut contour, program) = mapping::map_terms_with_contour(
-        input,
-        &map,
-        &coordinates,
-        supports,
-        options.program_recipe,
-        true,
-    )?;
+    let (mapped, mut contour, program) = build(&map, &coordinates)?;
     let pre_subtraction = Some(PreSubtractionMetadata::capture(
         &mapped,
         input.regulator(),

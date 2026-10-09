@@ -3,9 +3,7 @@ use super::{ContourMetadata, functions::causal_log, lambda_symbol};
 use crate::{generation::GenerationError, parametric::FactorSemantics};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::atom::AtomField,
     id::{Pattern, Replacement},
-    tensors::matrix::Matrix,
 };
 
 #[derive(Clone, Debug)]
@@ -95,19 +93,7 @@ impl SmoothContourMap {
             .iter()
             .flat_map(|image| parameters.iter().map(|p| image.derivative(*p)))
             .collect();
-        // Native Bareiss divisions must cancel exactly. Leaving unsimplified
-        // pivot denominators creates false numerical poles for dimensions >=4.
-        let field = AtomField {
-            statistical_zero_test: false,
-            cancel_check_on_division: true,
-            ..AtomField::new()
-        };
-        let jacobian = Matrix::from_linear(entries, dimension, dimension, field)
-            .map_err(GenerationError::Contour)?
-            .det()
-            .map_err(|error| {
-                GenerationError::Contour(format!("native Jacobian determinant: {error}"))
-            })?;
+        let jacobian = super::determinant::determinant(entries, dimension)?;
         Ok(Self {
             parameters: parameters.to_vec(),
             metadata: ContourMetadata {

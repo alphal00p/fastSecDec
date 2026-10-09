@@ -1,4 +1,5 @@
 //! Durable, exclusively owned receipt journal. Never deserialize native work.
+mod validation;
 use super::jobs::{Job, Request, Response};
 use crate::{
     CliResult,
@@ -8,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
     fs::{self, File, OpenOptions},
-    io::Read,
     path::{Path, PathBuf},
 };
+pub(super) use validation::validate;
 
 // Native staging v2 records explicitly identify the selected evaluator recipe.
 const JOURNAL_VERSION: u32 = 2;
@@ -166,6 +167,17 @@ impl Journal {
                 workers: 0,
                 overrides: *overrides,
             },
+            Request::PreparePrograms {
+                input,
+                overrides,
+                recipes,
+                ..
+            } => Request::PreparePrograms {
+                input: input.clone(),
+                workers: 0,
+                overrides: *overrides,
+                recipes: recipes.clone(),
+            },
             _ => request.clone(),
         };
         Ok(blake3::hash(&serde_json::to_vec(&normalized)?)
@@ -242,159 +254,6 @@ impl Journal {
         fs::remove_dir_all(&self.root)?;
         Ok(())
     }
-}
-
-pub(super) fn validate(request: &Request, response: &Response, root: &Path) -> CliResult<()> {
-    match (request, response) {
-        (
-            Request::Prepare {
-                input, overrides, ..
-            },
-            Response::Prepared(prepared),
-        ) => {
-            let mut card: crate::config::RunCard = toml::from_str(&fs::read_to_string(input)?)?;
-            overrides.apply(&mut card);
-            if prepared.native.program_recipe != card.generation.program_recipe() {
-                return Err("prepared program recipe differs from its issued job".into());
-            }
-            if prepared.provenance.dependencies != artifact::dependencies() {
-                return Err("prepared dependencies changed".into());
-            }
-            let base = input.parent().unwrap_or_else(|| Path::new("."));
-            for source in &prepared.provenance.sources {
-                if source
-                    .fingerprint
-                    .hash(&fs::read(base.join(&source.path))?)?
-                    != source.blake3
-                {
-                    return Err(format!(
-                        "generation input {} changed since preparation",
-                        source.path
-                    )
-                    .into());
-                }
-            }
-            prepared.native.source.verify(root)?;
-            for map in &prepared.native.charts {
-                map.map.verify(root)?;
-            }
-        }
-        (
-            Request::Discover {
-                program_recipe,
-                source_id,
-                dimension,
-                index,
-                ..
-            },
-            Response::Discovered(chart),
-        ) if *index == chart.index => {
-            if chart.program_recipe != *program_recipe
-                || chart.source_id != *source_id
-                || chart.dimension != *dimension
-            {
-                return Err("discovery completion belongs to a different source or recipe".into());
-            }
-            chart.record.verify(root)?;
-        }
-        (
-            Request::Symmetry {
-                chart, candidates, ..
-            },
-            Response::Symmetry(assignment),
-        ) if assignment.source == chart.index
-            && assignment.program_recipe == chart.program_recipe
-            && assignment.source_id == chart.source_id =>
-        {
-            if assignment.representative != chart.index
-                && !candidates.iter().any(|c| {
-                    c.index == assignment.representative
-                        && c.program_recipe == chart.program_recipe
-                        && c.source_id == chart.source_id
-                })
-            {
-                return Err("symmetry completion contains an unissued candidate".into());
-            }
-            if assignment.permutation.len() != chart.dimension
-                || assignment
-                    .permutation
-                    .iter()
-                    .copied()
-                    .collect::<std::collections::BTreeSet<_>>()
-                    != (0..chart.dimension).collect()
-            {
-                return Err("symmetry completion has an invalid permutation".into());
-            }
-        }
-        (Request::Formula { chart, .. }, Response::Formula(formula))
-            if chart.formula_key.as_ref() == Some(&formula.key)
-                && chart.program_recipe == formula.program_recipe
-                && chart.source_id == formula.source_id =>
-        {
-            formula.record.verify(root)?;
-        }
-        (Request::Sector { job, output, .. }, Response::Compiled(compiled))
-            if compiled.source_index == job.index
-                && &compiled.data == output
-                && compiled.program_recipe == job.program_recipe
-                && compiled.source_id == job.source.blake3 =>
-        {
-            if compiled.receipts.is_empty()
-                || compiled
-                    .receipts
-                    .iter()
-                    .any(|receipt| receipt.program_recipe() != job.program_recipe)
-            {
-                return Err("compiled sector omits or changes its issued program recipe".into());
-            }
-            let expected = job
-                .charts
-                .iter()
-                .map(|entry| entry.chart.index)
-                .collect::<std::collections::BTreeSet<_>>();
-            let mut returned = std::collections::BTreeSet::new();
-            for index in compiled
-                .receipts
-                .iter()
-                .flat_map(|receipt| &receipt.source_indices)
-            {
-                if !returned.insert(*index) {
-                    return Err("compiled sector repeats a source chart".into());
-                }
-            }
-            if expected.len() != job.charts.len()
-                || returned != expected
-                || compiled
-                    .source_chart_modes
-                    .keys()
-                    .copied()
-                    .collect::<std::collections::BTreeSet<_>>()
-                    != expected
-            {
-                return Err("compiled sector source charts differ from its issued job".into());
-            }
-            let mut file = File::open(&compiled.data)?;
-            let mut buffer = [0u8; 64 * 1024];
-            for receipt in &compiled.receipts {
-                let mut remaining = receipt.length;
-                let mut hash = blake3::Hasher::new();
-                while remaining > 0 {
-                    let n = remaining.min(buffer.len() as u64) as usize;
-                    file.read_exact(&mut buffer[..n])?;
-                    hash.update(&buffer[..n]);
-                    remaining -= n as u64;
-                }
-                if hash.finalize().to_hex().as_str() != receipt.digest {
-                    return Err("compiled sector digest mismatch".into());
-                }
-            }
-            if file.read(&mut buffer[..1])? != 0 {
-                return Err("compiled sector has trailing unclaimed data".into());
-            }
-        }
-        _ => return Err("generation completion does not match its issued job".into()),
-    }
-    Ok(())
 }
 
 #[cfg(test)]

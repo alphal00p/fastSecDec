@@ -85,3 +85,62 @@ fn direct_offsets_preserve_range_rescue_and_confirm_whole_value_zero() {
         .is_err()
     );
 }
+
+#[test]
+fn dynamic_exact_offsets_scope_precision_and_retry_without_stale_failure() {
+    use crate::contour::functions::dynamic::{
+        ProgramScope, RootProgram, failure, strength, take_failure,
+    };
+    let helper = RootProgram::build(1).unwrap();
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
+    let p = symbol!("dynamic_exact_offset::p");
+    let root = strength(
+        &helper,
+        &[Atom::var(p).pow(2)],
+        &Atom::num((4, 5)),
+        &Atom::one(),
+    )
+    .unwrap();
+    for complex in [false, true] {
+        // Both fixed-exponent domains overflow a2. The native Float attempt
+        // must map the callback at its actual precision and recover lambda.
+        let value = evaluate(
+            std::slice::from_ref(&root),
+            &BTreeMap::from([(p, 1e200)]),
+            complex,
+        )
+        .unwrap();
+        assert!(value[0] > 0.0);
+        assert!((value[0] / 8e-201 - 1.0).abs() < 2e-14);
+        if complex {
+            assert_eq!(value[1], 0.0);
+        }
+        assert!(
+            take_failure().is_none(),
+            "failed attempts leaked diagnostics"
+        );
+
+        failure("outer callback failure".into());
+        let value = evaluate(
+            std::slice::from_ref(&root),
+            &BTreeMap::from([(p, 2.0)]),
+            complex,
+        )
+        .unwrap();
+        assert!((value[0] - 0.4).abs() < 1e-15);
+        assert_eq!(take_failure().as_deref(), Some("outer callback failure"));
+    }
+    let invalid = strength(&helper, &[Atom::num(4)], &Atom::Zero, &Atom::one()).unwrap();
+    assert!(matches!(
+        evaluate(std::slice::from_ref(&invalid), &BTreeMap::new(), false),
+        Err(KernelError::Contour(reason)) if reason.contains("safety fraction")
+    ));
+    assert!(take_failure().is_none());
+    // Native expression evaluation may return an error after an earlier
+    // callback has already failed. That attempt still needs a precision retry.
+    assert!(matches!(
+        evaluate(&[invalid, parse!("unknown_dynamic_exact_function(1)")], &BTreeMap::new(), false),
+        Err(KernelError::Contour(reason)) if reason.contains("safety fraction")
+    ));
+    assert!(take_failure().is_none());
+}

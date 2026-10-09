@@ -46,7 +46,7 @@ The two exact-only QMC test fixtures explicitly select the existing
 `hkkn_alpha3` lattice for their 32-point requests; this test-only overlay does
 not modify the wheel's compiled source. No shared notebook installation was
 replaced. The [Python review](contour-python.md) records the full owner matrix,
-test evidence and remaining stub/current-host gates.
+test and generated-stub evidence, and remaining current-host/browser gates.
 
 The required LTD two-loop and three-loop native fixtures now have reproducible
 HEPKit graphs, source provenance and four passing importer controls, including
@@ -141,3 +141,39 @@ cancelled cleanly and published no artifact. This is neither a completed
 scientific gate nor a release performance comparison. Independent native
 determinant probes point to a faster existing Symbolica alias route, which must
 preserve subtraction derivatives before it can replace the current path.
+
+
+## Shared preparation and bounded Jacobian templates
+
+Shared native recipe preparation now computes geometry once and persists each
+complete residual source before applying recipe-specific deformation. Four
+native controls pass, including symbolic/numerical-dual Taylor/IBP Laurent
+parity, zero-exponent and cancelled causal declarations, opaque undeformed
+dual mapping, and foreign receipt rejection. CLI worker requests support these
+caller-owned units; the new recovery test exercises durable unacknowledged
+receipts, changed worker counts, cross-recipe formula rejection and a truncated
+source record. Public recipe-family orchestration remains a subsequent slice.
+
+The registered contour filter passes 71 tests, including the bounded native
+Jacobian-template optimization and stable smooth positive-part callbacks.
+The three exact-offset controls pass, including callback failure followed by
+native multiprecision recovery and preservation of a surrounding caller's
+failure state. Final broad gates pass: **292 core tests** (16 ignored), **157 CLI tests**
+(7 ignored across 24 executables), and **73 portable tests** (none ignored).
+Strict workspace/all-target Clippy, formatting and whitespace checks also pass. The unchanged fixed production interfaces remain available; dynamic
+production admission stays closed.
+
+Independent review caught an important diagnostic-design hazard: attaching a
+face tag before symbolic subtraction can prevent an exact cancellation even if
+its derivative hook is zero. The next runtime slice must retain untagged
+mathematics through subtraction, Laurent construction and assembly, and only
+associate diagnostic requests at evaluator lowering. Matching restricted root
+expressions and face sets must use native exact operations. This correction is
+being implemented before any dynamic production admission.
+
+The frozen fixed-milestone Community wheel also completes its generated-stub
+gate: six files parse under Python 3.9 grammar, eight public signatures match
+the installed extension, and all eight contour/provenance classes are present.
+A separate current-Community overlay preserves its newer OneLoop, RustFlow,
+RustRed and reduction features; that host has not yet been built. Neither the
+shared notebook installation nor the user's release binary was replaced.

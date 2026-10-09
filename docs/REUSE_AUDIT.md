@@ -2536,3 +2536,44 @@ reinterpret native IR. Saved-byte integrity and compiled content identities rema
 separate. Independent fresh-process, concurrent-caller, unwind, legacy restoration
 and detached precision-mapping probes pass. The numerical owner codecs required
 no patch for this FastSecDec identity issue.
+
+
+## Shared contour preparation and native determinant reuse (2026-10-09)
+
+The native generation API can now prepare one common geometry and spool one
+monomial-extracted chart for several mathematical recipes. It reuses the original
+Symbolica mapping, monomial extraction and context-aware Atom codec. Every
+recipe retains independent exact symmetry and subtraction-formula admission.
+The shared source retains all causal/positive declarations before cancellations
+or zero-exponent elimination. Undeformed numerical-dual generation preserves
+its opaque source representation. Coordinator receipts contain no evaluators
+or native residual expressions. Requested-map admission is linear in recipe
+count rather than rescanning the complete chart directory per job.
+
+The CLI worker protocol can execute and recover these native units, with
+recipe/source/map/dimension checks and immutable-record digests. Native decoding
+and algebraic checks remain in recyclable workers. The independent
+[shared-preparation review](reviews/contour-shared-preparation.md) records four
+passing scientific controls and the additional recovery evidence. The public
+complete-recipe coordinator and dynamic production admission are subsequent
+steps, not features inferred from this transport foundation.
+
+Native `Matrix::det`, exact AtomField cancellation and simultaneous replacement
+provide a faster symbolic Jacobian construction for dimensions four through six.
+Bounded templates contain independent matrix entries, never sector data; the
+physical entries are substituted before all existing differentiation and
+subtraction. A focused native AliasedAtom probe demonstrated why leaving the
+entries opaque during symbolic differentiation would be incorrect. No alternate
+determinant or derivative algorithm was introduced. The
+[determinant review](reviews/contour-determinant.md) distinguishes measured
+isolated construction/evaluator costs from still-pending full-sector performance.
+
+The registered smooth positive-part callback uses native Numerica `hypot` and
+Symbolica derivative hooks, dualization and evaluator codecs. Extreme scales,
+tracked imaginary uncertainty, native complex SymJIT and cubic jets are covered
+by the registered contour gate; see the
+[callback review](reviews/contour-smooth-positive.md). Dynamic exact offsets now
+scope callback precision and isolate failure state per attempted numeric domain,
+allowing complete-vector multiprecision rescue without swallowing failures or
+poisoning a later evaluation. These are FastSecDec ownership corrections and
+reuse existing upstream operations; they do not require another owner patch.

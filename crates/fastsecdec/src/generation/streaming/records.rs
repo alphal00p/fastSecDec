@@ -17,6 +17,8 @@ use fastsecdec_sectors::{DecompositionOptions, ParametricDomain, SectorMap};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 use symbolica::atom::{AliasedAtom, AtomCore, Symbol};
+mod prepared;
+pub(super) use prepared::{PreparedData, read_prepared, write_prepared};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

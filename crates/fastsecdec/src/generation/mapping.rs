@@ -10,6 +10,7 @@ use symbolica::{
 
 mod contour;
 mod regular;
+pub(super) use contour::PreparedTerm;
 
 #[cfg(test)]
 pub(super) mod profile;
@@ -34,6 +35,11 @@ pub(super) struct MappedTerm {
     pub prefactor: Atom,
     pub regular: Atom,
 }
+pub(super) type MappedOutput = (
+    Vec<MappedTerm>,
+    Option<crate::contour::ContourMetadata>,
+    super::program::ProgramData,
+);
 
 /// Extract monomials using exact Newton support, leaving nonnegative powers in
 /// every residual polynomial. Numerator factors share the map but do not refine
@@ -64,16 +70,27 @@ pub(super) fn map_terms_with_contour(
     source_supports: &mut super::support::SupportCache,
     recipe: crate::kernel::indexed::ProgramRecipe,
     combine: bool,
-) -> Result<
-    (
-        Vec<MappedTerm>,
-        Option<crate::contour::ContourMetadata>,
-        super::program::ProgramData,
-    ),
-    GenerationError,
-> {
-    let contour = recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1;
-    let mut program = super::program::ProgramData::default();
+) -> Result<MappedOutput, GenerationError> {
+    let terms = prepare_terms(
+        input,
+        map,
+        coordinates,
+        source_supports,
+        recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1,
+    )?;
+    apply_prepared(coordinates.target_parameters(), terms, recipe, combine)
+}
+
+/// Perform the expensive native substitution and monomial extraction once.
+/// All declared zero-exponent branch factors are retained when requested, so
+/// later recipe selection sees the original complete residual F/U set.
+pub(super) fn prepare_terms(
+    input: &ParametricIntegrand,
+    map: &SectorMap,
+    coordinates: &CoordinateMap,
+    source_supports: &mut super::support::SupportCache,
+    retain_declarations: bool,
+) -> Result<Vec<PreparedTerm>, GenerationError> {
     #[cfg(test)]
     profile::begin_chart();
     let parameters = coordinates.target_parameters();
@@ -84,9 +101,7 @@ pub(super) fn map_terms_with_contour(
         .iter()
         .flatten()
         .all(|power| power >= &0);
-    let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
-    let mut separate = Vec::new();
-    let mut contour_terms = Vec::new();
+    let mut prepared = Vec::with_capacity(input.terms().len());
     for term in input.terms() {
         #[cfg(test)]
         profile::begin_term();
@@ -97,12 +112,11 @@ pub(super) fn map_terms_with_contour(
             }
         }
         let prefactor = term.prefactor() * &coordinates.measure_factor;
-        let mut regular = Atom::one();
         let mut residuals = Vec::new();
         for factor in term.factors() {
             #[cfg(test)]
             profile::begin_factor(factor);
-            if factor.exponent().is_zero() && !contour {
+            if factor.exponent().is_zero() && !retain_declarations {
                 continue;
             }
             let mapped = measured!(
@@ -228,38 +242,30 @@ pub(super) fn map_terms_with_contour(
             for (power, valuation) in powers.iter_mut().zip(minima) {
                 *power += factor.exponent() * Atom::num(valuation);
             }
-            if contour {
-                residuals.push((residual, factor.exponent().clone(), factor.semantics()));
-            } else {
-                regular *= residual.pow(factor.exponent());
-            }
+            residuals.push((residual, factor.exponent().clone(), factor.semantics()));
         }
         let powers = powers.into_iter().map(|p| p.expand()).collect::<Vec<_>>();
-        if contour {
-            // Complete the chart's residual discovery before constructing its
-            // single deformation. A local radius must see positive factors
-            // from later terms too; no factor mapping is repeated here.
-            contour_terms.push(contour::PreparedTerm {
-                powers,
-                prefactor,
-                residuals,
-            });
-        } else {
-            retain_term(
-                MappedTerm {
-                    powers,
-                    prefactor,
-                    regular,
-                },
-                combine,
-                &mut combined,
-                &mut separate,
-            );
-        }
+        prepared.push(PreparedTerm {
+            powers,
+            prefactor,
+            residuals,
+        });
     }
-    let contour_metadata = if contour {
+    Ok(prepared)
+}
+
+pub(super) fn apply_prepared(
+    parameters: &[Symbol],
+    terms: Vec<PreparedTerm>,
+    recipe: crate::kernel::indexed::ProgramRecipe,
+    combine: bool,
+) -> Result<MappedOutput, GenerationError> {
+    let mut program = super::program::ProgramData::default();
+    let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
+    let mut separate = Vec::new();
+    let contour_metadata = if recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1 {
         let (terms, metadata) =
-            contour::deform_with(parameters, contour_terms, |parameters, f, positive| {
+            contour::deform_with(parameters, terms, |parameters, f, positive| {
                 let (map, owner) = contour::program::build(recipe, parameters, f, positive)?;
                 program = owner;
                 Ok(map)
@@ -269,6 +275,24 @@ pub(super) fn map_terms_with_contour(
         }
         metadata
     } else {
+        for term in terms {
+            let regular = term
+                .residuals
+                .into_iter()
+                .filter(|(_, exponent, _)| !exponent.is_zero())
+                .map(|(residual, exponent, _)| residual.pow(exponent))
+                .product();
+            retain_term(
+                MappedTerm {
+                    powers: term.powers,
+                    prefactor: term.prefactor,
+                    regular,
+                },
+                combine,
+                &mut combined,
+                &mut separate,
+            );
+        }
         None
     };
     if !combine {

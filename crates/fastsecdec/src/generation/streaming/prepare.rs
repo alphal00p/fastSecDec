@@ -1,28 +1,23 @@
 //! File-backed preparation and exact deterministic representative admission.
 use super::{
-    codec::{self, Atoms, invalid},
+    codec::{self, invalid},
     records::{self, ChartData},
     *,
 };
 use crate::generation::{
-    GenerationError, GenerationEvent, GenerationMode, GenerationOptions, GenerationPhase,
-    GenerationProgress, domain,
-    geometry::{Geometry, GeometrySource},
-    mapping,
+    GenerationError, GenerationEvent, GenerationMode, GenerationOptions, GenerationProgress,
     numerical_dual::{self, formula::Key, pipeline::Context as DualContext},
     support::SupportCache,
     symmetry, work,
 };
 use crate::parametric::ParametricIntegrand;
-use fastsecdec_sectors::PolynomialSupport;
 use std::{
     collections::{BTreeMap, BTreeSet},
     ops::ControlFlow,
     path::Path,
-    time::Instant,
 };
 
-fn event(
+pub(super) fn event(
     progress: &mut impl FnMut(&GenerationProgress) -> ControlFlow<()>,
     status: &GenerationEvent,
 ) -> ControlFlow<()> {
@@ -31,7 +26,7 @@ fn event(
         GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
     }
 }
-fn poll(
+pub(super) fn poll(
     progress: &mut impl FnMut(&GenerationProgress) -> ControlFlow<()>,
     status: GenerationProgress,
 ) -> Result<(), StreamingError> {
@@ -63,91 +58,16 @@ pub fn prepare_with_runtime(
     root: &Path,
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<Preparation, StreamingError> {
-    let started = Instant::now();
-    let _ = domain::check_options(input, options)?;
-    poll(
-        &mut progress,
-        GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Domain,
-            seconds: started.elapsed().as_secs_f64(),
-        },
-    )?;
-    let started = Instant::now();
-    let mut cache = SupportCache::new(input.parameters());
-    let mut supports = Vec::new();
-    for term in input.terms() {
-        for factor in term.factors() {
-            if domain::is_geometry_factor(factor, options.contour_enabled()) {
-                let support = cache.get(factor).map_err(GenerationError::from)?;
-                if !supports.contains(support) {
-                    supports.push(support.clone());
-                }
-            }
-        }
-    }
-    if supports.is_empty() {
-        supports.push(
-            PolynomialSupport::new(vec![vec![0; input.parameters().len()]])
-                .map_err(GenerationError::from)?,
-        );
-    }
-    let mut geometry = if input.terms().is_empty() {
-        None
-    } else {
-        Some(Geometry::compute(
-            input.domain(),
-            &supports,
-            &options.decomposition,
-            GeometrySource::Uncached,
-            &mut |status| event(&mut progress, status),
-        )?)
-    };
-    let total = geometry.as_ref().map_or(0, Geometry::len);
-    poll(
-        &mut progress,
-        GenerationProgress::PhaseTiming {
-            phase: GenerationPhase::Geometry,
-            seconds: started.elapsed().as_secs_f64(),
-        },
-    )?;
-    let mut maps = geometry.iter_mut().flat_map(Geometry::maps).peekable();
-    let dimension = maps.peek().map_or(0, |map| map.dimension());
-    let targets = mapping::target_parameters(input, dimension);
-    let (source, source_identity) = records::write_source(
-        root,
+    let mut prepared = super::shared::prepare_recipes_with_runtime(
         input,
-        &targets,
         options,
+        &[options.program_recipe],
         runtime_parameters,
         runtime_mass_constraints,
+        root,
+        &mut progress,
     )?;
-    let mut charts = Vec::with_capacity(total);
-    for (index, map) in maps.enumerate() {
-        poll(
-            &mut progress,
-            GenerationProgress::Factorization {
-                sector: index,
-                total,
-            },
-        )?;
-        let map = codec::write(
-            root,
-            &format!("map-{index}"),
-            "map",
-            &records::Map::from(map.as_ref()),
-            Atoms::default(),
-            vec![],
-        )?;
-        charts.push(MapJob { index, map });
-    }
-    Ok(Preparation {
-        source_identity,
-        program_recipe: options.program_recipe,
-        source,
-        charts,
-        mode: options.mode,
-        dimension,
-    })
+    Ok(prepared.recipes.remove(0))
 }
 
 /// Map one source chart and persist it immediately; no completed chart owner
@@ -156,7 +76,7 @@ pub fn discover(
     root: &Path,
     preparation: &Preparation,
     job: &MapJob,
-    mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+    progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<DiscoveredSector, StreamingError> {
     if preparation
         .charts
@@ -174,34 +94,65 @@ pub fn discover(
     }
     let (map, _, _): (records::Map, _, _) = codec::read(root, &job.map, "map")?;
     let map = map.native()?;
+    discover_loaded(root, preparation, context, map, job.index, None, progress)
+}
+
+pub(super) fn discover_loaded(
+    root: &Path,
+    preparation: &Preparation,
+    context: records::Context,
+    map: fastsecdec_sectors::SectorMap,
+    index: usize,
+    prepared: Option<records::PreparedData>,
+    mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+) -> Result<DiscoveredSector, StreamingError> {
+    if context.options.mode != preparation.mode
+        || context.options.program_recipe != preparation.program_recipe
+        || context.source_identity != preparation.source_identity
+        || context.targets.len() != preparation.dimension
+    {
+        return Err(invalid("source generation context mismatch"));
+    }
     let mut supports = SupportCache::new(context.input.parameters());
     let (data, symmetry_key, formula_key) = if context.options.mode == GenerationMode::Symbolic {
-        let chart = work::map_chart(
-            &context.input,
-            &context.options,
-            map,
-            context.targets.clone(),
-            &mut supports,
-            &mut |status| event(&mut progress, status),
-        )?;
-        let prepared =
-            symmetry::prepare_mapped(job.index, &chart.parameters, &chart.mapped, || {
-                if progress(&GenerationProgress::SymmetryPreparation {
-                    sector: job.index,
-                    total: preparation.charts.len(),
-                })
-                .is_break()
-                {
-                    Err(GenerationError::Cancelled)
-                } else {
-                    Ok(())
-                }
-            })?;
+        let chart = if let Some(prepared) = prepared {
+            work::map_prepared_chart(
+                &context.input,
+                &context.options,
+                map,
+                context.targets.clone(),
+                prepared
+                    .terms
+                    .ok_or_else(|| invalid("prepared symbolic source lacks residual terms"))?,
+                &mut |status| event(&mut progress, status),
+            )?
+        } else {
+            work::map_chart(
+                &context.input,
+                &context.options,
+                map,
+                context.targets.clone(),
+                &mut supports,
+                &mut |status| event(&mut progress, status),
+            )?
+        };
+        let prepared = symmetry::prepare_mapped(index, &chart.parameters, &chart.mapped, || {
+            if progress(&GenerationProgress::SymmetryPreparation {
+                sector: index,
+                total: preparation.charts.len(),
+            })
+            .is_break()
+            {
+                Err(GenerationError::Cancelled)
+            } else {
+                Ok(())
+            }
+        })?;
         let key = prepared.lookup_key();
         drop(prepared);
         (
             ChartData {
-                index: job.index,
+                index,
                 source_id: preparation.source.blake3.clone(),
                 map: chart.map,
                 mapped: chart.mapped,
@@ -214,24 +165,36 @@ pub fn discover(
         )
     } else {
         let dual = DualContext::new(&context.input, &context.options, context.targets.clone());
-        let chart = numerical_dual::chart::discover(
-            &dual,
-            map,
-            job.index,
-            preparation.charts.len(),
-            &mut supports,
-            &mut |status| event(&mut progress, status),
-        )?;
+        let chart = if let Some(prepared) = prepared {
+            numerical_dual::chart::discover_prepared(
+                &dual,
+                map,
+                index,
+                preparation.charts.len(),
+                prepared.terms,
+                prepared.opaque,
+                &mut |status| event(&mut progress, status),
+            )?
+        } else {
+            numerical_dual::chart::discover(
+                &dual,
+                map,
+                index,
+                preparation.charts.len(),
+                &mut supports,
+                &mut |status| event(&mut progress, status),
+            )?
+        };
         let key = chart.key.as_ref().map(Key::lookup_key);
         (
             ChartData {
-                index: job.index,
+                index,
                 source_id: preparation.source.blake3.clone(),
                 map: chart.map,
                 mapped: chart.mapped,
                 deferred: Some(chart.terms),
                 contour: chart.contour,
-                program: chart.program.select(&[job.index])?,
+                program: chart.program.select(&[index])?,
             },
             None,
             key,
@@ -240,7 +203,7 @@ pub fn discover(
     let record = records::write_chart(root, &data)?;
     Ok(DiscoveredSector {
         program_recipe: preparation.program_recipe,
-        index: job.index,
+        index,
         source_id: preparation.source.blake3.clone(),
         dimension: context.targets.len(),
         record,

@@ -8,14 +8,14 @@ use crate::{
 use serde::{Serialize, Serializer};
 use symbolica::atom::{Atom, AtomCore, Symbol};
 
-struct CanonicalAtom<'a>(&'a Atom);
+pub(crate) struct CanonicalAtom<'a>(pub(crate) &'a Atom);
 impl Serialize for CanonicalAtom<'_> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&self.0.to_canonical_string())
     }
 }
 
-struct CanonicalSymbol(Symbol);
+pub(crate) struct CanonicalSymbol(pub(crate) Symbol);
 impl Serialize for CanonicalSymbol {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&Atom::var(self.0).to_canonical_string())

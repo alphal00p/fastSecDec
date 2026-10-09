@@ -11,7 +11,7 @@ mod conditioning;
 mod context;
 mod domain;
 mod geometry;
-mod identity;
+pub(crate) mod identity;
 pub use identity::source_identity;
 mod laurent;
 mod mapping;

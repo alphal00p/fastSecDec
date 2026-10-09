@@ -1,4 +1,5 @@
 //! File-backed synchronous jobs. This module runs only in recyclable children.
+mod preparation;
 use crate::{
     CliResult,
     artifact::{self, GenerationRecord, Provenance},
@@ -36,12 +37,30 @@ pub(crate) enum Request {
         #[serde(default)]
         overrides: crate::config::GenerationOverrides,
     },
+    PreparePrograms {
+        input: PathBuf,
+        workers: usize,
+        overrides: crate::config::GenerationOverrides,
+        recipes: Vec<indexed::ProgramRecipe>,
+    },
+    PrepareChartSource {
+        preparation: PathBuf,
+        source_identity: String,
+        dimension: usize,
+        map: native::MapJob,
+    },
     Discover {
         preparation: PathBuf,
         program_recipe: indexed::ProgramRecipe,
         source_id: String,
         dimension: usize,
         index: usize,
+    },
+    DiscoverPrepared {
+        preparation: PathBuf,
+        program_recipe: indexed::ProgramRecipe,
+        source_id: String,
+        source: native::PreparedChartSource,
     },
     Symmetry {
         preparation: PathBuf,
@@ -69,6 +88,14 @@ pub(crate) struct Prepared {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct PreparedPrograms {
+    pub native: native::PreparedRecipeSet,
+    pub provenance: Provenance,
+    pub generation: GenerationRecord,
+    pub timings: GenerationTimings,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Compiled {
     pub program_recipe: indexed::ProgramRecipe,
     pub source_id: String,
@@ -82,6 +109,8 @@ pub(crate) struct Compiled {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Response {
     Prepared(Box<Prepared>),
+    PreparedPrograms(Box<PreparedPrograms>),
+    ChartSource(native::PreparedChartSource),
     Discovered(native::DiscoveredSector),
     Symmetry(native::SymmetryAssignment),
     Formula(native::FormulaRecord),
@@ -92,10 +121,36 @@ pub(crate) fn read_response(path: &Path) -> CliResult<Response> {
     Ok(serde_json::from_reader(File::open(path)?)?)
 }
 
-fn read_prepared(path: &Path) -> CliResult<Prepared> {
-    match read_response(path)? {
+fn read_prepared(path: &Path, recipe: indexed::ProgramRecipe) -> CliResult<Prepared> {
+    let prepared: CliResult<Prepared> = match read_response(path)? {
         Response::Prepared(value) => Ok(*value),
+        Response::PreparedPrograms(value) => {
+            let native = value
+                .native
+                .recipes
+                .into_iter()
+                .find(|candidate| candidate.program_recipe == recipe)
+                .ok_or("requested recipe is absent from prepared source")?;
+            Ok(Prepared {
+                native,
+                provenance: value.provenance,
+                generation: value.generation,
+                timings: value.timings,
+            })
+        }
         _ => Err("generation preparation receipt has the wrong job type".into()),
+    };
+    let prepared = prepared?;
+    if prepared.native.program_recipe != recipe {
+        return Err("generation preparation belongs to a different recipe".into());
+    }
+    Ok(prepared)
+}
+
+fn read_programs(path: &Path) -> CliResult<PreparedPrograms> {
+    match read_response(path)? {
+        Response::PreparedPrograms(value) => Ok(*value),
+        _ => Err("generation recipe-set receipt has the wrong job type".into()),
     }
 }
 
@@ -139,65 +194,68 @@ pub(crate) fn execute(
             ControlFlow::Continue(())
         }
     };
-    let response = match job.request {
+    let mut response = match job.request {
         Request::Prepare {
             input,
             workers,
             overrides,
+        } => preparation::run(&job.root, &input, workers, overrides, None, &mut observe)?,
+        Request::PreparePrograms {
+            input,
+            workers,
+            overrides,
+            recipes,
+        } => preparation::run(
+            &job.root,
+            &input,
+            workers,
+            overrides,
+            Some(&recipes),
+            &mut observe,
+        )?,
+        Request::PrepareChartSource {
+            preparation,
+            source_identity,
+            dimension,
+            map,
         } => {
-            let loaded = input::load_observed_with_overrides(&input, overrides, |_| Ok(()))?;
-            let settings = &loaded.card.generation;
-            let mut options = generation::GenerationOptions {
-                max_order: settings.order,
-                mode: settings.mode,
-                subtraction: settings.subtraction,
-                assume_no_threshold: settings.assume_no_threshold,
-                program_recipe: settings.program_recipe(),
-                coefficient_expansion: settings.coefficient_expansion.clone(),
-                ..Default::default()
-            };
-            options.decomposition.max_sectors = settings.max_sectors;
-            options.decomposition.max_support_pairs = settings.max_support_pairs;
-            let preparation = native::prepare_with_runtime(
-                &loaded.integrand,
-                &options,
-                &loaded.runtime_parameters,
-                &loaded.runtime_mass_constraints,
+            let prepared = read_programs(&preparation)?;
+            if prepared.native.source_identity != source_identity
+                || prepared
+                    .native
+                    .recipes
+                    .iter()
+                    .any(|recipe| recipe.dimension != dimension)
+            {
+                return Err(
+                    "chart-source request differs from its prepared physical source".into(),
+                );
+            }
+            Response::ChartSource(native::prepare_chart_source(
                 &job.root,
-                |p| observe(options.max_order, p),
-            )?;
-            let generation = GenerationRecord {
-                workers,
-                mode: Some(options.mode),
-                subtraction: Some(options.subtraction),
-                source_chart_modes: None,
-                formula_preparation: None,
-                contraction_mode: loaded.loops.map(|_| settings.contraction_mode),
-                requested_coefficient_expansion: options.coefficient_expansion.method,
-                evaluator: Some(settings.evaluator),
-            };
-            let provenance = Provenance {
-                name: loaded.label, sources: loaded.sources, dependencies: artifact::dependencies(),
-                domain: format!("{:?}", loaded.integrand.domain()), assume_no_threshold: options.assume_no_threshold,
-                dimension: loaded.card.integral.dimension, regulator: loaded.card.integral.regulator,
-                measure: if loaded.loops.is_some() {
-                    "prod_l d^D k_l / (i*pi^(D/2)); propagators q^2-m^2+i0; no implicit scale factors"
-                } else { "user-supplied direct density with the declared domain measure" }.into(),
-                measure_multiplier: loaded.card.integral.measure_multiplier, max_order: options.max_order,
-                integration: serde_json::to_value(loaded.card.integration)?,
-                family_preparation: loaded.family_preparation,
-                model_parameter_defaults: loaded.model_parameter_defaults,
-            };
-            Response::Prepared(Box::new(Prepared {
-                native: preparation,
-                provenance,
-                generation,
-                timings: GenerationTimings {
-                    input_seconds: loaded.input_seconds,
-                    parametrization_seconds: loaded.parametrization_seconds,
-                    ..snapshot.timings
-                },
-            }))
+                &prepared.native,
+                &map,
+                |progress| observe(prepared.provenance.max_order, progress),
+            )?)
+        }
+        Request::DiscoverPrepared {
+            preparation,
+            program_recipe,
+            source_id,
+            source,
+        } => {
+            let prepared = read_prepared(&preparation, program_recipe)?;
+            if prepared.native.source.blake3 != source_id {
+                return Err(
+                    "recipe discovery request differs from its prepared execution source".into(),
+                );
+            }
+            Response::Discovered(native::discover_prepared(
+                &job.root,
+                &prepared.native,
+                &source,
+                |progress| observe(prepared.provenance.max_order, progress),
+            )?)
         }
         Request::Discover {
             preparation,
@@ -206,7 +264,7 @@ pub(crate) fn execute(
             dimension,
             index,
         } => {
-            let prepared = read_prepared(&preparation)?;
+            let prepared = read_prepared(&preparation, program_recipe)?;
             if program_recipe != prepared.native.program_recipe
                 || source_id != prepared.native.source.blake3
                 || dimension != prepared.native.dimension
@@ -227,7 +285,7 @@ pub(crate) fn execute(
             chart,
             candidates,
         } => {
-            let prepared = read_prepared(&preparation)?;
+            let prepared = read_prepared(&preparation, chart.program_recipe)?;
             Response::Symmetry(native::compare_symmetry(
                 &job.root,
                 &prepared.native,
@@ -237,7 +295,7 @@ pub(crate) fn execute(
             )?)
         }
         Request::Formula { preparation, chart } => {
-            let prepared = read_prepared(&preparation)?;
+            let prepared = read_prepared(&preparation, chart.program_recipe)?;
             Response::Formula(native::build_formula(
                 &job.root,
                 &prepared.native,
@@ -312,6 +370,18 @@ pub(crate) fn execute(
             })
         }
     };
+    let timings = match &mut response {
+        Response::Prepared(value) => Some(&mut value.timings),
+        Response::PreparedPrograms(value) => Some(&mut value.timings),
+        _ => None,
+    };
+    if let Some(timings) = timings {
+        *timings = GenerationTimings {
+            input_seconds: timings.input_seconds,
+            parametrization_seconds: timings.parametrization_seconds,
+            ..snapshot.timings
+        };
+    }
     // A receipt is visible only after every heavy output it references is durable.
     artifact::atomic_write(&job.response, &serde_json::to_vec(&response)?)?;
     File::open(job.response.parent().ok_or("receipt has no directory")?)?.sync_all()?;

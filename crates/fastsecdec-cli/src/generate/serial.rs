@@ -2,6 +2,8 @@
 pub(crate) mod jobs;
 mod journal;
 #[cfg(test)]
+mod program_recovery_tests;
+#[cfg(test)]
 mod recovery_tests;
 mod runner;
 

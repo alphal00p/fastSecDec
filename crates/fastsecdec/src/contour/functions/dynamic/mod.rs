@@ -27,6 +27,21 @@ pub(crate) fn take_failure() -> Option<String> {
     LAST_FAILURE.take()
 }
 
+/// One caller-owned precision attempt must neither inherit an earlier failure
+/// nor overwrite a surrounding evaluation's diagnostics. The guard also
+/// restores the outer state if a native/user callback unwinds.
+pub(crate) fn isolated_attempt<R>(evaluate: impl FnOnce() -> R) -> (R, Option<String>) {
+    struct Restore(Option<String>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            LAST_FAILURE.replace(self.0.take());
+        }
+    }
+    let _restore = Restore(LAST_FAILURE.take());
+    let value = evaluate();
+    (value, LAST_FAILURE.take())
+}
+
 pub(crate) fn register() {
     let _ = *STRENGTH;
 }

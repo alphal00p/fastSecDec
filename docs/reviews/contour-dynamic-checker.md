@@ -106,13 +106,14 @@ pole crossing or an exact zero integral.
 
 ## Certified square roots and the stable positive part
 
-The public/source audit found that current native RealBall::sqrt explicitly does
-not certify its rounded endpoint operations. Float exposes directed arithmetic
-but no public directed sqrt entry point. The owner-library audit is investigating
-a narrow certified RealBall sqrt, with executable evidence and an upstream PR.
-FastSecDec must not implement its own square-root or interval-number type.
+The public/source/probe audit found that the former native RealBall::sqrt did
+not certify its rounded endpoint operations. The narrow owner correction is
+now included in the selected public Symbolica/Numerica source through
+[PR #58](https://github.com/symbolica-dev/symbolica/pull/58), with native and
+portable exact-rational endpoint tests. FastSecDec reuses that certified native
+operation and does not implement a square-root or interval-number type.
 
-The proposed owner construction takes any positive finite native approximation
+The tested owner construction takes any positive finite native approximation
 g of sqrt(a). The exact root lies between g and a/g; native directed division
 therefore supplies enclosing endpoint bounds. Apply this to the original lower
 and upper endpoints, retaining exact-zero endpoints and the existing negative
@@ -146,8 +147,9 @@ strength remain errors with validation off. Precision escalation and diagnostics
 must identify the failed contour request without fabricated samples.
 
 Always, pilot and off retain their established caller-owned preflight semantics.
-Independent numerical checks may have their own preparation and solve cost;
-report it separately from production roots and measure it explicitly. Production
+Independent numerical checks have their own preparation and enclosure cost;
+report it separately from production roots and measure it explicitly. They
+certify the actual production candidate without solving a second radius. Production
 Laurent outputs and jets must share one scalar root per distinct coordinate/face
 request through native CPE. The unchecked path must perform no ball mapping,
 certificate evaluation or hidden validation root solve.
@@ -158,12 +160,12 @@ rounded JIT intermediate. Validation policy/provenance remains outside the
 mathematical checkpoint identity. No root, deformation, precision rescue or
 certificate computation consumes production RNG state.
 
-The one-shot exact-offset binding path also needs the scoped callback
-preparation precision around native `Atom::evaluate_with_prec`. Sector evaluator
-mapping already supplies that scope; exact offsets currently do not, which is
-safe only while dynamic execution is rejected. Its whole-vector f64/DD/Float
-attempts must share the same failure-slot discipline and receive a forced-MP
-regression before dynamic exact-offset admission.
+The one-shot exact-offset binding path now supplies scoped callback preparation
+precision around native `Atom::evaluate_with_prec`. Its whole-vector f64/DD/Float
+attempts isolate failure state and preserve outer scopes. The forced-MP and mixed
+callback/native-error regressions pass, as recorded below. This prepares the
+lifecycle boundary; dynamic exact-offset admission still requires the saved
+checker and all remaining scientific gates.
 
 ## Next focused gates
 
@@ -175,3 +177,115 @@ nonfinite/underflow failures with checks disabled. Repeat the established
 eager/SymJIT batch, fresh-process codec and ordinary/serial scientific controls.
 Then compare always/pilot/off using identical production coordinates and verify
 unchanged sampling-stream identities and true removal of unchecked overhead.
+
+## Executed candidate-association refinement
+
+The following refinement retains the admission and source-contract obligations
+above. Its request lookup and saved-check files remain unwired at this milestone.
+
+### Certify the candidate actually used
+
+The checker must certify the physical strength returned by the production
+callback. Solving a second radius equation in the checker would both add cost
+and validate a different rounded value. For a captured positive strength
+`lambda`, certified native ball evaluation must establish `H(lambda/L) < 1`.
+This uses the safety-fraction slack; it does not incorrectly require a rounded
+root to satisfy `H(u)=1` exactly.
+
+Separately evaluate `H(lambda/(S*L))` and enclose the intended positive root.
+For nonnegative coefficients and powers at least two, the true root is between
+`x` and `x/H(x)`: if `H(x)>1`, scaling by `1/H(x)` decreases every term at least
+quadratically; if `H(x)<1`, that scaling increases every term at least
+quadratically. Certified interval endpoints therefore give
+`[min(x,x/H_upper), max(x,x/H_lower)]` when `H_lower>0`. Check the width against
+the selected numerical accuracy, so a safe but wrongly solved strength is not
+accepted. This enclosure is independent of the prepared solver's numerical
+bracket. It is not a second root solve.
+
+Capture exact represented centres through native arithmetic. In particular,
+double-double conversion must retain both `into_inner().hi()` and `.lo()` as
+exact native rationals; rounding the candidate to f64, or assuming that a
+106-bit Float conversion preserves an arbitrarily separated low component,
+would weaken the certificate. Tracked arithmetic remains heuristic error
+tracking; the independent checker certifies the actual supplied centre.
+
+Saved native programs evaluate raw polynomial primitives and assemble the dense
+coefficient vector from independent primitive slots. Symbolica owns both H
+construction and coefficient collection. Native certified ball arithmetic and
+the reviewed native square root enclose the sign-aware positive parts. No
+FastSecDec polynomial convolution, alternate AD, root solver or square root is
+needed. Optional checks never rebuild an envelope or rerun Horner/CPE on reload.
+
+### Diagnostic identity must not change symbolic mathematics
+
+Adding chart/coordinate tags before exact symmetry comparison changes native
+expression identity and can destroy valid sector reuse. Moving them merely
+after symmetry is also insufficient: a root independent of x cancels exactly
+against its x=0 restriction, but different coordinate tags prevent that native
+cancellation and can fabricate a stochastic term or extra dimension.
+
+The symbolic route must therefore retain its original mathematical callback
+through symmetry, subtraction, Laurent construction and exact folding. Only
+original evaluator lowering adds diagnostic metadata. Build an exact native
+lookup from the retained full-strength Atom restricted on the actual required
+faces; associate every surviving callback Atom by native Atom equality. Equal
+restricted root Atoms share a candidate and a set of associated faces. Missing
+associations are explicit generation errors, not omitted check coverage.
+
+The numerical-dual route can specialize the same face-set metadata immediately
+before native jet construction. Its mathematical body keeps the full variables
+until native input seeds apply the face. Metadata receives zero derivative hooks;
+the physical coefficients and their complete native chain rule remain intact.
+
+Request namespaces bind ordered coordinates, exact native-canonical F/U
+identities, recipe version and full-sector structural data. They never use
+process-local State serialization, optimized native byte digests, or a mutable
+record-local chart index. Record-local projections remain separate. Selected
+nonzero charts, merged records, exact-only records and representative
+multiplicities need explicit association regressions before admission.
+
+### Executed focused probe
+
+`target/contour-request-tag-probe/` imports the actual prepared root workspace,
+solver and implicit derivative code, with an isolated third-tag wrapper. It
+passes scalar and cubic symbolic/native-dual derivative comparisons against the
+independent native quartic closed form, including x=0 and x=1. It demonstrates
+the premature-tag cancellation failure above, verifies zero classification when
+tags are added after simplification, and counts exactly one scalar root call for
+a complete cubic symbolic jet vector with S and L retained as runtime inputs.
+
+This probe validates the native mechanism. It does not yet establish all
+production coefficient aliases, merged-record associations, numerical-dual
+composition variants, or dynamic sampling performance.
+
+### Optional capture and failure lifetime
+
+Preparation selects separate plain and checked native callback closures. Plain
+Off and post-pilot production closures perform no observation or certification.
+Later precision/conditioning remaps must retain that selected mode and its
+exact owner scope. Checked evaluation may initially use scalar calls behind the
+batch API to associate each candidate unambiguously with one accepted output;
+report its cost separately from unchecked batched evaluation.
+
+Per-attempt observations are bounded by admitted requests and reset on retries.
+Unknown, duplicate or incomplete request coverage must fail explicitly. A failed
+attempt cannot contribute observations to a later successful precision attempt.
+Nested scopes and unwinding must restore the outer owner and diagnostics.
+
+The exact-offset lifecycle correction is already implemented and tested: native
+direct evaluation enters the actual mapping precision, isolates callback
+failures for each retry, and preserves an enclosing attempt's failure. The
+forced-MP control overflows a2=p² in f64 and double-double at p=1e200, then
+recovers lambda approximately 8e-201. A mixed callback failure followed by a
+native evaluation error still retries rather than returning prematurely.
+`kernel::exact` passes all three controls; the combined contour filter passes
+71 controls at this boundary.
+
+### Explicit new storage boundary
+
+Preserve published v10 payloads and descriptor-v1 layouts exactly. New saved
+checker programs, factor associations and request projections require a v11
+wrapper and descriptor v2. The generation-only DTO containing the full-strength
+Atom and primitive-combiner source uses staging schema3. Old dynamic v10
+foundation artifacts remain explicitly unavailable for production; fixed and
+undeformed legacy payloads retain their supported readers.

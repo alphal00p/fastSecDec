@@ -183,6 +183,35 @@ fn preparation_precision_is_nested_and_unwind_safe() {
 }
 
 #[test]
+fn callback_attempt_failures_are_nested_and_unwind_safe() {
+    take_failure();
+    failure("outer".into());
+    let ((), inner) = isolated_attempt(|| {
+        assert!(take_failure().is_none());
+        failure("inner".into());
+        let (value, nested) = isolated_attempt(|| {
+            failure("nested".into());
+            17
+        });
+        assert_eq!(value, 17);
+        assert_eq!(nested.as_deref(), Some("nested"));
+        assert_eq!(take_failure().as_deref(), Some("inner"));
+        failure("inner again".into());
+    });
+    assert_eq!(inner.as_deref(), Some("inner again"));
+    assert_eq!(take_failure().as_deref(), Some("outer"));
+    failure("survives unwind".into());
+    let result = std::panic::catch_unwind(|| {
+        isolated_attempt(|| {
+            failure("abandoned".into());
+            panic!("expected callback attempt unwind");
+        })
+    });
+    assert!(result.is_err());
+    assert_eq!(take_failure().as_deref(), Some("survives unwind"));
+}
+
+#[test]
 fn saved_helper_and_callback_restore_in_a_fresh_process() {
     let (helper, inputs, expression) = fixture(3);
     let exact = expression.evaluator(&inputs).build().unwrap();

@@ -225,8 +225,18 @@ impl Runner {
                     }
                 }
                 for result in &results {
-                    if let Response::Prepared(prepared) = result {
-                        self.source_charts = prepared.native.charts.len();
+                    match result {
+                        Response::Prepared(prepared) => {
+                            self.source_charts = prepared.native.charts.len();
+                        }
+                        Response::PreparedPrograms(prepared) => {
+                            self.source_charts = prepared
+                                .native
+                                .recipes
+                                .first()
+                                .map_or(0, |recipe| recipe.charts.len());
+                        }
+                        _ => {}
                     }
                 }
                 status.sectors = self.source_charts;

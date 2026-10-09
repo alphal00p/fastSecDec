@@ -1,4 +1,5 @@
 //! Parameter-space contour maps and caller-owned runtime policy.
+mod determinant;
 pub mod dynamic;
 pub(crate) mod functions;
 mod map;
