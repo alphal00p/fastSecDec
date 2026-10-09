@@ -1,0 +1,20 @@
+// 1912.09291v2: 2L6P.a.I. All nine denominators in ancillary order.
+digraph ltd_six_point {
+  ext0 [style=invis]; ext1 [style=invis]; ext2 [style=invis];
+  ext3 [style=invis]; ext4 [style=invis]; ext5 [style=invis];
+  p1 -> ext0 [id=0, particle="phi"];
+  p2 -> ext1 [id=1, particle="phi"];
+  p3 -> ext2 [id=2, particle="phi"];
+  p4 -> ext3 [id=3, particle="phi"];
+  p5 -> ext4 [id=4, particle="phi"];
+  p6 -> ext5 [id=5, particle="phi"];
+  bottom -> p1 [id=6, particle="phi", lmb_id=0];
+  p1 -> top [id=7, particle="phi"];
+  top -> bottom [id=8, particle="phi"];
+  p2 -> bottom [id=9, particle="phi", lmb_id=1];
+  p3 -> p2 [id=10, particle="phi"];
+  p4 -> p3 [id=11, particle="phi"];
+  p5 -> p4 [id=12, particle="phi"];
+  p6 -> p5 [id=13, particle="phi"];
+  top -> p6 [id=14, particle="phi"];
+}

@@ -6,7 +6,7 @@ use crate::{
 };
 use fastsecdec::{
     integration::mc::HavanaSession,
-    status::{EvaluationDiagnostics, IntegrationStage},
+    status::{ContourCheckpointProvenance, EvaluationDiagnostics, IntegrationStage},
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
@@ -26,6 +26,9 @@ pub(super) struct Checkpoint {
     replay: AcceptedReplay,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     previous_complete: Option<super::refinement::PreviousProduction>,
+    /// Observational evidence; deliberately excluded from settings identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    contour: Option<ContourCheckpointProvenance>,
 }
 
 pub(super) struct RestoredCheckpoint {
@@ -34,6 +37,7 @@ pub(super) struct RestoredCheckpoint {
     pub replay: AcceptedReplay,
     pub session: Vec<u8>,
     pub previous_complete: Option<super::refinement::PreviousProduction>,
+    pub contour: Option<ContourCheckpointProvenance>,
 }
 
 pub(super) fn settings_identity(settings: &IntegrationInput) -> CliResult<serde_json::Value> {
@@ -43,6 +47,17 @@ pub(super) fn settings_identity(settings: &IntegrationInput) -> CliResult<serde_
         .as_object_mut()
         .unwrap()
         .remove("evaluation_batch_size");
+    // Checking a contour does not change its mathematical prescription or the
+    // production streams. Checked pilots may precede unchecked continuation.
+    if let Some(contour) = value
+        .get_mut("contour")
+        .and_then(serde_json::Value::as_object_mut)
+    {
+        contour.remove("validation");
+        if settings.contour.deformation == fastsecdec::contour::ContourMode::Off {
+            value.as_object_mut().unwrap().remove("contour");
+        }
+    }
     // Ordinary historical checkpoints serialized the implicit one-round limit.
     // Artifact settings preserve omission so a later serial run can be unlimited.
     if settings.serial_seconds.is_none() {
@@ -70,6 +85,7 @@ pub(super) fn save_checkpoint(
         diagnostics,
         replay,
         None,
+        None,
     )
 }
 
@@ -83,6 +99,7 @@ pub(super) fn save_checkpoint_with_previous(
     diagnostics: &EvaluationDiagnostics,
     replay: &AcceptedReplay,
     previous_complete: Option<&super::refinement::PreviousProduction>,
+    contour: Option<&ContourCheckpointProvenance>,
 ) -> CliResult<()> {
     atomic_write(
         path,
@@ -98,6 +115,7 @@ pub(super) fn save_checkpoint_with_previous(
             diagnostics: diagnostics.clone(),
             replay: replay.clone(),
             previous_complete: previous_complete.cloned(),
+            contour: contour.cloned(),
         })?,
     )
 }
@@ -128,7 +146,7 @@ pub(super) fn restore_checkpoint(
         || settings_identity(&historical)? != settings_identity(settings)?
         || checkpoint.round_index >= settings.ordinary_max_rounds()
     {
-        return Err("checkpoint input identity or integration settings differ; only the worker count and evaluation batch size may change during resume".into());
+        return Err("checkpoint input identity or integration settings differ; only the worker count, evaluation batch size and contour validation policy may change during resume".into());
     }
     Ok(RestoredCheckpoint {
         round_index: checkpoint.round_index,
@@ -136,6 +154,7 @@ pub(super) fn restore_checkpoint(
         replay: checkpoint.replay,
         session: serde_json::to_vec(&checkpoint.session)?,
         previous_complete: checkpoint.previous_complete,
+        contour: checkpoint.contour,
     })
 }
 
@@ -158,6 +177,7 @@ pub(super) fn save_mc_checkpoint(
         diagnostics,
         replay,
         None,
+        None,
     )
 }
 
@@ -171,6 +191,7 @@ pub(super) fn save_mc_checkpoint_with_previous(
     diagnostics: &EvaluationDiagnostics,
     replay: &AcceptedReplay,
     previous_complete: Option<&super::refinement::PreviousProduction>,
+    contour: Option<&ContourCheckpointProvenance>,
 ) -> CliResult<ResumeStatus> {
     if session.stage() == IntegrationStage::Pilot {
         return Ok(ResumeStatus::PilotRestartRequired);
@@ -184,6 +205,7 @@ pub(super) fn save_mc_checkpoint_with_previous(
         diagnostics,
         replay,
         previous_complete,
+        contour,
     )?;
     Ok(ResumeStatus::CheckpointSaved)
 }

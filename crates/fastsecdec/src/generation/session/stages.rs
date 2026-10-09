@@ -32,10 +32,7 @@ impl GenerationSession {
             }
             Stage::Admission => {
                 let started = Instant::now();
-                self.domain = Some(domain::check(
-                    &self.input,
-                    self.options.assume_no_threshold,
-                )?);
+                self.domain = Some(domain::check_options(&self.input, &self.options)?);
                 let _ = progress(
                     &GenerationProgress::PhaseTiming {
                         phase: GenerationPhase::Domain,
@@ -49,7 +46,7 @@ impl GenerationSession {
                     let mut supports = Vec::new();
                     for term in self.input.terms() {
                         for factor in term.factors() {
-                            if domain::is_singular(factor) {
+                            if domain::is_geometry_factor(factor, self.options.contour) {
                                 let support = self.supports.get(factor)?;
                                 if !supports.contains(support) {
                                     supports.push(support.clone());
@@ -276,6 +273,7 @@ impl GenerationSession {
                     coordinates,
                     mapped,
                     pre_subtraction,
+                    contour,
                 } = chart;
                 let matched = self.registry.register_prepared(index, symmetry)?;
                 self.charts.push(ChartRecord {
@@ -286,6 +284,7 @@ impl GenerationSession {
                     coordinates,
                     geometry: map.clone(),
                     pre_subtraction,
+                    contour,
                 });
                 if matched.representative == index {
                     self.representatives

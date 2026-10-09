@@ -43,9 +43,9 @@ impl PyIntegral {
     /// every GenerationSnapshot. Observer runs first; None/True continues,
     /// False from either callback cancels at a native event boundary. Original
     /// callback and KeyboardInterrupt exceptions propagate after UI cleanup.
-    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
     #[pyo3(
-        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', observer=None, progress='auto')"
+        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, observer=None, progress='auto')"
     )]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate(
@@ -55,12 +55,13 @@ impl PyIntegral {
         coefficient_expansion: &str,
         mode: &str,
         subtraction: &str,
+        contour: bool,
         observer: Option<Py<PyAny>>,
         progress: Option<Py<PyAny>>,
     ) -> PyResult<PyGeneratedIntegral> {
         generate_native(
             py,
-            options(max_order, coefficient_expansion, mode, subtraction)?,
+            options(max_order, coefficient_expansion, mode, subtraction, contour)?,
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native diagram",
@@ -76,6 +77,7 @@ pub(crate) fn options(
     coefficient_expansion: &str,
     mode: &str,
     subtraction: &str,
+    contour: bool,
 ) -> PyResult<GenerationOptions> {
     let method = match coefficient_expansion {
         "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
@@ -99,6 +101,7 @@ pub(crate) fn options(
         max_order,
         mode,
         subtraction,
+        contour,
         ..Default::default()
     };
     options.coefficient_expansion.method = method;
@@ -176,6 +179,15 @@ pub(crate) fn generate_native(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGeneratedIntegral {
+    /// Whether the retained native chart recipes include contour deformation.
+    #[getter]
+    fn contour_capable(&self) -> bool {
+        self.inner
+            .metadata()
+            .charts()
+            .iter()
+            .any(|chart| chart.contour().is_some())
+    }
     /// Requested native generation lane, retained without recomputing sectors.
     #[getter]
     fn mode(&self) -> &'static str {
@@ -342,7 +354,7 @@ import symbolica.community.hepkit.sector_decomposition
 
 class PyIntegral:
     def generate(self, max_order: int = 0, *, coefficient_expansion: str = "full_expression",
-                 mode: str = "symbolic", subtraction: str = "taylor",
+                 mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
                  observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                  progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                  ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:

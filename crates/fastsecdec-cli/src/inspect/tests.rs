@@ -190,7 +190,7 @@ fn expression_only_binary_is_rejected_without_preventing_metadata_inspection() {
         assert!(
             error
                 .to_string()
-                .contains("missing header or truncated indexed data"),
+                .contains("unsupported program archive header"),
             "{error}"
         );
     }

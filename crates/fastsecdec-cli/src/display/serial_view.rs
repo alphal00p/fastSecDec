@@ -37,7 +37,10 @@ fn rows(status: &SerialRunSnapshot) -> Vec<Vec<String>> {
                 resident.pid.to_string(),
                 resident.sector.to_string(),
                 if resident.preparing {
-                    "loading".into()
+                    resident.contour_pilot.as_ref().map_or_else(
+                        || "loading".into(),
+                        |pilot| format!("pilot {}/{}", pilot.completed, pilot.total),
+                    )
                 } else {
                     number::sample_duration(resident.residence_seconds)
                 },

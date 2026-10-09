@@ -26,11 +26,24 @@ pub enum FactorRole {
     Polynomial,
 }
 
+/// Physical branch identity, independent of endpoint singularity admission.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FactorSemantics {
+    #[default]
+    Generic,
+    /// A residual factor required to stay in the positive-real branch region.
+    Positive,
+    /// The F polynomial whose negative imaginary part implements causality.
+    Causal,
+}
+
 #[derive(Clone, Debug)]
 pub struct PolynomialFactor {
     polynomial: Atom,
     exponent: Atom,
     role: FactorRole,
+    semantics: FactorSemantics,
 }
 
 impl PolynomialFactor {
@@ -41,7 +54,17 @@ impl PolynomialFactor {
             polynomial,
             exponent,
             role,
+            semantics: FactorSemantics::Generic,
         }
+    }
+
+    pub fn with_semantics(mut self, semantics: FactorSemantics) -> Self {
+        self.semantics = semantics;
+        self
+    }
+
+    pub fn semantics(&self) -> FactorSemantics {
+        self.semantics
     }
 
     pub fn polynomial(&self) -> &Atom {

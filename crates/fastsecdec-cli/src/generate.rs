@@ -33,12 +33,31 @@ pub fn generate(
     generate_with_workers(path, output, dashboard, reference, 1)
 }
 
+#[cfg(test)]
 pub fn generate_with_workers(
     path: &Path,
     output: &Path,
     dashboard: &mut Dashboard,
     reference: Option<&crate::reference::PreparedReference>,
     workers: usize,
+) -> CliResult<(Artifact, KernelSet)> {
+    generate_with_overrides(
+        path,
+        output,
+        dashboard,
+        reference,
+        workers,
+        Default::default(),
+    )
+}
+
+pub(crate) fn generate_with_overrides(
+    path: &Path,
+    output: &Path,
+    dashboard: &mut Dashboard,
+    reference: Option<&crate::reference::PreparedReference>,
+    workers: usize,
+    overrides: crate::config::GenerationOverrides,
 ) -> CliResult<(Artifact, KernelSet)> {
     crate::artifact::paths(output)?;
     if workers == 0 {
@@ -58,7 +77,7 @@ pub fn generate_with_workers(
         detail: format!("Reading {}", crate::artifact::relative_display(path)),
     };
     dashboard.generation(&status)?;
-    let loaded = input::load_observed(path, |progress| {
+    let loaded = input::load_observed_with_overrides(path, overrides, |progress| {
         match progress {
             input::LoadProgress::Parsed(card) => dashboard.configure_generation(
                 card.generation.mode,
@@ -99,6 +118,7 @@ pub fn generate_with_workers(
         mode: loaded.card.generation.mode,
         subtraction: loaded.card.generation.subtraction,
         assume_no_threshold: loaded.card.generation.assume_no_threshold,
+        contour: loaded.card.generation.contour,
         coefficient_expansion: loaded.card.generation.coefficient_expansion.clone(),
         ..GenerationOptions::default()
     };

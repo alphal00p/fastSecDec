@@ -36,6 +36,7 @@ impl PyHavanaDiscreteSession {
                 break;
             };
             let mut signal_interrupted = false;
+            let stage = self.session.stage();
             let result = (|| {
                 if self.worker.is_none() {
                     self.worker = Some(
@@ -72,6 +73,7 @@ impl PyHavanaDiscreteSession {
                             crate::execution::evaluate_batch(
                                 py,
                                 context.as_mut().expect("prepared weighted context"),
+                                stage,
                                 points,
                                 weights,
                                 output,

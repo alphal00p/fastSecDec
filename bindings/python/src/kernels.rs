@@ -36,12 +36,13 @@ pub(crate) struct PyKernels {
 #[pymethods]
 impl PyKernels {
     /// Bind an explicit complete physical point on independently owned native evaluators.
-    #[pyo3(signature=(values, *, stability=None))]
+    #[pyo3(signature=(values, *, stability=None, contour=None))]
     fn with_parameters(
         &self,
         py: Python<'_>,
         values: &Bound<'_, PyDict>,
         stability: Option<&crate::settings::PyStabilitySettings>,
+        contour: Option<&crate::contour::PyContourSettings>,
     ) -> PyResult<Self> {
         let mut point = std::collections::BTreeMap::new();
         for (key, value) in values.iter() {
@@ -55,9 +56,11 @@ impl PyKernels {
             .inner
             .try_clone()
             .map_err(|e| error::native(py, "parameters", e))?;
-        inner
-            .bind_parameters(&point)
-            .map_err(|e| error::native(py, "parameters", e))?;
+        match contour {
+            Some(contour) => inner.bind_parameters_with_contour(&point, &contour.inner),
+            None => inner.bind_parameters(&point),
+        }
+        .map_err(|e| error::native(py, "parameters", e))?;
         if let Some(settings) = stability {
             inner
                 .set_stability_settings(&settings.inner)
@@ -91,6 +94,7 @@ impl PyKernels {
         self.inner
             .runtime_parameters()
             .iter()
+            .filter(|symbol| **symbol != fastsecdec::contour::lambda_symbol())
             .map(|s| PythonExpression {
                 expr: fastsecdec::Atom::var(*s),
             })

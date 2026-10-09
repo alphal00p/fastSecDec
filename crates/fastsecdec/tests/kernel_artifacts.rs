@@ -80,7 +80,7 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
     let retained_address = compiled.artifact_bytes().unwrap().as_ptr();
     assert_eq!(compiled.artifact_bytes().unwrap(), before_compile);
     assert_eq!(compiled.to_bytes().unwrap(), before_compile);
-    assert!(before_compile.starts_with(b"FastSecDec\0binserde\x08"));
+    assert!(before_compile.starts_with(b"FastSecDec\0binserde\x09"));
     assert!(serde_json::from_slice::<serde_json::Value>(&before_compile).is_err());
     assert!(compiled.sectors()[0].statistics().exact_program_bytes > 0);
     let mut restored = KernelSet::from_bytes(&before_compile).unwrap();

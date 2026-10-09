@@ -1,12 +1,12 @@
-//! Threshold regularity is the caller's responsibility. Generation records the
-//! chosen domain and factors without testing signs, faces or interior points.
+//! Native branch-role admission. Undeformed generation retains caller-owned
+//! threshold responsibility; contour generation requires real, designated F/U.
 #[cfg(test)]
 mod tests;
 use super::{
     BranchPolicy, DomainAssessment, FactorAssessment, FactorCertificate, GenerationError,
     subtraction::rational,
 };
-use crate::parametric::{FactorRole, ParametricIntegrand, PolynomialFactor};
+use crate::parametric::{FactorRole, FactorSemantics, ParametricIntegrand, PolynomialFactor};
 use fastsecdec_sectors::ParametricDomain;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
@@ -16,6 +16,85 @@ use symbolica::{
 pub(super) fn is_singular(factor: &PolynomialFactor) -> bool {
     factor.role() == FactorRole::Singularity
         && !rational(factor.exponent()).is_some_and(|power| power.is_integer() && power >= 0)
+}
+
+pub(super) fn is_geometry_factor(factor: &PolynomialFactor, contour: bool) -> bool {
+    is_singular(factor) || (contour && factor.semantics() != FactorSemantics::Generic)
+}
+
+pub(super) fn check_options(
+    input: &ParametricIntegrand,
+    options: &super::GenerationOptions,
+) -> Result<DomainAssessment, GenerationError> {
+    let mut assessment = check(input, options.assume_no_threshold)?;
+    if !options.contour {
+        return Ok(assessment);
+    }
+    if input
+        .density()
+        .get_all_symbols(true)
+        .contains(&crate::contour::lambda_symbol())
+        || input
+            .parameters()
+            .contains(&crate::contour::lambda_symbol())
+        || input.regulator() == crate::contour::lambda_symbol()
+    {
+        return Err(GenerationError::Contour(
+            "input collides with the reserved contour strength symbol".into(),
+        ));
+    }
+    let mut source_f = None;
+    for term in input.terms() {
+        let causal = term
+            .factors()
+            .iter()
+            .filter(|factor| factor.semantics() == FactorSemantics::Causal)
+            .collect::<Vec<_>>();
+        if causal.len() != 1 {
+            return Err(GenerationError::Contour(
+                "each term requires exactly one explicitly designated F polynomial".into(),
+            ));
+        }
+        if let Some(previous) = source_f
+            && previous != causal[0].polynomial()
+        {
+            return Err(GenerationError::Contour(
+                "terms must share the same designated F polynomial".into(),
+            ));
+        }
+        source_f = Some(causal[0].polynomial());
+        for factor in term.factors() {
+            if factor.semantics() != FactorSemantics::Generic
+                && factor
+                    .polynomial()
+                    .contains(Atom::var(input.regulator()).as_view())
+            {
+                return Err(GenerationError::Contour(
+                    "causal and positive polynomials must be regulator independent".into(),
+                ));
+            }
+            if factor.semantics() != FactorSemantics::Generic
+                && !crate::kernel::is_real_expression(
+                    factor.polynomial(),
+                    &factor
+                        .polynomial()
+                        .get_all_symbols(true)
+                        .into_iter()
+                        .collect::<Vec<_>>(),
+                )
+            {
+                return Err(GenerationError::Contour("causal and positive polynomials must be real for real inputs; complex or unproven coefficient expressions are unsupported".into()));
+            }
+            if factor.semantics() == FactorSemantics::Generic && is_singular(factor) {
+                return Err(GenerationError::Contour(
+                    "every singular factor needs explicit causal or positive branch semantics"
+                        .into(),
+                ));
+            }
+        }
+    }
+    assessment.branch = BranchPolicy::CausalContour;
+    Ok(assessment)
 }
 
 /// Check only the algebraic invariant guaranteed by monomial extraction.

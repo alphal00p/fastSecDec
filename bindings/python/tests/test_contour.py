@@ -1,0 +1,163 @@
+"""Contour bindings retain native settings and explicit caller-owned pilot work."""
+import json
+from pathlib import Path
+import sys
+
+import pytest
+from symbolica.community.hepkit import sector_decomposition as sd
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "examples/hepkit"))
+from showcase import inputs
+from _fixtures import fixed_arguments
+
+
+def test_contour_settings_are_native_and_reject_invalid_strengths():
+    default = sd.ContourSettings()
+    assert default.mode == "off" and default.lambda_value is None
+    assert default.validation == "always"
+    fixed = sd.ContourSettings.fixed(0.01, validation="pilot", pilot_points=2)
+    assert fixed.mode == "fixed" and fixed.lambda_value == 0.01
+    assert sd.ContourSettings.from_json(fixed.to_json()).to_json() == fixed.to_json()
+    for strength in (0.0, -1.0, float("inf"), float("nan")):
+        with pytest.raises(sd.FastSecDecError):
+            sd.ContourSettings.fixed(strength)
+    with pytest.raises(ValueError):
+        sd.ContourSettings.fixed(0.1, validation="unknown")
+    with pytest.raises(sd.FastSecDecError):
+        sd.ContourSettings.fixed(0.1, pilot_points=0)
+
+
+@pytest.fixture(scope="module")
+def generated():
+    integral = sd.Integral(**fixed_arguments(inputs.massive_triangle()))
+    return integral.generate(contour=True, coefficient_expansion="coefficient_series", progress=None)
+
+
+def test_contour_inspection_retains_independent_native_face_views(generated):
+    before = generated.snapshot().elapsed_seconds
+    for chart in generated.metadata.charts:
+        recipe = chart.contour
+        assert recipe is not None
+        # The finite massive triangle needs the full map, with no endpoint
+        # subtraction. The native recipe retains the interior explicitly.
+        assert recipe.validation_faces == [[]]
+        copied_faces = recipe.validation_faces
+        copied_faces[0].append((0, 0))
+        assert recipe.validation_faces == [[]]
+        with pytest.raises(AttributeError):
+            recipe.validation_faces = []
+    assert generated.snapshot().elapsed_seconds == before
+
+
+def test_contour_capability_and_caller_owned_pilot_survive_reload(generated):
+    assert generated.contour_capable
+    template = generated.compile(settings=sd.CompilationSettings(horner_iterations=0), progress=None)
+    assert template.contour_capable
+    assert not template.runtime_parameters  # Strength is separate from physical inputs.
+    restored = sd.Kernels.from_bytes(template.to_bytes())
+    configured = restored.with_parameters({}, contour=sd.ContourSettings.fixed(
+        0.01, validation="pilot", pilot_points=2))
+    assert configured.contour_settings.lambda_value == 0.01
+    identity = configured.content_id
+    assert not configured.contour_validation_report().pilot_complete
+    with pytest.raises(sd.FastSecDecError, match="pilot"):
+        configured.finish_contour_pilot()
+    for chart in configured.contour_validation_charts:
+        for coordinate in (0.3, 0.6):
+            report = configured.validate_contour_point(chart.chart_index, [coordinate] * chart.dimension)
+            assert report.maximum_bits >= 96
+            assert report.checked_arguments > 0
+    pilot = configured.finish_contour_pilot()
+    assert pilot.pilot_complete and pilot.required_charts == pilot.validated_charts
+    assert json.loads(pilot.to_json())["accepted_pilot_points"] == pilot.accepted_pilot_points
+    unchecked = configured.with_contour_validation("off", pilot_points=2)
+    always = configured.with_contour_validation("always", pilot_points=2)
+    assert unchecked.content_id == identity
+    assert always.content_id == identity
+    assert unchecked.contour_validation_report().pilot_complete
+    assert always.contour_validation_report().pilot_complete
+    settings = sd.QmcSettings(points=32, shifts=2, package_points=32, rule="hkkn_alpha3")
+    checked_session, unchecked_session = configured.session(settings), unchecked.session(settings)
+    always_session = always.session(settings)
+    assert checked_session.contour_provenance.pilots[0].seed is None
+    for session in (checked_session, unchecked_session, always_session):
+        while not session.complete:
+            session.step()
+    assert checked_session.snapshot().estimate.mean == unchecked_session.snapshot().estimate.mean
+    assert checked_session.snapshot().estimate.mean == always_session.snapshot().estimate.mean
+    production_checks = always_session.snapshot().evaluation_diagnostics.contour.production
+    assert production_checks.checked_arguments > 0
+    assert production_checks.maximum_bits >= 96
+    resumed = unchecked.restore(checked_session.checkpoint())
+    assert resumed.contour_provenance.validation == "off"
+    assert resumed.contour_provenance.pilots[0].complete
+    assert resumed.contour_provenance.pilots[0].seed is None
+    assert resumed.snapshot().estimate.mean == checked_session.snapshot().estimate.mean
+    assert checked_session.snapshot().evaluation_diagnostics.contour.production.checked_arguments == 0
+    assert unchecked_session.snapshot().evaluation_diagnostics.contour is None
+    checked_mc = configured.mc_session(sd.HavanaDiscreteSettings(points_per_batch=32, batches=2))
+    while not checked_mc.complete:
+        checked_mc.step()
+    resumed_mc = unchecked.restore_mc(checked_mc.checkpoint())
+    assert resumed_mc.contour_provenance.validation == "off"
+    assert resumed_mc.contour_provenance.pilots[0].complete
+
+
+def test_contour_flag_reaches_retained_and_native_diagram_entrypoints():
+    arguments = fixed_arguments(inputs.massive_triangle())
+    integral = sd.Integral(**arguments)
+    owner = integral.generation_session(contour=True, compilation_settings=sd.CompilationSettings(horner_iterations=0))
+    assert owner.contour and owner.generated is owner.kernels is None
+    while not owner.complete:
+        owner.step()
+    assert owner.generated.contour_capable and owner.kernels.contour_capable
+    diagram = arguments.pop("diagram")
+    direct = diagram.sector_decompose(**arguments, contour=True, progress=None)
+    assert direct.contour_capable
+
+
+@pytest.fixture(scope="module")
+def exact_contour_template():
+    from symbolica import E, S
+    from symbolica.community import hepkit as hep
+
+    d, k, eps = S("exact_contour::D", "exact_contour::k", "exact_contour::eps")
+    kin = hep.Kinematics(d, momenta=[k])
+    family = hep.IntegralFamily([k], [], [kin.scalar_product(k, k) - E("1")],
+                               kinematics=kin)
+    generated = family.sector_decompose(
+        powers=[1], numerator=E("1"), regulator=eps, dimension=2 - 2 * eps,
+        max_order=0, contour=True, coefficient_expansion="coefficient_series", progress=None,
+    )
+    kernels = generated.compile(settings=sd.CompilationSettings(horner_iterations=0), progress=None)
+    assert kernels.sector_count == 0
+    return sd.Kernels.from_bytes(kernels.to_bytes())
+
+
+@pytest.mark.parametrize("policy", ["always", "pilot"])
+@pytest.mark.parametrize("lane", ["qmc", "mc"])
+def test_exact_only_contour_sessions_require_pilot_on_creation_and_restore(
+        exact_contour_template, policy, lane):
+    configured = exact_contour_template.with_parameters({}, contour=sd.ContourSettings.fixed(
+        0.01, validation=policy, pilot_points=2))
+    assert any(value != 0 for value in configured.exact_coefficients)
+    create = (lambda owner: owner.session(sd.QmcSettings(points=32, shifts=2))) if lane == "qmc" else (
+        lambda owner: owner.mc_session(sd.HavanaDiscreteSettings(points_per_batch=32, batches=2)))
+    restore = (lambda owner, state: owner.restore(state)) if lane == "qmc" else (
+        lambda owner, state: owner.restore_mc(state))
+    with pytest.raises(sd.FastSecDecError, match="pilot"):
+        create(configured)
+    for chart in configured.contour_validation_charts:
+        for _ in range(2):
+            configured.validate_contour_point(chart.chart_index, [0.5] * chart.dimension)
+    configured.finish_contour_pilot()
+    session = create(configured)
+    assert session.complete
+    checkpoint = session.checkpoint()
+    unready = exact_contour_template.with_parameters({}, contour=sd.ContourSettings.fixed(
+        0.01, validation=policy, pilot_points=2))
+    with pytest.raises(sd.FastSecDecError, match="pilot"):
+        restore(unready, checkpoint)
+    unchecked = unready.with_contour_validation("off", pilot_points=2)
+    assert create(unchecked).snapshot().estimate.mean == session.snapshot().estimate.mean
+    assert restore(unchecked, checkpoint).snapshot().estimate.mean == session.snapshot().estimate.mean

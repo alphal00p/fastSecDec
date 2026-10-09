@@ -136,3 +136,38 @@ executable identity and measurement boundaries; this is a single observation.
 Delivery checks passed: 640 workspace tests, zero failures, 28 intentional
 ignores, strict Clippy across all workspace targets, formatting and diff checks.
 All three method reproductions and the saved-result comparison were executed.
+
+## Above-threshold contour control (Phase B)
+
+The native exporter also accepts `OUTPUT --sqrt-s 400`. It derives the exact
+400 GeV momenta, their scalar products and the numerical external helicities
+through the same HEPKit objects, retaining the 300 GeV default. The exported
+`physical-point.json` supplies the MadLoop point; editing only the original
+top-level point file would not change the native exporter or HEPKit reference.
+
+```sh
+example/gg_hh_one_loop_ME/threshold.sh output/gghh-400-fixed
+```
+
+This script requires a fresh directory and puts each method's reproduction
+there. It runs the two Ward substitutions as well as the physical amplitude,
+then the complete eight-diagram comparison. MadLoop retains its ten-minute,
+15-GiB limit and private installation. Its Python interpreter must have `six`
+available; select it with `GGHH_PYTHON` when needed. The native reference needs
+the usual GNU C++/Fortran tools for MadLoop's private build.
+
+The initial fixed contour uses lambda `1e-6` and checked pilot / unchecked
+production; `FSD_LAMBDA` selects an explicit alternative. The polynomial is
+not secretly normalized, and a failed preflight aborts rather than reducing
+the chosen strength. The script checks agreement, cancellations and the final
+one-per-mil uncertainty through the existing comparison program.
+
+The [400 GeV control](threshold/comparison.json) now passes with relative RMS
+uncertainty `2.96355e-4` (0.0296%). Its result is 0.39 standard errors from both
+independent references; both Ward substitutions and the Laurent pole checks
+pass. The compact [provenance](threshold/provenance.json) distinguishes the
+initial work-limited attempt from the accepted replacement runs, with no
+pooling of their statistics. This is a debug-driver scientific check with
+SymJIT O2 kernels, not a production speed comparison. Dynamic comparisons
+will follow the [variance protocol](../../docs/reviews/contour-variance-protocol.md)
+after that mode is implemented.

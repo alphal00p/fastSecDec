@@ -2361,8 +2361,9 @@ its existence is not evidence of an efficient production sampling path.
 The review explicitly restricts certified-ball claims to Numerica's documented
 directed-rounding algebra. Its inherited transcendental functions are not
 certifying. Sign-aware radius checks must use equivalent algebraic inequalities
-or an independently verified owner capability, never assume `RealBall::sqrt`
-provides a certificate. Both the spectral bound and its positive part require
+or an independently verified owner capability, never assume the original
+`RealBall::sqrt` provides a certificate. The later audited PR 58 adds only the
+finite nonnegative real-square-root enclosure (recorded below). Both the spectral bound and its positive part require
 smooth regularization; smoothing the latter alone leaves a nondifferentiable
 scalar-matrix degeneracy. Structural dimension/counts and the full contour must
 remain fixed under subtraction-face restriction.
@@ -2401,3 +2402,96 @@ supplied floating inputs. It does not enclose all internal rounding in the
 separate JIT evaluation. A possible future dynamic certificate for an actually
 rounded direction requires additional implementation-level evidence; the
 foundation's exact-arithmetic bounds do not provide that evidence by themselves.
+
+Dynamic runtime preparation exposes one further narrow owner gap: existing
+Symbolica `nsolve` builds evaluators per invocation, and native exact root
+isolation does not provide prepared floating callback refinement. The
+[prepared scalar-root review](reviews/contour-root-solver.md) records the
+public/source/probe checks and a small isolated Symbolica API. Native
+`RealLike`/`Real` arithmetic, caller-prepared value/derivative callbacks and
+explicit numerical stopping policies preserve scalar precision and tracked
+coefficient uncertainty. The full owner library, eight domain/failure tests,
+two eager/JIT evaluator tests and the eight portable-host domain tests pass.
+This is numerical refinement, not a new CAS or a certified interval solver;
+dynamic causal certification remains a separate ball-arithmetic gate. The
+Owner publication and the coordinated consuming source are recorded below.
+
+The dynamic runtime source review confirms that its coefficient-only `H/H_u`
+program uses saved native evaluator arithmetic, including zero-centred tracked
+coefficients; no extra Horner implementation is needed. Native tagged callback
+cloning permits independently owned scratch and weak helper routing. A separate
+primitive-only probe finds a Numerica 3.0.1 limitation: tracked `hypot` overflows
+for finite `1e200` inputs because `ErrorPropagatingFloat` does not delegate
+`real_cmp`, which selects the existing scaled implementation. The
+[isolated owner correction](reviews/contour-tracked-norm.md) adds a narrow tracked
+`hypot` override using the existing centre primitive and native linear error
+propagation. A broader scalar-guard proposal was rejected because it activated
+complex shortcuts that lost zero-centred uncertainty. No FastSecDec norm
+arithmetic or global zero-predicate change is introduced. Focused native/portable tests pass 6/6 each,
+existing API regressions 14/14 and existing complex regressions 15/15. Dependency
+consumption is separate from owner publication.
+
+Accepted owner fixes are now published independently as Symbolica
+[PR 55](https://github.com/symbolica-dev/symbolica/pull/55) (ball evaluator domains),
+[PR 56](https://github.com/symbolica-dev/symbolica/pull/56) (prepared scalar root),
+and [PR 57](https://github.com/symbolica-dev/symbolica/pull/57) (tracked native
+`hypot`), all authored by ValentinHirschi. A tested public consumer branch on
+current `community` initially combined those changes at `eccd039`. The actual
+FastSecDec consumer build identified missing pre-existing PR 54 composition;
+its exact original commits are now retained together with reviewed PR 58 at
+`7ec1be45ef92ae3b154e0d4ce754c0bdf3d9d0ca`. Both Symbolica and Numerica must use
+that owner source together. Formal reviewer assignment was denied by repository
+permissions; explicit `@benruijl` review requests are posted on each PR.
+
+An independently built, fully registered Community wheel now passes all three
+fixed-contour binding controls and all 205 maintained binding, standalone
+notebook/demo and native HEPKit wavefunction controls without skips. The
+[installed-host review](reviews/contour-python.md) records the immutable
+FastSecDec snapshot and coherent private Feynkit identity. This validates actual
+HEPKit execution without changing the live notebook environment; later dynamic
+source and browser/WASM execution remain separate gates.
+
+The sign-aware dynamic checking research also triple-checked certified square
+roots. Existing `RealBall::sqrt` is documented as noncertifying and an executable
+exact-rational probe confirms that `sqrt(2)` can be returned as a false singleton
+enclosure. A [narrow Numerica owner change](reviews/contour-certified-sqrt.md)
+uses the existing native point square root only as a positive guess and directed
+division to enclose the true root. No FastSecDec interval arithmetic is added.
+Six new enclosure controls and ten existing interval tests pass on each native
+and portable backend. [PR 58](https://github.com/symbolica-dev/symbolica/pull/58)
+is independently published and reviewed. The corrected consumer source above
+includes this change; its owner tests pass, with native/portable FastSecDec
+consumption checked separately.
+
+The refreshed community host also needs the updated native `Citation.url`
+record shape in existing owner Python modules. The one-loop reducer's
+[two-field compatibility change](reviews/contour-one-loop-citations.md) reuses
+its existing repository and DOI identities and adds no reduction or reference
+implementation. A complete coherent native Python consumer compiles, and an
+independent review passed. Draft
+[one-loop-reduce PR 2](https://github.com/lcnbr/one-loop-reduce/pull/2) is published
+as ValentinHirschi; denied formal reviewer assignment is recorded with the
+explicit `@benruijl` request. This host glue update does not change FastSecDec's
+current native reference source or the earlier frozen wheel's provenance.
+
+The final full portable FastSecDec consumer suite passes **73 tests** with no
+failures or ignored cases on public Symbolica/Numerica `7ec1be4` and Feynkit
+`8e3a643`, with ordinary locked Cargo and no path override. The new public-API
+contour control covers both generation modes, analytic complex Laurent
+coefficients, imaginary-pole cancellation, saved program restoration, certified
+pilot/production and policy-invariant values. Existing generation, covariance,
+QMC/Havana and recovery controls also pass. This is actual portable-host
+application validation, while browser/WASM execution remains separate.
+
+### Contour exact-result readiness (2026-10-09)
+
+The fixed-mode pre-commit audit found that exact-only Python QMC/Havana sessions
+could avoid the existing first-sample contour-pilot gate. The fix reuses native
+KernelSet binding/readiness state and KernelResultManifest scope projection in a
+checked constructor shared by session creation and checkpoint restoration.
+No new sampler, accumulator, algebra helper or Python implementation was added.
+Standalone exact-coefficient inspection remains available. See
+[the runtime audit](reviews/contour-fixed-runtime.md) for the scope. Independent
+source review, the corrected binding compile, all 252 updated native library
+tests (16 ignored), and strict workspace Clippy pass. Fresh Python runtime
+execution remains a separate pending gate.

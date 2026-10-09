@@ -1,12 +1,20 @@
 //! Indexed transport around the existing native evaluator codec. Neither this
 //! module nor its readers/writers own threads, processes or a scheduling loop.
 mod catalogue;
+mod layout;
+pub(crate) mod programs;
 mod reader;
+mod record_reader;
 #[cfg(test)]
 mod tests;
+mod transport;
 mod writer;
 
 pub use catalogue::{KernelCatalogue, RecordDescriptor, RecordReceipt};
+pub use programs::{
+    ProgramArchiveCatalogue, ProgramArchiveReader, ProgramArchiveWriter, ProgramRecipe,
+    ProgramRecipeCatalogue, SelectedProgramReader,
+};
 pub use reader::IndexedReader;
 pub use writer::{IndexedWriter, write_record, write_unit};
 

@@ -24,7 +24,10 @@ use crate::{
 };
 
 use super::scalar::validated_gamma;
-use super::{FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor};
+use super::{
+    FactorRole, FactorSemantics, ParametricDomain, ParametricIntegrand, ParametricTerm,
+    PolynomialFactor,
+};
 
 impl ParametricIntegrand {
     /// Contract the native graph numerator and integrate its loop momenta by
@@ -231,8 +234,10 @@ pub(super) fn parameterize_validated_family(
                 normalization * validated_gamma(beta.clone())? * coefficient,
                 powers.iter().map(|p| Atom::num(p - 1)).collect(),
                 vec![
-                    PolynomialFactor::new(u, base_u, FactorRole::Singularity),
-                    PolynomialFactor::new(f, -beta, FactorRole::Singularity),
+                    PolynomialFactor::new(u, base_u, FactorRole::Singularity)
+                        .with_semantics(FactorSemantics::Positive),
+                    PolynomialFactor::new(f, -beta, FactorRole::Singularity)
+                        .with_semantics(FactorSemantics::Causal),
                 ],
             )],
         )?);
@@ -299,8 +304,10 @@ pub(super) fn parameterize_validated_family(
                     u.clone(),
                     (&base_u - Atom::num(2 * order)).expand(),
                     FactorRole::Singularity,
-                ),
-                PolynomialFactor::new(f.clone(), -&beta, FactorRole::Singularity),
+                )
+                .with_semantics(FactorSemantics::Positive),
+                PolynomialFactor::new(f.clone(), -&beta, FactorRole::Singularity)
+                    .with_semantics(FactorSemantics::Causal),
                 PolynomialFactor::new(numerator_polynomial, Atom::one(), FactorRole::Polynomial),
             ],
         ));

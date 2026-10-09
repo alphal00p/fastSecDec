@@ -1,5 +1,7 @@
 mod artifact;
 mod config;
+mod contour_cli;
+mod contour_pilot;
 mod diagnostics;
 mod display;
 mod driver;
@@ -93,6 +95,9 @@ enum Action {
     /// Generate portable O2 kernels from a native TOML run card.
     Generate {
         input: PathBuf,
+        /// Generate causal contour maps with a runtime deformation strength.
+        #[arg(long)]
+        contour: bool,
         /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -141,6 +146,9 @@ enum Action {
     /// Inspect native input or an existing portable artifact.
     Inspect {
         path: PathBuf,
+        /// Select an explicitly stored mathematical recipe (for example fixed-v1).
+        #[arg(long, value_parser = parse_program_recipe)]
+        recipe: Option<fastsecdec::kernel::indexed::ProgramRecipe>,
         /// Verify artifact integrity and retained metadata; binary checks require --deep.
         #[arg(long)]
         validate_artifact: bool,
@@ -157,6 +165,8 @@ enum Action {
     /// Measure repeated kernel evaluations with reproducible interior points.
     Benchmark {
         artifact: PathBuf,
+        #[command(flatten)]
+        contour: contour_cli::ContourArgs,
         #[arg(long, default_value_t = 100_000)]
         points: usize,
         #[arg(long, default_value_t = 5)]
@@ -165,6 +175,8 @@ enum Action {
     /// Sample bounded coordinate faces from inside, including face intersections.
     CheckBoundaries {
         artifact: PathBuf,
+        #[command(flatten)]
+        contour: contour_cli::ContourArgs,
         #[arg(long, value_delimiter = ',', default_value = "3,6,9,12,15")]
         exponents: Vec<i32>,
         #[arg(long, default_value_t = 2)]
@@ -215,6 +227,8 @@ impl Action {
 
 #[derive(Args, Default)]
 struct IntegrationArgs {
+    #[command(flatten)]
+    contour: contour_cli::ContourArgs,
     /// Minimum sampling seconds per resident sector; workers remain parallel.
     #[arg(long = "serial", value_name = "SECONDS")]
     serial_seconds: Option<f64>,
@@ -416,6 +430,7 @@ impl IntegrationArgs {
         if settings.evaluation_batch_size == 0 {
             return Err("evaluation_batch_size must be greater than zero".into());
         }
+        self.contour.apply(&mut settings.contour)?;
         settings.validate_execution()
     }
 }
@@ -433,7 +448,7 @@ fn bind_parameters(
         .iter()
         .map(|(name, value)| Ok((input::symbol(name)?, *value)))
         .collect::<CliResult<std::collections::BTreeMap<_, _>>>()?;
-    kernels.bind_parameters(&values)?;
+    kernels.bind_parameters_with_contour(&values, &settings.contour)?;
     kernels.set_stability_settings(&settings.stability)?;
     Ok(())
 }
@@ -508,6 +523,7 @@ fn run(cli: Cli) -> CliResult<()> {
     match cli.command {
         Action::Generate {
             input,
+            contour,
             output,
             geometry_workers,
             serial,
@@ -518,13 +534,14 @@ fn run(cli: Cli) -> CliResult<()> {
             let mut dashboard = make_dashboard()?;
             let card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
             if serial || card.generation.serial || resume {
-                let artifact = generate::serial::generate(
+                let artifact = generate::serial::generate_with_overrides(
                     &input,
                     &output,
                     &mut dashboard,
                     reference.as_ref(),
                     geometry_workers.get(),
                     resume,
+                    config::GenerationOverrides { contour },
                 )?;
                 drop(dashboard);
                 return generation_report::print_indexed(
@@ -534,12 +551,13 @@ fn run(cli: Cli) -> CliResult<()> {
                     render_json,
                 );
             }
-            let (artifact, kernels) = generate::generate_with_workers(
+            let (artifact, kernels) = generate::generate_with_overrides(
                 &input,
                 &output,
                 &mut dashboard,
                 reference.as_ref(),
                 geometry_workers.get(),
+                config::GenerationOverrides { contour },
             )?;
             if kernels.runtime_parameters().is_empty()
                 && let Some(reference) = &reference
@@ -562,14 +580,19 @@ fn run(cli: Cli) -> CliResult<()> {
                 None
             } else {
                 let card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
+                let overrides = integration.contour.generation_overrides(
+                    &card.integration,
+                    integration.integration_settings.as_deref(),
+                )?;
                 if card.generation.serial || integration.serial_seconds.is_some() {
-                    generate::serial::generate(
+                    generate::serial::generate_with_overrides(
                         &input,
                         &output,
                         &mut dashboard,
                         reference.as_ref(),
                         geometry_workers.get(),
                         false,
+                        overrides,
                     )?;
                     None
                 } else if integration.serial_residence(&card.integration)?.is_some() {
@@ -582,16 +605,18 @@ fn run(cli: Cli) -> CliResult<()> {
                         &output,
                         geometry_workers.get(),
                         integration.reference.as_deref(),
+                        overrides,
                         &mut dashboard,
                     )?;
                     None
                 } else {
-                    Some(generate::generate_with_workers(
+                    Some(generate::generate_with_overrides(
                         &input,
                         &output,
                         &mut dashboard,
                         reference.as_ref(),
                         geometry_workers.get(),
+                        overrides,
                     )?)
                 }
             };
@@ -635,6 +660,7 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::Inspect {
             path,
+            recipe,
             validate_artifact,
             deep,
             expressions,
@@ -652,6 +678,9 @@ fn run(cli: Cli) -> CliResult<()> {
                         "--sector requires a generated artifact basename, not a run card".into(),
                     );
                 }
+                if recipe.is_some() {
+                    return Err("--recipe requires a generated artifact basename".into());
+                }
                 let loaded = input::load(&path)?;
                 let mut value = serde_json::json!({"name":loaded.label,"loops":loaded.loops,"parameters":loaded.propagators,
                     "domain":format!("{:?}",loaded.integrand.domain()),"terms":loaded.integrand.terms().len(),
@@ -668,6 +697,7 @@ fn run(cli: Cli) -> CliResult<()> {
             } else {
                 inspect::artifact(
                     &path,
+                    recipe,
                     fastsecdec::kernel::KernelLoadOptions {
                         validate: validate_artifact,
                     },
@@ -681,11 +711,13 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::Benchmark {
             artifact,
+            contour,
             points,
             repetitions,
         } => {
-            let (artifact, mut kernels) = artifact::Artifact::load(&artifact)?;
-            let mut dashboard = display::Dashboard::new(false, false)?;
+            let (artifact, mut kernels) = contour.load_diagnostics(&artifact)?;
+            let mut dashboard = display::Dashboard::new(false, cli.status_json)?;
+            let contour = contour.prepare_diagnostics(&artifact, &mut kernels, &mut dashboard)?;
             let benchmark = fastsecdec::diagnostics::benchmark(
                 &mut kernels,
                 &fastsecdec::diagnostics::BenchmarkOptions {
@@ -698,6 +730,9 @@ fn run(cli: Cli) -> CliResult<()> {
             let failed =
                 benchmark.stop == fastsecdec::diagnostics::DiagnosticStop::EvaluationFailure;
             let mut result = serde_json::to_value(benchmark)?;
+            if let Some(contour) = contour {
+                contour.attach(&mut kernels, &mut result, "warmup_and_measurements")?;
+            }
             result["loading_seconds"] = artifact.loading_seconds.into();
             result["generation_timings"] = serde_json::to_value(artifact.generation_timings)?;
             report(&result, render_json)?;
@@ -707,14 +742,16 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::CheckBoundaries {
             artifact,
+            contour,
             exponents,
             max_codimension,
             max_probes,
             growth_tolerance,
             retry_scales,
         } => {
-            let (_, mut kernels) = artifact::Artifact::load(&artifact)?;
-            let mut dashboard = display::Dashboard::new(false, false)?;
+            let (artifact, mut kernels) = contour.load_diagnostics(&artifact)?;
+            let mut dashboard = display::Dashboard::new(false, cli.status_json)?;
+            let contour = contour.prepare_diagnostics(&artifact, &mut kernels, &mut dashboard)?;
             let boundaries = fastsecdec::diagnostics::scan_boundaries(
                 &mut kernels,
                 &fastsecdec::diagnostics::BoundaryScanOptions {
@@ -733,8 +770,12 @@ fn run(cli: Cli) -> CliResult<()> {
                 |progress| diagnostics::observe_scan(&mut dashboard, cli.status_json, progress),
             )?;
             let failed = boundaries.diagnostics.failures;
+            let mut result = serde_json::to_value(&boundaries)?;
+            if let Some(contour) = contour {
+                contour.attach(&mut kernels, &mut result, "boundary_probes")?;
+            }
             if render_json {
-                println!("{}", serde_json::to_string_pretty(&boundaries)?);
+                println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
                 diagnostics::display_scan(&boundaries, cli.plain);
             }
@@ -801,6 +842,10 @@ fn integrate_artifact(
     if args.resume {
         settings.restore_historical_policy(&checkpoint)?;
     }
+    let contour = args
+        .contour
+        .resolve(&settings, args.integration_settings.as_deref())?;
+    contour_cli::select_program(&mut artifact, &contour)?;
     if let Some(result) = &args.save_result {
         results::check_destination(result, &artifact, path, &checkpoint, reference.as_ref())?;
     }
@@ -821,7 +866,13 @@ fn integrate_artifact(
         let mut kernels = if let Some(kernels) = resident {
             kernels
         } else {
-            let (restored, kernels) = loading::load(path, options, &mut dashboard, |_| Ok(()))?;
+            let (restored, kernels) = loading::load(
+                path,
+                options,
+                artifact.selected_recipe(),
+                &mut dashboard,
+                |_| Ok(()),
+            )?;
             if restored.content_id != artifact.content_id
                 || restored.kernel_content_id != artifact.kernel_content_id
             {
@@ -833,18 +884,45 @@ fn integrate_artifact(
         // Import the saved native symbol attributes before parameter parsing.
         args.apply(&mut settings)?;
         bind_parameters(&mut kernels, &settings)?;
+        let manifest = fastsecdec::results::KernelResultManifest::from_kernels(&kernels);
+        settings.scope = manifest.canonical_scope(&settings.scope)?;
+        let pilot_started = std::time::Instant::now();
+        if kernels.contour_capable()
+            && settings.contour.validation.policy != fastsecdec::contour::ContourValidation::Off
+        {
+            dashboard.begin_loading();
+        }
+        let pilot = contour_pilot::run(
+            &mut kernels,
+            &settings.contour,
+            settings.seed,
+            Some(&settings.scope),
+            |pilot| {
+                dashboard.loading(&loading::Snapshot {
+                    phase: loading::Phase::ContourValidation,
+                    completed: Some(pilot.completed),
+                    total: Some(pilot.total),
+                    elapsed_seconds: pilot_started.elapsed().as_secs_f64(),
+                })?;
+                if dashboard.cancelled() {
+                    return Err("contour preflight cancelled".into());
+                }
+                Ok(())
+            },
+        )?;
         if let Some(reference) = &reference {
             reference.validate_identity(kernels.content_id())?;
         }
-        let manifest = fastsecdec::results::KernelResultManifest::from_kernels(&kernels);
-        settings.scope = manifest.canonical_scope(&settings.scope)?;
-        let result = driver::integrate(
+        let result = driver::integrate_with_pilot(
             &artifact,
             &kernels,
             &settings,
             &checkpoint,
             args.resume,
             &mut dashboard,
+            pilot
+                .as_ref()
+                .map(|report| contour_pilot::provenance(&kernels, settings.seed, report)),
         )?;
         (result, manifest)
     };
@@ -887,4 +965,9 @@ fn report(value: &serde_json::Value, json: bool) -> CliResult<()> {
         println!("╰─────────────────────────────────────────────────────────────╯");
     }
     Ok(())
+}
+
+fn parse_program_recipe(value: &str) -> Result<fastsecdec::kernel::indexed::ProgramRecipe, String> {
+    serde_json::from_value(serde_json::Value::String(value.to_owned()))
+        .map_err(|error| error.to_string())
 }

@@ -111,6 +111,7 @@ impl<'a> Requests<'a> {
             map_programs: BTreeMap::new(),
             factor_slots: BTreeMap::new(),
             regular_slots: BTreeMap::new(),
+            mapped_regular_slots: BTreeMap::new(),
         })
     }
 

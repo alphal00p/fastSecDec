@@ -1,7 +1,7 @@
 //! Deep inspection of one independently saved native record.
 use crate::{CliResult, artifact::Artifact};
-use fastsecdec::kernel::{KernelLoadOptions, PortableMetadata, indexed::IndexedReader};
-use std::{fs::File, path::Path};
+use fastsecdec::kernel::{KernelLoadOptions, PortableMetadata};
+use std::path::Path;
 
 pub(super) fn inspect(
     path: &Path,
@@ -12,12 +12,19 @@ pub(super) fn inspect(
     plain: bool,
     json: bool,
 ) -> CliResult<()> {
+    if !artifact.dependencies_compatible() {
+        return Err(
+            "artifact dependency identities differ from this build; use its recorded revisions"
+                .into(),
+        );
+    }
     let catalogue = artifact.catalogue().ok_or("missing indexed catalogue")?;
     let descriptor = catalogue.sector(id)?;
-    let mut reader = IndexedReader::new(
-        File::open(artifact.data_path(path)?)?,
-        catalogue.clone(),
-        options,
+    let mut archive = artifact.open_program_archive(path, options)?;
+    let mut reader = archive.select(
+        artifact
+            .selected_recipe()
+            .ok_or("missing selected recipe")?,
     )?;
     let kernels = reader.load_sector(id)?;
     let sources = &descriptor.receipt.source_indices;
@@ -43,6 +50,10 @@ pub(super) fn inspect(
         crate::report(
             &serde_json::json!({
                 "content_id":artifact.content_id,"inspection_mode":"deep",
+                "kernel_content_id":artifact.kernel_content_id,
+                "selected_catalogue_content_id":catalogue.content_id,
+                "selected_recipe":artifact.selected_recipe(),
+                "available_recipes":artifact.programs.as_ref().map(|p|p.catalogue.recipes.iter().map(|r|r.recipe).collect::<Vec<_>>()),
                 "binary_loaded":true,"loaded_sectors":1,
                 "binary_validated":options.validate,"validation_scope":"selected_sector_record",
                 "metadata_identity_validated":artifact.validation.metadata_identity,

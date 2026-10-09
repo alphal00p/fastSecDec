@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod contour_tests;
 mod discrete_mc;
 mod mc;
 mod observations;
@@ -11,7 +13,7 @@ use crate::{CliResult, artifact::Artifact, config::IntegrationInput, display::Da
 use fastsecdec::{
     integration::{IntegrationError, IntegrationProblem, Tolerance},
     kernel::{KernelSet, ReplayState, WeightedEvaluationContext},
-    status::EvaluationDiagnostics,
+    status::{ContourCheckpointProvenance, ContourPilotProvenance, EvaluationDiagnostics},
 };
 use std::{path::Path, time::Instant};
 
@@ -27,6 +29,7 @@ struct Context<'a> {
     started: Instant,
     last_checkpoint: Instant,
     restored: Option<RestoredCheckpoint>,
+    contour_provenance: Option<ContourCheckpointProvenance>,
     diagnostics: EvaluationDiagnostics,
     replay: AcceptedReplay,
     operations: observations::Operations,
@@ -140,6 +143,7 @@ fn evaluate_tracked(
 fn evaluate_batch_observed(
     kernel: &mut WeightedEvaluationContext,
     sector: u64,
+    stage: fastsecdec::status::IntegrationStage,
     points: &[f64],
     weights: &[f64],
     output: &mut [f64],
@@ -160,6 +164,11 @@ fn evaluate_batch_observed(
         Err(failure) => &failure.completed,
     };
     let mut local = EvaluationDiagnostics::default();
+    if let Some(report) = kernel.take_contour_validation_report() {
+        local
+            .record_contour(stage, &report)
+            .map_err(|e| e.to_string())?;
+    }
     for report in reports {
         local.record_replay(*report).map_err(|e| e.to_string())?;
     }
@@ -226,6 +235,7 @@ pub(super) fn problem(
     )
 }
 
+#[cfg(test)]
 pub fn integrate(
     artifact: &Artifact,
     kernels: &KernelSet,
@@ -233,6 +243,22 @@ pub fn integrate(
     checkpoint: &Path,
     resume: bool,
     dashboard: &mut Dashboard,
+) -> CliResult<IntegrationReport> {
+    integrate_with_pilot(
+        artifact, kernels, settings, checkpoint, resume, dashboard, None,
+    )
+}
+
+/// The pilot remains separate from production statistics and RNG state. Earlier
+/// checkpoint evidence is retained even when this invocation disables checking.
+pub fn integrate_with_pilot(
+    artifact: &Artifact,
+    kernels: &KernelSet,
+    settings: &IntegrationInput,
+    checkpoint: &Path,
+    resume: bool,
+    dashboard: &mut Dashboard,
+    pilot: Option<ContourPilotProvenance>,
 ) -> CliResult<IntegrationReport> {
     settings.validate_execution()?;
     let problem = problem(artifact, kernels, &settings.scope)?;
@@ -266,6 +292,16 @@ pub fn integrate(
         .as_ref()
         .map(|checkpoint| checkpoint.diagnostics.clone())
         .unwrap_or_default();
+    let contour_provenance =
+        (settings.contour.deformation != fastsecdec::contour::ContourMode::Off).then(|| {
+            ContourCheckpointProvenance::update(
+                restored
+                    .as_ref()
+                    .and_then(|checkpoint| checkpoint.contour.as_ref()),
+                &settings.contour.validation,
+                pilot,
+            )
+        });
     let replay = if let Some(checkpoint) = &restored {
         checkpoint.replay.validate(kernels, &settings.replay)?;
         checkpoint.replay.clone()
@@ -285,16 +321,21 @@ pub fn integrate(
         started,
         last_checkpoint,
         restored,
+        contour_provenance: contour_provenance.clone(),
         diagnostics,
         replay,
         operations,
     };
-    match method.as_str() {
+    let mut report = match method.as_str() {
         "mc" | "adaptive_mc" => mc::run(context, &method),
         "discrete_mc" => discrete_mc::run(context),
         "qmc" | "adaptive_qmc" => qmc::run(context, &method),
         _ => Err(
             "integration method must be qmc, adaptive_qmc, mc, adaptive_mc or discrete_mc".into(),
         ),
+    }?;
+    if let Some(provenance) = contour_provenance {
+        report.set_contour_provenance(&settings.contour, provenance.pilots);
     }
+    Ok(report)
 }

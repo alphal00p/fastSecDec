@@ -177,3 +177,22 @@ fn generation_mode_and_subtraction_use_native_defaults_and_strict_names() {
         );
     }
 }
+#[test]
+fn contour_native_settings_roundtrip_with_separate_validation_policy() {
+    use fastsecdec::contour::{ContourMode, ContourValidation};
+    let settings: super::IntegrationInput = toml::from_str(
+        "[contour.deformation]\nmode='fixed'\nlambda=2.5\n[contour.validation]\npolicy='pilot'\npilot_points=128\n",
+    ).unwrap();
+    settings.validate_execution().unwrap();
+    assert_eq!(
+        settings.contour.deformation,
+        ContourMode::Fixed { lambda: 2.5 }
+    );
+    assert_eq!(settings.contour.validation.policy, ContourValidation::Pilot);
+    let restored: super::IntegrationInput =
+        serde_json::from_value(serde_json::to_value(&settings).unwrap()).unwrap();
+    assert_eq!(restored.contour, settings.contour);
+    assert!(!GenerationInput::default().contour);
+    let generation: GenerationInput = toml::from_str("contour=true").unwrap();
+    assert!(generation.contour);
+}

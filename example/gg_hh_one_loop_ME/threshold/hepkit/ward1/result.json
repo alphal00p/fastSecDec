@@ -1,0 +1,54 @@
+{
+  "checks": {
+    "cancellation_scale": 839.5530241054344,
+    "pole_relative_tolerance": 1e-10,
+    "pole_residual": 0.0,
+    "poles_cancel": true,
+    "sum_absolute_diagram_finite_simple_double_pole": [
+      839.5530241054344,
+      9.094947017729282e-13,
+      0.0
+    ],
+    "ward_finite_residual": 0.0,
+    "ward_pass": true,
+    "ward_relative_tolerance": 1e-09
+  },
+  "color_summed_fixed_helicity_squared": 0.0,
+  "diagram_count": 8,
+  "master_measure_multiplier": "gamma(1-2*eps)/(gamma(1+eps)*gamma(1-eps)^2)",
+  "master_scale_squared": 1,
+  "method": "HEPKit native one-loop reduction and OneLOop scalar masters",
+  "native_finite_simple_double_pole": [
+    {
+      "im": 0.0,
+      "re": 0.0
+    },
+    {
+      "im": 0.0,
+      "re": 0.0
+    },
+    {
+      "im": 0.0,
+      "re": 0.0
+    }
+  ],
+  "normalization": {
+    "amplitude_definition": "M^{ab}_{++}=delta^{ab} A_{++}",
+    "color_projector": "delta_ab/8",
+    "color_summed_helicity_squared_multiplier": 8,
+    "dimension": "4-2*eps",
+    "extra_R2_added": false,
+    "initial_color_average": false,
+    "initial_spin_average": false,
+    "measure_multiplier": "gamma(1-2*eps)/(gamma(1+eps)*gamma(1-eps)^2)",
+    "mu_squared": 1.0,
+    "native_measure": "d^D k/(i*pi^(D/2))",
+    "physical_finite_multiplier": "1/(16*pi^2)",
+    "raw_delta_projection_multiplier": 8
+  },
+  "physical_color_coefficient": {
+    "im": 0.0,
+    "re": 0.0
+  },
+  "ward_replaced_incoming_index": 0
+}

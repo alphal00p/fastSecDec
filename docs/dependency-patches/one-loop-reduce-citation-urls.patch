@@ -1,0 +1,32 @@
+From fae8a926f25a432262b48151802a3ab7febba99b Mon Sep 17 00:00:00 2001
+From: ValentinHirschi <valentin.hirschi@gmail.com>
+Date: Fri, 9 Oct 2026 20:38:31 +0000
+Subject: [PATCH] Supply URLs for Symbolica community citation records
+
+---
+ crates/one-loop-reduce-python/src/lib.rs | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crates/one-loop-reduce-python/src/lib.rs b/crates/one-loop-reduce-python/src/lib.rs
+index 929281d..42521bc 100644
+--- a/crates/one-loop-reduce-python/src/lib.rs
++++ b/crates/one-loop-reduce-python/src/lib.rs
+@@ -31,6 +31,7 @@ impl SymbolicaCommunityModule for CommunityModule {
+         }
+         let mut citations = vec![Citation {
+             id: "https://github.com/ecavan/one-loop-reduce".into(),
++            url: "https://github.com/ecavan/one-loop-reduce".into(),
+             reference: "Elijah Cavan. one-loop-reduce (2026).".into(),
+             bibtex: r#"@software{one_loop_reduce,
+   author = {Cavan, Elijah},
+@@ -69,6 +70,7 @@ impl SymbolicaCommunityModule for CommunityModule {
+         citations.extend(papers.map(
+             |(key, doi, authors, title, journal, volume, pages, year, reason)| Citation {
+                 id: doi.into(),
++                url: format!("https://doi.org/{doi}"),
+                 reference: format!("{authors}, {journal} {volume} ({year}) {pages}."),
+                 bibtex: format!(
+                     "@article{{{key},\n  author = {{{authors}}},\n  title = {{{title}}},\n  \
+-- 
+2.55.0
+

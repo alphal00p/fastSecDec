@@ -239,3 +239,136 @@ all validation policies with identical production sampling, fresh-process
 restoration and all ordinary/serial combinations. Compare actual sampling
 cost and convergence against fixed mode; a larger radius by itself is not
 a performance result.
+
+## Symbolic envelope foundation probe
+
+The pure `contour/dynamic` builder now constructs both proposed levels through
+native Symbolica derivatives and directional series. It has no production root
+callback, dynamic density, runtime binding or artifact path yet. A direct
+source-level Rust harness against the current native dependency build passed
+all seven envelope tests in 0.18 seconds on 2026-10-09. This is not a dynamic
+integration acceptance or a performance measurement.
+
+After the fixed-mode workspace and strict Clippy gates passed, the module was
+registered publicly. The native core contour gate then passed 35/35 tests,
+including all seven envelope controls and the existing fixed-mode analytic,
+subtraction, native batch, artifact and validation regressions (0.88 seconds
+test runtime). The builder is usable for native inspection and research; these
+gates do not make dynamic runtime selection available yet.
+
+A subsequent eighth test verifies the dense native root coefficient schema
+`[a2,a4,...]`, explicit absent zero entries, structural degree retained on
+faces, and exact reconstruction of both levels. Stable positive-part callbacks
+or aliases are inserted through `sign_aware_coefficients_with` before native
+univariate collection; replacing a normalized formula afterward would be
+fragile. Alias restoration agrees exactly with the mathematical baseline using
+native rational combination/cancellation. All eight dynamic tests and strict
+core all-target Clippy passed with the validated dependency configuration.
+
+The probe covers independent Hessian/full-ray coefficient agreement, polynomial
+and sign-aware homotopy bounds, positive residuals, a stationary negative causal
+factor, an unresolved stationary zero, full-sector face restriction, the native
+trace/squared-norm identity, smooth derivatives at a vanishing discriminant,
+and rationalized positive-part agreement. Quadratic and quartic specializations
+are checked with native exact identities and numerical substitutions. The
+builder retains structural counts independently of faces, as well as nonzero
+reference-envelope exponents for future native root specialization. No custom
+root solver or AD system is included.
+
+The U positivity admission deliberately accepts a narrow sufficient certificate:
+native polynomial coefficients must all be exact rationals with proven
+nonnegative sign, and the native constant coefficient must be strictly positive.
+The exact constant is retained as the lower bound. `U=x`, unknown symbolic
+coefficients, algebraic coefficients and mixed-sign coefficients are diagnosed
+as unsupported; no numerical floor is substituted. Standard native Symanzik U
+polynomials with a positive residual constant satisfy this certificate.
+
+The reuse check examined `AtomCore::is_positive/is_nonnegative`,
+`atom/properties.rs`, `tests/properties.rs`, native rational conversion, and
+native polynomial coefficient/constant access. A focused Rust probe verified
+the predicates and coefficient extraction. Native sign properties describe
+sign where an expression is defined; `is_finite` only rules out explicit
+infinities and is not a closed-cube definedness proof (the probe confirms
+`x^-1.is_finite()` is true). Exact-rational admission avoids importing an
+unsupported definedness assumption. Combining these native results into the
+domain-specific sufficient certificate is not a replacement polynomial sign
+algorithm.
+
+The probe also caught a native series boundary issue: an exact zero or constant
+Hessian can have no requested positive-order series coefficient, and a Hessian
+entry's degree can be lower than the full polynomial's degree. The builder now
+uses native polynomial degree to identify such coefficients as exact zero and
+only requests existing series orders. Physical polynomials stay factored;
+the degree query follows the existing native homogeneity helper's univariate
+scaling method and rejects rational coordinate dependence before that query.
+
+The separate prepared-root owner proposal has progressed since the initial
+solver-gap survey above; see `contour-root-solver.md` for its current API,
+native-domain tests and distinction between an ordinary numerical bracket and
+a certified enclosure. The envelope builder does not depend on that unmerged
+API yet.
+
+## Shared local-strength geometry controls
+
+The geometry now has one private `SmoothContourMap` construction used by the
+unchanged public fixed-strength wrapper. It takes the complete strength Atom
+before native differentiation. Therefore `Matrix<AtomField>::det` sees both
+`lambda * partial_j(v_i)` and `v_i * partial_j(lambda)`, and subsequent native
+Taylor/IBP and dual-jet differentiation sees the strength's higher derivatives.
+This is a refactoring of the existing Symbolica map, not a replacement AD or
+determinant implementation.
+
+Mapping now prepares each term's residuals once, gathers all distinct positive
+factors in the chart, and invokes one map factory only after checking every
+term's causal F identity. This ordering matters when a later numerator term
+introduces a different U power or residual: the future dynamic radius must
+cover that factor before it is differentiated or restricted to any face.
+The fixed production caller still supplies only its runtime lambda symbol.
+
+Closed-form controls use the already Symbolica-verified quadratic/quartic
+radius identities. They compare the complete two-dimensional Jacobian against
+independent coordinate differences, reject a frozen-strength Jacobian, preserve
+the full-sector radius on a face, and expose the stationary large-Jacobian
+example discussed in the variance protocol. A separate higher-derivative
+control exercises the existing symbolic and native-dual subtraction code on
+`x^(-d-eps)/(1/4-x-i0)` for `d=1,2,3`, with its analytic complex pole and finite
+coefficients. The five map/whole-chart controls passed in the combined native
+contour gate (51 tests, including fixed regressions and the prepared-root
+callback controls, all passing). The higher-derivative subtraction control also
+passed its separate native gate in 1.79 seconds: all six degree/strategy
+combinations matched the complete symbolic and native-dual outputs at 4096
+interior points each, and their integrated complex pole/finite vectors agreed
+with the analytic controls. Native DoubleFloat evaluation protects this test
+from cancellation in the higher endpoint differences; it is not a timing claim
+for ordinary production kernels. Strict core all-target Clippy also passed
+with the combined owner fixes (`2e47574` and the tested SymJIT 2.27 callback
+batch correction). The foundation audit independently reviewed the shared-map
+and all-term factor-discovery changes and found no blocker.
+
+No dynamic artifact is represented as fixed metadata. Runtime recipe selection,
+helper ownership/restoration, and the distinct dynamic metadata descriptor
+remain separate integration work; the shared geometry alone does not enable a
+dynamic production option.
+
+## Current owner API update
+
+2026-10-09, after the historical probes above. The missing prepared-solver
+operation is now supplied by [Symbolica PR 56](https://github.com/symbolica-dev/symbolica/pull/56)
+and available in the selected public consumer revision
+`7ec1be45ef92ae3b154e0d4ce754c0bdf3d9d0ca`; see the
+[prepared-root review](contour-root-solver.md). FastSecDec's callback foundation
+uses that prepared native API. Its ordinary numerical bracket and termination
+report are not a certified enclosure; optional contour certification remains
+a separate ball-arithmetic construction.
+
+The same public consumer revision includes the reviewed native finite
+nonnegative real-ball square-root operation from
+[Symbolica/Numerica PR 58](https://github.com/symbolica-dev/symbolica/pull/58).
+The [square-root review](contour-certified-sqrt.md) records its exact-rational
+enclosure controls and native/portable owner gates. It supersedes the earlier
+missing-certified-square-root finding for this specific operation. It does
+not certify arbitrary complex square roots or inherited transcendental
+operations. The sign-aware construction must still use the certified owner
+operation on its admitted real domain and preserve all required inequality
+and root checks when validation is enabled. Production dynamic admission and
+its full scientific gates remain pending.

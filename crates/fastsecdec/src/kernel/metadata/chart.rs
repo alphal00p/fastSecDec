@@ -4,6 +4,7 @@ use fastsecdec_sectors::{ParametricDomain, SectorMap};
 use serde::{Deserialize, Serialize};
 use symbolica::domains::integer::Integer;
 use symbolica::state::StateMap;
+mod contour;
 mod pre_subtraction;
 
 #[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -22,6 +23,62 @@ pub(super) struct PortableChart {
     geometry: PortableGeometry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pre_subtraction: Option<pre_subtraction::PortablePreSubtraction>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    contour: Option<contour::PortableContour>,
+}
+
+/// Exact pre-contour wire layout used by binserde versions five through eight.
+#[derive(bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
+pub(super) struct LegacyChart {
+    source_index: usize,
+    representative: usize,
+    representative_permutation: Vec<usize>,
+    kernel_sector: Option<usize>,
+    source_parameters: Vec<String>,
+    target_parameters: Vec<String>,
+    source_domain: super::domain::PortableDomain,
+    images: Vec<StoredAtom>,
+    measure_jacobian: StoredAtom,
+    geometry: PortableGeometry,
+    pre_subtraction: Option<pre_subtraction::PortablePreSubtraction>,
+}
+impl From<LegacyChart> for PortableChart {
+    fn from(value: LegacyChart) -> Self {
+        Self {
+            source_index: value.source_index,
+            representative: value.representative,
+            representative_permutation: value.representative_permutation,
+            kernel_sector: value.kernel_sector,
+            source_parameters: value.source_parameters,
+            target_parameters: value.target_parameters,
+            source_domain: value.source_domain,
+            images: value.images,
+            measure_jacobian: value.measure_jacobian,
+            geometry: value.geometry,
+            pre_subtraction: value.pre_subtraction,
+            contour: None,
+        }
+    }
+}
+#[cfg(test)]
+impl From<PortableChart> for LegacyChart {
+    fn from(value: PortableChart) -> Self {
+        assert!(value.contour.is_none());
+        Self {
+            source_index: value.source_index,
+            representative: value.representative,
+            representative_permutation: value.representative_permutation,
+            kernel_sector: value.kernel_sector,
+            source_parameters: value.source_parameters,
+            target_parameters: value.target_parameters,
+            source_domain: value.source_domain,
+            images: value.images,
+            measure_jacobian: value.measure_jacobian,
+            geometry: value.geometry,
+            pre_subtraction: value.pre_subtraction,
+        }
+    }
 }
 #[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[bincode(decode_context = "StateMap")]
@@ -53,6 +110,9 @@ impl PortableChart {
         }
         visit(&self.measure_jacobian.0);
         if let Some(value) = &self.pre_subtraction {
+            value.visit_atoms(visit);
+        }
+        if let Some(value) = &self.contour {
             value.visit_atoms(visit);
         }
     }
@@ -94,6 +154,7 @@ impl PortableChart {
             pre_subtraction: chart
                 .pre_subtraction()
                 .map(pre_subtraction::PortablePreSubtraction::from_native),
+            contour: chart.contour().map(contour::PortableContour::from_native),
         }
     }
     pub(super) fn into_native(
@@ -212,6 +273,10 @@ impl PortableChart {
             .pre_subtraction
             .map(|record| record.into_native(&source, &target))
             .transpose()?;
+        let contour = self
+            .contour
+            .map(|value| value.into_native(dimension))
+            .transpose()?;
         Ok(ChartRecord {
             source_index: index,
             representative: self.representative,
@@ -220,6 +285,7 @@ impl PortableChart {
             coordinates,
             geometry,
             pre_subtraction,
+            contour,
         })
     }
 }

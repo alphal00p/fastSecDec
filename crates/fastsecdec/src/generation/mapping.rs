@@ -8,6 +8,7 @@ use symbolica::{
     id::{Pattern, Replacement},
 };
 
+mod contour;
 mod regular;
 
 #[cfg(test)]
@@ -45,6 +46,18 @@ pub(super) fn map_terms(
     coordinates: &CoordinateMap,
     source_supports: &mut super::support::SupportCache,
 ) -> Result<Vec<MappedTerm>, GenerationError> {
+    map_terms_with_contour(input, map, coordinates, source_supports, false, true)
+        .map(|(terms, _)| terms)
+}
+
+pub(super) fn map_terms_with_contour(
+    input: &ParametricIntegrand,
+    map: &SectorMap,
+    coordinates: &CoordinateMap,
+    source_supports: &mut super::support::SupportCache,
+    contour: bool,
+    combine: bool,
+) -> Result<(Vec<MappedTerm>, Option<crate::contour::ContourMetadata>), GenerationError> {
     #[cfg(test)]
     profile::begin_chart();
     let parameters = coordinates.target_parameters();
@@ -56,6 +69,8 @@ pub(super) fn map_terms(
         .flatten()
         .all(|power| power >= &0);
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
+    let mut separate = Vec::new();
+    let mut contour_terms = Vec::new();
     for term in input.terms() {
         #[cfg(test)]
         profile::begin_term();
@@ -67,10 +82,11 @@ pub(super) fn map_terms(
         }
         let prefactor = term.prefactor() * &coordinates.measure_factor;
         let mut regular = Atom::one();
+        let mut residuals = Vec::new();
         for factor in term.factors() {
             #[cfg(test)]
             profile::begin_factor(factor);
-            if factor.exponent().is_zero() {
+            if factor.exponent().is_zero() && !contour {
                 continue;
             }
             let mapped = measured!(
@@ -196,16 +212,51 @@ pub(super) fn map_terms(
             for (power, valuation) in powers.iter_mut().zip(minima) {
                 *power += factor.exponent() * Atom::num(valuation);
             }
-            regular *= residual.pow(factor.exponent());
+            if contour {
+                residuals.push((residual, factor.exponent().clone(), factor.semantics()));
+            } else {
+                regular *= residual.pow(factor.exponent());
+            }
         }
-        let powers = powers.into_iter().map(|p| p.expand()).collect();
-        *combined
-            .entry(powers)
-            .or_default()
-            .entry(prefactor)
-            .or_insert(Atom::Zero) += regular;
+        let powers = powers.into_iter().map(|p| p.expand()).collect::<Vec<_>>();
+        if contour {
+            // Complete the chart's residual discovery before constructing its
+            // single deformation. A local radius must see positive factors
+            // from later terms too; no factor mapping is repeated here.
+            contour_terms.push(contour::PreparedTerm {
+                powers,
+                prefactor,
+                residuals,
+            });
+        } else {
+            retain_term(
+                MappedTerm {
+                    powers,
+                    prefactor,
+                    regular,
+                },
+                combine,
+                &mut combined,
+                &mut separate,
+            );
+        }
     }
-    Ok(combined
+    let contour_metadata = if contour {
+        let (terms, metadata) =
+            contour::deform_with(parameters, contour_terms, |parameters, f, _| {
+                crate::contour::FixedContourMap::new(parameters, f).map(|map| map.into_inner())
+            })?;
+        for term in terms {
+            retain_term(term, combine, &mut combined, &mut separate);
+        }
+        metadata
+    } else {
+        None
+    };
+    if !combine {
+        return Ok((separate, contour_metadata));
+    }
+    let terms = combined
         .into_iter()
         .filter_map(|(powers, mut prefactors)| {
             // Preserve cancellation between terms with the same endpoint powers.
@@ -224,7 +275,27 @@ pub(super) fn map_terms(
                 regular,
             })
         })
-        .collect())
+        .collect();
+    Ok((terms, contour_metadata))
+}
+
+fn retain_term(
+    term: MappedTerm,
+    combine: bool,
+    combined: &mut BTreeMap<Vec<Atom>, BTreeMap<Atom, Atom>>,
+    separate: &mut Vec<MappedTerm>,
+) {
+    if combine {
+        *combined
+            .entry(term.powers)
+            .or_default()
+            .entry(term.prefactor)
+            .or_insert(Atom::Zero) += term.regular;
+    } else if !term.regular.is_zero() && !term.prefactor.is_zero() {
+        // Native jets require a regulator-analytic body, with meromorphic
+        // source prefactors kept outside the body of each term.
+        separate.push(term);
+    }
 }
 
 /// Native collection exposes chart monomials inside nested sums and integer

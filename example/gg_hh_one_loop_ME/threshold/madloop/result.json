@@ -1,0 +1,106 @@
+{
+  "amplitude_color_coefficient": [
+    -0.019429520982366454,
+    -0.011746031832814252
+  ],
+  "boxes_including_r2": [
+    -0.02872128495801459,
+    -0.014430424363379471
+  ],
+  "color_average_fixed_helicity": 6.4434443677713e-05,
+  "color_sum_fixed_helicity": 0.004123804395373632,
+  "double_pole": [
+    0.0,
+    0.0
+  ],
+  "engine": "MadGraph5_aMC@NLO 3.7.0 / MadLoop / CutTools 1.9.3 / OneLOop 3.6",
+  "flavor_scope": "top-loop triangle and box contributions; other quark Yukawas zero",
+  "generated_source_sha256": {
+    "CT_interface.f": "9301370571d1d4a6382efc66dc33db44ca75e56eb36ad468839b8c9b8d57dcc7",
+    "compute_color_flows.f": "c30073997fef1b82a465c2d9dabaddbbaff48238e27da968d7afad6ae6e1b1ec",
+    "helas_calls_ampb_1.f": "263e6d2607d12deb969f0f82880ed558a9b3b5937514458ef63e1d26d5551274",
+    "loop_CT_calls_1.f": "8ffd0fe75a53af41185743d2446aab18841fac2c11849c31b78909ec496a4ce6",
+    "loop_matrix.f": "7f13cdb929bf4f3cdec05fafbbf4b6f67c2a964167ce53c2df880269f19d4237"
+  },
+  "helicities": [
+    1,
+    1,
+    0,
+    0
+  ],
+  "incoming_polarizations": [
+    [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -0.7071067811865476,
+        0.0
+      ],
+      [
+        0.0,
+        -0.7071067811865476
+      ],
+      [
+        0.0,
+        0.0
+      ]
+    ],
+    [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        -0.7071067811865476,
+        0.0
+      ],
+      [
+        0.0,
+        0.7071067811865476
+      ],
+      [
+        0.0,
+        0.0
+      ]
+    ]
+  ],
+  "input_sha256": {
+    "MadLoopParams.dat": "339843ec2039d62bf51a45ac7493415b5dfbfa50132ef02fee8369793d7091f7",
+    "check_point.f": "3761fd60f8cd6ef76aa5b0ef645ff994139a457f56b8313cb6b6a5cf0006f123",
+    "param_card.dat": "daf1a9eb3c62165300e72dc45fb661ee7360ed86cedf8b897a94eac6b7fd7117",
+    "process.mg5": "2bdf620337526dc3ab536ea273f53739522504fa719ddf9c8e62c97bf4789732"
+  },
+  "loop_diagrams": 8,
+  "model": "loop_sm-no_b_mass (1.2)",
+  "model_source_sha256": {
+    "couplings.py": "a91df246f6a68325ead56ec30d49c0586fb9b39451ae62a5c527896acb45014f",
+    "parameters.py": "5de44653a32f4c213b6fc0696f3585f36bc34830e64d713c7e268814c847b58f",
+    "restrict_no_b_mass.dat": "9e1839428fd3a3918fa14be2a5ba0b4907dc12134e91ff08d40cd1056208714c"
+  },
+  "normalization": {
+    "color": "M_ab=delta_ab*A; sole native flow Tr(Ta Tb)=delta_ab/2; A=JAMPL/2",
+    "complex_phase": "native incoming HELAS VXXXXX convention, no phase fitted to FastSecDec",
+    "final_identical_particle_phase_space_factor_included": false,
+    "initial_helicity_average": false,
+    "loop_factor": "1/(16*pi^2) is already included by CT_interface.f",
+    "native_squared_result_multiplier": 128
+  },
+  "point_sha256": "d0198de9181042c2d41e68ea2dfbaa7b4bfe0f401299247c2473f8f7f3555a96",
+  "process": "g g > h h [sqrvirt=QCD]",
+  "r2_amplitudes": 2,
+  "raw_madloop_fixed_helicity": 3.22172218388565e-05,
+  "reported_relative_stability": 0.0,
+  "return_code": 329,
+  "single_pole": [
+    1.734723475976807e-18,
+    1.4534185989483706e-34
+  ],
+  "stability_request": 1e-12,
+  "triangle_including_r2": [
+    0.009291763975648138,
+    0.002684392530565219
+  ],
+  "uv_counterterm_amplitudes": 0
+}

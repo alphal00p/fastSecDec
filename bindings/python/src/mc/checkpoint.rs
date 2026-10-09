@@ -13,6 +13,8 @@ use crate::{error, execution::problem};
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Checkpoint {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    contour: Option<fastsecdec::status::ContourCheckpointProvenance>,
     version: u32,
     lane: String,
     session: Vec<u8>,
@@ -49,6 +51,7 @@ impl PyHavanaDiscreteSession {
         }
         let contexts = (0..kernels.sectors().len()).map(|_| None).collect();
         Ok(Self {
+            contour: crate::contour::checkpoint_provenance(&kernels, state.contour.as_ref()),
             kernels,
             session,
             replay: state.replay,
@@ -70,6 +73,7 @@ impl PyHavanaDiscreteSession {
     /// Pilot training is deliberately not serialized; retain the session to resume it.
     fn checkpoint<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let state = Checkpoint {
+            contour: self.contour.clone(),
             version: 1,
             lane: "havana_discrete_mc".into(),
             session: self

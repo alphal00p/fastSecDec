@@ -125,7 +125,7 @@ fn generate_inner(
     mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
     let started = Instant::now();
-    let domain = domain::check(input, options.assume_no_threshold)?;
+    let domain = domain::check_options(input, options)?;
     emit(
         &mut progress,
         GenerationProgress::PhaseTiming {
@@ -138,7 +138,7 @@ fn generate_inner(
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
-            if domain::is_singular(factor) {
+            if domain::is_geometry_factor(factor, options.contour) {
                 let support = source_supports.get(factor)?;
                 if !supports.contains(support) {
                     supports.push(support.clone());
@@ -253,6 +253,7 @@ fn generate_inner(
             coordinates,
             mapped,
             pre_subtraction,
+            contour,
         } = chart;
         emit(
             &mut progress,
@@ -280,6 +281,7 @@ fn generate_inner(
             coordinates,
             geometry: map.clone(),
             pre_subtraction,
+            contour,
         });
         if matched.representative == index {
             representatives.insert(index, (map, parameters, mapped, 1usize));

@@ -20,6 +20,7 @@ pub(crate) enum Phase {
     ReadingBinary,
     Decoding,
     Restoring,
+    ContourValidation,
     Complete,
 }
 #[derive(Clone, Debug, serde::Serialize)]
@@ -59,6 +60,7 @@ impl Snapshot {
 pub(crate) fn load(
     path: &Path,
     options: KernelLoadOptions,
+    recipe: Option<fastsecdec::kernel::indexed::ProgramRecipe>,
     dashboard: &mut Dashboard,
     preflight: impl FnOnce(&Artifact) -> CliResult<()> + Send,
 ) -> CliResult<(Artifact, KernelSet)> {
@@ -75,7 +77,7 @@ pub(crate) fn load(
         &cancelled,
         |_| "Loading artifact".into(),
         |(path, preflight), _activity| {
-            Artifact::load_observed_with_options(path, options, preflight, |event| {
+            Artifact::load_recipe_observed(path, options, recipe, preflight, |event| {
                 if cancelled.load(Ordering::Relaxed) {
                     return ControlFlow::Break(());
                 }

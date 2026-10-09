@@ -37,7 +37,9 @@ pub(crate) fn integrate(
     })?;
     // Native state imports may retain Symbolica polynomial-variable tables.
     // A disposable child binds the offsets and returns only this compact vector.
-    let manifest = crate::isolated::exact(path, artifact, settings, options, dashboard)?;
+    let setup = crate::isolated::exact(path, artifact, settings, options, dashboard)?;
+    let manifest = setup.manifest;
+    let contour_pilots = setup.contour_pilots;
     manifest.validate()?;
     settings.scope = manifest.canonical_scope(&settings.scope)?;
     if let Some(reference) = reference {
@@ -71,6 +73,7 @@ pub(crate) fn integrate(
         checkpoint,
         resume,
         options,
+        contour_pilots,
         |snapshot| {
             dashboard.worker_processes(
                 &snapshot
@@ -88,6 +91,7 @@ pub(crate) fn integrate(
         },
     )?;
     dashboard.worker_processes(&[]);
+    let contour_pilots = outcome.contour_pilots;
     let mut report = driver::report::finish(
         artifact,
         outcome.snapshot.observation,
@@ -107,5 +111,6 @@ pub(crate) fn integrate(
     )?;
     report.loading_seconds = loading_seconds;
     report.process_cpu_seconds = dashboard.process_cpu_seconds();
+    report.set_contour_provenance(&settings.contour, contour_pilots);
     Ok((report, manifest))
 }

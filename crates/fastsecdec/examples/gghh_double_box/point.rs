@@ -85,6 +85,15 @@ fn near(atom: &Atom, target: f64) -> Result<()> {
 
 impl Point {
     pub fn new(diagram: &FeynmanDiagram) -> Result<Self> {
+        Self::with_sqrt_s(diagram, 300)
+    }
+
+    /// Shared exact kinematics for the below- and above-top-threshold controls.
+    /// The Higgs mass and scattering angle remain 125 GeV and cos(theta)=4/5.
+    pub fn with_sqrt_s(diagram: &FeynmanDiagram, sqrt_s_gev: u32) -> Result<Self> {
+        if sqrt_s_gev <= 250 {
+            return Err("sqrt(s) must exceed the two-Higgs threshold of 250 GeV".into());
+        }
         let mut incoming = Vec::new();
         let mut outgoing = Vec::new();
         let external_by_edge = diagram
@@ -102,24 +111,17 @@ impl Point {
         if incoming.len() != 2 || outgoing.len() != 2 {
             return Err("expected gg -> HH external states".into());
         }
-        // sqrt(s)=300, mH=125, cos(theta)=4/5, mt=172.5. The exact momentum
-        // components keep on-shell and conservation identities exact. Only
-        // helicities are numerical data from the shared GammaLoop primitive.
+        // Native exact arithmetic keeps the on-shell and conservation
+        // identities exact. Helicity vectors come from the shared primitive.
+        let energy = Atom::num((i64::from(sqrt_s_gev), 2));
+        let spatial = (energy.pow(2) - Atom::num(125 * 125)).sqrt();
+        let px = &spatial * Atom::num((3, 5));
+        let pz = spatial * Atom::num((4, 5));
         let vectors = [
-            FourMomentum::from_args(Atom::num(150), Atom::Zero, Atom::Zero, Atom::num(150)),
-            FourMomentum::from_args(Atom::num(150), Atom::Zero, Atom::Zero, Atom::num(-150)),
-            FourMomentum::from_args(
-                Atom::num(150),
-                expression("15*11^(1/2)")?,
-                Atom::Zero,
-                expression("20*11^(1/2)")?,
-            ),
-            FourMomentum::from_args(
-                Atom::num(150),
-                expression("-15*11^(1/2)")?,
-                Atom::Zero,
-                expression("-20*11^(1/2)")?,
-            ),
+            FourMomentum::from_args(energy.clone(), Atom::Zero, Atom::Zero, energy.clone()),
+            FourMomentum::from_args(energy.clone(), Atom::Zero, Atom::Zero, -&energy),
+            FourMomentum::from_args(energy.clone(), px.clone(), Atom::Zero, pz.clone()),
+            FourMomentum::from_args(energy, -px, Atom::Zero, -pz),
         ];
         let physical = incoming
             .iter()
@@ -153,10 +155,11 @@ impl Point {
                 );
             }
         }
-        let wavefunctions = [150.0, -150.0]
+        let energy = f64::from(sqrt_s_gev) / 2.0;
+        let wavefunctions = [energy, -energy]
             .into_iter()
             .map(|z| {
-                FourMomentum::from_args(150.0, 0.0, 0.0, z)
+                FourMomentum::from_args(energy, 0.0, 0.0, z)
                     .wavefunction(WavefunctionKind::Epsilon, Helicity::PLUS)
             })
             .collect::<std::result::Result<Vec<_>, _>>()?;

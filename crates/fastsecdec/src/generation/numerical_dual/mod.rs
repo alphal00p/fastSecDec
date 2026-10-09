@@ -9,6 +9,9 @@ pub(super) mod subtraction;
 mod valuation;
 pub(super) use valuation::ValuationCache;
 
+#[cfg(test)]
+mod contour_local;
+
 use super::{
     ChartRecord, DomainAssessment, GeneratedIntegral, GeneratedSector, GenerationError,
     GenerationEvent, GenerationMetadata, GenerationOptions, GenerationProgress, SymbolicDispatch,
@@ -41,6 +44,9 @@ pub(crate) struct DualSector {
     pub parameters: Vec<Symbol>,
     pub map: SectorMap,
     pub terms: Vec<DualTerm>,
+    /// Contours are nonlinear maps: differentiate the full mapped smooth
+    /// density with native jets, without monomial-specific source zero masks.
+    pub mapped_regular: Option<Vec<Atom>>,
     pub recipe: Arc<subtraction::Recipe>,
     pub orders: Vec<i32>,
 }

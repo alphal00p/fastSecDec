@@ -27,13 +27,14 @@ use std::{
 
 /// All heavyweight work takes place in CLI-owned recyclable child processes.
 /// This coordinator only sees compact native receipts and stream-copies bytes.
-pub(crate) fn generate(
+pub(crate) fn generate_with_overrides(
     path: &Path,
     output: &Path,
     dashboard: &mut Dashboard,
     reference: Option<&PreparedReference>,
     workers: usize,
     resume: bool,
+    overrides: crate::config::GenerationOverrides,
 ) -> CliResult<Artifact> {
     crate::artifact::paths(output)?;
     if workers == 0 {
@@ -41,7 +42,8 @@ pub(crate) fn generate(
     }
     let path = fs::canonicalize(path)?;
     let output = std::path::absolute(output)?;
-    let card: RunCard = toml::from_str(&fs::read_to_string(&path)?)?;
+    let mut card: RunCard = toml::from_str(&fs::read_to_string(&path)?)?;
+    overrides.apply(&mut card);
     card.generation.evaluator.validate()?;
     dashboard.configure_generation(
         card.generation.mode,
@@ -52,7 +54,7 @@ pub(crate) fn generate(
         std::process::id(),
         SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos()
     );
-    let mut journal = Journal::open(&path, &output, resume, &run_id)?;
+    let mut journal = Journal::open_with_overrides(&path, &output, resume, &run_id, overrides)?;
     if journal.completed() {
         let artifact = Artifact::load_metadata(&output)?;
         artifact.verify_input_sources(&path)?;
@@ -70,6 +72,7 @@ pub(crate) fn generate(
                 Request::Prepare {
                     input: path.clone(),
                     workers,
+                    overrides,
                 },
             )],
             GenerationStage::Geometry,

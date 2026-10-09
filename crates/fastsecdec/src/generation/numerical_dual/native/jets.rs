@@ -34,6 +34,7 @@ pub(super) struct Requests<'a> {
     map_programs: BTreeMap<ProgramKey, ExactProgram>,
     factor_slots: BTreeMap<FactorKey, Vec<Slot>>,
     regular_slots: BTreeMap<RegularKey, Slot>,
+    mapped_regular_slots: BTreeMap<(usize, Vec<usize>, Vec<Coordinate>), Slot>,
 }
 impl<'a> Requests<'a> {
     pub(super) fn append(
@@ -44,6 +45,9 @@ impl<'a> Requests<'a> {
         let dimension = self.sector.parameters.len();
         if request.coordinates.len() != dimension || request.derivatives.len() != dimension {
             return Err(compilation("numerical-dual request dimension mismatch"));
+        }
+        if self.sector.mapped_regular.is_some() {
+            return self.append_mapped_regular(request, composer);
         }
         let sector = self.sector;
         let term = sector
@@ -174,5 +178,52 @@ impl<'a> Requests<'a> {
         let result = output[target.position(&desired)?];
         self.regular_slots.insert(regular_key, result);
         Ok(result)
+    }
+}
+
+impl Requests<'_> {
+    /// The native Dualizer differentiates every contour factor, including detJ
+    /// and endpoint ratios. Its only zero mask describes input seeds; it makes
+    /// no monomial assumption about the nonlinear coordinate map itself.
+    fn append_mapped_regular(
+        &mut self,
+        request: &Request,
+        composer: &mut EvaluatorComposer<Complex<Rational>>,
+    ) -> Result<Slot, KernelError> {
+        let desired = std::iter::once(request.epsilon_order)
+            .chain(request.derivatives.iter().copied())
+            .collect::<Vec<_>>();
+        let key = (request.term, desired.clone(), request.coordinates.clone());
+        if let Some(slot) = self.mapped_regular_slots.get(&key) {
+            return Ok(*slot);
+        }
+        let shape = Shape::new(&desired)?;
+        let body = self
+            .sector
+            .mapped_regular
+            .as_ref()
+            .unwrap()
+            .get(request.term)
+            .ok_or_else(|| compilation("mapped contour request term out of range"))?;
+        let inputs = self
+            .sector
+            .parameters
+            .iter()
+            .copied()
+            .chain([self.sector.regulator])
+            .chain(self.runtime.iter().copied())
+            .collect::<Vec<_>>();
+        let program = self.sector.programs.jets(
+            body,
+            &inputs,
+            &shape.components,
+            &self.seed_zeros(request, &shape, 0),
+            self.settings,
+        )?;
+        let seeds = self.seeds(request, &shape, composer)?;
+        let values = composer.append(&program, &seeds).map_err(compilation)?;
+        let slot = values[shape.position(&desired)?];
+        self.mapped_regular_slots.insert(key, slot);
+        Ok(slot)
     }
 }

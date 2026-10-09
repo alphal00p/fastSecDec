@@ -1,0 +1,39 @@
+# Native import of 2L4P.b.K1* from arXiv:1912.09291v2.
+# All-outgoing external vectors, exact native conservation; see validation.json.
+[input]
+graph = "graph.dot"
+model = "../model.json"
+
+[kinematics]
+products = [
+  { left = 0, right = 0, value = "5070602400913030448822452163367/5070602400912917605986812821504" },
+  { left = 0, right = 1, value = "59309822162998166065325307419453/5070602400912917605986812821504" },
+  { left = 0, right = 2, value = "-84236575702144758772137013389627/10141204801825835211973625643008" },
+  { left = 1, right = 1, value = "766928613138077171469573436719/633825300114114700748351602688" },
+  { left = 1, right = 2, value = "-44321449329641141508932956189273/10141204801825835211973625643008" },
+  { left = 2, right = 2, value = "467306717268134071643249095987151/324518553658426726783156020576256" },
+]
+
+[parameters]
+"UFO::mt" = "2/5"
+
+[integral]
+regulator = "ltd::eps"
+dimension = "4-2*ltd::eps"
+measure_multiplier = "(4*𝜋)^(2*ltd::{}::eps)*-1/256*𝜋^(-4)"
+
+[generation]
+order = 0
+contour = true
+
+[integration]
+points = 1024
+shifts = 8
+workers = 8
+periodization = "korobov3"
+relative_tolerance = 0.001
+accuracy_target = { target = "laurent_order", order = 0 }
+
+[integration.contour.deformation]
+mode = "fixed"
+lambda = 0.001

@@ -36,9 +36,12 @@ differentiation, a four-dimensional `AtomField` determinant, evaluation at a
 removable zero Bareiss pivot, native `nsolve`, and certified rational-ball
 arithmetic. Its determinant is exactly `(x^2-1)^2` and remains one at `x=0`.
 
-**Certified-ball limitation:** Numerica explicitly does not certify inherited
-transcendental operations. In particular, `RealBall::sqrt` must not silently be
-used as a rigorous enclosure for sign-aware envelopes. A safe algebraic check of
+**Certified-ball limitation:** The audited Numerica baseline explicitly does not
+certify inherited transcendental operations. Its `RealBall::sqrt` must not
+silently be used as a rigorous enclosure for sign-aware envelopes. The later
+[narrow owner improvement](contour-certified-sqrt.md), independently tested and
+published as PR 58, adds that specific finite nonnegative real-root capability;
+it does not certify inherited complex/transcendental operations. A safe algebraic check of
 a computed spectral majorant `mu` verifies `mu >= 0`, `mu-a >= 0` and
 `(mu-a)^2 >= b_squared` using certified operations. For the planned dynamic
 implementation, a certificate about a rounded numerical deformation would need
@@ -296,6 +299,12 @@ fallback. The actual owner test source is `tests/ball_evaluation_domains.rs`;
 it was compiled with `rustc --test` against the isolated patched library. This
 is focused validation, not a full Symbolica test-suite run.
 
+Publication: [Symbolica PR 55](https://github.com/symbolica-dev/symbolica/pull/55)
+contains this change independently on upstream `main`. Its full owner library
+and three focused tests were rebuilt successfully on that base. The author is
+ValentinHirschi. GitHub denied the formal reviewer assignment; an explicit
+`@benruijl` review request is posted on the PR.
+
 
 ## SymJIT complex-callback SIMD boundary
 
@@ -346,3 +355,86 @@ to **1.56e-15 or better** for every tested batch size through 257. The previous
 order-one disagreement disappears; builtin-log and polynomial controls retain
 their previous agreement. This is independent evaluator evidence in addition
 to the exact owner-only test, not yet the complete physical integration gate.
+
+## Dynamic callback and shared-map source review
+
+The internal dynamic callback foundation reuses a saved native evaluator for
+the coefficient-only radius equation and its derivative. Its tagged callback
+resolves an already retained helper, with weak global routing and independently
+cloned mutable workspaces. Native `ExternalFunctionContainer::clone` clones the
+captured callable, so the explicit workspace clone creates independent scratch
+rather than sharing a sampling mutex. Restoration must admit the helper before
+mapping its parent evaluator. No callback constructs or optimizes an evaluator
+at a sample point.
+
+The implicit derivative hook differentiates the smooth mathematical root rather
+than solver decisions. Keeping the accepted real root centre while retaining
+the imaginary Newton correction preserves uncertainty in zero-centred complex
+coefficients. This is native local error propagation, not a certified enclosure
+or a claim about globally correlated coefficient errors. The reviewed regression
+sources cover imaginary uncertainty, higher jets, concurrent clones, owner
+lifetimes and fresh-process restoration; their execution is a separate runtime
+gate.
+
+The shared map differentiates the full supplied local strength, including its
+gradient in the Jacobian. Chart preparation collects positive residuals from
+every term before constructing one map. Its face controls compare restriction
+of that full map against the incorrect operation of rebuilding a lower-
+dimensional radius. The stationary-gradient control correctly demonstrates that
+a displacement cap alone does not bound the Jacobian. The shared map remains
+private, and future dynamic recipes must supply their own validated descriptor;
+geometric metadata alone must not grant fixed-v9 capability.
+
+One additional owner limitation is independently verified. Numerica
+3.0.1's native `Real::hypot` enters its scaled branch through `real_cmp`.
+`ErrorPropagatingFloat` does not delegate that operation, so tracked `hypot` and
+`Complex<ErrorPropagatingFloat>::norm` use an overflowing square-and-square-root
+fallback. A focused primitive-only probe with `1e200` and `1e-3` produces a finite
+plain-f64 result and nonfinite tracked results. No existing alternative scaled,
+tracking-preserving norm was found in the public API or source. A
+[small isolated owner correction](contour-tracked-norm.md) supplies a tracked
+`hypot` override using the existing stable centre primitive and native local
+uncertainty propagation. Broader scalar-guard forwarding was rejected after
+independent tests exposed activated complex shortcuts losing uncertainty.
+Native and portable focused tests and existing native API/complex regressions pass.
+Consumption remains coordinated separately. A Hermitian complex norm is not a
+replacement for the holomorphic square root required by the smooth spectral
+envelope.
+
+The follow-up native-v10 descriptor review confirms that saved helper ownership
+is restored before numerical callbacks and that the legacy-v9 layout stays
+separate. Indexed receipts cross-check explicit descriptor presence and local
+source/check indices. Dynamic production remains deliberately rejected. Before
+that gate is lifted, the descriptor must also be bound to the actual retained
+chart metadata: source identity, dimension, positive factors and required helper
+association. Internal descriptor consistency alone does not establish that
+association, and selecting charts must not silently omit a required dynamic
+descriptor. This is a pending dynamic-admission gate, not a failure in the
+currently accepted fixed recipe.
+
+## Public portable application gate
+
+The corrected public Symbolica/Numerica consumer revision `7ec1be4` passed an
+actual FastSecDec application build with the portable Malachite/Astro backend.
+The test uses public APIs in `tests/portable-kernel/tests/contour_fixed.rs` and
+checks both symbolic and numerical-dual generation of the above-threshold
+bubble, native artifact serialization/restoration, a certified caller-owned
+pilot, checked production at stationary negative `F`, and unchanged values and
+mathematical identity after switching validation off. Deterministic quadrature
+agrees with all four analytic Laurent components, including the vanishing
+imaginary UV residue. The independent generation reviewer requested that final
+cancellation assertion; it is included.
+
+The new contour control passes **1/1** in 0.16 seconds. Existing fresh-process
+artifact controls pass **2/2**, and complete-complex/covariance/precision-rescue
+controls pass **4/4**. This gate uses ordinary locked Cargo with public owners,
+registry Graphica 3.0.1 and Feynkit `259df879`; no local dependency override is
+active.
+
+The subsequent full portable consumer suite also passed after the coordinated
+Feynkit update to `8e3a643f388b45939d6573a648ef3a509086835e`: **73 tests**, zero
+failures or ignored tests, with ordinary locked Cargo and no local overrides.
+This includes the contour control, symbolic/numerical-dual generation, complete
+complex coefficient and covariance controls, QMC/Havana execution, checkpoints,
+replay and fresh-process artifacts. The complete test build took 4 minutes.
+Portable-host execution does not establish actual browser/WASM execution.

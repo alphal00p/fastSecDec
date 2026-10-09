@@ -1,7 +1,7 @@
 use super::{Event, Job, Returned, TaskMetrics};
 use crate::{CliResult, artifact::atomic_write, process::child};
 use fastsecdec::{
-    kernel::{KernelLoadOptions, WeightedEvaluationContext, indexed::IndexedReader},
+    kernel::{KernelLoadOptions, WeightedEvaluationContext, indexed::ProgramArchiveReader},
     status::EvaluationDiagnostics,
 };
 use std::{
@@ -15,6 +15,8 @@ struct Active {
     sector: u64,
     data_path: PathBuf,
     catalogue_id: String,
+    archive_id: String,
+    recipe: fastsecdec::kernel::indexed::ProgramRecipe,
     settings_id: blake3::Hash,
     context: WeightedEvaluationContext,
     output_indices: Vec<usize>,
@@ -40,6 +42,7 @@ fn execute(
         &job.parameters,
         &job.policy,
         &job.stability,
+        &job.contour,
         job.task.dimension(),
         job.task.output_count(),
     ))?);
@@ -47,12 +50,16 @@ fn execute(
     let mut load_seconds = 0.;
     if active.is_none() {
         let started = Instant::now();
-        let mut reader = IndexedReader::from_reader(
+        let mut archive = ProgramArchiveReader::from_reader(
             File::open(&job.data_path)?,
             KernelLoadOptions {
                 validate: job.validate_artifact,
             },
         )?;
+        if archive.catalogue().content_id != job.archive_id {
+            return Err("resident worker archive identity differs".into());
+        }
+        let mut reader = archive.select(job.recipe)?;
         if reader.catalogue().content_id != job.catalogue_id {
             return Err("resident worker catalogue identity differs".into());
         }
@@ -68,7 +75,26 @@ fn execute(
                 parameters.insert(symbol, *value);
             }
         }
-        kernels.bind_parameters(&parameters)?;
+        kernels.bind_parameters_with_contour(&parameters, &job.contour)?;
+        let pilot = crate::contour_pilot::run(
+            &mut kernels,
+            &job.contour,
+            job.validation_seed,
+            None,
+            |progress| {
+                emit(Event::ContourPilot {
+                    identity: identity.clone(),
+                    progress: progress.clone(),
+                })?;
+                Ok(())
+            },
+        )?;
+        if let Some(report) = pilot {
+            emit(Event::ContourPilotComplete {
+                identity: identity.clone(),
+                report: crate::contour_pilot::provenance(&kernels, job.validation_seed, &report),
+            })?;
+        }
         kernels.set_stability_settings(&job.stability)?;
         let context = if let Some(replay) = &job.replay {
             kernels.restore_evaluation_context(0, job.policy.clone(), replay)?
@@ -88,6 +114,8 @@ fn execute(
             sector: job.task.sector_id(),
             data_path: job.data_path.clone(),
             catalogue_id: job.catalogue_id.clone(),
+            archive_id: job.archive_id.clone(),
+            recipe: job.recipe,
             settings_id,
             context,
             output_indices: descriptor.output_indices,
@@ -105,6 +133,8 @@ fn execute(
     if active.sector != job.task.sector_id()
         || active.data_path != job.data_path
         || active.catalogue_id != job.catalogue_id
+        || active.archive_id != job.archive_id
+        || active.recipe != job.recipe
         || active.settings_id != settings_id
     {
         return Err("a resident integration process cannot switch sector; evict it first".into());
@@ -132,10 +162,41 @@ fn execute(
                     .ok_or("local evaluator matrix overflow")?,
                 f64::NAN,
             );
-            let reports = active
+            let evaluated = active
                 .context
-                .evaluate_weighted_batch(points, weights, &mut local)
-                .map_err(|e| e.error)?;
+                .evaluate_weighted_batch(points, weights, &mut local);
+            if let Some(delta) = active.context.take_contour_validation_report() {
+                diagnostics.record_contour(
+                    if identity.pilot {
+                        fastsecdec::status::IntegrationStage::Pilot
+                    } else {
+                        fastsecdec::status::IntegrationStage::Production
+                    },
+                    &delta,
+                )?;
+            }
+            let reports = match evaluated {
+                Ok(reports) => reports,
+                Err(error) => {
+                    integrand_seconds += started.elapsed().as_secs_f64();
+                    // A rejected allocation contributes no estimate, but its
+                    // successfully checked prefix remains observational data.
+                    emit(Event::Progress {
+                        identity: identity.clone(),
+                        completed,
+                        planned: job.task.point_count(),
+                        sampling_seconds: sampling_started.elapsed().as_secs_f64(),
+                        metrics: Box::new(TaskMetrics {
+                            diagnostics: diagnostics.clone(),
+                            load_seconds,
+                            worker_seconds: sampling_started.elapsed().as_secs_f64(),
+                            integrand_seconds,
+                            maxima: maxima.clone(),
+                        }),
+                    })?;
+                    return Err(error.error.into());
+                }
+            };
             for report in reports {
                 diagnostics.record_replay(report)?;
             }

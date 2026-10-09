@@ -7,6 +7,10 @@ use crate::kernel::{EvaluatorTiming, PrecisionClass, PrecisionReport, ReplayRepo
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct EvaluationDiagnostics {
+    /// Present when worker contour diagnostics were recorded. Historical
+    /// records without this field retain unknown rather than inferred counts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contour: Option<super::ContourEvaluationDiagnostics>,
     pub evaluations: u64,
     pub conditioning_checks: u64,
     pub rescues: u64,
@@ -45,6 +49,18 @@ impl std::fmt::Display for EvaluationDiagnostics {
 }
 
 impl EvaluationDiagnostics {
+    /// Incorporate one drained worker report, preserving sampling phase.
+    pub fn record_contour(
+        &mut self,
+        stage: super::IntegrationStage,
+        report: &crate::kernel::ContourProductionReport,
+    ) -> Result<(), DiagnosticsOverflow> {
+        let mut next = self.contour.unwrap_or_default();
+        next.record(stage, report)?;
+        self.contour = Some(next);
+        Ok(())
+    }
+
     pub fn record(&mut self, report: PrecisionReport) -> Result<(), DiagnosticsOverflow> {
         self.merge(&Self {
             evaluations: 1,
@@ -128,7 +144,15 @@ impl EvaluationDiagnostics {
                 matrix_points: sum(a.matrix_points, b.matrix_points)?,
             })
         };
+        let contour = match (self.contour, other.contour) {
+            (Some(mut a), Some(b)) => {
+                a.merge(b)?;
+                Some(a)
+            }
+            (a, b) => a.or(b),
+        };
         let combined = Self {
+            contour,
             evaluations: sum(self.evaluations, other.evaluations)?,
             conditioning_checks: sum(self.conditioning_checks, other.conditioning_checks)?,
             rescues: sum(self.rescues, other.rescues)?,
@@ -236,6 +260,7 @@ mod tests {
         );
         assert_eq!(total, prior);
         let old: EvaluationDiagnostics = serde_json::from_str("{\"evaluations\":1}").unwrap();
+        assert!(old.contour.is_none());
         assert_eq!(old.weighted_checks, 0);
         assert_eq!(old.additional_replays, 0);
     }

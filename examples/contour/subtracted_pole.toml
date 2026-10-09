@@ -1,0 +1,30 @@
+# Analytic control: integral_0^1 x^(-1-eps)/(1/4-x-i0) dx.
+# Coefficients: -4/eps -4*log(3)+4*i*pi + O(eps).
+[direct]
+domain = "unit_cube"
+parameters = ["x"]
+
+[[direct.terms]]
+monomial_powers = ["-1-eps"]
+
+[[direct.terms.factors]]
+polynomial = "1/4-x"
+exponent = "-1"
+semantics = "causal"
+
+[generation]
+order = 0
+contour = true
+subtraction = "taylor"
+
+[integration]
+points = 4096
+shifts = 16
+workers = 1
+periodization = "korobov3"
+relative_tolerance = 0.001
+accuracy_target = { target = "laurent_order", order = 0 }
+
+[integration.contour.deformation]
+mode = "fixed"
+lambda = 0.2

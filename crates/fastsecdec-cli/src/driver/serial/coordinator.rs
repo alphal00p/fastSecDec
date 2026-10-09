@@ -39,6 +39,7 @@ struct Slot {
     completed: u64,
     planned: u64,
     preparing: bool,
+    contour_pilot: Option<crate::contour_pilot::Snapshot>,
     sampling_seconds: f64,
     live_metrics: Option<TaskMetrics>,
 }
@@ -73,6 +74,7 @@ fn snapshot(
                     completed_points: s.completed,
                     planned_points: s.planned,
                     preparing: s.preparing,
+                    contour_pilot: s.contour_pilot.clone(),
                 })
             })
             .collect(),
@@ -200,6 +202,7 @@ pub(crate) fn integrate(
     checkpoint_path: &Path,
     resume: bool,
     load_options: KernelLoadOptions,
+    initial_contour_pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
     mut observe: impl FnMut(&SerialRunSnapshot) -> CliResult<bool>,
 ) -> CliResult<SerialOutcome> {
     let catalogue=artifact.catalogue().ok_or("serial integration requires a sector-addressable artifact; regenerate this legacy artifact")?;
@@ -230,13 +233,20 @@ pub(crate) fn integrate(
         )
     })?;
     let native = native_settings(settings)?;
-    let (mut session, mut replay, mut diagnostics, mut operational) = if resume {
+    let (mut session, mut replay, mut diagnostics, mut operational, mut contour_pilots) = if resume
+    {
         let (session, checkpoint) = checkpoint::restore(checkpoint_path, settings, &problem)?;
         (
             session,
             checkpoint.replay,
             checkpoint.diagnostics,
             OperationalMetrics::default(),
+            checkpoint
+                .contour
+                .into_iter()
+                .flat_map(|entry| entry.pilots)
+                .map(|entry| (entry.kernel_content_id.clone(), entry))
+                .collect::<BTreeMap<_, _>>(),
         )
     } else {
         (
@@ -244,6 +254,7 @@ pub(crate) fn integrate(
             BTreeMap::<u64, ReplayState>::new(),
             EvaluationDiagnostics::default(),
             OperationalMetrics::default(),
+            BTreeMap::new(),
         )
     };
     let started = Instant::now();
@@ -265,6 +276,11 @@ pub(crate) fn integrate(
     let mut process_lease = 0u64;
     let mut cancelled = false;
     let mut failure = None;
+    // Retain one latest completed preflight per bound sector owner. Reloads
+    // and concurrent replicas must not grow this catalogue with run duration.
+    for report in initial_contour_pilots {
+        contour_pilots.insert(report.kernel_content_id.clone(), report);
+    }
     'integration: loop {
         let mut changed = false;
         for slot in slots.iter_mut().flatten() {
@@ -294,6 +310,8 @@ pub(crate) fn integrate(
                             .ok_or("worker returned an event without a reservation")?;
                         let identity = match &event {
                             Event::Loaded { identity, .. }
+                            | Event::ContourPilot { identity, .. }
+                            | Event::ContourPilotComplete { identity, .. }
                             | Event::Progress { identity, .. }
                             | Event::Completed { identity, .. } => identity,
                         };
@@ -302,6 +320,18 @@ pub(crate) fn integrate(
                             break 'integration;
                         }
                         match event {
+                            Event::ContourPilotComplete { report, .. } => {
+                                if !slot.preparing || !report.complete {
+                                    return Err("invalid resident contour pilot completion".into());
+                                }
+                                contour_pilots.insert(report.kernel_content_id.clone(), report);
+                            }
+                            Event::ContourPilot { progress, .. } => {
+                                if !slot.preparing || progress.completed > progress.total {
+                                    return Err("invalid resident contour pilot progress".into());
+                                }
+                                slot.contour_pilot = Some(progress);
+                            }
                             Event::Loaded { seconds, .. } => {
                                 if !seconds.is_finite() || seconds < 0. {
                                     return Err("invalid worker loading duration".into());
@@ -431,6 +461,7 @@ pub(crate) fn integrate(
                 &replay,
                 &diagnostics,
                 &operational,
+                &contour_pilots,
             )?;
             last_checkpoint = Instant::now();
             saved = Some(last_checkpoint);
@@ -487,6 +518,7 @@ pub(crate) fn integrate(
                     completed: 0,
                     planned: 0,
                     preparing: true,
+                    contour_pilot: None,
                     sampling_seconds: 0.,
                     live_metrics: None,
                 });
@@ -496,9 +528,15 @@ pub(crate) fn integrate(
             slot.request_path = staging.join(format!("request-{lease}.json"));
             slot.return_path = staging.join(format!("return-{lease}.json"));
             let job = Job {
+                validation_seed: settings.seed,
+                contour: settings.contour.clone(),
                 task: task.clone(),
                 data_path: data_path.clone(),
                 catalogue_id: catalogue.content_id.clone(),
+                archive_id: artifact.kernel_content_id.clone(),
+                recipe: artifact
+                    .selected_recipe()
+                    .ok_or("missing selected recipe")?,
                 validate_artifact: load_options.validate,
                 parameters: settings.parameters.clone(),
                 policy: settings.replay.clone(),
@@ -553,6 +591,7 @@ pub(crate) fn integrate(
         &replay,
         &diagnostics,
         &operational,
+        &contour_pilots,
     )?;
     let result = snapshot(
         &session,
@@ -565,6 +604,7 @@ pub(crate) fn integrate(
     )?;
     observe(&result)?;
     Ok(SerialOutcome {
+        contour_pilots: contour_pilots.into_values().collect(),
         snapshot: result,
         cancelled,
         failure,

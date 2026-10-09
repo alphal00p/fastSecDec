@@ -10,5 +10,7 @@ pub(crate) mod serial;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
 pub use execution::integrate;
+pub use execution::integrate_with_pilot;
 pub use report::{IntegrationReport, ResumeStatus};

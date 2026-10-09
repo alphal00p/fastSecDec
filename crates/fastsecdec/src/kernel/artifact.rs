@@ -13,6 +13,7 @@ use symbolica::atom::{Atom, AtomCore, AtomView, Symbol};
 pub(super) fn atom(expression: String) -> Result<Atom, KernelError> {
     // Recover native callbacks before expressions are parsed in a cold host.
     let _ = symbolica::transcendental::gamma();
+    crate::contour::functions::register();
     Atom::parse(expression, "fastsecdec::artifact", Default::default())
         .map_err(KernelError::Artifact)
 }
@@ -91,6 +92,7 @@ impl crate::generation::GeneratedIntegral {
 
 impl KernelSet {
     pub(super) fn initialize_artifact(&mut self) -> Result<(), KernelError> {
+        self.prepare_contour_checks()?;
         let (id, bytes) = binary::compiled(self)?;
         self.content_id = id;
         self.portable_artifact = Some(bytes);
@@ -163,7 +165,9 @@ impl KernelSet {
         }
         let mut restoring =
             |step: &super::CompilationProgress| progress(&KernelLoadProgress::Restoring(*step));
-        let kernels = if bytes.starts_with(indexed::MAGIC) {
+        let kernels = if bytes.starts_with(indexed::programs::MAGIC) {
+            indexed::programs::from_bytes(bytes, options, &mut progress)
+        } else if bytes.starts_with(indexed::MAGIC) {
             indexed::from_bytes(bytes, options, &mut progress)
         } else if bytes.starts_with(binary::PREFIX) {
             binary::load_with_progress(bytes, options, &mut restoring)

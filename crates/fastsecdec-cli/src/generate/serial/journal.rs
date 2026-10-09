@@ -23,6 +23,8 @@ struct State {
     version: u32,
     build_identity: String,
     input_hash: String,
+    #[serde(default)]
+    generation_overrides: crate::config::GenerationOverrides,
     dependencies: Vec<Dependency>,
     run_directory: String,
     completed: bool,
@@ -35,7 +37,18 @@ pub(super) struct Journal {
     state: State,
 }
 impl Journal {
+    #[cfg(test)]
     pub fn open(input: &Path, output: &Path, resume: bool, run_id: &str) -> CliResult<Self> {
+        Self::open_with_overrides(input, output, resume, run_id, Default::default())
+    }
+
+    pub fn open_with_overrides(
+        input: &Path,
+        output: &Path,
+        resume: bool,
+        run_id: &str,
+        generation_overrides: crate::config::GenerationOverrides,
+    ) -> CliResult<Self> {
         let directory = output.with_file_name(format!(
             "{}.generation",
             output
@@ -69,6 +82,7 @@ impl Journal {
             if state.version != 1
                 || state.build_identity != crate::process::child::build_identity()
                 || state.input_hash != input_hash
+                || state.generation_overrides != generation_overrides
                 || state.dependencies != dependencies
             {
                 return Err(
@@ -85,6 +99,7 @@ impl Journal {
                 version: 1,
                 build_identity: crate::process::child::build_identity(),
                 input_hash,
+                generation_overrides,
                 dependencies,
                 run_directory: format!("run-{run_id}"),
                 completed: false,
@@ -136,9 +151,12 @@ impl Journal {
     }
     fn request_hash(request: &Request) -> CliResult<String> {
         let normalized = match request {
-            Request::Prepare { input, .. } => Request::Prepare {
+            Request::Prepare {
+                input, overrides, ..
+            } => Request::Prepare {
                 input: input.clone(),
                 workers: 0,
+                overrides: *overrides,
             },
             _ => request.clone(),
         };
@@ -321,6 +339,7 @@ mod tests {
                 Request::Prepare {
                     input: input.clone(),
                     workers: 1,
+                    overrides: Default::default(),
                 },
             )
             .unwrap();
@@ -335,6 +354,7 @@ mod tests {
                 Request::Prepare {
                     input: input.clone(),
                     workers: 3,
+                    overrides: Default::default(),
                 },
             )
             .unwrap();
@@ -368,7 +388,11 @@ mod tests {
         let output = dir.path().join("integral.fsd");
         let mut journal = Journal::open(&input, &output, false, "one").unwrap();
         assert!(Journal::open(&input, &output, true, "two").is_err());
-        let request = Request::Prepare { input, workers: 1 };
+        let request = Request::Prepare {
+            input,
+            workers: 1,
+            overrides: Default::default(),
+        };
         journal.request("prepare", request.clone()).unwrap();
         let foreign = Response::Symmetry(fastsecdec::generation::streaming::SymmetryAssignment {
             source: 0,
@@ -381,5 +405,23 @@ mod tests {
         )
         .unwrap();
         assert!(journal.accept("prepare", &request).is_err());
+    }
+
+    #[test]
+    fn generation_resume_checks_cli_contour_capability_without_rewriting_input() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("input.toml");
+        card(&input);
+        let original = fs::read(&input).unwrap();
+        let output = dir.path().join("integral.fsd");
+        let overrides = crate::config::GenerationOverrides { contour: true };
+        let journal =
+            Journal::open_with_overrides(&input, &output, false, "first", overrides).unwrap();
+        drop(journal);
+        assert!(Journal::open(&input, &output, true, "incompatible").is_err());
+        let resumed =
+            Journal::open_with_overrides(&input, &output, true, "same", overrides).unwrap();
+        drop(resumed);
+        assert_eq!(fs::read(&input).unwrap(), original);
     }
 }

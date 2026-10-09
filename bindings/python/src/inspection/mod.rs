@@ -1,5 +1,6 @@
 //! Immutable views of retained generation records; inspection never reruns algebra.
 pub(crate) mod coefficient;
+pub(crate) mod contour;
 pub(crate) mod domain;
 pub(crate) mod geometry;
 pub(crate) mod metadata;
@@ -50,6 +51,7 @@ pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<coefficient::PyCompactCoefficient>()?;
     module.add_class::<PyGenerationMetadata>()?;
     module.add_class::<metadata::PyChart>()?;
+    module.add_class::<contour::PyContourRecipe>()?;
     module.add_class::<domain::PyDomainAssessment>()?;
     module.add_class::<domain::PyFactorAssessment>()?;
     module.add_class::<geometry::PyCoordinateMap>()?;

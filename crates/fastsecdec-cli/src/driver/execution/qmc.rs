@@ -27,6 +27,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         started,
         mut last_checkpoint,
         restored,
+        contour_provenance,
         mut diagnostics,
         mut replay,
         operations,
@@ -117,6 +118,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
                         diagnostics,
                         replay,
                         previous_complete.as_ref(),
+                        contour_provenance.as_ref(),
                     )?;
                     last_checkpoint = Instant::now();
                 }
@@ -169,6 +171,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
             &diagnostics,
             &replay,
             previous_complete.as_ref(),
+            contour_provenance.as_ref(),
         )?;
         last_checkpoint = Instant::now();
         round += 1;
@@ -199,6 +202,7 @@ pub(super) fn run(context: Context<'_>, method: &str) -> CliResult<IntegrationRe
         &diagnostics,
         &replay,
         previous_complete.as_ref(),
+        contour_provenance.as_ref(),
     )?;
     drop(checkpoint_span);
     let mut report = finish(

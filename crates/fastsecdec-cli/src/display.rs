@@ -155,8 +155,8 @@ impl Dashboard {
 
     pub fn generation(&mut self, snapshot: &GenerationSnapshot) -> CliResult<()> {
         if let Some(forward) = &self.generation_forward {
-            forward.send(crate::isolated::Progress {
-                snapshot: snapshot.clone(),
+            forward.send(crate::isolated::Progress::Generation {
+                snapshot: Box::new(snapshot.clone()),
                 workers: self.generation_workers.clone(),
             })?;
             return Ok(());

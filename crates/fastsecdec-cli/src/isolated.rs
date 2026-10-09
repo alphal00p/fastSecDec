@@ -10,9 +10,7 @@ use crate::{
     },
 };
 use fastsecdec::{
-    integration::SectorSpec,
-    kernel::{KernelLoadOptions, indexed::IndexedReader},
-    results::KernelResultManifest,
+    integration::SectorSpec, kernel::KernelLoadOptions, results::KernelResultManifest,
     status::GenerationSnapshot,
 };
 use serde::{Deserialize, Serialize};
@@ -37,12 +35,26 @@ enum Request {
         output: PathBuf,
         workers: usize,
         reference: Option<PathBuf>,
+        #[serde(default)]
+        overrides: crate::config::GenerationOverrides,
     },
 }
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) struct Progress {
-    pub snapshot: GenerationSnapshot,
-    pub workers: Option<crate::generate::dispatch::Progress>,
+pub(crate) enum Progress {
+    Generation {
+        snapshot: Box<GenerationSnapshot>,
+        workers: Option<crate::generate::dispatch::Progress>,
+    },
+    Contour {
+        snapshot: crate::contour_pilot::Snapshot,
+        elapsed_seconds: f64,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct ExactSetup {
+    pub manifest: KernelResultManifest,
+    pub contour_pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
 }
 
 pub(crate) fn exact(
@@ -51,7 +63,7 @@ pub(crate) fn exact(
     settings: &IntegrationInput,
     options: KernelLoadOptions,
     dashboard: &mut Dashboard,
-) -> CliResult<KernelResultManifest> {
+) -> CliResult<ExactSetup> {
     let staging = tempfile::tempdir()?;
     let result = staging.path().join("manifest.json");
     run(
@@ -64,15 +76,16 @@ pub(crate) fn exact(
         },
         dashboard,
     )?;
-    let manifest: KernelResultManifest = serde_json::from_reader(File::open(result)?)?;
-    manifest.validate()?;
-    Ok(manifest)
+    let setup: ExactSetup = serde_json::from_reader(File::open(result)?)?;
+    setup.manifest.validate()?;
+    Ok(setup)
 }
 pub(crate) fn generate(
     input: &Path,
     output: &Path,
     workers: usize,
     reference: Option<&Path>,
+    overrides: crate::config::GenerationOverrides,
     dashboard: &mut Dashboard,
 ) -> CliResult<()> {
     run(
@@ -81,6 +94,7 @@ pub(crate) fn generate(
             output: output.into(),
             workers,
             reference: reference.map(Path::to_owned),
+            overrides,
         },
         dashboard,
     )
@@ -121,10 +135,28 @@ fn run(request: Request, dashboard: &mut Dashboard) -> CliResult<()> {
                         if !ready || finished {
                             return Err("unissued setup progress".into());
                         }
-                        if let Some(workers) = progress.workers {
-                            dashboard.generation_workers(&workers);
+                        match progress {
+                            Progress::Generation { snapshot, workers } => {
+                                if let Some(workers) = workers {
+                                    dashboard.generation_workers(&workers);
+                                }
+                                dashboard.generation(&snapshot)?;
+                            }
+                            Progress::Contour {
+                                snapshot,
+                                elapsed_seconds,
+                            } => {
+                                if snapshot.completed == 0 {
+                                    dashboard.begin_loading();
+                                }
+                                dashboard.loading(&crate::loading::Snapshot {
+                                    phase: crate::loading::Phase::ContourValidation,
+                                    completed: Some(snapshot.completed),
+                                    total: Some(snapshot.total),
+                                    elapsed_seconds,
+                                })?;
+                            }
                         }
-                        dashboard.generation(&progress.snapshot)?;
                     }
                     WorkerEvent::Finished => {
                         if !ready || finished {
@@ -171,23 +203,74 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
             validate,
             result,
         } => {
-            let artifact =
+            let mut artifact =
                 Artifact::load_metadata_with_options(&path, KernelLoadOptions { validate })?;
+            crate::contour_cli::select_program(&mut artifact, &settings.contour)?;
             let catalogue = artifact
                 .catalogue()
                 .ok_or("setup requires an indexed artifact")?;
-            if catalogue.content_id != expected {
+            if artifact.kernel_content_id != expected {
                 return Err("artifact changed during exact setup".into());
             }
-            let mut reader = IndexedReader::from_reader(
-                File::open(artifact.data_path(&path)?)?,
-                KernelLoadOptions { validate },
+            let mut archive =
+                artifact.open_program_archive(&path, KernelLoadOptions { validate })?;
+            let mut reader = archive.select(
+                artifact
+                    .selected_recipe()
+                    .ok_or("missing selected recipe")?,
             )?;
-            if reader.catalogue().content_id != expected {
-                return Err("indexed data changed during exact setup".into());
+            let mut contour_pilots = Vec::new();
+            // Validate exact-only chart records independently, then release
+            // their maps/check programs before restoring the compact offset.
+            // The aggregate intentionally carries no heavyweight chart data.
+            if settings.contour.deformation != fastsecdec::contour::ContourMode::Off
+                && settings.contour.validation.policy != fastsecdec::contour::ContourValidation::Off
+                && !matches!(
+                    settings.scope,
+                    fastsecdec::results::ResultScope::SelectedSectors {
+                        exact_policy: fastsecdec::results::ExactContributionPolicy::ExcludeAll,
+                        ..
+                    }
+                )
+            {
+                let exact_records = reader
+                    .catalogue()
+                    .records
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, record)| record.sector.is_none().then_some(index))
+                    .collect::<Vec<_>>();
+                for index in exact_records {
+                    let mut record = reader.load_record(index)?;
+                    crate::bind_parameters(&mut record, &settings)?;
+                    let started = Instant::now();
+                    let pilot = crate::contour_pilot::run(
+                        &mut record,
+                        &settings.contour,
+                        settings.seed,
+                        None,
+                        |snapshot| {
+                            emit(Progress::Contour {
+                                snapshot: snapshot.clone(),
+                                elapsed_seconds: started.elapsed().as_secs_f64(),
+                            })?;
+                            Ok(())
+                        },
+                    )?;
+                    if let Some(report) = pilot {
+                        contour_pilots.push(crate::contour_pilot::provenance(
+                            &record,
+                            settings.seed,
+                            &report,
+                        ));
+                    }
+                }
             }
             let mut exact = reader.load_exact()?;
-            crate::bind_parameters(&mut exact, &settings)?;
+            let mut aggregate_settings = settings.clone();
+            aggregate_settings.contour.validation.policy =
+                fastsecdec::contour::ContourValidation::Off;
+            crate::bind_parameters(&mut exact, &aggregate_settings)?;
             let manifest = KernelResultManifest {
                 kernel_content_id: exact.content_id().into(),
                 orders: catalogue.orders.clone(),
@@ -208,7 +291,13 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                     .collect(),
             };
             manifest.validate()?;
-            crate::artifact::atomic_write(&result, &serde_json::to_vec(&manifest)?)?;
+            crate::artifact::atomic_write(
+                &result,
+                &serde_json::to_vec(&ExactSetup {
+                    manifest,
+                    contour_pilots,
+                })?,
+            )?;
             Ok(())
         }
         Request::Generate {
@@ -216,6 +305,7 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
             output,
             workers,
             reference,
+            overrides,
         } => {
             let (send, receive) = std::sync::mpsc::sync_channel(2);
             std::thread::scope(|scope| {
@@ -224,12 +314,13 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                         let mut dashboard = Dashboard::new(false, false)?;
                         dashboard.forward_generation(send);
                         let reference = crate::reference::from_card(&input, reference.as_deref())?;
-                        crate::generate::generate_with_workers(
+                        crate::generate::generate_with_overrides(
                             &input,
                             &output,
                             &mut dashboard,
                             reference.as_ref(),
                             workers,
+                            overrides,
                         )?;
                         Ok(())
                     };

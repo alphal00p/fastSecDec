@@ -9,9 +9,11 @@ use pyo3::prelude::*;
 /// Shared binding boundary for native vector batches. Python signals stop at
 /// point-routing boundaries; speculative matrix attempts remain diagnostics,
 /// while the session admits only whole successful statistical packages.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn evaluate_batch(
     py: Python<'_>,
     context: &mut fastsecdec::kernel::WeightedEvaluationContext,
+    stage: fastsecdec::status::IntegrationStage,
     points: &[f64],
     weights: &[f64],
     output: &mut [f64],
@@ -35,6 +37,11 @@ pub(crate) fn evaluate_batch(
         Err(failure) => &failure.completed,
     };
     let mut local = fastsecdec::status::EvaluationDiagnostics::default();
+    if let Some(report) = context.take_contour_validation_report() {
+        local
+            .record_contour(stage, &report)
+            .map_err(|e| e.to_string())?;
+    }
     for report in reports {
         local.record_replay(*report).map_err(|e| e.to_string())?;
     }
@@ -52,9 +59,12 @@ pub(crate) fn evaluate_batch(
 }
 
 pub(crate) fn problem(py: Python<'_>, kernels: &KernelSet) -> PyResult<IntegrationProblem> {
-    KernelResultManifest::from_kernels(kernels)
-        .integration_problem(&ResultScope::FullIntegral, kernels.content_id())
-        .map_err(|e| crate::error::native(py, "configuration", e))
+    KernelResultManifest::integration_problem_from_kernels(
+        kernels,
+        &ResultScope::FullIntegral,
+        kernels.content_id(),
+    )
+    .map_err(|e| crate::error::native(py, "configuration", e))
 }
 
 pub(crate) fn replay_states(

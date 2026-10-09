@@ -57,6 +57,19 @@ Keep None/Korobov2/Korobov3 as separate comparisons. Changing the outer
 transform changes the weighted integrand and cannot be concealed in a
 fixed-versus-dynamic contour ratio.
 
+Include a stationary-point conditioning control before interpreting physical
+variance results. With dimensionful F, gradients and Hessians can be large. At
+a stationary nonzero F, `v=0` makes the displacement constraint vanish and the
+radius can approach L, while the Jacobian still contains `-i*lambda*D v`.
+For the exact quadratic toy `F=-1+K*(x-1/2)^2`, the center has
+`u=1`, `lambda=S*L`, and `J=1-i*S*L*K/2`. Large K therefore permits a narrow,
+large Jacobian feature despite exact causality and zero center displacement.
+Once the callback is wired, exercise that native analytic control and its
+complete complex integral, not just the radius/causal inequality. Report
+defaults L=R=1 alongside cap choices made by equal-budget independent pilots.
+Do not assume the causal proof or the displacement cap controls Jacobian
+conditioning or automatically improves convergence.
+
 Use at least eight predeclared independent seed pairs for the inexpensive
 controls. Start expensive cases with four pairs and label that evidence as
 limited; expand only when justified by observed variation and resource limits.
@@ -307,3 +320,159 @@ commands. Run the copied MadLoop harness from its new fixture's `madloop`
 directory using its documented matching compiler and private installation.
 None of these 400 GeV production commands has been executed in this readiness
 review.
+
+## Caller-owned comparison harness API
+
+The first implementation should be a Rust example, with a small typed input and
+output layer around existing native sessions. It does not need another
+integrator, estimator, RNG, worker pool or public benchmark framework. The
+following are proposed example-local data structures, not existing library APIs:
+
+```rust,ignore
+struct ComparisonCase {
+    source_identity: String,
+    fixed: SelectedRecipeInput,
+    dynamic: SelectedRecipeInput,
+    chart_groups: Vec<ProvenChartGroup>,
+    target: AccuracyTarget,
+}
+
+struct FrozenComparisonDesign {
+    qmc: QmcSettings,
+    pair_seeds: Vec<u64>,
+    evaluation_batch_rows: usize,
+    workers: usize,
+}
+
+struct PrescriptionRun {
+    bound_math_identity: String,
+    design: QmcDesign,
+    estimate: VectorEstimate,
+    contributions: ContributionReport,
+    operational: OperationalMetrics,
+    wall_seconds: f64,
+    preparation_seconds: f64,
+    coordinate_audit: Vec<CompletedCoordinateRange>,
+}
+
+struct ComparisonPair {
+    pair_seed: u64,
+    fixed: PrescriptionRun,
+    dynamic: PrescriptionRun,
+}
+```
+
+`SelectedRecipeInput` describes the native archive selector, physical bindings,
+mathematical contour settings, validation policy and precision settings. Keep
+the two bound mathematical identities distinct, including when both estimate
+the same physical integral. `ProvenChartGroup` relates retained native source
+charts and multiplicities across selected recipes. It must not identify sectors
+by the accidental position of their entries in a catalogue. A recipe can prove
+a different symmetry grouping: compare a proven group where possible and mark
+the one-to-one marginal comparison unavailable otherwise. Do not force equal
+IDs or claim point-matched global work when the chart relationship is unknown.
+
+Start with `QmcSession::democratic(problem, settings)` for the controlled
+equal-work comparison. Construct each problem through the existing
+`KernelResultManifest::integration_problem` and explicit result scope, preserving
+its complete coefficient layout and exact offset. Current `QmcDesign` reports
+allocations; it is not a constructor for replaying an arbitrary adaptive
+production design. Supporting such a design later needs a separate native API
+review. A restored session for one mathematical identity must never be reused
+for the other prescription.
+
+The execution adapter only needs the existing native operations:
+
+1. Bind and preflight one selected recipe. Record preflight and load/JIT time
+   separately from production. Do not retain both heavy recipe programs merely
+   to compare them: run the pair consecutively, and keep only compact reports
+   between runs. A caller may use the native selective loader for sector jobs.
+2. Call `session.next_work()` and `session.worker_context(task.sector_id())`.
+   The caller dispatches jobs with its existing bounded process/thread policy.
+   A worker calls `QmcWorker::evaluate_weighted_batch`, passing its actual
+   transformed coordinates and weights to the selected sector's
+   `WeightedEvaluationContext::evaluate_weighted_batch`.
+3. Submit only the resulting `QmcReturn` to the session that issued its task.
+   The task retains native content identity, epoch and interval checks. A fixed
+   task is never submitted to the dynamic session, even when its point sequence
+   is intentionally identical. A failed or incomplete batch is not a complete
+   replica and cannot enter the final comparison.
+4. Finish the frozen allocation, then obtain `session.estimate()`,
+   `session.contributions()`, `session.design()` and the existing operational
+   counters. Keep complete covariance; do not reconstruct it from absolute
+   `complete_shift_estimates()` diagnostics, which can lose small fluctuations
+   beside large exact offsets.
+
+Actual coordinate equality is checked at the public worker callback boundary,
+after Korobov transformation and before contour evaluation. Each record contains
+the paired source-chart/group identity, native sector identity, dimension,
+lattice/rule settings, shift index, lattice-index interval and a digest of every
+coordinate's `f64::to_bits()` followed by the weight's `f64::to_bits()`. Native
+`QmcTask::work().start()` and the lattice size identify the shift-major indices.
+Packages crossing a shift boundary split their audit records at that boundary.
+Hash row order, shape and interval identity as well as the numeric bits. This
+requires a bounded hash state per outstanding interval, not stored lattices.
+Compare completed records by canonical interval identity after reordered worker
+returns. Native plan equality and settings are useful extra diagnostics but do
+not replace this actual-coordinate check.
+
+Hashing every coordinate is an audit cost. Report it separately and keep the
+same instrumentation in both paired runs; evaluator timings exclude hashing.
+For the final integration timing claim, repeat the frozen design with auditing
+disabled only after its audited run passed, retaining the identical design,
+binding identities and deterministic native point generation. Report this as a
+timing repeat, not an additional independent statistical replicate. Neither
+audit nor contour evaluation consumes the production RNG. Distinct predeclared
+pair seeds still give independent randomized experiments, while the two
+prescriptions within one pair intentionally share their production coordinates.
+
+The report computes only presentation diagnostics from the native estimates.
+For target complex coefficient `k`, let `V` be the sum of its real and imaginary
+diagonal entries in the complete covariance of the mean. Preserve the full
+matrix in each report, and show `V_fixed / V_dynamic`, actual evaluations times
+`V`, summed worker seconds times `V`, native evaluator seconds times `V`, and
+production wall seconds times `V`. Label each timing basis explicitly. A zero
+or unavailable variance makes the ratio unavailable; it does not imply an
+infinite speedup. Apply the same calculation to native sector/group marginals,
+and show their actual IDs and multiplicities. For democratic sampling, use the
+native complete global estimate for the total: summing sector marginal
+variances would omit shared-shift covariance.
+
+Per-sector evaluator seconds divided by actual evaluations gives the mean
+evaluation cost. The maximum of those means is the slowest sector mean, not the
+maximum latency of an individual point. Keep that distinction in the report.
+The initial harness deliberately avoids computing a paired standard error for
+the difference of two highly cancelling integrals: native per-prescription
+covariance and repeated independent pairs suffice for this variance study.
+If paired-difference uncertainty is later required, first audit a native
+centered joint-vector accumulator, rather than subtracting large diagnostic
+shift totals or writing another covariance implementation.
+
+### Implemented API smoke control
+
+`crates/fastsecdec/examples/contour_variance.rs` now exercises this boundary
+using two fixed strengths on the analytic above-threshold logarithmic bubble.
+It is intentionally an API control, not a dynamic-mode comparison or a physical
+performance benchmark. Run it with `cargo run -p fastsecdec --example
+contour_variance` using the currently validated owner dependency configuration.
+The output is a self-contained JSON report; raw runs remain under ignored
+`target/` paths.
+
+The native eager evaluator runs one worker, two independent seed pairs, and
+64 points in each of eight complete shifts. The existing supplied-vector API
+uses the one-dimensional generating vector `[1]`; published multidimensional
+catalogues are not bypassed below their supported minimum. Package size 19
+deliberately crosses shift boundaries. Both strengths reload the same saved
+optimized program and bind independent mathematical identities, without
+regeneration. Deterministic causal preflight stays separate from production.
+
+The executed control passed: all 34 coordinate/weight interval digests matched
+within each pair; independent pairs differed; a return from the other strength
+was rejected; reversing pairs of completed work returns preserved native
+admission; both complete Laurent vectors matched their analytic reference;
+and the finite complex coefficient retained nonzero covariance for both
+strengths. A focused digest regression changes coordinates, weights and range
+identity separately. The report retains each native full covariance and sector
+contribution report, rather than reconstructing statistics in the example.
+At a larger lattice the control reaches floating precision, so its zero
+sample covariance must not be used as evidence for an infinite improvement.

@@ -4,6 +4,7 @@ mod artifact;
 pub mod indexed {
     pub use super::artifact::indexed::*;
 }
+pub use artifact::indexed::ProgramRecipe;
 #[cfg(feature = "native")]
 mod backend_version;
 #[cfg(feature = "native")]
@@ -16,6 +17,10 @@ pub use compilation::{
 mod compilation_settings;
 pub use compilation_settings::{CompilationSettings, EvaluatorBackend};
 mod complex;
+mod contour;
+pub use contour::{
+    ContourCheckReport, ContourProductionReport, ContourValidationChart, ContourValidationReport,
+};
 mod distance;
 mod evaluator;
 mod exact;
@@ -26,6 +31,9 @@ pub use model_constraints::RuntimeMassConstraint;
 mod precision;
 mod precision_cache;
 mod program;
+mod recipe;
+pub(crate) use program::is_real_expression;
+pub use recipe::{DynamicChartRecipe, NativeProgramDescriptor, PositiveFactorProof};
 mod projection;
 mod stability;
 mod statistics;
@@ -54,6 +62,8 @@ pub use weighted::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
+    #[error("contour deformation validation failed: {0}")]
+    Contour(String),
     #[error("kernel operation cancelled")]
     Cancelled,
     #[error("invalid runtime parameters: {0}")]
@@ -117,6 +127,7 @@ pub enum KernelLoadProgress {
 }
 
 pub struct SectorKernel {
+    contour_validation: Option<contour::SectorValidation>,
     projection: Option<projection::OutputProjection>,
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
@@ -243,6 +254,9 @@ impl SectorKernel {
         }
         if !self.parameters_bound {
             return Err(KernelError::UnboundParameters);
+        }
+        if let Some(validation) = &mut self.contour_validation {
+            validation.validate(point)?;
         }
         self.input[..point.len()].copy_from_slice(point);
         if self.stability.mode == StabilityMode::Distance {
@@ -391,6 +405,10 @@ impl SectorKernel {
     /// Clone native evaluator state and buffers for an independently owned worker.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            contour_validation: self
+                .contour_validation
+                .as_ref()
+                .map(contour::SectorValidation::fork),
             projection: self.projection.clone(),
             cancellation: self.cancellation.clone(),
             precision: self.precision.clone(),
@@ -422,6 +440,9 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    program_descriptor: Option<NativeProgramDescriptor>,
+    contour_checks: Vec<contour::CheckProgram>,
+    contour_binding: Option<contour::ContourBinding>,
     compilation_settings: CompilationSettings,
     stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
@@ -444,7 +465,10 @@ impl KernelSet {
     /// Immutable programs and metadata are retained; workspaces and timing
     /// counters are independent, and no symbolic recompilation is performed.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
-        Ok(Self {
+        let mut result = Self {
+            program_descriptor: self.program_descriptor.clone(),
+            contour_checks: self.contour_checks.clone(),
+            contour_binding: self.contour_binding.clone(),
             compilation_settings: self.compilation_settings,
             stability: self.stability.clone(),
             runtime_parameters: self.runtime_parameters.clone(),
@@ -464,7 +488,13 @@ impl KernelSet {
                 .map(SectorKernel::try_clone)
                 .collect::<Result<_, _>>()?,
             exact_coefficients: self.exact_coefficients.clone(),
-        })
+        };
+        if let Some(binding) = &result.contour_binding {
+            for (index, sector) in result.sectors.iter_mut().enumerate() {
+                sector.contour_validation = binding.for_sector(index);
+            }
+        }
+        Ok(result)
     }
 
     /// Settings used to construct the immutable native evaluator programs.
@@ -494,6 +524,37 @@ impl KernelSet {
         &mut self,
         values: &std::collections::BTreeMap<Symbol, f64>,
     ) -> Result<(), KernelError> {
+        if self.contour_capable() {
+            let mut physics = values.clone();
+            let lambda = physics
+                .remove(&crate::contour::lambda_symbol())
+                .ok_or_else(|| {
+                    KernelError::Parameters(
+                        "missing contour strength; use bind_parameters_with_contour".into(),
+                    )
+                })?;
+            return self.bind_parameters_with_contour(
+                &physics,
+                &crate::contour::ContourSettings {
+                    deformation: crate::contour::ContourMode::Fixed { lambda },
+                    ..Default::default()
+                },
+            );
+        }
+        self.bind_parameters_raw(values)
+    }
+
+    fn bind_parameters_raw(
+        &mut self,
+        values: &std::collections::BTreeMap<Symbol, f64>,
+    ) -> Result<(), KernelError> {
+        if let Some(lambda) = values.get(&crate::contour::lambda_symbol())
+            && (!lambda.is_finite() || *lambda <= 0.0)
+        {
+            return Err(KernelError::Parameters(
+                "fixed contour strength must be finite and positive".into(),
+            ));
+        }
         for symbol in values.keys() {
             if !self.runtime_parameters.contains(symbol) {
                 return Err(KernelError::Parameters(format!(

@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::{
-    FactorRole, ParametricDomain, ParametricError, ParametricIntegrand, ParametricTerm,
-    PolynomialFactor,
+    FactorRole, FactorSemantics, ParametricDomain, ParametricError, ParametricIntegrand,
+    ParametricTerm, PolynomialFactor,
 };
 
 /// A scalar projective Feynman-parameter integral on `sum(parameters) = 1`.
@@ -90,12 +90,14 @@ impl ScalarParametricIntegral {
                         self.u.clone(),
                         self.u_exponent.clone(),
                         FactorRole::Singularity,
-                    ),
+                    )
+                    .with_semantics(FactorSemantics::Positive),
                     PolynomialFactor::new(
                         self.f.clone(),
                         self.f_exponent.clone(),
                         FactorRole::Singularity,
-                    ),
+                    )
+                    .with_semantics(FactorSemantics::Causal),
                 ],
             )],
         )

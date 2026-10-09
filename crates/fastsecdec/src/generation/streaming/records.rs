@@ -9,7 +9,9 @@ use crate::{
             subtraction::{Coordinate, Recipe, Request},
         },
     },
-    parametric::{FactorRole, ParametricIntegrand, ParametricTerm, PolynomialFactor},
+    parametric::{
+        FactorRole, FactorSemantics, ParametricIntegrand, ParametricTerm, PolynomialFactor,
+    },
 };
 use fastsecdec_sectors::{DecompositionOptions, ParametricDomain, SectorMap};
 use serde::{Deserialize, Serialize};
@@ -20,6 +22,8 @@ use symbolica::atom::{AliasedAtom, AtomCore, Symbol};
 pub(super) struct Options {
     mode: GenerationMode,
     assume_no_threshold: bool,
+    #[serde(default)]
+    contour: bool,
     max_order: i32,
     max_support_pairs: usize,
     max_rays: usize,
@@ -34,6 +38,7 @@ impl From<&GenerationOptions> for Options {
         Self {
             mode: x.mode,
             assume_no_threshold: x.assume_no_threshold,
+            contour: x.contour,
             max_order: x.max_order,
             max_support_pairs: x.decomposition.max_support_pairs,
             max_rays: x.decomposition.max_rays,
@@ -50,6 +55,7 @@ impl From<Options> for GenerationOptions {
         Self {
             mode: x.mode,
             assume_no_threshold: x.assume_no_threshold,
+            contour: x.contour,
             max_order: x.max_order,
             decomposition: DecompositionOptions {
                 max_support_pairs: x.max_support_pairs,
@@ -124,6 +130,8 @@ struct Factor {
     polynomial: usize,
     exponent: usize,
     polynomial_role: bool,
+    #[serde(default)]
+    semantics: FactorSemantics,
 }
 #[derive(Serialize, Deserialize)]
 struct Term {
@@ -170,6 +178,7 @@ pub(super) fn write_source(
                     polynomial: atoms.push(f.polynomial()),
                     exponent: atoms.push(f.exponent()),
                     polynomial_role: f.role() == FactorRole::Polynomial,
+                    semantics: f.semantics(),
                 })
                 .collect(),
         })
@@ -232,7 +241,8 @@ pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context,
                             } else {
                                 FactorRole::Singularity
                             },
-                        ))
+                        )
+                        .with_semantics(f.semantics))
                     })
                     .collect::<Result<_, StreamingError>>()?,
             ))
@@ -284,6 +294,49 @@ struct Chart {
     map: Map,
     mapped: Vec<Mapped>,
     deferred: Option<Vec<Vec<DeferredFactor>>>,
+    #[serde(default)]
+    contour: Option<Contour>,
+}
+#[derive(Serialize, Deserialize)]
+struct Contour {
+    causal_polynomial: usize,
+    positive_polynomials: Vec<usize>,
+    images: Vec<usize>,
+    ratios: Vec<usize>,
+    jacobian: usize,
+    validation_faces: Vec<Vec<(usize, u8)>>,
+}
+impl Contour {
+    fn save(metadata: &crate::contour::ContourMetadata, atoms: &mut Atoms) -> Self {
+        Self {
+            causal_polynomial: atoms.push(metadata.causal_polynomial()),
+            positive_polynomials: metadata
+                .positive_polynomials()
+                .iter()
+                .map(|a| atoms.push(a))
+                .collect(),
+            images: metadata.images().iter().map(|a| atoms.push(a)).collect(),
+            ratios: metadata.ratios().iter().map(|a| atoms.push(a)).collect(),
+            jacobian: atoms.push(metadata.jacobian()),
+            validation_faces: metadata.validation_faces().to_vec(),
+        }
+    }
+    fn native(self, atoms: &Atoms) -> Result<crate::contour::ContourMetadata, StreamingError> {
+        let restore = |indices: Vec<usize>| {
+            indices
+                .into_iter()
+                .map(|i| atoms.take(i))
+                .collect::<Result<Vec<_>, _>>()
+        };
+        Ok(crate::contour::ContourMetadata {
+            causal_polynomial: atoms.take(self.causal_polynomial)?,
+            positive_polynomials: restore(self.positive_polynomials)?,
+            images: restore(self.images)?,
+            ratios: restore(self.ratios)?,
+            jacobian: atoms.take(self.jacobian)?,
+            validation_faces: self.validation_faces,
+        })
+    }
 }
 pub(super) struct ChartData {
     pub index: usize,
@@ -291,6 +344,7 @@ pub(super) struct ChartData {
     pub map: SectorMap,
     pub mapped: Vec<MappedTerm>,
     pub deferred: Option<Vec<DualTerm>>,
+    pub contour: Option<crate::contour::ContourMetadata>,
 }
 pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, StreamingError> {
     let mut atoms = Atoms::default();
@@ -328,6 +382,10 @@ pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, St
             map: (&data.map).into(),
             mapped,
             deferred,
+            contour: data
+                .contour
+                .as_ref()
+                .map(|metadata| Contour::save(metadata, &mut atoms)),
         },
         atoms,
         vec![],
@@ -378,6 +436,10 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
         map: chart.map.native()?,
         mapped,
         deferred,
+        contour: chart
+            .contour
+            .map(|metadata| metadata.native(&atoms))
+            .transpose()?,
     })
 }
 

@@ -42,6 +42,29 @@ pub struct PortableMetadata {
     domain: domain::PortableAssessment,
     charts: Vec<chart::PortableChart>,
 }
+#[derive(bincode::Encode, bincode::Decode)]
+#[bincode(decode_context = "StateMap")]
+pub(in crate::kernel) struct LegacyMetadata {
+    domain: domain::PortableAssessment,
+    charts: Vec<chart::LegacyChart>,
+}
+impl From<LegacyMetadata> for PortableMetadata {
+    fn from(value: LegacyMetadata) -> Self {
+        Self {
+            domain: value.domain,
+            charts: value.charts.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+#[cfg(test)]
+impl From<PortableMetadata> for LegacyMetadata {
+    fn from(value: PortableMetadata) -> Self {
+        Self {
+            domain: value.domain,
+            charts: value.charts.into_iter().map(Into::into).collect(),
+        }
+    }
+}
 impl PortableMetadata {
     pub(in crate::kernel) fn visit_atoms(&self, visit: &mut impl FnMut(&Atom)) {
         self.domain.visit_atoms(visit);

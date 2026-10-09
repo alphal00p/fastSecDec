@@ -25,6 +25,7 @@ impl CompilationSession {
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         settings.validate()?;
+        let runtime_parameters = runtime_inputs(&generated, &runtime_parameters);
         let use_complex = requires_complex(&generated, &runtime_parameters);
         Ok(Self {
             generated,

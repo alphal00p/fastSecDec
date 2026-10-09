@@ -64,7 +64,7 @@ pub fn prepare_with_runtime(
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<Preparation, StreamingError> {
     let started = Instant::now();
-    let _ = domain::check(input, options.assume_no_threshold)?;
+    let _ = domain::check_options(input, options)?;
     poll(
         &mut progress,
         GenerationProgress::PhaseTiming {
@@ -77,7 +77,7 @@ pub fn prepare_with_runtime(
     let mut supports = Vec::new();
     for term in input.terms() {
         for factor in term.factors() {
-            if domain::is_singular(factor) {
+            if domain::is_geometry_factor(factor, options.contour) {
                 let support = cache.get(factor).map_err(GenerationError::from)?;
                 if !supports.contains(support) {
                     supports.push(support.clone());
@@ -201,6 +201,7 @@ pub fn discover(
                 map: chart.map,
                 mapped: chart.mapped,
                 deferred: None,
+                contour: chart.contour,
             },
             Some(key),
             None,
@@ -223,6 +224,7 @@ pub fn discover(
                 map: chart.map,
                 mapped: chart.mapped,
                 deferred: Some(chart.terms),
+                contour: chart.contour,
             },
             None,
             key,

@@ -64,6 +64,7 @@ pub(super) fn run(
     replay: &AcceptedReplay,
     frozen_replay: &AcceptedReplay,
     batch_size: usize,
+    stage: fastsecdec::status::IntegrationStage,
     mut poll: impl FnMut(
         Vec<IntegrationWorkerActivity>,
         &dyn Fn() -> Vec<fastsecdec::integration::McLiveBatch>,
@@ -126,6 +127,7 @@ pub(super) fn run(
                         stop,
                         progress,
                         batch_size,
+                        stage,
                     )
                 }))
                 .map_err(|payload| {
@@ -198,6 +200,7 @@ fn evaluate(
     stop: &AtomicBool,
     progress: &Progress,
     batch_size: usize,
+    stage: fastsecdec::status::IntegrationStage,
 ) -> Completed {
     let _span = slot.meter.task(None);
     let batch = task.batch();
@@ -236,6 +239,7 @@ fn evaluate(
             super::super::evaluate_batch_observed(
                 slot.contexts.get_mut(&id).expect("native selected sector"),
                 id,
+                stage,
                 points,
                 weights,
                 output,

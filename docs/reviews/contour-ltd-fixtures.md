@@ -1,8 +1,9 @@
 # LTD fixture provenance and import research
 
-2026-10-09. Research for the multiloop acceptance suite in
-[CONTOUR_DEFORMATION_PLAN.md](../../CONTOUR_DEFORMATION_PLAN.md). No fixture
-generation or multiloop integration was performed for this review.
+2026-10-09. Provenance and native import review for the multiloop acceptance
+suite in [CONTOUR_DEFORMATION_PLAN.md](../../CONTOUR_DEFORMATION_PLAN.md).
+The Rust fixture importer and its input-only checks are described below;
+multiloop sector generation and numerical integration have not been performed.
 
 ## Immutable source pin
 
@@ -16,10 +17,11 @@ The source archive contains a nested RAR, not directly exposed YAML files:
 | `ancillary_material/ancillary_material.rar` | `97efb556021a988b999e60c86854f6591942cfe3d674a0b9b228b4cdfedd700d` |
 | `paper_topologies.yaml` inside that RAR | `6ad6216da1051a0ff860f80f14cf9b4534cb85aa0f38d48bac06a0e968dd0b68` |
 
-Local research copies and the five selected numerical records are under
-`target/contour_ltd_research/`; none should be committed as raw benchmark or
-third-party archive data. Native fixture production should retain the source
-URL, these digests, selected record identity and the explicit imported values.
+Local raw research copies are under `target/contour_ltd_research/`; the archives
+and raw YAML remain untracked. The four admitted numerical records are retained
+as a small explicit fixture in `examples/contour/ltd/ancillary-records.json`,
+including their original record identities and block hashes. Native fixture
+production retains the source URL, these digests and explicit imported values.
 Use a standard archive reader and standard YAML parser during one-time data
 inspection; neither becomes a FastSecDec production dependency.
 
@@ -80,10 +82,11 @@ inclusive, with original LF newlines:
 
 ## Native import protocol
 
-The later implementation should create an ordinary HEPKit diagram/family and
-kinematics fixture. Reuse `FeynmanDiagram::from_dot`,
-`FeynmanDiagram::propagator_family`, native `IntegralFamily::new` and
-`Kinematics`; use Linnet to validate graph incidence, cycles and graph identity.
+The implementation in `crates/fastsecdec/examples/ltd_contour/` creates ordinary
+HEPKit diagram/family and kinematics fixtures. It reuses
+`FeynmanDiagram::from_dot`, `FeynmanDiagram::propagator_family`, native
+`IntegralFamily::new`, `Kinematics` and `FourMomentum`; native graph/basis
+validation and Linnet incidence supply the topology checks.
 No separate DOT parser, graph class, loop-routing solver or Symanzik builder is
 needed. FastSecDec already accepts these native objects and delegates U/F
 construction to them.
@@ -105,6 +108,42 @@ claim every independently rounded decimal identity is exact. Use native
 kinematics for Minkowski scalar products and record any necessary roundoff
 reconciliation. The massive K1 record's `m_squared=0.16000000000000003`
 represents the stated common mass 0.4; preserve this provenance explicitly.
+
+The implemented reconciliation uses Numerica's exact `Rational::try_from(f64)`
+for every stored source component, preserving its binary floating value rather
+than declaring all separately rounded decimal identities exact. Only HEPKit's
+chosen dependent external vector is replaced by minus the sum of the independent
+all-outgoing vectors. Source shifts and conservation are checked to `5e-14`,
+and the stated exact mass `2/5` is checked against archived mass-squared within
+`5e-15`. The exporter records the actual residuals and exact reconciled vectors.
+
+## Ecosystem reuse evidence
+
+Public API inspection found all required operations in existing owners:
+
+- HEPKit's diagram propagator-family API retains ascending internal edge order
+  and delegates quadratic denominators and loop routing to its native basis.
+- `LoopMomentumBasis::validate` checks its spanning-tree complement; its
+  `route_expression` replaces native `Q(edge)` atoms. The importer uses that
+  operation also for the dependent external edge, rather than writing a new
+  external-momentum substitution convention.
+- `IntegralFamily::symanzik` supplies both graph and independently reconstructed
+  archived-denominator U/F. Exact comparison uses Symbolica's native polynomial
+  expressions; expansion is confined to these necessary finite identity checks.
+- `FourMomentum<Atom>::dot` supplies the mostly-minus metric. Native
+  `Kinematics` supplies all formal loop/external scalar products. Symbolica's
+  native polynomial coefficient view checks homogeneity and U coefficient signs.
+- Source inspection of Numerica's `TryFrom<f64> for Rational` confirms exact
+  binary conversion; no decimal-rational approximation helper was introduced.
+
+These were checked in the pinned HEPKit sources `integrals/diagram.rs`,
+`integrals/parametric.rs`, `routing.rs`, the graph's native basis validation,
+`feynkit-kinematics/src/momentum.rs`, and Numerica's rational conversion source.
+The executable third check is the `ltd_contour` example test, matching every
+archived denominator, complete U/F and a native DOT export/import round trip.
+The finite fixture momentum-shift tables are source provenance, not a router
+or general graph-isomorphism algorithm. No dependency patch is required for
+this importer.
 
 ## Measure conversion
 
@@ -132,3 +171,38 @@ The next scientific sequence remains analytic controls, the required two-loop
 records, then `3L4P.K1`. Published LTD evaluation timings have no direct
 FastSecDec hardware/backend parity interpretation. Fresh pySecDec reference
 runs retain the ten-minute/15-GB ceiling.
+
+## Import acceptance evidence
+
+The native exporter validated all four inputs and wrote run cards, native DOT
+and compact validation manifests under `examples/contour/ltd/`. Input-only CLI
+inspection admits every card. No multiloop sector generation was invoked.
+
+| Record | Matched denominators | U terms | F terms | Positive / negative F coefficients |
+| --- | ---: | ---: | ---: | ---: |
+| `2L4P.b.K1` | 7 | 15 | 31 | 1 / 30 |
+| `2L4P.b.K1*` | 7 | 15 | 63 | 33 / 30 |
+| `2L6P.a.I` | 9 | 20 | 62 | 0 / 62 |
+| `3L4P.K1` | 10 | 56 | 145 | 1 / 144 |
+
+The maximum conservation/archived-shift reconciliation is `4.441e-16` for the
+ladder cases and `3.469e-18` for the six-point case. All U/F coefficients have
+native definite signs after scalar binding; no unresolved parameter is hidden
+in the sign count. DOT export/import preserves each ordered denominator exactly.
+
+The six-point input has exclusively negative F coefficients. It is therefore a
+physical causal-branch and real-result control, not evidence of avoiding an
+interior F zero. This does not replace the required ladder threshold controls.
+
+Focused native tests pass the four imports and round trips, reject a deliberately
+perturbed archived shift, and verify the normalization with an actually
+generated/compiled repeated-propagator one-loop integral. Its exact coefficient
+is `-1/2`, independently reproduced by the native OneLOop C0 API; applying the
+paper measure gives `-i/(32*pi^2)`. This tests FastSecDec's coefficient, not merely
+a manually supplied reference constant. The final four-test gate took 1.47s
+after compilation, and strict core all-target Clippy passed before the final
+parser regression was added. That regression confirms Symbolica's canonical
+`ltd::{}::eps` spelling parses back to the exact declared `ltd::eps` symbol;
+the measure contains no extra nonbuiltin free variable. Logs remain under
+untracked `target/contour-ltd-*`; the combined public-dependency workspace gate
+will include the final parser regression too.

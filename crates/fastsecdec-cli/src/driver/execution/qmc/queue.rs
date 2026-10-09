@@ -56,7 +56,13 @@ struct Completed {
 
 #[cfg(test)]
 fn evaluate(slot: QmcSlot, task: QmcTask, stop: &AtomicBool) -> Completed {
-    evaluate_batch(slot, task, stop, 1)
+    evaluate_batch(
+        slot,
+        task,
+        stop,
+        1,
+        fastsecdec::status::IntegrationStage::Production,
+    )
 }
 
 fn evaluate_batch(
@@ -64,6 +70,7 @@ fn evaluate_batch(
     task: QmcTask,
     stop: &AtomicBool,
     batch_size: usize,
+    stage: fastsecdec::status::IntegrationStage,
 ) -> Completed {
     let sector = task.sector_id() as usize;
     let _span = slot.meter.task(Some(sector as u64));
@@ -86,6 +93,7 @@ fn evaluate_batch(
                 super::super::evaluate_batch_observed(
                     &mut active.context,
                     sector as u64,
+                    stage,
                     points,
                     weights,
                     output,
@@ -128,8 +136,9 @@ impl Phase<'_> {
             bool,
         ) -> CliResult<Outcome>,
     ) -> CliResult<Outcome> {
+        let stage = self.session.stage();
         self.run_with(poll, &|slot, task, stop| {
-            evaluate_batch(slot, task, stop, batch_size)
+            evaluate_batch(slot, task, stop, batch_size, stage)
         })
     }
 

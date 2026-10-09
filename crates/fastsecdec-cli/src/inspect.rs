@@ -10,8 +10,10 @@ use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
 use fastsecdec::kernel::{KernelLoadOptions, KernelSet, PortableMetadata};
 use std::{io::IsTerminal, path::Path};
 
+#[allow(clippy::too_many_arguments)]
 pub fn artifact(
     path: &Path,
+    recipe: Option<fastsecdec::kernel::indexed::ProgramRecipe>,
     options: KernelLoadOptions,
     deep: bool,
     expressions: bool,
@@ -20,7 +22,10 @@ pub fn artifact(
     json: bool,
 ) -> CliResult<()> {
     if !deep {
-        let artifact = Artifact::load_metadata_with_options(path, options)?;
+        let mut artifact = Artifact::load_metadata_with_options(path, options)?;
+        if let Some(recipe) = recipe {
+            artifact.select_recipe(recipe)?;
+        }
         let summary = artifact.kernel_summary()?;
         lightweight::validate_sector(&summary, sector)?;
         if json {
@@ -35,12 +40,25 @@ pub fn artifact(
         return Ok(());
     }
     if let Some(id) = sector {
-        let artifact = Artifact::load_metadata_with_options(path, options)?;
+        let mut artifact = Artifact::load_metadata_with_options(path, options)?;
+        if let Some(recipe) = recipe {
+            artifact.select_recipe(recipe)?;
+        }
         if artifact.catalogue().is_some() {
             return selected::inspect(path, artifact, options, id, expressions, plain, json);
         }
     }
-    let (artifact, kernels) = Artifact::load_with_options(path, options)?;
+    let (artifact, kernels) = if recipe.is_some() {
+        Artifact::load_recipe_observed(
+            path,
+            options,
+            recipe,
+            |_| Ok(()),
+            |_| std::ops::ControlFlow::Continue(()),
+        )?
+    } else {
+        Artifact::load_with_options(path, options)?
+    };
     if let Some(id) = sector
         && id >= kernels.sectors().len()
     {
@@ -54,6 +72,10 @@ pub fn artifact(
         let value = if let Some(id) = sector {
             serde_json::json!({
                 "content_id":artifact.content_id,
+                "kernel_content_id":artifact.kernel_content_id,
+                "selected_catalogue_content_id":artifact.catalogue().map(|c|c.content_id),
+                "selected_recipe":artifact.selected_recipe(),
+                "available_recipes":artifact.programs.as_ref().map(|p|p.catalogue.recipes.iter().map(|r|r.recipe).collect::<Vec<_>>()),
                 "inspection_mode":"deep", "binary_loaded":true,
                 "binary_validated":artifact.validation.binary,
                 "metadata_identity_validated":artifact.validation.metadata_identity,
@@ -168,6 +190,10 @@ fn ranked_sectors(kernels: &KernelSet) -> Vec<usize> {
 fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
     serde_json::json!({
         "content_id":artifact.content_id,"provenance":artifact.provenance,
+        "kernel_content_id":artifact.kernel_content_id,
+        "selected_catalogue_content_id":artifact.catalogue().map(|c|c.content_id),
+        "selected_recipe":artifact.selected_recipe(),
+        "available_recipes":artifact.programs.as_ref().map(|p|p.catalogue.recipes.iter().map(|r|r.recipe).collect::<Vec<_>>()),
         "inspection_mode":"deep", "binary_loaded":true,
         "binary_validated":artifact.validation.binary,
         "metadata_identity_validated":artifact.validation.metadata_identity,

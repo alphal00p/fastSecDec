@@ -1,18 +1,19 @@
-//! Retained phase-one semantics. Maps describe the density pullback before
-//! endpoint subtraction; a compiled vector can also include boundary terms.
+//! Retained chart semantics before endpoint subtraction. Complex contour maps
+//! remain separate from positive-real sector measures and their geometry.
 use fastsecdec_sectors::{ParametricDomain, SectorMap};
 use symbolica::atom::{Atom, Symbol};
 mod pre_subtraction;
 pub use pre_subtraction::{EndpointPower, PreSubtractionMetadata, PreSubtractionTerm};
 
-/// Threshold regularization is not implemented. The caller chooses a suitable
-/// integration point; generation makes no assertion about threshold absence.
+/// Branch convention and optional causal-contour capability of generation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BranchPolicy {
     /// Historical artifacts whose generation performed a domain assessment.
     NoThresholdReal,
     /// No threshold certification or regularization was requested or performed.
     UserResponsible,
+    /// Generated with an explicit F-directed contour; strength is runtime input.
+    CausalContour,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -129,8 +130,12 @@ pub struct ChartRecord {
     pub(crate) coordinates: CoordinateMap,
     pub(crate) geometry: SectorMap,
     pub(crate) pre_subtraction: Option<PreSubtractionMetadata>,
+    pub(crate) contour: Option<crate::contour::ContourMetadata>,
 }
 impl ChartRecord {
+    pub fn contour(&self) -> Option<&crate::contour::ContourMetadata> {
+        self.contour.as_ref()
+    }
     pub fn source_index(&self) -> usize {
         self.source_index
     }

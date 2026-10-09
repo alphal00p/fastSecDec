@@ -1,0 +1,635 @@
+diff --git a/src/solve.rs b/src/solve.rs
+index 58872d5..5b74232 100644
+--- a/src/solve.rs
++++ b/src/solve.rs
+@@ -8,6 +8,12 @@
+ 
+ use std::{ops::Neg, sync::Arc};
+ 
++mod bracketed;
++pub use bracketed::{
++    BracketedRoot, BracketedRootConvergence, BracketedRootError, BracketedRootOptions,
++    BracketedRootTermination, nsolve_bracketed,
++};
++
+ use ahash::{HashMap, HashSet};
+ use numerica::domains::{
+     Field, RealEmbedding, Ring, RingOps,
+diff --git a/src/solve/bracketed.rs b/src/solve/bracketed.rs
+new file mode 100644
+index 0000000..5e056c9
+--- /dev/null
++++ b/src/solve/bracketed.rs
+@@ -0,0 +1,267 @@
++//! Prepared numerical scalar refinement. No symbolic work is performed here.
++use numerica::domains::float::{Real, RealLike};
++
++/// Coordinate tolerances are expressed in the callback's native number domain.
++/// Use zero absolute tolerance when small nonzero roots require relative accuracy.
++#[derive(Clone, Debug)]
++pub struct BracketedRootOptions<N> {
++    pub absolute_tolerance: N,
++    pub relative_tolerance: N,
++    pub max_iterations: usize,
++    pub initial_guess: Option<N>,
++    pub convergence: BracketedRootConvergence,
++}
++
++#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
++pub enum BracketedRootConvergence {
++    /// Stop on the numerical bracket width or an evaluated numerical zero.
++    #[default]
++    Bracket,
++    /// Also allow a small local Newton correction. This need not bound the
++    /// distance to a root for a general function with rapidly varying derivative.
++    NewtonOrBracket,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum BracketedRootTermination {
++    /// The evaluated value has zero numerical centre; this is not an exact proof.
++    NumericalZero,
++    /// A local heuristic, not a general root-distance guarantee.
++    NewtonCorrection,
++    BracketWidth,
++}
++
++/// An ordinary numerical sign bracket, not a certified interval enclosure.
++/// Tracked domains retain their arithmetic uncertainty in `root`; neither this
++/// bracket nor the stopping criteria certify that uncertainty or uniqueness.
++#[derive(Clone, Debug)]
++pub struct BracketedRoot<N> {
++    pub root: N,
++    pub lower: N,
++    pub upper: N,
++    pub lower_value: N,
++    pub upper_value: N,
++    pub residual: N,
++    pub iterations: usize,
++    pub evaluations: usize,
++    pub termination: BracketedRootTermination,
++}
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum BracketedRootError {
++    InvalidInput(&'static str),
++    NotBracketed,
++    NonFinite,
++    SingularRootDerivative,
++    Stagnation,
++    IterationLimit,
++    CounterOverflow,
++}
++
++impl std::fmt::Display for BracketedRootError {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::InvalidInput(reason) => write!(f, "invalid bracketed root input: {reason}"),
++            Self::NotBracketed => f.write_str("root endpoint values do not bracket zero"),
++            Self::NonFinite => f.write_str("nonfinite bracketed root value or derivative"),
++            Self::SingularRootDerivative => f.write_str("root has a zero numerical derivative"),
++            Self::Stagnation => f.write_str("root refinement stagnated before reaching tolerance"),
++            Self::IterationLimit => f.write_str("root refinement reached its iteration limit"),
++            Self::CounterOverflow => f.write_str("root evaluation counter overflow"),
++        }
++    }
++}
++impl std::error::Error for BracketedRootError {}
++
++/// Refine a simple real root from an already prepared `(f(x), f'(x))` callback.
++/// The caller supplies a continuous function with a root in the sign bracket.
++/// Newton steps are safeguarded by bisection; the callback is never constructed,
++/// differentiated or optimized here. Endpoints may themselves be roots.
++///
++/// Every operation stays in `N`. Even a zero numerical centre receives a Newton
++/// correction before return, so error-tracked coefficient inputs are not replaced
++/// by an exact endpoint/initial-guess constant. The tracker remains heuristic;
++/// iteration decisions use its centre comparisons, not certified interval signs.
++/// A caller requiring certification must independently enclose endpoint signs.
++pub fn nsolve_bracketed<N, F>(
++    mut lower: N,
++    mut upper: N,
++    options: &BracketedRootOptions<N>,
++    mut evaluate: F,
++) -> Result<BracketedRoot<N>, BracketedRootError>
++where
++    N: RealLike + Real + PartialOrd,
++    F: FnMut(&N) -> (N, N),
++{
++    use BracketedRootError as Error;
++    let zero = lower.zero();
++    if !lower.is_finite() || !upper.is_finite() || lower >= upper {
++        return Err(Error::InvalidInput(
++            "finite strictly ordered endpoints are required",
++        ));
++    }
++    let abs = &options.absolute_tolerance;
++    let rel = &options.relative_tolerance;
++    if !abs.is_finite()
++        || !rel.is_finite()
++        || abs < &zero
++        || rel < &zero
++        || (abs.is_zero() && rel.is_zero())
++        || options.max_iterations == 0
++    {
++        return Err(Error::InvalidInput(
++            "nonnegative finite tolerances, one positive, and a nonzero iteration limit are required",
++        ));
++    }
++    if let Some(initial) = &options.initial_guess {
++        if !initial.is_finite() || initial < &lower || initial > &upper {
++            return Err(Error::InvalidInput(
++                "initial guess lies outside the finite bracket",
++            ));
++        }
++    }
++    let two = lower.from_usize(2);
++    let mut evaluations = 0usize;
++    let mut checked = |point: &N| {
++        evaluations = evaluations.checked_add(1).ok_or(Error::CounterOverflow)?;
++        let (value, derivative) = evaluate(point);
++        if value.is_finite() && derivative.is_finite() {
++            Ok((value, derivative))
++        } else {
++            Err(Error::NonFinite)
++        }
++    };
++    let (mut lower_value, lower_derivative) = checked(&lower)?;
++    let (mut upper_value, upper_derivative) = checked(&upper)?;
++    let endpoint = if lower_value.is_zero() {
++        Some((lower.clone(), lower_value.clone(), lower_derivative))
++    } else if upper_value.is_zero() {
++        Some((upper.clone(), upper_value.clone(), upper_derivative))
++    } else {
++        None
++    };
++    let (mut current, mut current_evaluation) = if let Some((point, value, derivative)) = endpoint {
++        (point, Some((value, derivative)))
++    } else {
++        if (lower_value > zero) == (upper_value > zero) {
++            return Err(Error::NotBracketed);
++        }
++        (
++            options
++                .initial_guess
++                .clone()
++                .unwrap_or_else(|| lower.clone() / &two + upper.clone() / &two),
++            None,
++        )
++    };
++    let mut previous_step = upper.clone() / &two - lower.clone() / &two;
++    for iteration in 0..options.max_iterations {
++        let (value, derivative) = match current_evaluation.take() {
++            Some(values) => values,
++            None => checked(&current)?,
++        };
++        let numerical_zero = value.is_zero();
++        if numerical_zero && derivative.is_zero() {
++            return Err(Error::SingularRootDerivative);
++        }
++        if !numerical_zero {
++            if (value > zero) == (lower_value > zero) {
++                lower = current.clone();
++                lower_value = value.clone();
++            } else {
++                upper = current.clone();
++                upper_value = value.clone();
++            }
++        }
++        let tolerance = abs.clone() + rel.clone() * current.norm();
++        if !tolerance.is_finite() {
++            return Err(Error::NonFinite);
++        }
++        let newton = if derivative.is_zero() {
++            None
++        } else {
++            let correction = value / derivative;
++            let candidate = current.clone() - &correction;
++            (correction.is_finite() && candidate.is_finite()).then_some((candidate, correction))
++        };
++        if let Some((candidate, correction)) = &newton {
++            // A final rounded Newton correction may land just outside a narrow
++            // sign bracket. Admit it only if the bracket enlarged to contain
++            // it still meets the coordinate tolerance. Keeping the correction
++            // preserves tracked coefficient uncertainty at the returned root.
++            let enclosing_lower = if candidate < &lower {
++                candidate
++            } else {
++                &lower
++            };
++            let enclosing_upper = if candidate > &upper {
++                candidate
++            } else {
++                &upper
++            };
++            let enclosing_half_width =
++                enclosing_upper.clone() / &two - enclosing_lower.clone() / &two;
++            let termination = if numerical_zero {
++                Some(BracketedRootTermination::NumericalZero)
++            } else if options.convergence == BracketedRootConvergence::NewtonOrBracket
++                && correction.norm() <= tolerance
++                && !tolerance.is_zero()
++                && candidate >= &lower
++                && candidate <= &upper
++            {
++                Some(BracketedRootTermination::NewtonCorrection)
++            } else if enclosing_half_width <= tolerance.clone() / &two && !tolerance.is_zero() {
++                Some(BracketedRootTermination::BracketWidth)
++            } else {
++                None
++            };
++            if let Some(termination) = termination {
++                let (residual, _) = checked(candidate)?;
++                if candidate < &lower {
++                    if !residual.is_zero() && (residual > zero) != (lower_value > zero) {
++                        upper = lower;
++                        upper_value = lower_value;
++                    }
++                    lower = candidate.clone();
++                    lower_value = residual.clone();
++                } else if candidate > &upper {
++                    if !residual.is_zero() && (residual > zero) != (upper_value > zero) {
++                        lower = upper;
++                        lower_value = upper_value;
++                    }
++                    upper = candidate.clone();
++                    upper_value = residual.clone();
++                }
++                return Ok(BracketedRoot {
++                    root: candidate.clone(),
++                    lower,
++                    upper,
++                    lower_value,
++                    upper_value,
++                    residual,
++                    iterations: iteration + 1,
++                    evaluations,
++                    termination,
++                });
++            }
++        }
++        // Requiring successive Newton corrections to contract avoids a run of
++        // arbitrarily poor in-bracket steps. Rejected steps use the safe midpoint.
++        let next = match newton {
++            Some((candidate, correction))
++                if candidate > lower
++                    && candidate < upper
++                    && correction.norm() <= previous_step.clone() / &two =>
++            {
++                candidate
++            }
++            _ => lower.clone() / &two + upper.clone() / &two,
++        };
++        if next == current || next <= lower || next >= upper {
++            return Err(Error::Stagnation);
++        }
++        previous_step = (next.clone() - &current).norm();
++        current = next;
++    }
++    Err(Error::IterationLimit)
++}
+diff --git a/tests/prepared_bracketed_evaluator.rs b/tests/prepared_bracketed_evaluator.rs
+new file mode 100644
+index 0000000..f80dab9
+--- /dev/null
++++ b/tests/prepared_bracketed_evaluator.rs
+@@ -0,0 +1,126 @@
++use symbolica::{
++    atom::{Atom, AtomCore},
++    domains::{
++        float::{Complex, DoubleFloat, Float, Real, RealLike},
++        rational::Rational,
++    },
++    evaluate::{EvaluationDomain, ExpressionEvaluator},
++    solve::{BracketedRootConvergence, BracketedRootOptions, nsolve_bracketed},
++    symbol,
++};
++
++fn prepared_equation() -> ExpressionEvaluator<Complex<Rational>> {
++    let x = symbol!("prepared_scalar_root::x");
++    let a = symbol!("prepared_scalar_root::a");
++    let b = symbol!("prepared_scalar_root::b");
++    let c = symbol!("prepared_scalar_root::c");
++    let value = Atom::var(a) * Atom::var(x).pow(2)
++        + Atom::var(b) * Atom::var(x).pow(4)
++        + Atom::var(c) * Atom::var(x).pow(6)
++        - Atom::one();
++    let derivative = value.derivative(x);
++    Atom::evaluator_multiple(
++        &[value, derivative],
++        &[Atom::var(x), Atom::var(a), Atom::var(b), Atom::var(c)],
++    )
++    .build()
++    .unwrap()
++}
++
++fn eager_control<N: RealLike + Real + PartialOrd + EvaluationDomain>(
++    one: N,
++    tolerance: N,
++    bits: u32,
++) {
++    // Symbolic derivatives, optimization and coefficient mapping happen once.
++    let mut program = prepared_equation().map_coeff_with_prec(
++        &|coefficient| {
++            assert_eq!(coefficient.im, Rational::from(0));
++            one.from_rational(&coefficient.re)
++        },
++        bits,
++    );
++    let settings = BracketedRootOptions {
++        absolute_tolerance: one.zero(),
++        relative_tolerance: tolerance.clone(),
++        max_iterations: 256,
++        initial_guess: None,
++        convergence: BracketedRootConvergence::Bracket,
++    };
++    let mut output = [one.zero(), one.zero()];
++    for coefficients in [[1, 0, 0], [4, 0, 0], [1, 2, 3], [7, 5, 19]] {
++        let parameters = coefficients.map(|a| one.from_usize(a));
++        let answer = nsolve_bracketed(one.zero(), one.clone(), &settings, |x| {
++            program.evaluate(
++                &[
++                    x.clone(),
++                    parameters[0].clone(),
++                    parameters[1].clone(),
++                    parameters[2].clone(),
++                ],
++                &mut output,
++            );
++            (output[0].clone(), output[1].clone())
++        })
++        .unwrap();
++        assert!(answer.residual.norm() < tolerance.clone() * one.from_usize(64));
++        if coefficients[1] == 0 && coefficients[2] == 0 {
++            let expected = one.clone() / parameters[0].sqrt();
++            assert!((answer.root - expected).norm() <= tolerance);
++        }
++    }
++}
++
++#[test]
++fn prepared_native_evaluator_retains_scalar_precision() {
++    eager_control(1f64, 1e-14, 53);
++    eager_control(DoubleFloat::from(1.), DoubleFloat::from(1e-29), 106);
++    eager_control(Float::with_val(192, 1), Float::with_val(192, 1e-50), 192);
++}
++
++#[cfg(feature = "native_code_generation")]
++#[test]
++fn prepared_jit_evaluator_is_borrowed_across_refinements() {
++    use symbolica::evaluate::JITCompilationSettings;
++
++    let mut program = prepared_equation()
++        .jit_compile::<f64>(
++            JITCompilationSettings::default()
++                .optimization_level(2)
++                .direct_translation(true)
++                .with_option("use_threads", "false"),
++        )
++        .unwrap();
++    let mut settings = BracketedRootOptions {
++        absolute_tolerance: 0.,
++        relative_tolerance: 1e-14,
++        max_iterations: 256,
++        initial_guess: None,
++        convergence: BracketedRootConvergence::Bracket,
++    };
++    let mut output = [0.; 2];
++    for a in [1., 4., 16., 1e100, 1e200] {
++        settings.initial_guess = (a > 1e20).then(|| 1. / f64::sqrt(a));
++        let answer = nsolve_bracketed(0., 1., &settings, |x| {
++            program.evaluate(&[*x, a, 0., 0.], &mut output);
++            (output[0], output[1])
++        })
++        .unwrap();
++        assert!((answer.root * a.sqrt() - 1.).abs() < 1e-13);
++    }
++    // Prepared floating programs can give the final correction just beyond a
++    // narrow numerical sign bracket. This coefficient set exposed a spurious
++    // stagnation after the requested tolerance had already been reached.
++    settings.initial_guess = Some(1. / f64::sqrt(74.));
++    for sign in [1., -1.] {
++        let answer = nsolve_bracketed(0., 1., &settings, |x| {
++            program.evaluate(&[*x, 74., 124., 21.], &mut output);
++            (sign * output[0], sign * output[1])
++        })
++        .unwrap();
++        assert!(answer.lower <= answer.root && answer.root <= answer.upper);
++        assert!(answer.upper - answer.lower <= 1e-14 * answer.root);
++        assert!(sign * answer.lower_value <= 0. && sign * answer.upper_value >= 0.);
++        assert!(answer.residual.abs() < 1e-13);
++    }
++}
+diff --git a/tests/prepared_bracketed_root.rs b/tests/prepared_bracketed_root.rs
+new file mode 100644
+index 0000000..5056463
+--- /dev/null
++++ b/tests/prepared_bracketed_root.rs
+@@ -0,0 +1,207 @@
++use numerica::domains::float::{DoubleFloat, ErrorPropagatingFloat, Float, Real, RealLike};
++use symbolica::solve::{
++    BracketedRootConvergence, BracketedRootError, BracketedRootOptions, nsolve_bracketed,
++};
++
++fn options<N: RealLike>(one: &N, tolerance: N) -> BracketedRootOptions<N> {
++    BracketedRootOptions {
++        absolute_tolerance: one.zero(),
++        relative_tolerance: tolerance,
++        max_iterations: 256,
++        initial_guess: None,
++        convergence: BracketedRootConvergence::Bracket,
++    }
++}
++
++fn quadratic<N: RealLike + Real + PartialOrd>(one: N, tolerance: N) {
++    let two = one.from_usize(2);
++    let settings = options(&one, tolerance.clone());
++    let result = nsolve_bracketed(one.zero(), two.clone(), &settings, |x| {
++        (x.clone() * x - &two, two.clone() * x)
++    })
++    .unwrap();
++    assert!((result.root.clone() * &result.root - &two).norm() < tolerance * one.from_usize(8));
++    assert!(result.lower <= result.root && result.root <= result.upper);
++    assert!(result.lower_value <= one.zero() && result.upper_value >= one.zero());
++    assert!(result.iterations < 64);
++    assert!(result.evaluations >= result.iterations);
++}
++
++#[test]
++fn native_scalar_domains_keep_their_own_precision() {
++    quadratic(1f64, 1e-14);
++    quadratic(DoubleFloat::from(1.), DoubleFloat::from(1e-29));
++    quadratic(Float::with_val(192, 1), Float::with_val(192, 1e-50));
++}
++
++#[test]
++fn prepared_polynomial_callback_and_equation_scaling() {
++    let settings = options(&1f64, 1e-14);
++    let mut baseline: Option<f64> = None;
++    for scale in [1e-200, 1., 1e200, -1e-200, -1., -1e200] {
++        let mut calls = 0;
++        let root = nsolve_bracketed(0., 1., &settings, |x| {
++            calls += 1;
++            let x2 = x * x;
++            (
++                scale * (x2 * (1. + x2 * (2. + 3. * x2)) - 1.),
++                scale * (2. * x * (1. + x2 * (4. + 9. * x2))),
++            )
++        })
++        .unwrap();
++        assert_eq!(root.evaluations, calls);
++        let x2 = root.root * root.root;
++        assert!((x2 * (1. + x2 * (2. + 3. * x2)) - 1.).abs() < 1e-13);
++        if let Some(previous) = baseline {
++            assert!((root.root - previous).abs() < 1e-14);
++        }
++        baseline = Some(root.root);
++    }
++}
++
++#[test]
++fn relative_tolerance_handles_small_roots_and_endpoints() {
++    for root in [0., 1e-120, 1e-20, 0.5, 1. - f64::EPSILON, 1.] {
++        let mut settings = options(&1f64, 1e-14);
++        settings.initial_guess = Some(root);
++        let scale = root.max(1e-120);
++        let result =
++            nsolve_bracketed(0., 1., &settings, |x| ((x - root) / scale, 1. / scale)).unwrap();
++        assert_eq!(result.root, root);
++        assert_eq!(result.residual, 0.);
++    }
++    let settings = options(&1f64, 1e-14);
++    let root = nsolve_bracketed(0., 1., &settings, |x| (x - 1e-20, 1.)).unwrap();
++    assert!((root.root / 1e-20 - 1.).abs() < 1e-14);
++}
++
++#[test]
++fn zero_derivative_away_from_the_root_falls_back_safely() {
++    let mut settings = options(&1f64, 1e-13);
++    settings.initial_guess = Some(0.);
++    let result = nsolve_bracketed(0., 1., &settings, |x| (x * x * x - 0.001, 3. * x * x)).unwrap();
++    assert!((result.root - 0.1).abs() < 1e-13);
++}
++
++#[test]
++fn center_zero_and_endpoint_roots_retain_coefficient_uncertainty() {
++    tracked_control(1f64);
++    tracked_control(DoubleFloat::from(1.));
++    tracked_control(Float::with_val(192, 1));
++}
++
++fn tracked_control<N: RealLike + Real + PartialOrd>(unit: N) {
++    let exact = |x| ErrorPropagatingFloat::new_with_accuracy(x, f64::INFINITY);
++    for coefficient in [1, 2, 4] {
++        let coefficient = ErrorPropagatingFloat::new(unit.from_usize(coefficient), 6.);
++        let one = exact(unit.clone());
++        let two = exact(unit.from_usize(2));
++        let settings = options(
++            &one,
++            exact(unit.clone() / unit.from_i64(100_000_000_000_000)),
++        );
++        let result = nsolve_bracketed(exact(unit.zero()), one.clone(), &settings, |x| {
++            (
++                coefficient.clone() * x * x - &one,
++                two.clone() * &coefficient * x,
++            )
++        })
++        .unwrap();
++        let expected = unit.clone() / coefficient.get_num().sqrt();
++        assert!((result.root.get_num().clone() - &expected).norm().to_f64() < 1e-13);
++        // Local dr/da = -r/(2a): uncertain coefficients must not produce
++        // an allegedly exact endpoint or exact initial-guess root.
++        let local_error = expected.to_f64() * coefficient.get_relative_error() / 2.;
++        assert!(result.root.get_absolute_error() >= 0.99 * local_error);
++        assert!(result.root.get_absolute_error().is_finite());
++    }
++}
++
++#[test]
++fn invalid_ranges_nonfinite_callbacks_and_limits_fail_explicitly() {
++    let mut settings = options(&1f64, 1e-14);
++    let square = |x: &f64| (x * x - 2., 2. * x);
++    assert_eq!(
++        nsolve_bracketed(2., 3., &settings, square).unwrap_err(),
++        BracketedRootError::NotBracketed
++    );
++    assert_eq!(
++        nsolve_bracketed(0., 1., &settings, |_| (f64::NAN, 1.)).unwrap_err(),
++        BracketedRootError::NonFinite
++    );
++    assert_eq!(
++        nsolve_bracketed(0., 1., &settings, |_| (1., f64::INFINITY)).unwrap_err(),
++        BracketedRootError::NonFinite
++    );
++    assert_eq!(
++        nsolve_bracketed(0., 1., &settings, |x| (x * x * x, 3. * x * x)).unwrap_err(),
++        BracketedRootError::SingularRootDerivative
++    );
++    settings.max_iterations = 1;
++    assert_eq!(
++        nsolve_bracketed(0., 2., &settings, square).unwrap_err(),
++        BracketedRootError::IterationLimit
++    );
++    settings.max_iterations = 0;
++    assert!(matches!(
++        nsolve_bracketed(0., 2., &settings, square),
++        Err(BracketedRootError::InvalidInput(_))
++    ));
++    settings.max_iterations = 256;
++    settings.relative_tolerance = 0.;
++    assert!(matches!(
++        nsolve_bracketed(0., 2., &settings, square),
++        Err(BracketedRootError::InvalidInput(_))
++    ));
++    settings.relative_tolerance = 1e-14;
++    settings.initial_guess = Some(3.);
++    assert!(matches!(
++        nsolve_bracketed(0., 2., &settings, square),
++        Err(BracketedRootError::InvalidInput(_))
++    ));
++}
++
++#[test]
++fn unrepresentable_root_tolerance_reports_stagnation() {
++    let settings = BracketedRootOptions {
++        absolute_tolerance: 1e-40,
++        relative_tolerance: 0.,
++        max_iterations: 32,
++        initial_guess: None,
++        convergence: BracketedRootConvergence::Bracket,
++    };
++    assert_eq!(
++        nsolve_bracketed(1., 1. + f64::EPSILON, &settings, |x| (
++            (x - 1.) - f64::EPSILON / 2.,
++            1.
++        ))
++        .unwrap_err(),
++        BracketedRootError::Stagnation
++    );
++}
++
++#[test]
++fn bracket_policy_avoids_a_small_step_false_convergence() {
++    let mut settings = options(&1f64, 1e-8);
++    settings.initial_guess = Some(0.75);
++    let sharp = |x: &f64| {
++        let argument = 1e20 * (x - 0.75);
++        (
++            x - 0.5 + 1e-10 * argument.atan(),
++            1. + 1e10 / (1. + argument * argument),
++        )
++    };
++    let strict = nsolve_bracketed(0., 1., &settings, sharp).unwrap();
++    assert!((strict.root - 0.5).abs() < 1e-8);
++    assert!(strict.residual.abs() < 1e-8);
++    settings.convergence = BracketedRootConvergence::NewtonOrBracket;
++    let heuristic = nsolve_bracketed(0., 1., &settings, sharp).unwrap();
++    assert_eq!(
++        heuristic.termination,
++        symbolica::solve::BracketedRootTermination::NewtonCorrection
++    );
++    assert!(heuristic.residual.abs() > 0.2);
++    // The returned bracket remains available; its width does not imply that
++    // the heuristic candidate has the requested global root-distance accuracy.
++    assert!(heuristic.upper - heuristic.lower > 0.5);
++}

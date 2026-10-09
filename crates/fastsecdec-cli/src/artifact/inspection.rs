@@ -47,6 +47,11 @@ impl KernelSummary {
 }
 impl Artifact {
     pub fn kernel_summary(&self) -> CliResult<KernelSummary> {
+        if self.programs.is_some() {
+            return Ok(super::programs::summary(
+                self.catalogue().ok_or("missing selected recipe")?,
+            ));
+        }
         let summary: KernelSummary = serde_json::from_str(self.kernel.get())?;
         if summary.orders.len() != summary.components.len()
             || summary
@@ -63,6 +68,11 @@ impl Artifact {
         Ok(summary)
     }
     pub fn inspection_index(&self) -> Option<&InspectionIndex> {
+        // A historical single-recipe preview cannot describe an alternative
+        // recipe. New recipe previews will be explicitly keyed by recipe.
+        if self.programs.is_some() {
+            return None;
+        }
         self.inspection.as_ref().filter(|index| index.version == 1)
     }
 }

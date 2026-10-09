@@ -12,6 +12,24 @@ QMC packages or native Havana global batches, with native replay, covariance and
 checkpoint validation. The
 binding introduces no graph, algebra or numerical integration implementation.
 
+Contour generation is opt-in on every entrypoint with `contour=True`. Bind
+the fixed strength separately from physical parameters using
+`template.with_parameters(point, contour=ContourSettings.fixed(0.1,
+validation="pilot", pilot_points=256))`. Native `ContourSettings` validates the
+strength; rebinding does not repeat symbolic generation or optimization.
+
+The caller performs validation explicitly before creating the integration
+session: read `kernels.contour_validation_charts`, supply independent validation
+coordinates to `kernels.validate_contour_point(chart.chart_index, coordinates)`,
+and call `kernels.finish_contour_pilot()` after the requested points are checked.
+Each call also checks the chart's required subtraction faces and fixed-strength
+homotopy diagnostics. These observations never enter production statistics.
+An optional chart list finishes only that scope; excluded sectors stay locked.
+The default `always` policy checks production too, `pilot` removes production
+causal-checking costs after preflight, and `off` omits optional checks. A finite
+fixed-strength pilot is a diagnostic, not a global causal certificate. Settings,
+chart descriptors and reports are immutable native-backed Python views.
+
 For an existing native diagram, kinematics and regulator symbol (declare a
 runtime Gram symbol with `S("kinematics::s", is_real=True)` before using it in
 the kinematics):

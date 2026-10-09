@@ -25,7 +25,7 @@ impl DualSector {
                     .product::<Atom>()
             })
             .collect::<Vec<_>>();
-        let regular =
+        let regular = self.mapped_regular.clone().unwrap_or_else(|| {
             self.terms
                 .iter()
                 .map(|term| {
@@ -66,7 +66,8 @@ impl DualSector {
                         })
                         .product::<Atom>()
                 })
-                .collect::<Vec<_>>();
+                .collect::<Vec<_>>()
+        });
         let definitions = self
             .recipe
             .requests

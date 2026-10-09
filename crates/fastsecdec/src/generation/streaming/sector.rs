@@ -28,7 +28,7 @@ pub fn generate_sector(
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<GeneratedUnit, StreamingError> {
     let context = records::read_source(root, &job.source)?;
-    let domain = domain::check(&context.input, context.options.assume_no_threshold)?;
+    let domain = domain::check_options(&context.input, &context.options)?;
     let mut observe = |event: &GenerationEvent| match event {
         GenerationEvent::Progress(status) => progress(status),
         GenerationEvent::GeometryReuse(_) => ControlFlow::Continue(()),
@@ -93,6 +93,7 @@ pub fn generate_sector(
                     context.input.regulator(),
                     context.options.max_subtractions_per_axis,
                 )?),
+                contour: chart.contour.clone(),
             });
         }
         let output = coefficients::expand(
@@ -148,6 +149,7 @@ pub fn generate_sector(
             context.options.max_subtractions_per_axis,
         )?;
         let discovered = DiscoveredChart {
+            contour: data.contour,
             index: job.index,
             map: data.map,
             coordinates,

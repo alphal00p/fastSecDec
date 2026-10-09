@@ -69,6 +69,17 @@ is a minimum sampling residence in seconds; complete replicas update live
 results throughout the stay. See the [serial execution guide](docs/SERIAL_MODE.md)
 for refinement, recovery, seed partitioning and measured memory bounds.
 
+The `contour_deformation` branch implements the
+[Phase B plan](CONTOUR_DEFORMATION_PLAN.md). Fixed-strength contour generation
+is opt-in with `generate --contour`; use `integrate --contour fixed --lambda 0.1`
+to bind its strength. `--contour-validation always` is the default; `pilot` checks
+preflight only, and `off` disables optional causal checks. Fixed-strength checks
+are sampled safeguards, not a global certificate. The
+[small threshold controls](examples/contour/README.md) exercise both ordinary
+and serial execution. Dynamic production deformation and the remaining multiloop
+acceptance gates are still in progress; see the
+[acceptance ledger](docs/reviews/contour-phase-b-progress.md).
+
 Native HEPKit master and reduction comparisons now cover twelve scalar and
 eight numerator points, including rank five and a zero Gram determinant. An
 additional coupled two-loop numerator agrees with independent parameterization

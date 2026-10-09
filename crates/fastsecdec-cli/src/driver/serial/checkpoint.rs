@@ -15,6 +15,8 @@ pub(super) struct Checkpoint {
     pub replay: BTreeMap<u64, ReplayState>,
     pub diagnostics: EvaluationDiagnostics,
     pub operational: OperationalMetrics,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contour: Option<fastsecdec::status::ContourCheckpointProvenance>,
 }
 #[derive(Serialize, Deserialize)]
 struct Envelope {
@@ -26,6 +28,7 @@ fn identity(settings: &IntegrationInput) -> CliResult<serde_json::Value> {
     value.as_object_mut().unwrap().remove("serial_seconds");
     Ok(value)
 }
+#[allow(clippy::too_many_arguments)]
 pub(super) fn save(
     path: &Path,
     settings: &IntegrationInput,
@@ -33,6 +36,7 @@ pub(super) fn save(
     replay: &BTreeMap<u64, ReplayState>,
     diagnostics: &EvaluationDiagnostics,
     operational: &OperationalMetrics,
+    contour_pilots: &BTreeMap<String, fastsecdec::status::ContourPilotProvenance>,
 ) -> CliResult<()> {
     let checkpoint = Checkpoint {
         version: 1,
@@ -41,6 +45,12 @@ pub(super) fn save(
         replay: replay.clone(),
         diagnostics: diagnostics.clone(),
         operational: operational.clone(),
+        contour: (settings.contour.deformation != fastsecdec::contour::ContourMode::Off).then(
+            || fastsecdec::status::ContourCheckpointProvenance {
+                validation: settings.contour.validation.clone(),
+                pilots: contour_pilots.values().cloned().collect(),
+            },
+        ),
     };
     let digest = blake3::hash(&serde_json::to_vec(&checkpoint)?)
         .to_hex()
@@ -71,7 +81,7 @@ pub(super) fn restore(
     }
     let checkpoint = envelope.checkpoint;
     if checkpoint.version != 1 || checkpoint.settings != identity(settings)? {
-        return Err("serial checkpoint settings differ; only worker count, residence time and evaluation batch size may change".into());
+        return Err("serial checkpoint settings differ; only worker count, residence time, evaluation batch size and contour validation policy may change".into());
     }
     if checkpoint
         .replay
@@ -116,6 +126,7 @@ mod tests {
             &BTreeMap::new(),
             &EvaluationDiagnostics::default(),
             &OperationalMetrics::default(),
+            &BTreeMap::new(),
         )
         .unwrap();
         let mut changed = settings.clone();

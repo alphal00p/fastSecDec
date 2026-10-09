@@ -2,6 +2,7 @@
 
 //! Thin HEPKit ownership and caller-stepped execution boundary.
 mod citations;
+mod contour;
 mod decompose;
 mod error;
 mod execution;
@@ -31,6 +32,7 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<kernels::PyKernels>()?;
     module.add_class::<settings::PyCompilationSettings>()?;
     module.add_class::<settings::PyStabilitySettings>()?;
+    contour::register(&module)?;
     module.add_class::<session::PyQmcSettings>()?;
     module.add_class::<session::PyQmcSession>()?;
     module.add_class::<mc::PyHavanaDiscreteSettings>()?;

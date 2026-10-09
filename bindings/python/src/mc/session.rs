@@ -25,6 +25,7 @@ use crate::{
     unsendable
 )]
 pub(crate) struct PyHavanaDiscreteSession {
+    pub(super) contour: Option<fastsecdec::status::ContourCheckpointProvenance>,
     pub(super) kernels: Rc<KernelSet>,
     pub(super) session: HavanaDiscreteSession,
     pub(super) replay: Vec<ReplayState>,
@@ -62,6 +63,7 @@ impl PyHavanaDiscreteSession {
         let replay = replay_states(py, &kernels, &policy)?;
         let contexts = (0..kernels.sectors().len()).map(|_| None).collect();
         Ok(Self {
+            contour: crate::contour::checkpoint_provenance(&kernels, None),
             kernels,
             session,
             replay,
@@ -95,6 +97,12 @@ impl PyHavanaDiscreteSession {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyHavanaDiscreteSession {
+    #[getter]
+    fn contour_provenance(&self) -> Option<crate::contour::PyContourCheckpointProvenance> {
+        self.contour
+            .clone()
+            .map(|inner| crate::contour::PyContourCheckpointProvenance { inner })
+    }
     fn observation(&self, py: Python<'_>) -> PyResult<crate::status::PyIntegrationObservation> {
         let mut inner = self
             .session

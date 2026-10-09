@@ -27,6 +27,7 @@ impl PyDomainAssessment {
         match self.owner.metadata().domain_assessment().branch_policy() {
             BranchPolicy::NoThresholdReal => "no_threshold_real",
             BranchPolicy::UserResponsible => "user_responsible",
+            BranchPolicy::CausalContour => "causal_contour",
         }
     }
     #[getter]

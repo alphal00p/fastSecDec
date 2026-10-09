@@ -8,6 +8,9 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct IntegrationReport {
+    /// Independent validation evidence and actual worker-owned check counters.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contour: Option<fastsecdec::status::ContourRunReport>,
     pub stability_mode: fastsecdec::kernel::StabilityMode,
     pub process_cpu_seconds: Option<f64>,
     pub accuracy_target: fastsecdec::integration::AccuracyTarget,
@@ -106,6 +109,7 @@ pub(crate) fn finish(
     };
     snapshot.stop_reason = Some(stop);
     Ok(IntegrationReport {
+        contour: None,
         stability_mode: outcome.stability_mode,
         process_cpu_seconds: None,
         accuracy_target: outcome.accuracy_target,
@@ -128,6 +132,38 @@ pub(crate) fn finish(
 }
 
 impl IntegrationReport {
+    /// Call after collecting ordinary or serial pilot owners. Production counts
+    /// come from workers, never from an unused coordinator evaluator clone.
+    pub fn set_contour_provenance(
+        &mut self,
+        settings: &fastsecdec::contour::ContourSettings,
+        pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
+    ) {
+        let previous =
+            self.contour
+                .take()
+                .map(|report| fastsecdec::status::ContourCheckpointProvenance {
+                    validation: report.validation,
+                    pilots: report.pilots,
+                });
+        let evidence = fastsecdec::status::ContourCheckpointProvenance::update(
+            previous.as_ref(),
+            &settings.validation,
+            pilots,
+        );
+        self.contour = (settings.deformation != fastsecdec::contour::ContourMode::Off).then(|| {
+            fastsecdec::status::ContourRunReport::new(
+                settings,
+                evidence.pilots,
+                &self.operational.diagnostics,
+                self.snapshot
+                    .evaluation_diagnostics
+                    .as_ref()
+                    .unwrap_or(&EvaluationDiagnostics::default()),
+            )
+        });
+    }
+
     pub fn failed(&self) -> bool {
         matches!(
             self.snapshot.stop_reason,

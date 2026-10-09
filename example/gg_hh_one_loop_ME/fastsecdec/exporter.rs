@@ -12,8 +12,18 @@ use crate::{Result, export, point};
 pub fn run() -> Result<()> {
     let mut args = std::env::args_os().skip(1);
     let output = PathBuf::from(args.next().ok_or("expected a fresh output directory")?);
-    if args.next().is_some() || output.exists() {
-        return Err("supply exactly one fresh output directory".into());
+    let sqrt_s = match args.next() {
+        None => 300,
+        Some(option) if option == "--sqrt-s" => args
+            .next()
+            .ok_or("--sqrt-s requires an integer energy in GeV")?
+            .to_str()
+            .ok_or("--sqrt-s requires an integer energy in GeV")?
+            .parse::<u32>()?,
+        Some(_) => return Err("usage: gghh_one_loop_me OUTPUT [--sqrt-s INTEGER_GEV]".into()),
+    };
+    if args.next().is_some() || output.exists() || sqrt_s <= 250 {
+        return Err("supply a fresh output directory and sqrt(s) above 250 GeV".into());
     }
     let mut model = Model::standard_model();
     let mut parameters = export::parameter_card(&model)?;
@@ -73,6 +83,7 @@ pub fn run() -> Result<()> {
     );
     std::fs::create_dir_all(&output)?;
     let mut entries = Vec::new();
+    let mut physical_point = None;
     for (index, raw) in generated.diagrams.iter().enumerate() {
         if raw.loop_momentum_basis().loop_edges.len() != 1 {
             return Err("generated catalogue contains a non-one-loop diagram".into());
@@ -103,7 +114,19 @@ pub fn run() -> Result<()> {
         let projected = projected
             .clone()
             .with_overall_factor(projected.overall_factor() * Atom::num((1, 8)));
-        let point = point::Point::new(&projected)?;
+        let point = if sqrt_s == 300 {
+            point::Point::new(&projected)?
+        } else {
+            point::Point::with_sqrt_s(&projected, sqrt_s)?
+        };
+        let shared_point = shared_point(&point, sqrt_s)?;
+        if physical_point
+            .as_ref()
+            .is_some_and(|previous| previous != &shared_point)
+        {
+            return Err("diagram catalogue disagrees on the shared physical point".into());
+        }
+        physical_point = Some(shared_point);
         export::fixture(&path, &projected, &point)?;
         let mut exact = serde_json::to_value(&point)?;
         exact["auxiliary_momenta"] = json!(point::auxiliaries().map(|a| a.to_canonical_string()));
@@ -155,11 +178,38 @@ pub fn run() -> Result<()> {
             "initial_spin_average":false,"initial_color_average":false,
             "extra_R2_added":false,"dimension":"4-2*eps"
         },
-        "point":{"sqrt_s":300.0,"MH":125.0,"MT":172.5,"ymt":172.5,"cos_theta":0.8,"aS":0.118,"Gf":1.16639e-5,"aEWM1":132.507,"MZ":91.188,"widths":0.0},
+        "point":{"sqrt_s":f64::from(sqrt_s),"MH":125.0,"MT":172.5,"ymt":172.5,"cos_theta":0.8,"aS":0.118,"Gf":1.16639e-5,"aEWM1":132.507,"MZ":91.188,"widths":0.0},
     });
     std::fs::write(
         output.join("manifest.json"),
         serde_json::to_vec_pretty(&manifest)?,
     )?;
+    std::fs::write(
+        output.join("physical-point.json"),
+        serde_json::to_vec_pretty(&physical_point.ok_or("missing physical point")?)?,
+    )?;
     Ok(())
+}
+
+/// All three reference methods consume momenta from the same native point.
+/// The established JSON supplies only shared model/convention descriptions.
+fn shared_point(point: &point::Point, sqrt_s: u32) -> Result<serde_json::Value> {
+    if point.physical_momenta.keys().copied().collect::<Vec<_>>() != [0, 1, 2, 3] {
+        return Err("expected incoming indices 0,1 and outgoing indices 2,3".into());
+    }
+    let momenta = point
+        .physical_momenta
+        .values()
+        .map(|vector| {
+            vector
+                .iter()
+                .map(|x| point::real_value(x))
+                .collect::<Result<Vec<_>>>()
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let mut result: serde_json::Value = serde_json::from_str(include_str!("../point.json"))?;
+    result["sqrt_s_GeV"] = json!(f64::from(sqrt_s));
+    result["physical_momenta_GeV"] = json!(momenta);
+    result["exact_outgoing_spatial_components"] = json!(&point.physical_momenta[&2][1..]);
+    Ok(result)
 }

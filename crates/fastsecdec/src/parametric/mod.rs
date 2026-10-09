@@ -8,8 +8,8 @@ mod scalar;
 
 pub use fastsecdec_sectors::ParametricDomain;
 pub use integrand::{
-    FactorRole, ParametricError, ParametricIntegrand, ParametricTerm, PolynomialFactor,
-    polynomial_support,
+    FactorRole, FactorSemantics, ParametricError, ParametricIntegrand, ParametricTerm,
+    PolynomialFactor, polynomial_support,
 };
 pub use preparation::{
     FamilyPreparationFallback, FamilyPreparationPolicy, FamilyPreparationReport,

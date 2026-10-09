@@ -64,6 +64,9 @@ pub(super) fn document(
     validate_sector(summary, sector)?;
     let mut value = serde_json::json!({
         "content_id":artifact.content_id, "kernel_content_id":artifact.kernel_content_id,
+        "selected_catalogue_content_id":artifact.catalogue().map(|c|c.content_id),
+        "selected_recipe":artifact.selected_recipe(),
+        "available_recipes":artifact.programs.as_ref().map(|p|p.catalogue.recipes.iter().map(|r|r.recipe).collect::<Vec<_>>()),
         "provenance":artifact.provenance, "sectors":summary.sectors,
         "orders":summary.orders, "components":summary.components,
         "runtime_parameters":summary.runtime_parameters,

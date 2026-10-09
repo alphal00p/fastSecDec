@@ -27,6 +27,22 @@ pub(super) fn requires_complex(generated: &GeneratedIntegral, runtime: &[Symbol]
         .any(|coefficient| !program::is_real_expression(coefficient, runtime))
 }
 
+pub(super) fn runtime_inputs(generated: &GeneratedIntegral, physics: &[Symbol]) -> Vec<Symbol> {
+    let mut runtime = physics.to_vec();
+    if generated
+        .metadata()
+        .charts()
+        .iter()
+        .any(|chart| chart.contour().is_some())
+    {
+        let lambda = crate::contour::lambda_symbol();
+        if !runtime.contains(&lambda) {
+            runtime.push(lambda);
+        }
+    }
+    runtime
+}
+
 /// Caller-owned native sector compilation; jobs are tied to one compilation call.
 pub type CompilationDispatch<'a> = dyn FnMut(
         &mut dyn ExactSizeIterator<Item = CompilationJob>,
@@ -141,6 +157,8 @@ impl GeneratedIntegral {
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
         settings.validate()?;
+        let runtime = runtime_inputs(self, runtime_parameters);
+        let runtime_parameters = runtime.as_slice();
         let started = Instant::now();
         let total = self.sectors().len();
         let use_complex = requires_complex(self, runtime_parameters);
@@ -215,6 +233,8 @@ impl GeneratedIntegral {
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
         settings.validate()?;
+        let runtime_inputs = runtime_inputs(self, runtime_parameters);
+        let runtime_parameters = runtime_inputs.as_slice();
         let started = Instant::now();
         let total = self.sectors().len();
         emit(&mut progress, started, 0, total)?;
@@ -384,6 +404,7 @@ impl SectorKernel {
             symjit_ir_bytes,
         };
         Ok(Self {
+            contour_validation: None,
             input: vec![0.0; inputs],
             projection: None,
             parameters_bound: runtime_parameters.is_empty(),
@@ -535,6 +556,9 @@ impl KernelSet {
         }
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
+            contour_checks: Vec::new(),
+            program_descriptor: None,
+            contour_binding: None,
             compilation_settings,
             runtime_parameters,
             stability: super::StabilitySettings::default(),

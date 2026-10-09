@@ -35,6 +35,16 @@ pub fn assemble_manifest(
         "artifact_provenance".into(),
         serde_json::to_value(&artifact.provenance)?,
     );
+    if artifact.programs.is_some() {
+        provenance.attributes.insert(
+            "selected_recipe".into(),
+            serde_json::to_value(artifact.selected_recipe())?,
+        );
+        provenance.attributes.insert(
+            "program_archive_identity".into(),
+            artifact.kernel_content_id.clone().into(),
+        );
+    }
     provenance
         .attributes
         .insert("caller_settings".into(), serde_json::to_value(settings)?);
@@ -50,6 +60,11 @@ pub fn assemble_manifest(
         "resume_status".into(),
         serde_json::to_value(&report.resume_status)?,
     );
+    if let Some(contour) = &report.contour {
+        provenance
+            .attributes
+            .insert("contour".into(), serde_json::to_value(contour)?);
+    }
     if let Some(timings) = &report.generation_timings {
         provenance
             .attributes

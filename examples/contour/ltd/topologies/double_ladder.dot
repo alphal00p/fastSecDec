@@ -1,0 +1,18 @@
+// 1912.09291v2: 2L4P.b.K1 and K1*. Internal IDs follow ancillary order.
+// All four external vectors are outgoing; their signed numerical energies
+// are retained from the archive. HEPKit owns conservation and loop routing.
+digraph ltd_double_ladder {
+  ext0 [style=invis]; ext1 [style=invis];
+  ext2 [style=invis]; ext3 [style=invis];
+  p1 -> ext0 [id=0, particle="phi"];
+  p2 -> ext1 [id=1, particle="phi"];
+  p3 -> ext2 [id=2, particle="phi"];
+  p4 -> ext3 [id=3, particle="phi"];
+  bottom -> p2 [id=4, particle="phi", lmb_id=0];
+  p1 -> top [id=5, particle="phi"];
+  p2 -> p1 [id=6, particle="phi"];
+  top -> bottom [id=7, particle="phi"];
+  p3 -> bottom [id=8, particle="phi", lmb_id=1];
+  p4 -> p3 [id=9, particle="phi"];
+  top -> p4 [id=10, particle="phi"];
+}

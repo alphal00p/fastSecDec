@@ -18,6 +18,12 @@ pub(crate) struct PyEvaluationDiagnostics {
 #[pymethods]
 impl PyEvaluationDiagnostics {
     #[getter]
+    fn contour(&self) -> Option<crate::contour::PyContourEvaluationDiagnostics> {
+        self.inner
+            .contour
+            .map(|inner| crate::contour::PyContourEvaluationDiagnostics { inner })
+    }
+    #[getter]
     fn f64_points(&self) -> u64 {
         self.inner.f64_points
     }

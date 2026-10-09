@@ -10,6 +10,7 @@ fn durable_sector_without_receipt_is_regenerated_after_recovery() {
     let prepare = Request::Prepare {
         input: input.clone(),
         workers: 1,
+        overrides: Default::default(),
     };
     journal.request("prepare", prepare.clone()).unwrap();
     jobs::execute(&journal.job_path("prepare"), &mut |_| Ok(())).unwrap();

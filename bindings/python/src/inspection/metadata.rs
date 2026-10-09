@@ -93,4 +93,12 @@ impl PyChart {
             .pre_subtraction()
             .map(|_| PyPreSubtractionMetadata::new(self.owner.clone(), self.index))
     }
+
+    /// Retained native deformation recipe, without regenerating expressions.
+    #[getter]
+    fn contour(&self) -> Option<super::contour::PyContourRecipe> {
+        self.owner.metadata().charts()[self.index]
+            .contour()
+            .map(|_| super::contour::PyContourRecipe::new(self.owner.clone(), self.index))
+    }
 }

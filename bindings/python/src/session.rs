@@ -127,6 +127,8 @@ struct ActiveContext {
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Checkpoint {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    contour: Option<fastsecdec::status::ContourCheckpointProvenance>,
     version: u32,
     session: Vec<u8>,
     replay: Vec<ReplayState>,
@@ -143,6 +145,7 @@ struct Checkpoint {
     unsendable
 )]
 pub(crate) struct PyQmcSession {
+    contour: Option<fastsecdec::status::ContourCheckpointProvenance>,
     kernels: Rc<KernelSet>,
     session: QmcSession,
     replay: Vec<ReplayState>,
@@ -163,6 +166,7 @@ impl PyQmcSession {
         let policy = ReplayPolicy::default();
         let replay = replay_states(py, &kernels, &policy)?;
         Ok(Self {
+            contour: crate::contour::checkpoint_provenance(&kernels, None),
             kernels,
             session,
             replay,
@@ -202,6 +206,7 @@ impl PyQmcSession {
                 .map_err(|e| error::native(py, "checkpoint", e))?;
         }
         Ok(Self {
+            contour: crate::contour::checkpoint_provenance(&kernels, state.contour.as_ref()),
             kernels,
             session,
             replay: state.replay,
@@ -241,6 +246,12 @@ impl PyQmcSession {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyQmcSession {
+    #[getter]
+    fn contour_provenance(&self) -> Option<crate::contour::PyContourCheckpointProvenance> {
+        self.contour
+            .clone()
+            .map(|inner| crate::contour::PyContourCheckpointProvenance { inner })
+    }
     fn observation(&self, py: Python<'_>) -> PyResult<crate::status::PyIntegrationObservation> {
         let mut inner = self
             .session
@@ -313,6 +324,7 @@ impl PyQmcSession {
                 break;
             };
             let sector = task.sector_id() as usize;
+            let stage = self.session.stage();
             let mut signal_interrupted = false;
             let result = (|| {
                 self.prepare(py, sector)?;
@@ -325,6 +337,7 @@ impl PyQmcSession {
                         crate::execution::evaluate_batch(
                             py,
                             &mut active.context,
+                            stage,
                             points,
                             weights,
                             output,
@@ -388,6 +401,7 @@ impl PyQmcSession {
 
     fn checkpoint<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
         let state = Checkpoint {
+            contour: self.contour.clone(),
             version: 1,
             session: self
                 .session

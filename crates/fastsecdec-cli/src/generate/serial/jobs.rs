@@ -33,6 +33,8 @@ pub(crate) enum Request {
     Prepare {
         input: PathBuf,
         workers: usize,
+        #[serde(default)]
+        overrides: crate::config::GenerationOverrides,
     },
     Discover {
         preparation: PathBuf,
@@ -133,14 +135,19 @@ pub(crate) fn execute(
         }
     };
     let response = match job.request {
-        Request::Prepare { input, workers } => {
-            let loaded = input::load(&input)?;
+        Request::Prepare {
+            input,
+            workers,
+            overrides,
+        } => {
+            let loaded = input::load_observed_with_overrides(&input, overrides, |_| Ok(()))?;
             let settings = &loaded.card.generation;
             let mut options = generation::GenerationOptions {
                 max_order: settings.order,
                 mode: settings.mode,
                 subtraction: settings.subtraction,
                 assume_no_threshold: settings.assume_no_threshold,
+                contour: settings.contour,
                 coefficient_expansion: settings.coefficient_expansion.clone(),
                 ..Default::default()
             };

@@ -77,13 +77,28 @@ fn prepared(
 type Vector = BTreeMap<(i32, CoefficientComponent), f64>;
 fn sample(mut kernels: KernelSet, point: &[f64], runtime: &[f64]) -> Vector {
     if !runtime.is_empty() {
-        let values = kernels
+        let mut values = kernels
             .runtime_parameters()
             .iter()
             .copied()
             .zip(runtime.iter().copied())
-            .collect();
-        kernels.bind_parameters(&values).unwrap();
+            .collect::<BTreeMap<_, _>>();
+        if let Some(lambda) = values.remove(&crate::contour::lambda_symbol()) {
+            kernels
+                .bind_parameters_with_contour(
+                    &values,
+                    &crate::contour::ContourSettings {
+                        deformation: crate::contour::ContourMode::Fixed { lambda },
+                        validation: crate::contour::ContourValidationOptions {
+                            policy: crate::contour::ContourValidation::Off,
+                            ..Default::default()
+                        },
+                    },
+                )
+                .unwrap();
+        } else {
+            kernels.bind_parameters(&values).unwrap();
+        }
     }
     let mut values = kernels.exact_coefficients().to_vec();
     for sector in kernels.sectors_mut() {
@@ -147,6 +162,57 @@ fn input() -> ParametricIntegrand {
         )],
     )
     .unwrap()
+}
+
+#[test]
+fn contour_source_semantics_and_maps_survive_streamed_generation() {
+    use crate::parametric::FactorSemantics;
+    let input = ParametricIntegrand::new(
+        vec![symbol!("contour_stream::x")],
+        symbol!("contour_stream::eps"),
+        ParametricDomain::UnitCube,
+        vec![ParametricTerm::new(
+            parse!("1/contour_stream::eps"),
+            vec![Atom::Zero],
+            vec![
+                PolynomialFactor::new(
+                    parse!("1+contour_stream::x"),
+                    parse!("contour_stream::eps"),
+                    FactorRole::Singularity,
+                )
+                .with_semantics(FactorSemantics::Positive),
+                PolynomialFactor::new(
+                    parse!("1-5*contour_stream::x*(1-contour_stream::x)"),
+                    parse!("-contour_stream::eps"),
+                    FactorRole::Singularity,
+                )
+                .with_semantics(FactorSemantics::Causal),
+            ],
+        )],
+    )
+    .unwrap();
+    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+        let options = GenerationOptions {
+            contour: true,
+            mode,
+            ..Default::default()
+        };
+        let runtime = [crate::contour::lambda_symbol()];
+        let ordinary = generate(&input, &options, keep).unwrap();
+        let directory = tempfile::tempdir().unwrap();
+        let preparation = prepared(directory.path(), &input, &options, &runtime, &[]);
+        assert_eq!(preparation.sectors.len(), 1);
+        let unit = generate_sector(directory.path(), &preparation.sectors[0], keep).unwrap();
+        let chart = &unit.generated.metadata().charts()[0];
+        assert!(chart.contour().is_some());
+        assert_eq!(chart.contour().unwrap().positive_polynomials().len(), 1);
+        for point in [[0.1], [0.5], [0.9]] {
+            close(
+                &sample(compile(&ordinary, &runtime), &point, &[0.2]),
+                &sample(compile(&unit.generated, &runtime), &point, &[0.2]),
+            );
+        }
+    }
 }
 
 #[test]

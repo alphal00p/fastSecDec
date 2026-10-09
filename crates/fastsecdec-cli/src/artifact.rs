@@ -1,7 +1,9 @@
 mod indexed;
 pub(crate) mod inspection;
+mod programs;
 pub use indexed::IndexedStorage;
 pub use inspection::{InspectionIndex, KernelSummary};
+pub use programs::ProgramStorage;
 
 use std::{
     collections::BTreeMap,
@@ -207,6 +209,11 @@ pub struct Artifact {
     data: Vec<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub indexed: Option<IndexedStorage>,
+    /// Recipe directory; mutually exclusive with the legacy single catalogue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub programs: Option<ProgramStorage>,
+    #[serde(skip)]
+    selected_recipe: Option<fastsecdec::kernel::indexed::ProgramRecipe>,
     #[serde(skip)]
     staged_data: Option<PathBuf>,
     #[serde(skip)]
@@ -349,6 +356,8 @@ impl Artifact {
                 data_file: String::new(),
                 catalogue,
             }),
+            programs: None,
+            selected_recipe: None,
             staged_data: None,
             source_root: PathBuf::from("."),
             generation_timings: None,
@@ -443,7 +452,7 @@ impl Artifact {
         {
             return Err("artifact provenance paths must be relative".into());
         }
-        if self.indexed.is_some() {
+        if self.is_indexed() {
             return self.save_indexed(base);
         }
         // The metadata commits the pair only after the complete data is durable.
@@ -500,12 +509,15 @@ impl Artifact {
         let started = Instant::now();
         let (metadata, _) = paths(base)?;
         let mut artifact: Self = serde_json::from_reader(BufReader::new(File::open(metadata)?))?;
-        if !matches!(artifact.format_version, 3 | 4) {
+        if !matches!(artifact.format_version, 3..=5) {
             return Err(
                 "artifact version is unsupported; regenerate using an .fsd basename".into(),
             );
         }
         if artifact.format_version == 4 {
+            if artifact.programs.is_some() {
+                return Err("version-four artifact contains a recipe directory".into());
+            }
             let indexed = artifact
                 .indexed
                 .as_ref()
@@ -537,7 +549,24 @@ impl Artifact {
             {
                 return Err("indexed summary differs from its native catalogue".into());
             }
-        } else if artifact.indexed.is_some() {
+        } else if artifact.format_version == 5 {
+            if artifact.indexed.is_some() {
+                return Err("recipe artifact also contains a legacy catalogue".into());
+            }
+            let programs = artifact
+                .programs
+                .as_ref()
+                .ok_or("recipe artifact has no directory")?;
+            programs.validate(options.validate)?;
+            if programs.catalogue.content_id != artifact.kernel_content_id {
+                return Err("recipe directory differs from archive identity".into());
+            }
+            let stored: KernelSummary = serde_json::from_str(artifact.kernel.get())?;
+            let current = artifact.kernel_summary()?;
+            if serde_json::to_value(stored)? != serde_json::to_value(current)? {
+                return Err("default recipe summary differs from its native directory".into());
+            }
+        } else if artifact.is_indexed() {
             return Err("historical artifact unexpectedly contains an indexed catalogue".into());
         }
         if options.validate && artifact.content_id != artifact.identity()? {
@@ -585,6 +614,15 @@ impl Artifact {
         base: &Path,
         options: KernelLoadOptions,
         preflight: impl FnOnce(&Self) -> CliResult<()>,
+        observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
+    ) -> CliResult<(Self, KernelSet)> {
+        Self::load_recipe_observed(base, options, None, preflight, observe)
+    }
+    pub fn load_recipe_observed(
+        base: &Path,
+        options: KernelLoadOptions,
+        recipe: Option<fastsecdec::kernel::indexed::ProgramRecipe>,
+        preflight: impl FnOnce(&Self) -> CliResult<()>,
         mut observe: impl FnMut(&ArtifactLoadProgress) -> std::ops::ControlFlow<()>,
     ) -> CliResult<(Self, KernelSet)> {
         let started = Instant::now();
@@ -607,10 +645,12 @@ impl Artifact {
         if !artifact.dependencies_compatible() {
             return Err("artifact dependency identities differ from this build; regenerate with the recorded dependency revisions".into());
         }
+        if let Some(recipe) = recipe {
+            artifact.select_recipe(recipe)?;
+        }
         preflight(&artifact)?;
-        if let Some(indexed) = &artifact.indexed {
+        if artifact.is_indexed() {
             let data = artifact.data_path(base)?;
-            let catalogue = indexed.catalogue.clone();
             poll(
                 &ArtifactLoadProgress::ReadingBinary {
                     completed: 0,
@@ -618,10 +658,11 @@ impl Artifact {
                 },
                 &mut observe,
             )?;
-            let mut reader = fastsecdec::kernel::indexed::IndexedReader::new(
-                File::open(&data)?,
-                catalogue,
-                options,
+            let mut archive = artifact.open_program_archive(base, options)?;
+            let mut reader = archive.select(
+                artifact
+                    .selected_recipe()
+                    .ok_or("missing selected recipe")?,
             )?;
             poll(
                 &ArtifactLoadProgress::Native(fastsecdec::kernel::KernelLoadProgress::Decoding),
@@ -738,6 +779,9 @@ fn atomic_write_with(
 #[cfg(test)]
 #[path = "artifact/persistence_tests.rs"]
 mod persistence_tests;
+#[cfg(test)]
+#[path = "artifact/program_tests.rs"]
+mod program_tests;
 
 #[cfg(test)]
 mod tests {

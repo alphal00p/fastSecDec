@@ -1,0 +1,847 @@
+{
+  "checks": {
+    "finite_relative_target_reached": true,
+    "pole_checks": [
+      {
+        "compatible_with_zero": true,
+        "component": "Real",
+        "five_sigma_bound": 2.5721761697932356e-07,
+        "mean": 6.917504014047893e-09,
+        "order": -1,
+        "roundoff_allowance": 9.695533690712347e-14,
+        "standard_error": 5.144350400479733e-08
+      },
+      {
+        "compatible_with_zero": true,
+        "component": "Imag",
+        "five_sigma_bound": 5.740285074328428e-08,
+        "mean": -2.2927903328160147e-09,
+        "order": -1,
+        "roundoff_allowance": 1.4210854835136964e-14,
+        "standard_error": 1.148056730648589e-08
+      }
+    ],
+    "poles_compatible_with_zero": true
+  },
+  "color_summed_fixed_helicity_squared": 0.004124125673244688,
+  "color_summed_fixed_helicity_squared_standard_error": 1.689933091717007e-06,
+  "contour": {
+    "lambda": 1e-06,
+    "mode": "fixed",
+    "validation": "pilot"
+  },
+  "diagram_count": 8,
+  "diagrams": [
+    {
+      "directory": "diagram_00_triangle",
+      "kernel_content_id": "7a51491dcb1ee17f0bd4f4f62e234192240647a2e34a2021e4e5781bfd4ff098",
+      "kind": "triangle",
+      "name": "FK01",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.0903089208677336e-14,
+          -6.4623186992094934e-15,
+          -6.4623186992094934e-15,
+          2.6908083783505518e-14
+        ],
+        "mean": [
+          0.7336485069901225,
+          0.21195101244891681
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.7579274503993995e-07,
+          1.6403683666635832e-07
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 8192,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 8192,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 8192,
+            "sector_id": 2,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 8192,
+          "rule": "Kuo",
+          "seed": 78139,
+          "shifts": 32
+        }
+      },
+      "sectors": 3,
+      "seed": 78139
+    },
+    {
+      "directory": "diagram_01_triangle",
+      "kernel_content_id": "c036cc95e4b92f08175b016314e9f7129dc22bf6502489327b6c6e319f7436a2",
+      "kind": "triangle",
+      "name": "FK02",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.3897047186223315e-14,
+          -4.399322357035827e-17,
+          -4.399322357035827e-17,
+          2.3912452336929485e-14
+        ],
+        "mean": [
+          0.7336478812698358,
+          0.21195082207376817
+        ],
+        "orders": [
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.8411150747909082e-07,
+          1.546365168287539e-07
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 8192,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 8192,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 8192,
+            "sector_id": 2,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 8192,
+          "rule": "Kuo",
+          "seed": 182868,
+          "shifts": 32
+        }
+      },
+      "sectors": 3,
+      "seed": 182868
+    },
+    {
+      "directory": "diagram_02_box",
+      "kernel_content_id": "07cc94efe41063fc93836f211aea391bc9669a844ba91fa48a255816b60169dc",
+      "kind": "box",
+      "name": "FK05",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          4.166195632749692e-30,
+          -5.563540941517175e-31,
+          -1.1020644019900856e-19,
+          -2.720251638001227e-19,
+          -5.563540941517175e-31,
+          9.063199554605857e-32,
+          1.1988335902135404e-20,
+          1.9129914895670772e-20,
+          -1.1020644019900856e-19,
+          1.1988335902135404e-20,
+          1.6574261421243984e-07,
+          -7.389099631429367e-09,
+          -2.720251638001227e-19,
+          1.9129914895670772e-20,
+          -7.389099631429367e-09,
+          2.029861059162652e-07
+        ],
+        "mean": [
+          -0.7278281615698845,
+          -1.7070634355809537e-16,
+          6.550132209680846,
+          -1.3243622467839697
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.0411260697834644e-15,
+          3.0105148321517795e-16,
+          0.00040711498893118616,
+          0.00045053979393197357
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 262144,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 262144,
+          "rule": "Kuo",
+          "seed": 287597,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 287597
+    },
+    {
+      "directory": "diagram_03_box",
+      "kernel_content_id": "d33a2b13d1b3b72decd0d9152c7767b0668107a89f8e9f3776ab5ffc58224bad",
+      "kind": "box",
+      "name": "FK06",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.1101595863598805e-30,
+          -2.450297471580881e-31,
+          1.9112758055401482e-19,
+          1.1294211076958523e-20,
+          -2.450297471580881e-31,
+          2.5322482783610646e-32,
+          -1.0711851088275137e-20,
+          -2.6256474453214086e-21,
+          1.9112758055401482e-19,
+          -1.0711851088275137e-20,
+          1.2869723946380292e-07,
+          -7.112844900968114e-09,
+          1.1294211076958523e-20,
+          -2.6256474453214086e-21,
+          -7.112844900968114e-09,
+          9.733419966612652e-08
+        ],
+        "mean": [
+          -0.7278281615698867,
+          -3.264551367968199e-17,
+          7.379395368521259,
+          0.18520694070153199
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.7635644548356832e-15,
+          1.591303955365242e-16,
+          0.0003587439748118467,
+          0.00031198429394142026
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 262144,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 262144,
+          "rule": "Kuo",
+          "seed": 392326,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 392326
+    },
+    {
+      "directory": "diagram_04_box",
+      "kernel_content_id": "4b16fee766ba9852f0abc29a0b1310ead6e9a45d71d3a822dd2e5adb50792aaf",
+      "kind": "box",
+      "name": "FK07",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          3.9726225884763644e-30,
+          -3.193532639352684e-31,
+          1.710358791853031e-20,
+          -6.140098822807435e-20,
+          -3.193532639352684e-31,
+          3.2724290206491255e-32,
+          4.4751234470727116e-23,
+          7.268787014887088e-21,
+          1.710358791853031e-20,
+          4.4751234470727116e-23,
+          6.971856711198037e-08,
+          -1.194164803841496e-08,
+          -6.140098822807435e-20,
+          7.268787014887088e-21,
+          -1.194164803841496e-08,
+          1.1014394350442492e-07
+        ],
+        "mean": [
+          -0.7278281615698882,
+          1.8022142347399555e-16,
+          7.379583343296643,
+          0.18501887018511193
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          1.9931438955771267e-15,
+          1.8089856330687442e-16,
+          0.0002640427372831534,
+          0.00033187941108846284
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 262144,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 262144,
+          "rule": "Kuo",
+          "seed": 497055,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 497055
+    },
+    {
+      "directory": "diagram_05_box",
+      "kernel_content_id": "d786a81b3e9a5467b081f2f2017cb9a683589d9fe124ec46ad7dca75f70a7ab3",
+      "kind": "box",
+      "name": "FK08",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.363074635133943e-15,
+          -3.05481349085448e-16,
+          -1.4853018014399505e-14,
+          3.401375900401928e-15,
+          -3.05481349085448e-16,
+          6.89802976247101e-17,
+          3.327990317170088e-15,
+          -7.679734211801301e-16,
+          -1.4853018014399505e-14,
+          3.327990317170088e-15,
+          1.618514955630714e-13,
+          -3.705675195903906e-14,
+          3.401375900401928e-15,
+          -7.679734211801301e-16,
+          -3.705675195903906e-14,
+          8.551081920859609e-15
+        ],
+        "mean": [
+          1.4556563085906844,
+          3.073440966752614e-09,
+          -16.197386910859187,
+          -3.3972883681634076e-08
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          3.691984067048425e-08,
+          8.30543783461836e-09,
+          4.0230771253242386e-07,
+          9.247206021744952e-08
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 601784,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 601784
+    },
+    {
+      "directory": "diagram_06_box",
+      "kernel_content_id": "82d2369780127464c64a39748d3c010f30ac11b23288b7d2b98b2aaaf8900b56",
+      "kind": "box",
+      "name": "FK09",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          4.471439487608289e-30,
+          -6.666813594540893e-31,
+          7.250750612226744e-20,
+          -1.3478286493453907e-20,
+          -6.666813594540893e-31,
+          1.119905729062753e-31,
+          -1.2904470272688598e-20,
+          -8.092284483578418e-21,
+          7.250750612226744e-20,
+          -1.2904470272688598e-20,
+          1.5715332424533562e-07,
+          2.100336288791269e-08,
+          -1.3478286493453907e-20,
+          -8.092284483578418e-21,
+          2.100336288791269e-08,
+          1.9725801751803816e-07
+        ],
+        "mean": [
+          -0.7278281615698865,
+          -3.399792774417069e-16,
+          6.550260325203148,
+          -1.3250273150197813
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          2.114577850921618e-15,
+          3.346499259020914e-16,
+          0.00039642568565285426,
+          0.0004441373858594187
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 262144,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 262144,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 262144,
+          "rule": "Kuo",
+          "seed": 706513,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 706513
+    },
+    {
+      "directory": "diagram_07_box",
+      "kernel_content_id": "058d815de0b47542d3ccaab6c4ee7bb014f07bfcd8bcdc5e4ef3ade684185d85",
+      "kind": "box",
+      "name": "FK10",
+      "native_laurent_estimate": {
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "covariance_of_mean": [
+          1.28335946915764e-15,
+          -2.827961865853142e-16,
+          -1.399064190354262e-14,
+          3.1484608233957836e-15,
+          -2.827961865853142e-16,
+          6.28231280540423e-17,
+          3.082057363734556e-15,
+          -6.992213651428772e-16,
+          -1.399064190354262e-14,
+          3.082057363734556e-15,
+          1.5252294076404538e-13,
+          -3.431504803678452e-14,
+          3.1484608233957836e-15,
+          -6.992213651428772e-16,
+          -3.431504803678452e-14,
+          7.783472823427085e-15
+        ],
+        "mean": [
+          1.4556563446063655,
+          -5.366230936458918e-09,
+          -16.197387302726046,
+          5.97674333681036e-08
+        ],
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "production_complete": true,
+        "standard_error": [
+          3.582400688306153e-08,
+          7.92610421670333e-09,
+          3.9054185532929164e-07,
+          8.822399233443863e-08
+        ]
+      },
+      "qmc_design": {
+        "allocations": [
+          {
+            "points": 4096,
+            "sector_id": 0,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 1,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 2,
+            "shifts": 32
+          },
+          {
+            "points": 4096,
+            "sector_id": 3,
+            "shifts": 32
+          }
+        ],
+        "settings": {
+          "package_points": 1024,
+          "periodization": "Korobov3",
+          "points": 4096,
+          "rule": "Kuo",
+          "seed": 811242,
+          "shifts": 32
+        }
+      },
+      "sectors": 4,
+      "seed": 811242
+    }
+  ],
+  "format_version": 1,
+  "grouped_native_laurent_estimates": {
+    "box": {
+      "components": [
+        "Real",
+        "Imag",
+        "Real",
+        "Imag"
+      ],
+      "covariance_of_mean": [
+        2.646434104291599e-15,
+        -5.88277535670764e-16,
+        -2.884348938570773e-14,
+        6.549501113570267e-15,
+        -5.88277535670764e-16,
+        1.3180342567875268e-16,
+        6.41003609767042e-15,
+        -1.4671791055530257e-15,
+        -2.884348938570773e-14,
+        6.41003609767042e-15,
+        5.21312059407995e-07,
+        -5.440301054699748e-09,
+        6.549501113570267e-15,
+        -1.4671791055530257e-15,
+        -5.440301054699748e-09,
+        6.077222829394096e-07
+      ],
+      "mean": [
+        6.917504014047893e-09,
+        -2.2927903328160147e-09,
+        -4.535402966883337,
+        -2.2791637251225576
+      ],
+      "orders": [
+        -1,
+        -1,
+        0,
+        0
+      ],
+      "production_complete": true,
+      "standard_error": [
+        5.144350400479733e-08,
+        1.148056730648589e-08,
+        0.000722019431461505,
+        0.000779565444936735
+      ]
+    },
+    "triangle": {
+      "components": [
+        "Real",
+        "Imag"
+      ],
+      "covariance_of_mean": [
+        6.480013639490065e-14,
+        -6.5063119227798514e-15,
+        -6.5063119227798514e-15,
+        5.0820536120435e-14
+      ],
+      "mean": [
+        1.4672963882599583,
+        0.423901834522685
+      ],
+      "orders": [
+        0,
+        0
+      ],
+      "production_complete": true,
+      "standard_error": [
+        2.545587091319027e-07,
+        2.2543410593881973e-07
+      ]
+    }
+  },
+  "method": "native FastSecDec sector decomposition + randomized lattice QMC",
+  "native_laurent_estimate": {
+    "components": [
+      "Real",
+      "Imag",
+      "Real",
+      "Imag"
+    ],
+    "covariance_of_mean": [
+      2.646434104291599e-15,
+      -5.88277535670764e-16,
+      -2.884348938570773e-14,
+      6.549501113570267e-15,
+      -5.88277535670764e-16,
+      1.3180342567875268e-16,
+      6.41003609767042e-15,
+      -1.4671791055530257e-15,
+      -2.884348938570773e-14,
+      6.41003609767042e-15,
+      5.213121242081315e-07,
+      -5.4403075610116705e-09,
+      6.549501113570267e-15,
+      -1.4671791055530257e-15,
+      -5.4403075610116705e-09,
+      6.077223337599457e-07
+    ],
+    "mean": [
+      6.917504014047893e-09,
+      -2.2927903328160147e-09,
+      -3.0681065786233788,
+      -1.8552618905998726
+    ],
+    "orders": [
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "production_complete": true,
+    "standard_error": [
+      5.144350400479733e-08,
+      1.148056730648589e-08,
+      0.0007220194763357368,
+      0.0007795654775321607
+    ]
+  },
+  "physical_color_coefficient": {
+    "im": -0.011748583170131279,
+    "re": -0.01942901188043525
+  },
+  "physical_color_coefficient_covariance": [
+    [
+      2.0905394594814353e-11,
+      -2.181644565678548e-13
+    ],
+    [
+      -2.181644565678548e-13,
+      2.437057302404279e-11
+    ]
+  ],
+  "physical_color_coefficient_relative_uncertainty": 0.00029635544999339345,
+  "physical_color_coefficient_rms_standard_error": 6.728741904610188e-06,
+  "physical_laurent_estimate": {
+    "components": [
+      "Real",
+      "Imag",
+      "Real",
+      "Imag"
+    ],
+    "covariance_of_mean": [
+      1.0612595919081636e-19,
+      -2.359080758603709e-20,
+      -1.1566669929564514e-18,
+      2.626447742537018e-19,
+      -2.359080758603709e-20,
+      5.285514176268284e-21,
+      2.5705201886941625e-19,
+      -5.883607289863671e-20,
+      -1.1566669929564514e-18,
+      2.5705201886941625e-19,
+      2.0905394594814353e-11,
+      -2.181644565678548e-13,
+      2.626447742537018e-19,
+      -5.883607289863671e-20,
+      -2.181644565678548e-13,
+      2.437057302404279e-11
+    ],
+    "mean": [
+      4.3805605909622206e-11,
+      -1.451926439778926e-11,
+      -0.01942901188043525,
+      -0.011748583170131279
+    ],
+    "orders": [
+      -1,
+      -1,
+      0,
+      0
+    ],
+    "production_complete": true,
+    "standard_error": [
+      3.257697947797131e-10,
+      7.270154177366724e-11,
+      4.572241747197359e-06,
+      4.936656056891425e-06
+    ]
+  },
+  "sampling_relation": "Independent diagram seeds; each native total retains shared-sector and Laurent covariance"
+}

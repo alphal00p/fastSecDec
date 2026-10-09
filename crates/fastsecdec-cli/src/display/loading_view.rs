@@ -28,6 +28,7 @@ fn phase(snapshot: &crate::loading::Snapshot) -> &'static str {
             "Finalizing loaded kernels"
         }
         Phase::Restoring => "Preparing executable evaluators",
+        Phase::ContourValidation => "Checking contour pilot and subtraction faces",
         Phase::Complete => "Evaluators loaded",
     }
 }
@@ -41,6 +42,9 @@ fn progress(snapshot: &crate::loading::Snapshot) -> String {
         ),
         (Phase::Restoring, Some(done), Some(total)) => {
             format!("{done} / {total} sectors")
+        }
+        (Phase::ContourValidation, Some(done), Some(total)) => {
+            format!("{done} / {total} pilot points")
         }
         (Phase::Complete, _, _) => "Complete".into(),
         _ => "Working · progress unavailable".into(),

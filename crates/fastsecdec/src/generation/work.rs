@@ -64,9 +64,9 @@ enum Work {
 }
 enum Output {
     NumericalDual(super::numerical_dual::pipeline::TaskResult),
-    Mapping(MappedChart),
+    Mapping(Box<MappedChart>),
     Symmetry(Box<PreparedChart>),
-    Coefficients(ExpandedChart),
+    Coefficients(Box<ExpandedChart>),
 }
 pub(super) struct MappedChart {
     pub map: SectorMap,
@@ -74,6 +74,7 @@ pub(super) struct MappedChart {
     pub coordinates: CoordinateMap,
     pub mapped: Vec<mapping::MappedTerm>,
     pub pre_subtraction: Option<PreSubtractionMetadata>,
+    pub contour: Option<crate::contour::ContourMetadata>,
 }
 pub(super) struct PreparedChart {
     pub chart: MappedChart,
@@ -119,7 +120,7 @@ impl SymbolicJob {
                     &mut supports,
                     &mut observe,
                 )
-                .map(Output::Mapping)
+                .map(|chart| Output::Mapping(Box::new(chart)))
             }
             Work::Symmetry { chart, total } => {
                 prepare_symmetry(self.id.index, *chart, total, &mut observe)
@@ -165,13 +166,13 @@ impl SymbolicJob {
                         seconds: output.phase_started.elapsed().as_secs_f64(),
                     },
                 )?;
-                Ok(Output::Coefficients((
+                Ok(Output::Coefficients(Box::new((
                     representative,
                     map,
                     parameters,
                     multiplicity,
                     output,
-                )))
+                ))))
             }
         })();
         Ok(SymbolicCompletion {
@@ -222,12 +223,22 @@ pub(super) fn map_chart(
 ) -> Result<MappedChart, GenerationError> {
     let started = Instant::now();
     let coordinates = mapping::coordinates(input, &map, &parameters);
-    let mapped = mapping::map_terms(input, &map, &coordinates, supports)?;
+    let (mapped, mut contour) = mapping::map_terms_with_contour(
+        input,
+        &map,
+        &coordinates,
+        supports,
+        options.contour,
+        true,
+    )?;
     let pre_subtraction = Some(PreSubtractionMetadata::capture(
         &mapped,
         input.regulator(),
         options.max_subtractions_per_axis,
     )?);
+    if let Some(contour) = &mut contour {
+        contour.record_subtraction_faces(pre_subtraction.as_ref().unwrap(), options.subtraction);
+    }
     emit(
         progress,
         GenerationProgress::PhaseTiming {
@@ -241,6 +252,7 @@ pub(super) fn map_chart(
         coordinates,
         mapped,
         pre_subtraction,
+        contour,
     })
 }
 
@@ -316,7 +328,7 @@ pub(super) fn map_dispatched(
     completed
         .into_iter()
         .map(|output| match output {
-            Output::Mapping(chart) => Ok(chart),
+            Output::Mapping(chart) => Ok(*chart),
             _ => Err(GenerationError::Invariant(
                 "wrong symbolic completion kind".into(),
             )),
@@ -426,7 +438,7 @@ pub(super) fn expand_dispatched(
     completed
         .into_iter()
         .map(|output| match output {
-            Output::Coefficients(chart) => Ok(chart),
+            Output::Coefficients(chart) => Ok(*chart),
             _ => Err(GenerationError::Invariant(
                 "wrong symbolic completion kind".into(),
             )),

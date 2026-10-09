@@ -200,6 +200,7 @@ fn evaluate(
                     super::super::evaluate_batch_observed(
                         context,
                         id,
+                        session.stage(),
                         points,
                         weights,
                         out,

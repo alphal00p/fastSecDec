@@ -35,6 +35,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
         started,
         mut last_checkpoint,
         restored,
+        contour_provenance,
         mut diagnostics,
         mut replay,
         operations,
@@ -169,6 +170,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                 &replay,
                 &frozen_replay,
                 settings.evaluation_batch_size,
+                session.stage(),
                 |activity, collect_live, completed| {
                     dashboard.integration_work(activity);
                     if completed {
@@ -278,6 +280,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
                     &diagnostics,
                     &replay,
                     previous_complete.as_ref(),
+                    contour_provenance.as_ref(),
                 )?;
                 last_checkpoint = Instant::now();
             }
@@ -324,6 +327,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             &diagnostics,
             &replay,
             previous_complete.as_ref(),
+            contour_provenance.as_ref(),
         )?;
         last_checkpoint = Instant::now();
         round += 1;
@@ -352,6 +356,7 @@ pub(super) fn run(context: Context<'_>) -> CliResult<IntegrationReport> {
             &diagnostics,
             &replay,
             previous_complete.as_ref(),
+            contour_provenance.as_ref(),
         )?;
         ResumeStatus::CheckpointSaved
     };

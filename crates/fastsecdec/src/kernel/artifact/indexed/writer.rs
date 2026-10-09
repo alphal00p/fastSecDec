@@ -87,7 +87,14 @@ fn receipt(
     source_indices: Vec<usize>,
 ) -> RecordReceipt {
     RecordReceipt {
-        version: 1,
+        version: if kernels.program_descriptor().is_some() {
+            2
+        } else {
+            1
+        },
+        recipe: kernels
+            .program_descriptor()
+            .map(|descriptor| descriptor.recipe()),
         length: bytes.len() as u64,
         digest: blake3::hash(bytes).to_hex().to_string(),
         native_content_id: id,
@@ -155,23 +162,7 @@ impl<W: Write + Seek> IndexedWriter<W> {
         receipt.validate()?;
         self.failed = true;
         let offset = self.writer.stream_position().map_err(failure)?;
-        let mut remaining = receipt.length;
-        let mut hash = blake3::Hasher::new();
-        let mut buffer = [0u8; 64 * 1024];
-        while remaining > 0 {
-            let requested = remaining.min(buffer.len() as u64) as usize;
-            reader
-                .read_exact(&mut buffer[..requested])
-                .map_err(failure)?;
-            self.writer
-                .write_all(&buffer[..requested])
-                .map_err(failure)?;
-            hash.update(&buffer[..requested]);
-            remaining -= requested as u64;
-        }
-        if hash.finalize().to_hex().as_str() != receipt.digest {
-            return Err(failure("worker record digest differs from its receipt"));
-        }
+        super::transport::copy_record(&mut self.writer, reader, &receipt)?;
         self.records.push(RecordDescriptor {
             offset,
             receipt,
@@ -187,13 +178,7 @@ impl<W: Write + Seek> IndexedWriter<W> {
         }
         let end = self.writer.stream_position().map_err(failure)?;
         let catalogue = KernelCatalogue::finish(self.records, end)?;
-        let bytes = serde_json::to_vec(&catalogue)?;
-        self.writer.write_all(&bytes).map_err(failure)?;
-        self.writer
-            .write_all(&(bytes.len() as u64).to_le_bytes())
-            .map_err(failure)?;
-        self.writer.write_all(super::FOOTER).map_err(failure)?;
-        self.writer.flush().map_err(failure)?;
+        super::transport::write_footer(&mut self.writer, &catalogue, super::FOOTER)?;
         Ok((self.writer, catalogue))
     }
 }

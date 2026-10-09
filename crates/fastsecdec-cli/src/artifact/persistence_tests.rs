@@ -1,7 +1,7 @@
 use super::*;
 use std::cell::Cell;
 
-fn provenance() -> Provenance {
+pub(super) fn provenance() -> Provenance {
     Provenance {
         name: "persistence control".into(),
         sources: vec![],
@@ -19,7 +19,7 @@ fn provenance() -> Provenance {
     }
 }
 
-fn current_kernels() -> KernelSet {
+pub(super) fn current_kernels() -> KernelSet {
     let directory = tempfile::tempdir().unwrap();
     let card = directory.path().join("input.toml");
     fs::write(

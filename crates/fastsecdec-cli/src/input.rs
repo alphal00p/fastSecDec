@@ -96,6 +96,14 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
 
 pub fn load_observed(
     path: &Path,
+    observe: impl FnMut(LoadProgress<'_>) -> CliResult<()>,
+) -> CliResult<LoadedInput> {
+    load_observed_with_overrides(path, Default::default(), observe)
+}
+
+pub(crate) fn load_observed_with_overrides(
+    path: &Path,
+    overrides: crate::config::GenerationOverrides,
     mut observe: impl FnMut(LoadProgress<'_>) -> CliResult<()>,
 ) -> CliResult<LoadedInput> {
     let started = Instant::now();
@@ -115,7 +123,8 @@ pub fn load_observed(
     let text = read(path, &mut sources)?;
     sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardScientificInput;
     sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
-    let card: RunCard = toml::from_str(&text)?;
+    let mut card: RunCard = toml::from_str(&text)?;
+    overrides.apply(&mut card);
     observe(LoadProgress::Parsed(&card))?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let mut values = BTreeMap::new();
@@ -366,11 +375,14 @@ pub fn load_observed(
                         "polynomial" => FactorRole::Polynomial,
                         _ => return Err("factor role must be singularity or polynomial".into()),
                     };
-                    factors.push(PolynomialFactor::new(
-                        bind(&polynomial, &values),
-                        bind(&expression(&factor.exponent)?, &values),
-                        role,
-                    ));
+                    factors.push(
+                        PolynomialFactor::new(
+                            bind(&polynomial, &values),
+                            bind(&expression(&factor.exponent)?, &values),
+                            role,
+                        )
+                        .with_semantics(factor.semantics),
+                    );
                 }
                 terms.push(ParametricTerm::new(
                     bind(

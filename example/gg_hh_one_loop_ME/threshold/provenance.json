@@ -1,0 +1,46 @@
+{
+  "accepted_results": {
+    "all_individual_targets_reached": true,
+    "fresh_higher_budget_diagrams": [
+      "diagram_02_box",
+      "diagram_03_box",
+      "diagram_04_box",
+      "diagram_06_box"
+    ],
+    "fresh_max_rounds": 8,
+    "fresh_relative_tolerance": 0.0001,
+    "reused_completed_diagrams": [
+      "diagram_00_triangle",
+      "diagram_01_triangle",
+      "diagram_05_box",
+      "diagram_07_box"
+    ],
+    "statistics_policy": "use one complete result per diagram; initial and replacement estimates are never pooled"
+  },
+  "binary_sha256": {
+    "target/debug/examples/gghh_one_loop_compare": "8b2b799e106e042ea690672332fb49d1eef51f6854053f284755f2393e4407e6",
+    "target/debug/examples/gghh_one_loop_me": "f0f87856b7fa0e1b10b96c684c7f2d6d79ed482c72526296794cc5fffb30cf47",
+    "target/debug/examples/gghh_one_loop_reference": "c20447370e16efdec6d94929d61254d06e5c216a114f5186215ce60ccb3276b1",
+    "target/debug/fastsecdec": "0dc1f313e6d73a71eecef5325c4efb2bceb5c617f42bf735a482c46c09e0e169"
+  },
+  "driver_profile": "debug",
+  "initial_attempt": {
+    "combined_relative_uncertainty": 0.0010448464759983261,
+    "four_box_results_hit_work_limit": true,
+    "max_rounds": 6,
+    "relative_tolerance": 2e-05
+  },
+  "kernel_backend": "SymJIT O2",
+  "madloop_bounded_run": {
+    "memory_limit_bytes": 16106127360,
+    "seconds": 80.9837930793874,
+    "time_limit_seconds": 600
+  },
+  "source_head": "0e62f05cd2b9a1ed0cf7bd0b3678ac3664540ed7",
+  "source_state": "uncommitted contour_deformation working tree; executable hashes identify the tested build",
+  "status": "fixed-mode scientific control; no dynamic performance claim",
+  "symbolica_owner": "3db1607f5acd9669cde747aa048a3ca0c0fcb2e1",
+  "symjit": "2.27.0 with complex-callback lane patch",
+  "symjit_owner_patch_commit": "24017d4f84010716263d3cbc0e7aba2d48b63fe6",
+  "workers": 8
+}

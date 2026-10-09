@@ -54,6 +54,58 @@ fn rejected(payload: Payload) -> String {
 }
 
 #[test]
+fn explicit_native_v10_static_recipe_preserves_program_and_legacy_identity() {
+    let mut kernels = kernel(Atom::one());
+    let legacy_id = kernels.content_id().to_owned();
+    let legacy_bytes = kernels.artifact_bytes().unwrap().to_vec();
+    assert!(legacy_bytes.starts_with(MAGIC));
+    kernels
+        .declare_program_recipe(crate::kernel::ProgramRecipe::UndeformedV1)
+        .unwrap();
+    let current_id = kernels.content_id().to_owned();
+    assert_ne!(current_id, legacy_id);
+    let bytes = kernels.artifact_bytes().unwrap();
+    assert!(bytes.starts_with(MAGIC_V10));
+    for validate in [false, true] {
+        let restored =
+            KernelSet::from_bytes_with_options(bytes, KernelLoadOptions { validate }).unwrap();
+        assert_eq!(restored.content_id(), current_id);
+        assert_eq!(
+            restored.program_recipe(),
+            crate::kernel::ProgramRecipe::UndeformedV1
+        );
+        assert!(restored.program_descriptor().is_some());
+    }
+    let restored =
+        KernelSet::from_bytes_with_options(&legacy_bytes, KernelLoadOptions { validate: true })
+            .unwrap();
+    assert_eq!(restored.content_id(), legacy_id);
+    assert!(restored.program_descriptor().is_none());
+}
+
+#[test]
+fn explicit_native_v10_rejects_schema_disagreement_without_digest_validation() {
+    let kernels = kernel(Atom::one());
+    let descriptor = crate::kernel::NativeProgramDescriptor::static_recipe(
+        crate::kernel::ProgramRecipe::FixedV1,
+    )
+    .unwrap();
+    let (_, bytes) = encode_with_descriptor(
+        payload(&kernels),
+        Some(crate::kernel::recipe::SavedProgramDescriptor::from_native(
+            &descriptor,
+        )),
+    )
+    .unwrap();
+    for validate in [false, true] {
+        let error = KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate })
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("runtime schema differs"));
+    }
+}
+
+#[test]
 fn borrowed_envelope_preserves_wire_and_borrows_large_buffers() {
     let kernels = super::super::load_tests::template();
     let bytes = kernels.artifact_bytes().unwrap();
@@ -120,18 +172,59 @@ fn binary_content_checks_are_explicit_and_format_checks_are_unconditional() {
 }
 
 fn historical_v7(payload: Payload) -> Vec<u8> {
-    let content_id = semantic_id(&payload, 7).unwrap();
+    historical(payload, 7)
+}
+
+fn historical(payload: Payload, version: u8) -> Vec<u8> {
+    let content_id = semantic_id(&payload, version).unwrap();
     let (_, bytes) = encode(payload).unwrap();
     let (mut envelope, _): (Envelope, usize) = bincode::decode_from_slice(
         bytes.strip_prefix(MAGIC).unwrap(),
         bincode::config::standard(),
     )
     .unwrap();
+    let map = State::import(&mut envelope.state.as_slice(), None).unwrap();
+    let (payload, _): (Payload, usize) = bincode::decode_from_slice_with_context(
+        &envelope.payload,
+        bincode::config::standard(),
+        map,
+    )
+    .unwrap();
+    envelope.payload =
+        bincode::encode_to_vec(PayloadV8::from(payload), bincode::config::standard()).unwrap();
     envelope.content_id = content_id;
-    envelope.digest = *digest(MAGIC_V7, &envelope.state, &envelope.payload).as_bytes();
-    let mut bytes = MAGIC_V7.to_vec();
+    let magic = if version == 7 { MAGIC_V7 } else { MAGIC_V8 };
+    envelope.digest = *digest(magic, &envelope.state, &envelope.payload).as_bytes();
+    let mut bytes = magic.to_vec();
     bytes.extend(bincode::encode_to_vec(envelope, bincode::config::standard()).unwrap());
     bytes
+}
+
+#[test]
+fn historical_v8_layout_and_branch_discriminants_remain_readable() {
+    use crate::generation::BranchPolicy;
+    assert_eq!(
+        bincode::serde::encode_to_vec(BranchPolicy::NoThresholdReal, bincode::config::standard())
+            .unwrap(),
+        [0]
+    );
+    assert_eq!(
+        bincode::serde::encode_to_vec(BranchPolicy::UserResponsible, bincode::config::standard())
+            .unwrap(),
+        [1]
+    );
+    let original = kernel(Atom::num(2));
+    let bytes = historical(payload(&original), 8);
+    for validate in [false, true] {
+        let mut restored =
+            KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate }).unwrap();
+        let mut output = [0.];
+        restored.sectors_mut()[0]
+            .evaluate(&[0.25], &mut output)
+            .unwrap();
+        assert_eq!(output, [0.5]);
+        assert!(!restored.contour_capable());
+    }
 }
 
 #[test]

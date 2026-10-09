@@ -28,6 +28,8 @@ pub(crate) struct Residency {
     pub completed_points: u64,
     pub planned_points: u64,
     pub preparing: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contour_pilot: Option<crate::contour_pilot::Snapshot>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct SerialRunSnapshot {
@@ -41,6 +43,7 @@ pub(crate) struct SerialRunSnapshot {
     pub checkpoint_age_seconds: Option<f64>,
 }
 pub(crate) struct SerialOutcome {
+    pub contour_pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
     pub snapshot: SerialRunSnapshot,
     pub cancelled: bool,
     pub failure: Option<String>,
@@ -48,9 +51,14 @@ pub(crate) struct SerialOutcome {
 
 #[derive(Serialize, Deserialize)]
 struct Job {
+    validation_seed: u64,
+    #[serde(default)]
+    contour: fastsecdec::contour::ContourSettings,
     task: SerialTask,
     data_path: PathBuf,
     catalogue_id: String,
+    archive_id: String,
+    recipe: fastsecdec::kernel::indexed::ProgramRecipe,
     validate_artifact: bool,
     parameters: BTreeMap<String, f64>,
     policy: ReplayPolicy,
@@ -75,6 +83,14 @@ struct TaskMetrics {
 }
 #[derive(Debug, Serialize, Deserialize)]
 enum Event {
+    ContourPilotComplete {
+        identity: ReplicaIdentity,
+        report: fastsecdec::status::ContourPilotProvenance,
+    },
+    ContourPilot {
+        identity: ReplicaIdentity,
+        progress: crate::contour_pilot::Snapshot,
+    },
     Loaded {
         identity: ReplicaIdentity,
         seconds: f64,

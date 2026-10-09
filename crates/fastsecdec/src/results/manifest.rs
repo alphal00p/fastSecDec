@@ -2,6 +2,24 @@ use super::*;
 use crate::integration::{IntegrationProblem, SectorSpec};
 
 impl KernelResultManifest {
+    /// Build an integration problem from a live native owner, requiring bound
+    /// parameters and completed contour pilots for the requested stochastic
+    /// and exact contributions. This also applies when no sampling is needed.
+    /// The plain manifest constructor below is an inspection/caller-declaration
+    /// boundary and deliberately does not confer this runtime readiness.
+    pub fn integration_problem_from_kernels(
+        kernels: &crate::kernel::KernelSet,
+        scope: &ResultScope,
+        accumulation_identity: impl Into<String>,
+    ) -> Result<IntegrationProblem> {
+        let manifest = Self::from_kernels(kernels);
+        let scope = manifest.canonical_scope(scope)?;
+        kernels
+            .validate_integration_readiness(&scope)
+            .map_err(|error| ResultError::Invalid(error.to_string()))?;
+        manifest.integration_problem(&scope, accumulation_identity)
+    }
+
     /// Capture metadata without compiling or evaluating. Sector IDs follow the
     /// public kernel slice's zero-based indices; alternate callers may construct
     /// the native manifest directly with their own stable sector identities.
@@ -67,6 +85,8 @@ impl KernelResultManifest {
     /// Project native sector records and the declared exact offset without
     /// evaluating kernels or reconstructing statistics. The caller's distinct
     /// accumulation identity may include artifact/environment information.
+    /// This accepts a caller declaration; for a live kernel owner use
+    /// [`Self::integration_problem_from_kernels`] to enforce runtime readiness.
     pub fn integration_problem(
         &self,
         scope: &ResultScope,

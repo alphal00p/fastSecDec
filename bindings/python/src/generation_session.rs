@@ -40,7 +40,7 @@ pub(crate) struct PyGenerationSession {
 #[pymethods]
 impl PyIntegral {
     /// Create inert retained work. Only step() performs parameterization, generation or compilation.
-    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour=false, compilation_settings=None, runtime_parameters=None))]
     #[allow(clippy::too_many_arguments)]
     fn generation_session(
         &self,
@@ -49,11 +49,17 @@ impl PyIntegral {
         coefficient_expansion: &str,
         mode: &str,
         subtraction: &str,
+        contour: bool,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
     ) -> PyResult<PyGenerationSession> {
-        let options =
-            crate::generation::options(max_order, coefficient_expansion, mode, subtraction)?;
+        let options = crate::generation::options(
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            contour,
+        )?;
         let settings = compilation_settings.cloned().unwrap_or_default().inner;
         settings
             .validate()
@@ -123,6 +129,10 @@ impl PyGenerationSession {
     #[getter]
     fn subtraction(&self) -> &'static str {
         self.options.subtraction.name()
+    }
+    #[getter]
+    fn contour(&self) -> bool {
+        self.options.contour
     }
 
     /// Run at most max_units indivisible native units on this caller's thread.
@@ -329,7 +339,7 @@ import symbolica.community.hepkit.sector_decomposition
 
 class PyIntegral:
     def generation_session(self, max_order: int = 0, *, coefficient_expansion: str = "coefficient_series",
-        mode: str = "symbolic", subtraction: str = "taylor",
+        mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.GenerationSession:

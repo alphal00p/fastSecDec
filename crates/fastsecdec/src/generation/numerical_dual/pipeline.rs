@@ -82,6 +82,9 @@ impl Context {
         // density cancels them. Formula skeletons intentionally omit bodies.
         let mut reserved_symbols = input.parameters().iter().copied().collect::<BTreeSet<_>>();
         reserved_symbols.insert(input.regulator());
+        if options.contour {
+            reserved_symbols.insert(crate::contour::lambda_symbol());
+        }
         for term in input.terms() {
             for expression in std::iter::once(term.prefactor())
                 .chain(term.monomial_powers())

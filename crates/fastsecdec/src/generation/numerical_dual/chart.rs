@@ -16,6 +16,7 @@ pub(in crate::generation) struct DiscoveredChart {
     pub terms: Vec<DualTerm>,
     pub pre_subtraction: PreSubtractionMetadata,
     pub key: Option<Key>,
+    pub contour: Option<crate::contour::ContourMetadata>,
 }
 
 pub(in crate::generation) fn discover(
@@ -35,18 +36,38 @@ pub(in crate::generation) fn discover(
     )?;
     let coordinates =
         crate::generation::mapping::coordinates(&context.input, &map, &context.parameters);
-    let (mapped, terms) = super::mapping::prepare(
-        &context.input,
-        &map,
-        &coordinates,
-        supports,
-        &context.valuations,
-    )?;
+    let (mapped, terms, mut contour) = if context.options.contour {
+        let (mapped, contour) = crate::generation::mapping::map_terms_with_contour(
+            &context.input,
+            &map,
+            &coordinates,
+            supports,
+            true,
+            false,
+        )?;
+        let terms = mapped
+            .iter()
+            .map(|_| DualTerm { factors: vec![] })
+            .collect();
+        (mapped, terms, contour)
+    } else {
+        let (mapped, terms) = super::mapping::prepare(
+            &context.input,
+            &map,
+            &coordinates,
+            supports,
+            &context.valuations,
+        )?;
+        (mapped, terms, None)
+    };
     let pre_subtraction = PreSubtractionMetadata::capture(
         &mapped,
         context.input.regulator(),
         context.options.max_subtractions_per_axis,
     )?;
+    if let Some(contour) = &mut contour {
+        contour.record_subtraction_faces(&pre_subtraction, context.options.subtraction);
+    }
     let key = if context.eligible && !map.exponent_matrix.iter().flatten().any(|power| power < &0) {
         Key::discover(
             &mapped,
@@ -65,6 +86,7 @@ pub(in crate::generation) fn discover(
         terms,
         pre_subtraction,
         key,
+        contour,
     })
 }
 
@@ -84,6 +106,7 @@ pub(in crate::generation) fn instantiate(
         terms,
         mut pre_subtraction,
         key,
+        mut contour,
     } = chart;
     if key.is_some() != recipe.is_some() {
         return Err(GenerationError::Invariant(
@@ -97,6 +120,27 @@ pub(in crate::generation) fn instantiate(
         total,
     };
     let (coefficients, profile, deferred) = if let Some(recipe) = recipe {
+        if let Some(contour) = &mut contour {
+            use super::subtraction::Coordinate;
+            contour.validation_faces = recipe
+                .requests
+                .iter()
+                .map(|request| {
+                    request
+                        .coordinates
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(axis, coordinate)| match coordinate {
+                            Coordinate::Variable(_) => None,
+                            Coordinate::Zero => Some((axis, 0)),
+                            Coordinate::One => Some((axis, 1)),
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect();
+        }
         let profile = Profile::mapped(
             &mapped,
             context.parameters.len(),
@@ -115,6 +159,9 @@ pub(in crate::generation) fn instantiate(
                 parameters: context.parameters.clone(),
                 map: map.clone(),
                 terms,
+                mapped_regular: contour
+                    .as_ref()
+                    .map(|_| mapped.iter().map(|term| term.regular.clone()).collect()),
                 recipe,
                 orders,
             })),
@@ -127,8 +174,11 @@ pub(in crate::generation) fn instantiate(
             coefficients::Observation::default()
                 .event(&representative, CoefficientExpansionStage::PhysicalFallback),
         )?;
-        let physical =
-            crate::generation::mapping::map_terms(&context.input, &map, &coordinates, supports)?;
+        let physical = if context.options.contour {
+            mapped
+        } else {
+            crate::generation::mapping::map_terms(&context.input, &map, &coordinates, supports)?
+        };
         pre_subtraction = PreSubtractionMetadata::capture(
             &physical,
             context.input.regulator(),
@@ -164,6 +214,7 @@ pub(in crate::generation) fn instantiate(
         deferred,
     };
     let chart = ChartRecord {
+        contour,
         source_index: index,
         representative: index,
         representative_permutation: (0..context.parameters.len()).collect(),

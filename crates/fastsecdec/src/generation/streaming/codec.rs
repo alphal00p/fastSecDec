@@ -180,6 +180,7 @@ pub(super) fn read<M: DeserializeOwned>(
         return Err(invalid("trailing envelope bytes"));
     }
     let _ = symbolica::transcendental::gamma();
+    crate::contour::functions::register();
     let mut source = envelope.state.as_slice();
     let state = State::import(&mut source, None)?;
     if !source.is_empty() {

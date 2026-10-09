@@ -1,10 +1,15 @@
 //! Serializable status snapshots with terminal-independent display functions.
 mod coefficient;
+mod contour;
 mod diagnostics;
 mod generation;
 mod geometry;
 mod timings;
 pub use coefficient::CoefficientExpansionSnapshot;
+pub use contour::{
+    ContourCheckCounters, ContourCheckpointProvenance, ContourEvaluationDiagnostics,
+    ContourPilotProvenance, ContourRunReport,
+};
 pub use diagnostics::{DiagnosticsOverflow, EvaluationDiagnostics};
 pub use geometry::GeometryReuseStatus;
 use std::fmt;

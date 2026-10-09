@@ -717,3 +717,35 @@ fn discrete_havana_cli_reports_global_allocation_and_resumes_with_new_worker_cou
             .is_none()
     );
 }
+#[test]
+fn contour_validation_changes_preserve_statistical_identity_but_strength_does_not() {
+    use fastsecdec::contour::{ContourMode, ContourValidation};
+    let mut settings = IntegrationInput::default();
+    let historical = checkpoint::settings_identity(&settings).unwrap();
+    assert!(historical.get("contour").is_none());
+    settings.contour.validation.policy = ContourValidation::Off;
+    assert_eq!(
+        checkpoint::settings_identity(&settings).unwrap(),
+        historical
+    );
+    settings.contour.deformation = ContourMode::Fixed { lambda: 0.15 };
+    let mathematical = checkpoint::settings_identity(&settings).unwrap();
+    assert_ne!(mathematical, historical);
+    for policy in [
+        ContourValidation::Always,
+        ContourValidation::Pilot,
+        ContourValidation::Off,
+    ] {
+        settings.contour.validation.policy = policy;
+        settings.contour.validation.pilot_points = 2048;
+        assert_eq!(
+            checkpoint::settings_identity(&settings).unwrap(),
+            mathematical
+        );
+    }
+    settings.contour.deformation = ContourMode::Fixed { lambda: 0.3 };
+    assert_ne!(
+        checkpoint::settings_identity(&settings).unwrap(),
+        mathematical
+    );
+}

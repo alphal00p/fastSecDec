@@ -21,6 +21,17 @@ pub(crate) fn canonical_parameter_names<T>(
 #[cfg(test)]
 mod tests;
 
+/// CLI generation choices travel with process jobs instead of rewriting cards.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, Deserialize)]
+pub(crate) struct GenerationOverrides {
+    pub contour: bool,
+}
+impl GenerationOverrides {
+    pub(crate) fn apply(self, card: &mut RunCard) {
+        card.generation.contour |= self.contour;
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunCard {
@@ -122,6 +133,8 @@ impl Default for IntegralInput {
 pub struct GenerationInput {
     /// Complete and persist one sector per recyclable worker process.
     pub serial: bool,
+    /// Retain causal contour maps and runtime strength in generated kernels.
+    pub contour: bool,
     pub order: i32,
     pub mode: fastsecdec::generation::GenerationMode,
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
@@ -140,6 +153,7 @@ impl Default for GenerationInput {
     fn default() -> Self {
         Self {
             serial: false,
+            contour: false,
             order: 0,
             mode: Default::default(),
             subtraction: Default::default(),
@@ -190,6 +204,9 @@ pub struct IntegrationInput {
     pub max_rounds: Option<usize>,
     pub replay: fastsecdec::kernel::ReplayPolicy,
     pub stability: fastsecdec::kernel::StabilitySettings,
+    /// The mathematical contour and its independently selectable validation policy.
+    #[serde(skip_serializing_if = "is_default_contour")]
+    pub contour: fastsecdec::contour::ContourSettings,
     /// Explicit steering for the global discrete-sector Havana lane only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discrete_mc: Option<DiscreteMcInput>,
@@ -245,6 +262,7 @@ impl Default for IntegrationInput {
             max_rounds: None,
             replay: Default::default(),
             stability: Default::default(),
+            contour: Default::default(),
             discrete_mc: None,
         }
     }
@@ -254,12 +272,17 @@ fn is_legacy_lattice(value: &str) -> bool {
     value == "kuo33002"
 }
 
+fn is_default_contour(value: &fastsecdec::contour::ContourSettings) -> bool {
+    value == &fastsecdec::contour::ContourSettings::default()
+}
+
 impl IntegrationInput {
     pub fn ordinary_max_rounds(&self) -> usize {
         self.max_rounds.unwrap_or(1)
     }
 
     pub fn validate_execution(&self) -> crate::CliResult<()> {
+        self.contour.validate()?;
         if self.workers == 0 || self.max_rounds == Some(0) || self.evaluation_batch_size == 0 {
             return Err("workers, max_rounds and evaluation_batch_size must be positive".into());
         }
@@ -296,22 +319,8 @@ impl IntegrationInput {
             let values = serde_json::from_value::<BTreeMap<String, f64>>(parameters.clone())?;
             *parameters = serde_json::to_value(canonical_parameter_names(values)?)?;
         }
-        fn merge(base: &mut serde_json::Value, overlay: serde_json::Value) {
-            match (base, overlay) {
-                (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
-                    for (key, value) in overlay {
-                        if let Some(existing) = base.get_mut(&key) {
-                            merge(existing, value);
-                        } else {
-                            base.insert(key, value);
-                        }
-                    }
-                }
-                (base, overlay) => *base = overlay,
-            }
-        }
         let mut effective = serde_json::to_value(&*self)?;
-        merge(&mut effective, overlay);
+        merge_runtime_values(&mut effective, overlay);
         *self = serde_json::from_value(effective)?;
         Ok(())
     }
@@ -349,6 +358,21 @@ impl IntegrationInput {
         };
         settings.validate()?;
         Ok(settings)
+    }
+}
+
+pub(crate) fn merge_runtime_values(base: &mut serde_json::Value, overlay: serde_json::Value) {
+    match (base, overlay) {
+        (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
+            for (key, value) in overlay {
+                if let Some(existing) = base.get_mut(&key) {
+                    merge_runtime_values(existing, value);
+                } else {
+                    base.insert(key, value);
+                }
+            }
+        }
+        (base, overlay) => *base = overlay,
     }
 }
 
@@ -399,6 +423,9 @@ pub struct DirectFactor {
     pub exponent: String,
     #[serde(default = "singularity")]
     pub role: String,
+    /// Explicit causal F or positive U identity; generic factors are unclassified.
+    #[serde(default)]
+    pub semantics: fastsecdec::parametric::FactorSemantics,
 }
 fn one() -> String {
     "1".into()

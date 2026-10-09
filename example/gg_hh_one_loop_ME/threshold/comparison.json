@@ -1,0 +1,50 @@
+{
+  "checks": {
+    "amplitude_relative_uncertainty_at_most_one_per_mil": true,
+    "deterministic_references_agree": true,
+    "eight_fastsecdec_diagrams": true,
+    "eight_hepkit_diagrams": true,
+    "eight_madloop_diagrams": true,
+    "fastsecdec_matches_hepkit": true,
+    "fastsecdec_matches_madloop": true,
+    "fastsecdec_poles_compatible_with_zero": true,
+    "hepkit_poles_cancel": true,
+    "ward1_pass": true,
+    "ward2_pass": true
+  },
+  "fastsecdec_amplitude_relative_standard_error": 0.00029635544999339345,
+  "fastsecdec_amplitude_standard_error": 6.728741904610188e-6,
+  "fastsecdec_hepkit_distance_over_combined_component_standard_error": 0.38664515020349766,
+  "fastsecdec_madloop_distance_over_combined_component_standard_error": 0.38664515020854834,
+  "hepkit_madloop_absolute_difference": 8.845388854693244e-17,
+  "normalization": "M_ab=delta_ab*A++; colour sum=8*|A++|^2; no spin or colour average",
+  "numerical_standard_error_allowance": 5,
+  "passed": true,
+  "reference_relative_allowance": 1e-9,
+  "results": [
+    {
+      "color_summed_fixed_helicity_squared": 0.004124125673244688,
+      "method": "FastSecDec",
+      "physical_color_coefficient": [
+        -0.01942901188043525,
+        -0.011748583170131279
+      ]
+    },
+    {
+      "color_summed_fixed_helicity_squared": 0.004123804395373609,
+      "method": "HEPKit",
+      "physical_color_coefficient": [
+        -0.019429520982366368,
+        -0.01174603183281427
+      ]
+    },
+    {
+      "color_summed_fixed_helicity_squared": 0.004123804395373632,
+      "method": "MadLoop",
+      "physical_color_coefficient": [
+        -0.019429520982366454,
+        -0.011746031832814252
+      ]
+    }
+  ]
+}

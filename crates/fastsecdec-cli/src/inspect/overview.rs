@@ -82,7 +82,7 @@ pub(super) fn render(
             })
             .unwrap_or_else(|| "Not indexed; --deep".into())
     };
-    let facts = vec![
+    let mut facts = vec![
         [
             "Artifact".into(),
             terminal_text(
@@ -173,6 +173,39 @@ pub(super) fn render(
         ],
         ["Loaded in".into(), duration(artifact.loading_seconds)],
     ];
+    if let Some(programs) = &artifact.programs {
+        facts.push([
+            "Archive ID (short)".into(),
+            short_id(&artifact.kernel_content_id),
+        ]);
+        facts.push([
+            "Recipe ID (short)".into(),
+            short_id(
+                artifact
+                    .catalogue()
+                    .ok_or("missing selected recipe catalogue")?
+                    .content_id,
+            ),
+        ]);
+        facts.push([
+            "Selected recipe".into(),
+            artifact
+                .selected_recipe()
+                .ok_or("missing selected recipe")?
+                .name()
+                .into(),
+        ]);
+        facts.push([
+            "Available recipes".into(),
+            programs
+                .catalogue
+                .recipes
+                .iter()
+                .map(|r| r.recipe.name())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ]);
+    }
     let mut out = heading("Artifact inspection", width, colors, Color::FG_GREEN);
     out.push_str(&facts_table(facts, width, colors));
     out.push_str("\n\n");

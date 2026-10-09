@@ -118,6 +118,13 @@ pub(crate) fn print(
             colors
         )
     );
+    if let Some(contour) = &result.contour {
+        print!(
+            "\n{}",
+            heading("Contour validation", width, colors, Color::FG_CYAN)
+        );
+        println!("{}", facts_table(contour_rows(contour), width, colors));
+    }
     if let Some(design) = &result.qmc_design {
         println!("\n{design}");
     }
@@ -125,4 +132,64 @@ pub(crate) fn print(
         print!("\n{comparison}");
     }
     Ok(())
+}
+
+fn contour_rows(report: &fastsecdec::status::ContourRunReport) -> Vec<[String; 2]> {
+    use fastsecdec::contour::{ContourMode, ContourValidation};
+    let prescription = match report.deformation {
+        ContourMode::Off => "Off".into(),
+        ContourMode::Fixed { lambda } => format!("Fixed · λ = {lambda}"),
+    };
+    let policy = match report.validation.policy {
+        ContourValidation::Always => "Pilot and production",
+        ContourValidation::Pilot => "Pilot only; production unchecked",
+        ContourValidation::Off => "Checks disabled",
+    };
+    let required: u128 = report
+        .pilots
+        .iter()
+        .map(|p| p.required_charts.len() as u128)
+        .sum();
+    let validated: u128 = report
+        .pilots
+        .iter()
+        .map(|p| p.validated_charts.len() as u128)
+        .sum();
+    let points: u128 = report.pilots.iter().map(|p| p.sampled_points as u128).sum();
+    let pilot = if report.pilots.is_empty() {
+        "No pilot evidence recorded".into()
+    } else {
+        format!("{validated}/{required} charts · {points} points")
+    };
+    let current = report.invocation_checks;
+    let mut rows = vec![
+        ["Deformation".into(), prescription],
+        ["Runtime validation".into(), policy.into()],
+        ["Recorded pilot coverage".into(), pilot],
+        [
+            "Production argument checks".into(),
+            current.production.checked_arguments.to_string(),
+        ],
+        [
+            "Adaptation argument checks".into(),
+            current.adaptation.checked_arguments.to_string(),
+        ],
+    ];
+    if current.production.checked_arguments > 0 {
+        rows.push([
+            "Production check precision".into(),
+            format!("{} bits maximum", current.production.maximum_bits),
+        ]);
+    }
+    if let Some(recorded) = report.recorded_checks {
+        rows.push([
+            "Recorded production checks".into(),
+            recorded.production.checked_arguments.to_string(),
+        ]);
+    }
+    rows.push([
+        "Check scope".into(),
+        "Polynomial map at checked arguments".into(),
+    ]);
+    rows
 }

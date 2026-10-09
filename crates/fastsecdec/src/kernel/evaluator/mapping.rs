@@ -116,7 +116,10 @@ impl MappingRequirements {
         }
         // No generic constant fallback: fixed functions must have their own
         // implementation in T. User callbacks retain Symbolica's own contract.
-        Ok(exact.clone().map_coeff_with_prec(&coefficient, bits))
+        Ok(crate::contour::functions::dynamic::with_precision(
+            bits,
+            || exact.clone().map_coeff_with_prec(&coefficient, bits),
+        ))
     }
 }
 

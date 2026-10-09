@@ -219,7 +219,7 @@ pub(super) fn is_real_with_parameters(
     assumptions.is_real(coefficient.get_root())
 }
 
-pub(super) fn is_real_expression(expression: &Atom, inputs: &[Symbol]) -> bool {
+pub(crate) fn is_real_expression(expression: &Atom, inputs: &[Symbol]) -> bool {
     RealInputs::new(inputs.iter()).is_real(expression)
 }
 
@@ -380,6 +380,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ExactProgram, KernelError> {
     // Native callbacks for external fixed Gamma/polygamma constants must exist
     // before the portable program imports their symbol identities.
     let _ = symbolica::transcendental::gamma();
+    crate::contour::functions::register();
     let (program, consumed) =
         bincode::serde::borrow_decode_from_slice(bytes, bincode::config::standard()).map_err(
             |error| KernelError::Artifact(format!("native evaluator decoding: {error}")),

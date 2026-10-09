@@ -7,6 +7,9 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 pub struct GenerationOptions {
     /// How sector maps and endpoint derivatives enter evaluator construction.
     pub mode: GenerationMode,
+    /// Generate a causal parameter-space map with a real runtime strength.
+    /// Disabled by default; it does not infer F from polynomial ordering.
+    pub contour: bool,
     /// Legacy recorded caller assertion; threshold freedom is always the
     /// caller's responsibility when no regularisation is requested.
     pub assume_no_threshold: bool,
@@ -122,6 +125,7 @@ impl Default for GenerationOptions {
     fn default() -> Self {
         Self {
             mode: GenerationMode::default(),
+            contour: false,
             assume_no_threshold: false,
             max_order: 0,
             decomposition: DecompositionOptions::default(),
@@ -331,6 +335,8 @@ impl GeneratedIntegral {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GenerationError {
+    #[error("contour deformation: {0}")]
+    Contour(String),
     #[error(
         "no-threshold domain could not be certified for {0}; an explicit caller assertion is required"
     )]

@@ -7,7 +7,8 @@ use std::{collections::BTreeMap, ops::ControlFlow, sync::Arc};
 
 use fastsecdec::{
     Atom, AtomCore, Kinematics, Model,
-    generation::{GenerationOptions, generate},
+    contour::{ContourMode, ContourSettings, ContourValidation, ContourValidationOptions},
+    generation::{GenerationMode, GenerationOptions, generate},
     input::GraphIntegral,
     integration::{IntegrationProblem, QmcSession, QmcSettings, SectorSpec, VectorEstimate},
     parametric::ParametricIntegrand,
@@ -17,6 +18,15 @@ use oneloop::{EvaluationBackend, JitEvaluator, ScalarEvaluator, ScalarIntegral};
 use symbolica::{domains::float::Complex, parse, symbol};
 
 fn integrate(graph: GraphIntegral, mu_squared: i64) -> VectorEstimate {
+    integrate_with_contour(graph, mu_squared, GenerationMode::Symbolic, false)
+}
+
+fn integrate_with_contour(
+    graph: GraphIntegral,
+    mu_squared: i64,
+    mode: GenerationMode,
+    contour: bool,
+) -> VectorEstimate {
     let epsilon = symbol!("hepkit_master::eps");
     let multiplier = Atom::num(mu_squared).pow(Atom::var(epsilon))
         * parse!(
@@ -32,11 +42,43 @@ fn integrate(graph: GraphIntegral, mu_squared: i64) -> VectorEstimate {
         parse!("4-2*hepkit_master::eps"),
     )
     .unwrap();
-    let generated = generate(&input, &GenerationOptions::default(), |_| {
-        ControlFlow::Continue(())
-    })
+    let generated = generate(
+        &input,
+        &GenerationOptions {
+            mode,
+            contour,
+            ..Default::default()
+        },
+        |_| ControlFlow::Continue(()),
+    )
     .unwrap();
     let mut kernels = generated.compile().unwrap();
+    if contour {
+        // The caller validates a distinct deterministic pilot and then samples
+        // without per-point causal-check overhead. Pilot values never enter
+        // QMC's production replicas or accumulator.
+        kernels
+            .bind_parameters_with_contour(
+                &BTreeMap::new(),
+                &ContourSettings {
+                    deformation: ContourMode::Fixed { lambda: 0.2 },
+                    validation: ContourValidationOptions {
+                        policy: ContourValidation::Pilot,
+                        pilot_points: 8,
+                    },
+                },
+            )
+            .unwrap();
+        for chart in kernels.contour_validation_charts() {
+            for index in 0..8 {
+                let point = vec![(index as f64 + 0.5) / 8.0; chart.dimension];
+                kernels
+                    .validate_contour_point(chart.chart_index, &point, true)
+                    .unwrap();
+            }
+        }
+        assert!(kernels.finish_contour_pilot().unwrap().pilot_complete);
+    }
     // These independent master comparisons retain their original validated
     // precision contract. Default distance routing has separate kernel controls
     // and the numerator-reference suite also exercises the default policy.
@@ -133,6 +175,47 @@ fn compare(family: ScalarIntegral, arguments: &[i64], actual: &VectorEstimate) {
     }
 }
 
+fn compare_physical(
+    family: ScalarIntegral,
+    arguments: &[i64],
+    mode: GenerationMode,
+    actual: &VectorEstimate,
+) {
+    let input = arguments
+        .iter()
+        .map(|value| Complex::new(*value as f64, 0.0))
+        .collect::<Vec<_>>();
+    let mut expected = [Complex::new(0.0, 0.0); 3];
+    oneloop::evaluate_with_backend(family, &input, &mut expected, EvaluationBackend::Expression)
+        .unwrap();
+    assert!(actual.production_complete);
+    assert!(
+        expected[0].im.abs() > 1e-3,
+        "reference must exercise the physical cut: {} {arguments:?}",
+        family.name()
+    );
+    for (order, reference) in [0, -1, -2].into_iter().zip(expected) {
+        for (component, value) in [
+            (fastsecdec::status::CoefficientComponent::Real, reference.re),
+            (fastsecdec::status::CoefficientComponent::Imag, reference.im),
+        ] {
+            let (mean, error) = actual
+                .orders
+                .iter()
+                .zip(&actual.components)
+                .position(|(power, kind)| *power == order && *kind == component)
+                .map(|index| (actual.mean[index], actual.standard_error[index]))
+                .unwrap_or((0.0, 0.0));
+            assert!(value.is_finite() && mean.is_finite() && error.is_finite());
+            assert!(
+                (mean - value).abs() <= 8.0 * error + 2e-8 * value.abs().max(1.0),
+                "{mode:?} {} {arguments:?} eps^{order} {component:?}: {mean} ± {error}, native master {value}",
+                family.name()
+            );
+        }
+    }
+}
+
 fn with_stack(work: impl FnOnce() + Send + 'static) {
     // The provider documents this stack size for building its lazy C0/D0 graph.
     std::thread::Builder::new()
@@ -210,6 +293,72 @@ fn native_bubble_matches_hepkit_b0_at_massless_massive_and_scaleless_points() {
                 ScalarIntegral::B0,
                 &[s, mass * mass, mass * mass, mu_squared],
                 &actual,
+            );
+        }
+    });
+}
+
+#[test]
+fn physical_native_bubble_contours_match_hepkit_b0_in_both_generation_modes() {
+    with_stack(|| {
+        for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+            for (s, mass, mu_squared) in [(5, 1, 1), (9, 1, 4)] {
+                let kin = Kinematics::in_dimension(&parse!("D"))
+                    .unwrap()
+                    .with_mass_squared(&symbols::external_momentum().call(1), Atom::num(s))
+                    .unwrap();
+                let actual = integrate_with_contour(
+                    graph(
+                        include_str!("../../../examples/graphs/bubble.dot"),
+                        &kin,
+                        mass,
+                    ),
+                    mu_squared,
+                    mode,
+                    true,
+                );
+                compare_physical(
+                    ScalarIntegral::B0,
+                    &[s, mass * mass, mass * mass, mu_squared],
+                    mode,
+                    &actual,
+                );
+            }
+        }
+    });
+}
+
+#[test]
+fn physical_native_triangle_and_box_contours_match_hepkit_in_both_generation_modes() {
+    with_stack(|| {
+        for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+            let p = symbols::external_momentum().call(1);
+            let q = symbols::external_momentum().call(2);
+            let kin = Kinematics::in_dimension(&parse!("D"))
+                .unwrap()
+                .with_mass_squared(&p, Atom::Zero)
+                .unwrap()
+                .with_mass_squared(&q, Atom::Zero)
+                .unwrap()
+                .with_scalar_product(&p, &q, Atom::num((5, 2)))
+                .unwrap();
+            let triangle = integrate_with_contour(
+                graph(
+                    include_str!("../../../examples/graphs/triangle.dot"),
+                    &kin,
+                    1,
+                ),
+                1,
+                mode,
+                true,
+            );
+            compare_physical(ScalarIntegral::C0, &[0, 0, 5, 1, 1, 1, 1], mode, &triangle);
+            let box_integral = integrate_with_contour(box_graph(5, -1, 1), 1, mode, true);
+            compare_physical(
+                ScalarIntegral::D0,
+                &[0, 0, 0, 0, 5, -1, 1, 1, 1, 1, 1],
+                mode,
+                &box_integral,
             );
         }
     });

@@ -128,6 +128,19 @@ pub struct WeightedEvaluationContext {
 }
 
 impl WeightedEvaluationContext {
+    /// Validation work performed by this resident evaluator, suitable for a
+    /// caller-owned worker completion/status snapshot.
+    pub fn contour_validation_report(&self) -> Option<super::ContourProductionReport> {
+        self.kernel.contour_validation_report()
+    }
+    /// Return and reset only observational counters, leaving evaluation and
+    /// sampling state intact for the next caller-owned work package.
+    pub fn take_contour_validation_report(&mut self) -> Option<super::ContourProductionReport> {
+        self.kernel.take_contour_validation_report()
+    }
+}
+
+impl WeightedEvaluationContext {
     pub fn dimension(&self) -> usize {
         self.kernel.dimension()
     }

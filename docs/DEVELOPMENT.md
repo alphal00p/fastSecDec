@@ -42,10 +42,11 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public fork revision `1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4`, including configurable coefficient fields and native evaluator composition; [upstream PR #54](https://github.com/symbolica-dev/symbolica/pull/54) targets `community` |
-| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch, locked at `259df8790f27b8d3ef32778cd7195942691b4ef0` |
-| Numerica and Graphica | Registry 3.0.1 |
-| SymJIT | Compatible minimum `2.26.4`; exact resolved release in Cargo.lock |
+| Symbolica | Public `community`-based fork revision `7ec1be45ef92ae3b154e0d4ce754c0bdf3d9d0ca`, retaining native evaluator composition and adding ball evaluator domains and prepared scalar roots; [upstream contour PRs](reviews/contour-upstream-prs.md) |
+| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
+| Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
+| Graphica | Registry 3.0.1 |
+| SymJIT | Compatible minimum `2.27.0`; public Git revision `33100ae869057f35d9865c933a48bac6699acdd4` supplies the complex callback fix and existing Rust API entrypoint pending upstream release |
 | OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
 | one-loop-reduce | Public source, locked at `b53a70776a43bd14c6562c52a03bc4909568e473`; development-only reference provider |
 
