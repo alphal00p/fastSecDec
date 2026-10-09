@@ -1,0 +1,107 @@
+diff --git a/src/evaluate/domain.rs b/src/evaluate/domain.rs
+index 4e38da1..57b94b6 100644
+--- a/src/evaluate/domain.rs
++++ b/src/evaluate/domain.rs
+@@ -39,6 +39,25 @@ impl EvaluationDomain for Complex<Rational> {
+     }
+ }
+ 
++/// Allow exact-coefficient evaluators to be mapped to real balls.
++///
++/// Map rational coefficients with `RealBall::from_rational_ball` and the
++/// requested precision. The default conversion from an already rounded
++/// `Complex<Float>` deliberately remains unsupported: it cannot enclose the
++/// unknown rounding error of a mathematical constant. Only explicitly
++/// registered ball callbacks are resolved, without a floating-point fallback.
++/// Evaluator support does not make inherited transcendental ball operations
++/// certifying; restrict certified computations to the documented ball algebra.
++impl EvaluationDomain for crate::domains::float::RealBall {
++    const FIXED_PRECISION: Option<u32> = None;
++}
++
++/// Complex counterpart of the real-ball domain, with the same restrictions on
++/// coefficient conversion, callbacks and certified arithmetic.
++impl EvaluationDomain for crate::domains::float::ComplexBall {
++    const FIXED_PRECISION: Option<u32> = None;
++}
++
+ impl EvaluationDomain for f64 {
+     const FIXED_PRECISION: Option<u32> = Some(53);
+ 
+diff --git a/tests/ball_evaluation_domains.rs b/tests/ball_evaluation_domains.rs
+new file mode 100644
+index 0000000..4628e5c
+--- /dev/null
++++ b/tests/ball_evaluation_domains.rs
+@@ -0,0 +1,71 @@
++use symbolica::{
++    atom::{AtomCore, EvaluationInfo},
++    domains::{
++        float::{Complex, ComplexBall, Float, RealBall},
++        rational::Rational,
++    },
++    evaluate::EvaluationDomain,
++    parse,
++};
++
++#[test]
++fn polynomial_evaluators_enclose_exact_rational_values() {
++    let expression = parse!("x^3/3+2*x/7+5/11");
++    let exact = expression.evaluator(&[parse!("x")]).build().unwrap();
++    let rational = Rational::from((8, 3)) + Rational::from((4, 7)) + Rational::from((5, 11));
++    let reference = RealBall::from_rational_ball(&rational, &Rational::from(0), 160);
++    let mut real = exact.clone().map_coeff_with_prec(
++        &|c| RealBall::from_rational_ball(&c.re, &Rational::from(0), 80),
++        80,
++    );
++    let value = real.evaluate_single(&[RealBall::exact(Float::with_val(80, 2))]);
++    assert!(value.contains_ball(&reference));
++
++    let mut complex = exact.map_coeff_with_prec(
++        &|c| ComplexBall::from_rational_ball(c, &Rational::from(0), 80),
++        80,
++    );
++    let value = complex.evaluate_single(&[ComplexBall::new(
++        RealBall::exact(Float::with_val(80, 2)),
++        RealBall::exact(Float::with_val(80, 0)),
++    )]);
++    assert!(value.re.contains_ball(&reference));
++    assert!(value.im.contains(&Float::with_val(80, 0)));
++}
++
++#[test]
++fn rounded_constants_and_float_callback_fallbacks_are_not_admitted() {
++    let rounded = Complex::new(Float::with_val(80, 1), Float::with_val(80, 0));
++    assert!(RealBall::try_from_complex_float(rounded.clone()).is_err());
++    assert!(ComplexBall::try_from_complex_float(rounded).is_err());
++    let info = EvaluationInfo::new().register(|x: &[Complex<Float>]| x[0].clone());
++    assert!(RealBall::resolve_function(&[], &info).is_none());
++    assert!(ComplexBall::resolve_function(&[], &info).is_none());
++    assert!(RealBall::FIXED_PRECISION.is_none());
++    assert!(ComplexBall::FIXED_PRECISION.is_none());
++}
++
++#[test]
++fn complex_polynomial_encloses_rational_causal_ray_value() {
++    let mut evaluator = parse!("1-5*x*(1-x)")
++        .evaluator(&[parse!("x")])
++        .build()
++        .unwrap()
++        .map_coeff_with_prec(
++            &|c| ComplexBall::from_rational_ball(c, &Rational::from(0), 80),
++            80,
++        );
++    let point = ComplexBall::from_rational_ball(
++        &Complex::new(Rational::from((1, 3)), Rational::from((1, 7))),
++        &Rational::from(0),
++        80,
++    );
++    let value = evaluator.evaluate_single(&[point]);
++    let reference = ComplexBall::from_rational_ball(
++        &Complex::new(Rational::from((-94, 441)), Rational::from((-5, 21))),
++        &Rational::from(0),
++        160,
++    );
++    assert!(value.contains_ball(&reference));
++    assert!(value.im.is_strictly_negative());
++}

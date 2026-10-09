@@ -2337,3 +2337,67 @@ release run. The separate clean MadLoop reproduction and native master/Ward
 runs also pass. Strict workspace/all-target Clippy with warnings denied,
 formatting and staged/unstaged diff checks pass. All new native examples compile.
 Local logs remain in `output/gghh-one-loop-*.log`.
+
+## Phase B contour foundation (2026-10-09)
+
+The [independent foundation review](reviews/contour-foundation.md) checks the
+approved fixed-contour subtraction order, continued branches, optional runtime
+validation and the proposed dynamic-bound proof. Native Symbolica owns
+differentiation, series, determinant coefficient algebra, polynomial roots,
+implicit derivative hooks, dual jets and optimized evaluator callbacks.
+Numerica supplies the matrix determinant and certified rational ball operations;
+HEPKit graphs and the existing OneLOop master/reduction providers remain the
+physical input/reference owners. No parallel CAS, determinant, automatic
+differentiator, graph representation or master-integral implementation is justified.
+
+The existing ignored CAS, IFT and compiled-callback probes were independently
+rerun successfully. They demonstrate native operations and cubic implicit jets,
+and expose the causal lower-lip issue: ordinary eager and SymJIT logarithms can
+return `+i*pi` at an exactly negative-real causal argument. A specific causal-log
+function using the native logarithm and Symbolica derivative hook is appropriate.
+Generic `AtomCore::nsolve` already exists, but constructs evaluators per call;
+its existence is not evidence of an efficient production sampling path.
+
+The review explicitly restricts certified-ball claims to Numerica's documented
+directed-rounding algebra. Its inherited transcendental functions are not
+certifying. Sign-aware radius checks must use equivalent algebraic inequalities
+or an independently verified owner capability, never assume `RealBall::sqrt`
+provides a certificate. Both the spectral bound and its positive part require
+smooth regularization; smoothing the latter alone leaves a nondifferentiable
+scalar-matrix degeneracy. Structural dimension/counts and the full contour must
+remain fixed under subtraction-face restriction.
+
+This records foundation evidence, not completion of fixed or dynamic production
+support. Metadata persistence, endpoint jets, optional-check overhead removal,
+fresh-process restoration, threshold reference tests and the physical multiloop
+gates remain independently reviewed acceptance requirements.
+
+A subsequent public-API/source/compiler probe establishes a narrow missing
+Symbolica operation: native `ExpressionEvaluator::map_coeff_with_prec` cannot
+target Numerica `RealBall` or `ComplexBall` because their `EvaluationDomain`
+implementations are absent. The [owner patch](dependency-patches/symbolica-ball-evaluation-domain.patch)
+adds those two declarations without replacing evaluation or arithmetic. It
+refuses uncertified rounded-constant conversion and supplies no ordinary-float
+callback fallback. The independent isolated build and all three focused owner
+tests pass. Runtime validation must still admit only certified algebraic
+instructions, including inspecting nested aliases and external constant slots.
+No root dependency revision or dirty shared owner checkout is changed by this
+probe; publication and coordinated dependency selection remain separate work.
+
+
+The fixed-contour integration probe also uncovered a SymJIT owner defect:
+scalar-complex sliced callbacks confuse real/imaginary sample lanes in implicit
+SIMD batches. A [standalone Rust-script reproduction](../mre/symjit-complex-callback-lanes/README.md)
+removes Symbolica and FastSecDec entirely. The latest published SymJIT 2.27.0
+(2026-10-08) still fails, as does 2.26.4. The
+[native adapter fix](dependency-patches/symjit-complex-callback-lanes.patch)
+preserves SIMD execution; its real/imaginary lane regression and full compiled
+owner suite pass (2148 passed, one ignored). No FastSecDec evaluator replacement
+or backend-disable workaround is justified. The owner source commit is local,
+and supported-platform execution beyond x86_64 remains unverified.
+
+The current fixed-mode ball checker certifies polynomial-map signs at the
+supplied floating inputs. It does not enclose all internal rounding in the
+separate JIT evaluation. A possible future dynamic certificate for an actually
+rounded direction requires additional implementation-level evidence; the
+foundation's exact-arithmetic bounds do not provide that evidence by themselves.

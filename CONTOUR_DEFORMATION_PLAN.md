@@ -280,3 +280,24 @@ Compare fixed and dynamic modes using independent repeated runs, including check
 Reuse published analytic and numerical references with their stated uncertainties. Published LTD timings provide context, not directly comparable FastSecDec speed claims. Run fresh pySecDec comparisons only within the earlier ten-minute/15-GB reference budget.
 
 The completed dynamic mode must implement the smooth causal bounds, support optional runtime validation, and demonstrate correctness and practical behavior on physical one-, two- and three-loop tests. Finish only after interfaces, scientific checks, performance review and ecosystem audits pass.
+
+---
+
+## Subsequent user requirement — variance monitoring (2026-10-09)
+
+> Continue as planned, but during testing also monitor how much of a better variance you can achieve by using dynamical vs static lambda (once both are implemented).
+
+Once both modes are implemented, record fixed-versus-dynamic variance ratios at
+equal production work, per sector and for the last requested complete complex
+Laurent coefficient. Preserve real–imaginary covariance and distinguish
+pointwise integrand variance from the variance between independent shifted-QMC
+replicas; the latter determines the QMC error estimate. Use repeated independent
+runs, matched sampling designs and validation policies, and record all strength,
+cap and safety-fraction settings. Any tuning uses separate pilots and is frozen
+before the comparison's production samples.
+
+Report sampling cost, variance reduction per unit work and time to the requested
+accuracy together. Record neutral or worse outcomes as well as improvements;
+larger displacement alone is not evidence of reduced variance or faster
+convergence. This monitoring extends the performance acceptance work above and
+does not delay the fixed-mode correctness milestone until dynamic mode exists.
