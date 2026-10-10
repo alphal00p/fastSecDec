@@ -85,6 +85,191 @@ pub fn value_expression(value: &toml::Value) -> CliResult<Atom> {
     }
 }
 
+/// Native admission shared by generation and exact U/F export. No numerator
+/// contraction or sector preparation takes place in this stage.
+pub struct GraphAdmission {
+    pub graph: GraphIntegral,
+    pub parameters: Vec<Symbol>,
+    pub runtime_parameters: Vec<Symbol>,
+    pub runtime_model: Option<RuntimeModelBindings>,
+    pub values: BTreeMap<Symbol, Atom>,
+    pub independent_externals: Vec<String>,
+    pub dependent_externals: Vec<String>,
+}
+
+fn admit_graph(
+    card: &RunCard,
+    base: &Path,
+    values: BTreeMap<Symbol, Atom>,
+    sources: &mut Vec<crate::artifact::SourceFile>,
+) -> CliResult<GraphAdmission> {
+    let input = card
+        .input
+        .as_ref()
+        .ok_or("U/F export requires native graph input")?;
+    if card.direct.is_some() {
+        return Err("graph input cannot also contain direct data".into());
+    }
+    let regulator = symbol(&card.integral.regulator)?;
+    let read = |path: &Path, sources: &mut Vec<crate::artifact::SourceFile>| {
+        read_source(path, base, sources)
+    };
+    let mut model = Model::from_json(&read(&base.join(&input.model), sources)?)?;
+    let restriction = if let Some(parameter_card) = &input.parameter_card {
+        let restriction = ParameterCard::from_json(&read(&base.join(parameter_card), sources)?)?;
+        model.apply_parameter_card(&restriction)?;
+        restriction
+    } else {
+        ParameterCard::new()
+    };
+    let graph_text = read(&base.join(&input.graph), sources)?;
+    let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
+    let runtime_model = match input.model_parameters {
+        crate::config::ModelParameters::Runtime => Some(RuntimeModelBindings::new(
+            &diagram,
+            Some(&restriction),
+            &values,
+        )?),
+        crate::config::ModelParameters::Fixed => None,
+    };
+    let values = match &runtime_model {
+        Some(runtime) => runtime.values().clone(),
+        None => diagram
+            .model()
+            .scalar_bindings(Some(&restriction), &values)?,
+    };
+    let model_symbols = runtime_model
+        .as_ref()
+        .map_or_else(Vec::new, RuntimeModelBindings::symbols);
+    if model_symbols.contains(&regulator) {
+        return Err("runtime model inputs must differ from the regulator".into());
+    }
+    let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
+    let mut runtime_parameters = Vec::new();
+    for product in &card.kinematics.products {
+        let product_value = match (&product.value, &product.symbol) {
+            (Some(value), None) => bind(&expression(value)?, &values),
+            (None, Some(name)) => {
+                let parameter = symbol(name)?;
+                if parameter == regulator
+                    || values.contains_key(&parameter)
+                    || model_symbols.contains(&parameter)
+                {
+                    return Err(format!(
+                        "runtime kinematic symbol {name} conflicts with a fixed scalar or regulator"
+                    )
+                    .into());
+                }
+                if !runtime_parameters.contains(&parameter) {
+                    runtime_parameters.push(parameter);
+                }
+                Atom::var(parameter)
+            }
+            _ => {
+                return Err(
+                    "each kinematic product requires exactly one of symbol or value".into(),
+                );
+            }
+        };
+        kinematics = kinematics.with_scalar_product(
+            &product.left.atom()?,
+            &product.right.atom()?,
+            product_value,
+        )?;
+    }
+    let powers = card
+        .integral
+        .powers
+        .iter()
+        .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    let graph = GraphIntegral::new_with_runtime_scalar_values(
+        Arc::new(diagram),
+        &kinematics,
+        &values,
+        &model_symbols,
+    )?
+    .with_auxiliary_external_momenta(
+        &card
+            .kinematics
+            .auxiliary_momenta
+            .iter()
+            .map(|name| expression(name))
+            .collect::<CliResult<Vec<_>>>()?,
+    )?
+    .with_powers(&powers)?
+    .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
+    let propagators = graph.powers().len();
+    let independent_externals = graph
+        .family()
+        .external_momenta()
+        .iter()
+        .map(Atom::to_canonical_string)
+        .collect();
+    let basis = graph.diagram().loop_momentum_basis();
+    let dependent_externals = basis
+        .external_edges
+        .iter()
+        .enumerate()
+        .filter(|(_, edge)| basis.dependent_externals.contains(edge))
+        .map(|(index, _)| {
+            feynkit_graph::symbols::external_momentum()
+                .call(index)
+                .to_canonical_string()
+        })
+        .collect();
+    let parameters = (0..propagators)
+        .map(|i| symbol(&format!("fastsecdec::x{i}")))
+        .collect::<CliResult<Vec<_>>>()?;
+    if runtime_parameters
+        .iter()
+        .any(|parameter| parameters.contains(parameter))
+    {
+        return Err("runtime kinematic symbols must differ from integration coordinates".into());
+    }
+    Ok(GraphAdmission {
+        graph,
+        parameters,
+        runtime_parameters,
+        runtime_model,
+        values,
+        independent_externals,
+        dependent_externals,
+    })
+}
+
+fn read_source(
+    path: &Path,
+    base: &Path,
+    sources: &mut Vec<crate::artifact::SourceFile>,
+) -> CliResult<String> {
+    let text = fs::read_to_string(path)?;
+    sources.push(crate::artifact::SourceFile {
+        path: crate::artifact::relative_path(path, base)?
+            .to_string_lossy()
+            .into_owned(),
+        blake3: blake3::hash(text.as_bytes()).to_hex().to_string(),
+        fingerprint: crate::artifact::SourceFingerprint::Bytes,
+    });
+    Ok(text)
+}
+
+pub fn load_graph(
+    path: &Path,
+) -> CliResult<(RunCard, GraphAdmission, Vec<crate::artifact::SourceFile>)> {
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut sources = Vec::new();
+    let text = read_source(path, base, &mut sources)?;
+    let card: RunCard = toml::from_str(&text)?;
+    let values = card
+        .parameters
+        .iter()
+        .map(|(name, value)| Ok((symbol(name)?, value_expression(value)?)))
+        .collect::<CliResult<BTreeMap<_, _>>>()?;
+    let admission = admit_graph(&card, base, values, &mut sources)?;
+    Ok((card, admission, sources))
+}
+
 pub enum LoadProgress<'a> {
     Parsed(&'a RunCard),
     Parametrization,
@@ -134,121 +319,18 @@ pub(crate) fn load_observed_with_overrides(
     }
     let regulator = symbol(&card.integral.regulator)?;
     match (&card.input, &card.direct) {
-        (Some(input), None) => {
-            let mut model = Model::from_json(&read(&base.join(&input.model), &mut sources)?)?;
-            let restriction = if let Some(parameter_card) = &input.parameter_card {
-                let restriction =
-                    ParameterCard::from_json(&read(&base.join(parameter_card), &mut sources)?)?;
-                model.apply_parameter_card(&restriction)?;
-                restriction
-            } else {
-                ParameterCard::new()
-            };
-            let graph_text = read(&base.join(&input.graph), &mut sources)?;
-            let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
-            let mut runtime_model = match input.model_parameters {
-                crate::config::ModelParameters::Runtime => Some(RuntimeModelBindings::new(
-                    &diagram,
-                    Some(&restriction),
-                    &values,
-                )?),
-                crate::config::ModelParameters::Fixed => None,
-            };
-            let values = match &runtime_model {
-                Some(runtime) => runtime.values().clone(),
-                None => diagram
-                    .model()
-                    .scalar_bindings(Some(&restriction), &values)?,
-            };
-            let model_symbols = runtime_model
-                .as_ref()
-                .map_or_else(Vec::new, RuntimeModelBindings::symbols);
-            if model_symbols.contains(&regulator) {
-                return Err("runtime model inputs must differ from the regulator".into());
-            }
-            let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
-            let mut runtime_parameters = Vec::new();
-            for product in &card.kinematics.products {
-                let product_value = match (&product.value, &product.symbol) {
-                    (Some(value), None) => bind(&expression(value)?, &values),
-                    (None, Some(name)) => {
-                        let parameter = symbol(name)?;
-                        if parameter == regulator
-                            || values.contains_key(&parameter)
-                            || model_symbols.contains(&parameter)
-                        {
-                            return Err(format!("runtime kinematic symbol {name} conflicts with a fixed scalar or regulator").into());
-                        }
-                        if !runtime_parameters.contains(&parameter) {
-                            runtime_parameters.push(parameter);
-                        }
-                        Atom::var(parameter)
-                    }
-                    _ => {
-                        return Err(
-                            "each kinematic product requires exactly one of symbol or value".into(),
-                        );
-                    }
-                };
-                kinematics = kinematics.with_scalar_product(
-                    &product.left.atom()?,
-                    &product.right.atom()?,
-                    product_value,
-                )?;
-            }
-            let powers = card
-                .integral
-                .powers
-                .iter()
-                .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
-                .collect::<Result<BTreeMap<_, _>, _>>()?;
-            let graph = GraphIntegral::new_with_runtime_scalar_values(
-                Arc::new(diagram),
-                &kinematics,
-                &values,
-                &model_symbols,
-            )?
-            .with_auxiliary_external_momenta(
-                &card
-                    .kinematics
-                    .auxiliary_momenta
-                    .iter()
-                    .map(|name| expression(name))
-                    .collect::<CliResult<Vec<_>>>()?,
-            )?
-            .with_powers(&powers)?
-            .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
+        (Some(_), None) => {
+            let GraphAdmission {
+                graph,
+                parameters,
+                mut runtime_parameters,
+                mut runtime_model,
+                values,
+                independent_externals,
+                dependent_externals,
+            } = admit_graph(&card, base, values, &mut sources)?;
             let loops = Some(graph.diagram().loop_count());
             let propagators = graph.powers().len();
-            let independent_externals = graph
-                .family()
-                .external_momenta()
-                .iter()
-                .map(Atom::to_canonical_string)
-                .collect();
-            let basis = graph.diagram().loop_momentum_basis();
-            let dependent_externals = basis
-                .external_edges
-                .iter()
-                .enumerate()
-                .filter(|(_, edge)| basis.dependent_externals.contains(edge))
-                .map(|(index, _)| {
-                    feynkit_graph::symbols::external_momentum()
-                        .call(index)
-                        .to_canonical_string()
-                })
-                .collect();
-            let parameters = (0..propagators)
-                .map(|i| symbol(&format!("fastsecdec::x{i}")))
-                .collect::<CliResult<Vec<_>>>()?;
-            if runtime_parameters
-                .iter()
-                .any(|parameter| parameters.contains(parameter))
-            {
-                return Err(
-                    "runtime kinematic symbols must differ from integration coordinates".into(),
-                );
-            }
             let input_seconds = started.elapsed().as_secs_f64();
             observe(LoadProgress::Parametrization)?;
             let parametrization_started = Instant::now();

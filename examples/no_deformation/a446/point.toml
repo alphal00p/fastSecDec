@@ -1,0 +1,5 @@
+[parameters]
+"model::MT" = "1"
+"feynkit_graph::mz2" = "5/18"
+"feynkit_graph::s" = "10"
+"feynkit_graph::t" = "-3"

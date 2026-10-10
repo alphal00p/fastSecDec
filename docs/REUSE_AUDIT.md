@@ -458,6 +458,18 @@ non-monotonic exploratory estimates remain recorded. The separate
 [variance comparison](reviews/contour-variance-protocol.md) retains an
 unfavorable nonlinear default-cap result alongside the earlier linear gain.
 
+## Exact graph U/F export preparation (2026-10-10)
+
+The `no_deformation` branch adds native `GraphSymanzik` and an explicit
+`export-symanzik` command. HEPKit still owns DOT, stable edges, routing, Gram
+data and Symanzik determinant algebra; ordinary graph admission is shared
+with generation. Numerators are not contracted to obtain U/F. The bounded
+signed sparse interchange preserves symbolic and exact-point polynomials,
+explicit domains and source/dependency provenance. There is no sector or
+integration algorithm in this milestone. See the [native-interface review](reviews/no-deformation-interface.md)
+and [versioned contract](NO_DEFORMATION.md).
+
+
 ## macOS serial-worker socket admission (2026-10-08)
 
 The serial CLI uses native `TcpListener` / `TcpStream` with a dedicated framed

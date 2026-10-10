@@ -1,0 +1,28 @@
+[input]
+graph = "graph.dot"
+model = "standard-model.json"
+model_parameters = "runtime"
+
+# P0,P1 incoming, P2,P3 outgoing; t=(P0-P3)^2.
+# mz2 is the declared external Gram invariant, not the model's MZ default.
+[kinematics]
+products = [
+  { left=0, right=0, value="0" },
+  { left=1, right=1, value="0" },
+  { left=2, right=2, value="mz2" },
+  { left=3, right=3, value="mz2" },
+  { left=0, right=1, value="s/2" },
+  { left=0, right=2, value="(s+t-mz2)/2" },
+  { left=0, right=3, value="(mz2-t)/2" },
+  { left=1, right=2, value="(mz2-t)/2" },
+  { left=1, right=3, value="(s+t-mz2)/2" },
+  { left=2, right=3, value="(s-2*mz2)/2" },
+]
+
+[parameters]
+"UFO::WT" = "0"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"

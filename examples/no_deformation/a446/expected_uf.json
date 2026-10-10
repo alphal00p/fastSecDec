@@ -1,0 +1,889 @@
+{
+  "schema_version": 1,
+  "identifier": "finiteA_7_446_11_0__0_5_1_1_1_1_0_1_1",
+  "upstream_source": "tests/ZZ_integrals/finiteA_7_446_11_0__0_5_1_1_1_1_0_1_1.py",
+  "upstream_source_sha256": "764d59c5b77e4076992083183d230dba6b046197b614ad7fa3996aaf935eb345",
+  "parameters": [
+    "x1",
+    "x2",
+    "x3",
+    "x4",
+    "x5",
+    "x7",
+    "x8"
+  ],
+  "U": {
+    "terms": [
+      {
+        "coefficient": "1",
+        "exponents": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "1",
+        "exponents": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      }
+    ]
+  },
+  "F": {
+    "terms": [
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          2,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          2,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          1,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          1,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          1,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          1,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          1,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          2,
+          0,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          2,
+          0,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          2,
+          0,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          1,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          1,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          1,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          1,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          1,
+          0,
+          2,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          0,
+          1,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - s",
+        "exponents": [
+          0,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          2,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          2,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          1,
+          0,
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          2,
+          1,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          2,
+          0,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          1,
+          2,
+          0,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          0,
+          0,
+          1,
+          1,
+          1,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          0,
+          1,
+          1,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          2,
+          0,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          2,
+          0
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2",
+        "exponents": [
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - mz2",
+        "exponents": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          1
+        ]
+      },
+      {
+        "coefficient": "2*mt2 - 2*mz2 + s + t",
+        "exponents": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "coefficient": "mt2",
+        "exponents": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          1
+        ]
+      }
+    ]
+  },
+  "upstream_revision": "fb6ebe3aa0e3fdd073f410d01050a4ed7e235f4e",
+  "upstream_repository": "https://github.com/magv/gcad"
+}

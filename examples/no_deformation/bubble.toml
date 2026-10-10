@@ -1,0 +1,14 @@
+[input]
+graph = "../graphs/bubble.dot"
+model = "../models/scalar.json"
+
+[kinematics]
+products = [{ left = 1, right = 1, symbol = "s" }]
+
+[parameters]
+"UFO::mt" = "1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "1"

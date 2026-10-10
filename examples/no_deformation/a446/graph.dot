@@ -1,0 +1,22 @@
+// Candidate native dressed graph for the A446 scalar denominator topology.
+// Edges 4,5,6,7,8,9,10 map to x1,x2,x3,x5,x4,x7,x8 respectively.
+// U/F matching is checked in tests/a446_symanzik.rs; no numerator is contracted.
+digraph a446 {
+  incoming_a [style=invis];
+  incoming_b [style=invis];
+  outgoing_a [style=invis];
+  outgoing_b [style=invis];
+
+  incoming_a -> ga [id=0, particle="g"];
+  incoming_b -> gb [id=1, particle="g"];
+  za -> outgoing_a [id=2, particle="Z"];
+  zb -> outgoing_b [id=3, particle="Z"];
+
+  left -> ga [id=4, particle="t", lmb_id=0];
+  ga -> za [id=5, particle="t"];
+  za -> right [id=6, particle="t"];
+  gb -> left [id=7, particle="t", lmb_id=1];
+  zb -> gb [id=8, particle="t"];
+  right -> zb [id=9, particle="t"];
+  left -> right [id=10, particle="g"];
+}

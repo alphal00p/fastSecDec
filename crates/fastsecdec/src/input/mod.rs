@@ -5,6 +5,7 @@ mod family;
 mod graph;
 mod numerator;
 mod runtime_model;
+mod symanzik;
 mod validation;
 
 pub use contraction::NumeratorContraction;
@@ -12,3 +13,4 @@ pub use family::prepare_family_input;
 pub use graph::GraphIntegral;
 pub use numerator::{contract_numerator, default_algebra_settings};
 pub use runtime_model::RuntimeModelBindings;
+pub use symanzik::GraphSymanzik;

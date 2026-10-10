@@ -1,0 +1,135 @@
+# Exact graph input for future no-deformation analysis
+
+This preparation lives on the explicitly authorized `no_deformation` branch.
+For this work, that instruction supersedes the older main-branch publication
+and reviewer guidance in `AGENTS.md`. FastSecDec remains a separate repository;
+consumers may optionally clone this branch and pin a tested commit. No copy of
+FastSecDec is vendored into symGCAD.
+
+The milestone exports exact native graph U/F and provenance. It does **not**
+implement no-deformation integration, sector decomposition, an integration
+contour, or a sign/coverage certificate. Existing generation and integration
+commands retain their behavior.
+
+## Native interface
+
+`fastsecdec::input::GraphSymanzik::from_graph(&graph, parameters)` delegates to
+HEPKit's `IntegralFamily::symanzik`. Parameters follow
+`GraphIntegral::propagator_edges()` in stable native denominator order. Native
+HEPKit owns graph parsing, momentum routing, external Gram substitutions and
+U/F determinant algebra. Graph powers remain positive integers. Pinched or
+signed sectors belong to the separate family preparation API and are not
+silently introduced here.
+
+U/F do not depend on numerator, positive propagator powers, or measure factors.
+The new interface therefore accepts loop-dependent numerators without
+contracting them. It rejects a singular U and exposes zero F as algebraic data;
+the CLI explicitly rejects zero F rather than silently omitting its split.
+
+## Exact export
+
+```sh
+cargo run --locked -p fastsecdec-cli -- export-symanzik \
+  examples/no_deformation/bubble.toml --output output/bubble-symbolic
+# Set a runtime invariant with an exact rational, not integration's f64 defaults:
+printf '[parameters]\ns = "5"\n' > /tmp/bubble-point.toml
+cargo run --locked -p fastsecdec-cli -- export-symanzik \
+  examples/no_deformation/bubble.toml --point /tmp/bubble-point.toml \
+  --output output/bubble-point
+```
+
+The supplied massive bubble has m²=1 and the point s=5 crosses physical F=0
+sheets. `sunrise.toml` / `sunrise-point.toml` provide the two-loop m²=1, s=10
+case. Export does not read `[integration.parameters]`:
+that numerical interface remains unchanged. The optional point file accepts
+only integer TOML values or bounded strings `integer` / `integer/integer`.
+Floating TOML values and decimal/exponential expression strings are rejected.
+Point keys may be native symbol names or exported kinematic aliases.
+Feynman coordinates cannot be point-bound. Missing kinematic bindings remain
+symbolic; no Euclidean or physical region is inferred.
+
+The fresh output directory contains `symanzik.json` and `problem.toml`. Existing
+directories are refused. The JSON names and hashes the companion TOML. The
+ordinary symGCAD problem splits **F with its exact sign and rational scale**,
+requires each Feynman parameter positive, and puts remaining kinematics before
+Feynman axes. Additional `--kinematic-constraint 's > 4'` options explicitly
+specify strict polynomial inequalities in native names or exported aliases.
+The native parser converts their sides exactly to the wire map; ambiguous
+native-name/alias spellings, undeclared variables, functions, weak comparisons
+and oversized expressions are rejected. Fully qualified native names resolve
+alias ambiguity. No graph metadata is a proof.
+
+## Version 1 contract
+
+The schema tag is `fastsecdec.symanzik`, version `1`, stage
+`pre_sector_projective`. `symbols` gives distinct ASCII aliases, fully qualified
+native symbols, and roles `kinematic` / `feynman`. Kinematics precede Feynman
+parameters; Feynman order is native denominator order. `graph.propagators`
+binds each `denominator_index` exactly once to its stable `edge_id`, parameter,
+endpoints, power, and native denominator. Stable DOT, native routing, external
+Gram products, admitted scalar bindings and uncontracted weights are retained.
+
+`symbolic.{u,f}` and `specialized.{u,f}` use the **same complete alias map**.
+A polynomial is `{variables, terms, expression}`. Each term has a nonzero
+signed rational `coefficient` string and a complete unsigned `exponents`
+vector. Terms are sorted lexicographically by exponents. Expression spelling
+is deterministic: `(coefficient)*alias^exponent`, with factors in map order,
+including exponent one, joined by `+`; zero is `0`. No primitive-part
+normalization is applied. Consumers reconstruct sparse terms independently
+and need not parse arbitrary expression syntax.
+
+`substitutions` records the exact rational point. Consumers check exact
+symbolic-to-specialized equality and companion Problem equality, including
+constraints, groups and fixed parameters. The producer checks nonzero U/F and
+termwise Feynman degrees `deg U = loops`, `deg F = loops + 1` before and after
+the point. Exact cancellations are retained. Unsupported nonrational
+coefficients/functions are rejected.
+
+`domain.source = projective_simplex` records the native parametric origin;
+`domain.analysis = positive_orthant` is the homogeneous sign-analysis domain.
+Positive rescaling preserves U/F signs and zeros; no simplex-to-CAD output
+transport or integration Jacobian is implemented. Graph provenance, source
+BLAKE3 hashes, producer source identity and dependency revisions are retained.
+No primary-sector or bounded-box map is silently applied.
+
+The first CLI version caps input files at 32 MiB, output at 32 MiB, maps at
+64 symbols, sparse polynomials at 100,000 terms, and native admission at
+32 propagators / 8 loops. Algebra still needs an external wall/memory limit.
+The API itself remains caller-driven and creates no worker pool.
+
+## Optional independent consumer test
+
+The Linux integration test is ignored by default and adds no symGCAD Cargo
+dependency. Set an explicit tested executable and run it with an external
+memory/CPU limit:
+
+```sh
+SYMGCAD_BIN=/absolute/path/to/symgcad \
+  cargo test --locked -p fastsecdec-cli --test symgcad_interop -- --ignored --nocapture
+```
+
+It invokes the real native massive-bubble exporter, checks the bundle through
+`import-fastsecdec`, applies only operational solve limits (30 s, 2 GiB, one
+worker), solves the original sign problem and invokes independent verification.
+A common deadline defaults to 180 s (`FASTSECDEC_INTEROP_SECONDS`, at most
+600 s). The supervisor retains fresh artifacts and kills its owned process
+tree on expiry. `FASTSECDEC_INTEROP_OUTPUT` can name a new evidence directory.
+This acceptance test is outside all CAD benchmark timings. Neither successful
+interchange nor sampled signs substitute for full solver verification.
+
+The [A446 fixture](../examples/no_deformation/a446/README.md) supplies the
+intended dressed HEPKit graph, a native Standard Model preparation command,
+and an analogous ignored `a446_symgcad_interop` test. It checks the exact
+signed U/F correspondence and edge assignment before importing, then requires
+eight independently verified cells carrying both F signs. Its only changes
+to the checked problem are explicit solver configuration and resource limits.
+
+The first validated milestone passed 24 native graph/input tests, eight
+existing CLI admission tests, six export tests, one native model-preparation
+test and two deadline-supervisor regressions. Actual fixed-bubble and A446
+process workflows passed with three and eight verified cells respectively.
+A separate symbolic bubble with the explicit constraint `s > 4` also passed
+with three verified cells. Formatting and scoped core/CLI/test Clippy checks
+with warnings denied passed. These checks prepare graph-driven sign analysis;
+they are not no-deformation integration results. Exact evidence hashes and
+limitations are recorded in the [independent review](reviews/no-deformation-interface.md).

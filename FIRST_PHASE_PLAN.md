@@ -44,6 +44,19 @@ generation-sector selection. The latest verbatim instruction and investigation
 scope are recorded at the end of the contour plan. Historical benchmark
 settings and partial-sector scope must remain explicit.
 
+## Future no-deformation graph interface preparation (2026-10-10)
+
+The user explicitly authorizes the separate `no_deformation` branch and
+optional external setup clone, superseding older main/reviewer instructions
+for this work. Implement a reusable native graph U/F interface and exact
+pre-sector JSON/ordinary-problem export with graph provenance, rational
+point binding and independent consumer checks. Preserve all native APIs,
+physical signed F zero sheets and original denominator order; no duplicate
+graph/CAS, forced numerator contraction, numerical work, or full
+no-deformation implementation. FastSecDec is never vendored through symGCAD.
+The scoped contract and tests are documented in [docs/NO_DEFORMATION.md](docs/NO_DEFORMATION.md).
+
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`

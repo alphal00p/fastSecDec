@@ -20,6 +20,7 @@ mod reference;
 mod results;
 mod serial_cli;
 mod status_policy;
+mod symanzik_export;
 mod terminal_policy;
 
 use clap::{Args, Parser, Subcommand};
@@ -92,6 +93,19 @@ impl Cli {
 
 #[derive(Subcommand)]
 enum Action {
+    /// Export native graph U/F and an exact positive-ray sign problem, without sectors or integration.
+    ExportSymanzik {
+        input: PathBuf,
+        /// New output directory containing symanzik.json and problem.toml.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Exact rational substitutions in a TOML [parameters] table; floats are rejected.
+        #[arg(long)]
+        point: Option<PathBuf>,
+        /// Explicit inequality in the exported k0,k1,... aliases (repeatable).
+        #[arg(long = "kinematic-constraint")]
+        constraints: Vec<String>,
+    },
     /// Generate portable O2 kernels from a native TOML run card.
     Generate {
         input: PathBuf,
@@ -667,6 +681,17 @@ fn run(cli: Cli) -> CliResult<()> {
             )?;
         }
         Action::ShowResult { path, view } => results::show(&path, &view, render_json)?,
+        Action::ExportSymanzik {
+            input,
+            output,
+            point,
+            constraints,
+        } => {
+            report(
+                &symanzik_export::export(&input, &output, point.as_deref(), &constraints)?,
+                render_json,
+            )?;
+        }
         Action::ExportReference {
             path,
             source,

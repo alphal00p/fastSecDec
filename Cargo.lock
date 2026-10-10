@@ -912,6 +912,7 @@ dependencies = [
  "fastsecdec",
  "feynkit-graph",
  "feynkit-model",
+ "libc",
  "numerica",
  "ratatui",
  "rayon",
