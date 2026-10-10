@@ -531,6 +531,7 @@ fn bubble_keeps_single_signed_factor_and_exact_cells() {
     );
 }
 
+mod epsilon_scales;
 mod prefactor_reference;
 mod prefactors;
 mod reference;

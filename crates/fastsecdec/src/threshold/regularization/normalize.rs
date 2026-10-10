@@ -40,44 +40,54 @@ fn polynomial(
     }
     Ok(polynomial)
 }
+/// Native finite epsilon coefficients. Tags index this complete body list;
+/// original term and epsilon degree remain explicit in the component map.
+pub(super) struct NumeratorPlan {
+    head: Symbol,
+    pub bodies: Vec<Atom>,
+    pub components: Vec<Vec<(u32, usize)>>,
+}
 pub(super) fn numerators(
     request: &GcadRequest,
     parameters: &BTreeMap<Symbol, Rational>,
     name: Symbol,
     limits: Limits,
-) -> Result<Vec<Atom>> {
+) -> Result<NumeratorPlan> {
     let x = request.domain().coordinates()[0];
     let eps = request.input().regulator();
-    request
-        .prepared_terms()
-        .iter()
-        .map(|term| {
-            if term.prefactor().contains_symbol(name)
-                || term.factors().iter().any(|f| {
-                    f.polynomial().contains_symbol(name) || f.exponent().contains_symbol(name)
-                })
-            {
-                return Err(invalid(
-                    "owned numerator function collides with density symbols",
-                ));
-            }
-            let body = term
+    let mut plan = NumeratorPlan {
+        head: name,
+        bodies: Vec::new(),
+        components: Vec::new(),
+    };
+    for term in request.prepared_terms() {
+        if term.prefactor().contains_symbol(name)
+            || term
                 .factors()
                 .iter()
-                .filter(|f| f.role() == FactorRole::Polynomial)
-                .map(|f| {
-                    request
-                        .kinematics()
-                        .specialize_exact(f.polynomial())
-                        .pow(request.kinematics().specialize_exact(f.exponent()))
-                })
-                .product::<Atom>();
-            if body.contains_symbol(eps) {
-                return Err(unsupported(
-                    "initial composed numerator must be epsilon-independent",
-                ));
-            }
-            let witness = substitute(&body, parameters);
+                .any(|f| f.polynomial().contains_symbol(name) || f.exponent().contains_symbol(name))
+        {
+            return Err(invalid(
+                "owned numerator function collides with density symbols",
+            ));
+        }
+        let body = term
+            .factors()
+            .iter()
+            .filter(|f| f.role() == FactorRole::Polynomial)
+            .map(|f| {
+                request
+                    .kinematics()
+                    .specialize_exact(f.polynomial())
+                    .pow(request.kinematics().specialize_exact(f.exponent()))
+            })
+            .product::<Atom>();
+        // Conversion is bounded before native work and only in epsilon.
+        // Its AtomField coefficients retain factored coordinate bodies.
+        let epsilon_polynomial = polynomial(&body, eps, limits)?;
+        let mut components = Vec::new();
+        for coefficient in &epsilon_polynomial {
+            let witness = substitute(coefficient.coefficient, parameters);
             let p = polynomial(&witness, x, limits)?;
             if (&p)
                 .into_iter()
@@ -87,9 +97,17 @@ pub(super) fn numerators(
                     "numerator needs exact complex-polynomial closure regularity",
                 ));
             }
-            Ok(body)
-        })
-        .collect()
+            if plan.bodies.len() >= limits.prefactors.terms {
+                return Err(Error::ResourceIncomplete(
+                    "numerator coefficient body count",
+                ));
+            }
+            components.push((coefficient.exponents[0], plan.bodies.len()));
+            plan.bodies.push(coefficient.coefficient.clone());
+        }
+        plan.components.push(components);
+    }
+    Ok(plan)
 }
 
 #[derive(Clone, Copy)]
@@ -180,7 +198,7 @@ fn unit(
 pub(super) fn terms(
     half_chart: &IntervalChart,
     t: Symbol,
-    numerator: Symbol,
+    numerator_plan: &NumeratorPlan,
     parameters: &BTreeMap<Symbol, Rational>,
     limits: Limits,
     chart: usize,
@@ -206,7 +224,15 @@ pub(super) fn terms(
     for (term_index, term) in request.prepared_terms().iter().enumerate() {
         let mut power = Atom::Zero;
         let mut units = Vec::new();
-        let mut regular = numerator.call(&[Atom::num(term_index), image.clone()][..]);
+        let mut regular = numerator_plan.components[term_index]
+            .iter()
+            .map(|(order, body)| {
+                Atom::var(eps).pow(*order)
+                    * numerator_plan
+                        .head
+                        .call(&[Atom::num(*body), image.clone()][..])
+            })
+            .sum::<Atom>();
         let kinematics = request.kinematics();
         let monomial = kinematics.specialize_exact(&term.monomial_powers()[0]);
         endpoint_power_with_regulators(&monomial, &[eps])

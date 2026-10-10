@@ -91,7 +91,6 @@ fn rational_gamma_prefactors_and_resource_admission() {
         parse!("gamma(prefactor_gamma::eps)^(1/2)"),
         parse!("exp(1/prefactor_gamma::eps)"),
         parse!("gamma(0)"),
-        parse!("sqrt(2)*gamma(prefactor_gamma::eps)"),
         Atom::num(0.25) * parse!("gamma(prefactor_gamma::eps)"),
     ] {
         assert!(
@@ -102,8 +101,15 @@ fn rational_gamma_prefactors_and_resource_admission() {
             "accepted {bad}"
         );
     }
+    let scale = MeromorphicPrefactor::admit(
+        parse!("sqrt(2)*gamma(prefactor_gamma::eps)"),
+        eps,
+        Limits::default(),
+    )
+    .unwrap();
+    assert_eq!(scale.positive_scales().len(), 1);
     println!(
-        "PASS reciprocal-Gamma zero is regular; exact family/refusal controls; no Gamma evaluation or infinity-cancellation at witness"
+        "PASS reciprocal-Gamma zero is regular; certified positive scale and exact family/refusal controls; no Gamma evaluation or infinity-cancellation at witness"
     );
 }
 

@@ -85,7 +85,7 @@ pub(super) fn admit(
             "verified intervals do not end at the unit upper face",
         ));
     }
-    let bodies = normalize::numerators(request, &parameters, numerator, limits)?;
+    let numerator_plan = normalize::numerators(request, &parameters, numerator, limits)?;
     let mut charts = Vec::with_capacity(count);
     let mut strip = ConvergenceStrip::default();
     for (l, u, lower, upper, admission) in intervals {
@@ -115,7 +115,7 @@ pub(super) fn admit(
             chart.terms = normalize::terms(
                 &chart,
                 unit,
-                numerator,
+                &numerator_plan,
                 &parameters,
                 limits,
                 index,
@@ -159,7 +159,7 @@ pub(super) fn admit(
         parameters,
         unit,
         numerator,
-        numerator_bodies: bodies,
+        numerator_bodies: numerator_plan.bodies,
         charts,
         strip,
         prefactor_witness,

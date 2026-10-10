@@ -1,5 +1,4 @@
-//! Exact rational/Gamma prefactors and their common regular-epsilon witness.
-//! This certificate does not implement auxiliary-regulator removal.
+//! Ignored first meromorphic prefactor certificate. No auxiliary removal.
 mod rational;
 pub(crate) use rational::preflight_expression;
 pub use rational::{Error, Limits, RationalPrefactor, SharedWitness};
@@ -10,6 +9,34 @@ use symbolica::{
     prelude::Rational,
 };
 type Result<T> = std::result::Result<T, Error>;
+
+/// c^(a+b*epsilon), c>0 exact rational. The real logarithm gives an entire,
+/// nonvanishing function of epsilon. No new excluded witness points arise.
+#[derive(Clone, Debug)]
+pub struct PositiveScale {
+    original: Atom,
+    base: Rational,
+    exponent: Atom,
+    constant: Rational,
+    slope: Rational,
+}
+impl PositiveScale {
+    pub fn original(&self) -> &Atom {
+        &self.original
+    }
+    pub fn base(&self) -> &Rational {
+        &self.base
+    }
+    pub fn exponent(&self) -> &Atom {
+        &self.exponent
+    }
+    pub fn constant(&self) -> &Rational {
+        &self.constant
+    }
+    pub fn slope(&self) -> &Rational {
+        &self.slope
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct GammaPower {
@@ -78,6 +105,7 @@ pub struct MeromorphicPrefactor {
     original: Atom,
     rational: RationalPrefactor,
     gamma: Vec<GammaPower>,
+    scales: Vec<PositiveScale>,
 }
 impl MeromorphicPrefactor {
     pub fn original(&self) -> &Atom {
@@ -88,6 +116,9 @@ impl MeromorphicPrefactor {
     }
     pub fn gamma_factors(&self) -> &[GammaPower] {
         &self.gamma
+    }
+    pub fn positive_scales(&self) -> &[PositiveScale] {
+        &self.scales
     }
     pub fn admit(original: Atom, regulator: Symbol, limits: Limits) -> Result<Self> {
         if limits.integer_power < 0 {
@@ -114,12 +145,35 @@ impl MeromorphicPrefactor {
         }
         let mut rational = Atom::one();
         let mut gamma = Vec::new();
+        let mut scales = Vec::new();
         for factor in factors {
             let (base, power) = if let AtomView::Pow(p) = factor {
                 (p.get_base(), Some(p.get_exp()))
             } else {
                 (factor, None)
             };
+            if let Some(exponent) = power
+                && let Ok(value) = Rational::try_from(base)
+                && value > Rational::zero()
+            {
+                let exponent = exponent.to_owned();
+                RationalPrefactor::admit(exponent.clone(), regulator, limits)?;
+                let (constant, slopes) =
+                    crate::generation::endpoint_power_with_regulators(&exponent, &[regulator])
+                        .map_err(|_| {
+                            Error::Unsupported(
+                                "positive scale exponent must be rational affine in epsilon",
+                            )
+                        })?;
+                scales.push(PositiveScale {
+                    original: factor.to_owned(),
+                    base: value,
+                    exponent,
+                    constant,
+                    slope: slopes[0].clone(),
+                });
+                continue;
+            }
             let AtomView::Fun(f) = base else {
                 rational *= factor.to_owned();
                 continue;
@@ -180,6 +234,7 @@ impl MeromorphicPrefactor {
             original,
             rational,
             gamma,
+            scales,
         })
     }
 }

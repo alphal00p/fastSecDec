@@ -3382,3 +3382,20 @@ and 45 artifact tests, with one intentional subprocess entry ignored in each
 of the latter two parent suites. The saved-record regression is included in
 the artifact gate. The complete public dynamic lifecycle remains a separate
 acceptance step.
+
+## Threshold epsilon numerators and positive scales (2026-10-10)
+
+The [independent review](reviews/no-deformation-epsilon-numerators.md) records
+native API/source/executable evidence for epsilon-only `AtomField` polynomial
+collection, retained factored coordinate bodies, native symbolic derivative
+functions and positive rational scale powers. Full IBP/Taylor Laurent vectors
+agree with separate-source controls on two exact fibers; an actual HEPKit
+bubble's scale dependence agrees with native OneLOop. No replacement polynomial,
+series, derivative, evaluator or reference implementation is added.
+
+The finite complex numerator coefficient plan keeps epsilon visible to Laurent
+construction instead of hiding it inside an opaque evaluator function. The
+positive-scale certificate retains the real-log branch of `c^(a+b*epsilon)`.
+These changes require no owner dependency update. Native floating-value
+conversion has separate successful probes but is not admitted by this
+milestone; fixed-fiber positivity does not authorize general parameter rebinding.
