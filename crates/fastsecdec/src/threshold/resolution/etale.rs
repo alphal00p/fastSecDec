@@ -118,7 +118,9 @@ impl EtaleCertificate {
             .copied()
             .collect::<Vec<_>>();
         let unique: BTreeSet<_> = roles.iter().copied().collect();
-        if unique.len() != roles.len() || unique != self.source.axes().iter().copied().collect() {
+        if unique.len() != roles.len()
+            || unique != self.source.axes().iter().copied().collect::<BTreeSet<_>>()
+        {
             return Err(Error::Invalid("etale coordinate roles"));
         }
         if n == 0 {

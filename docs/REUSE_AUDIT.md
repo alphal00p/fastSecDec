@@ -1,5 +1,16 @@
 # Ecosystem reuse evidence
 
+## Native threshold CLI process integration (2026-10-10)
+
+The [CLI review](reviews/no-deformation-cli.md) records the first admitted
+graph-to-result path through existing preparation, process supervision, indexed
+archives and numerical sessions. No graph, CAS or integration executor is
+duplicated. Independent review caught and closed an early-checkpoint settings
+association gap. The executable normal/serial QMC matrix and ordinary/serial MC
+controls reproduce the complete above-threshold bubble, including its imaginary
+part. Python archive selection reuses the native reader; threshold generation
+wrappers and richer lineage presentation remain pending.
+
 ## Recursive first-center construction (2026-10-10)
 
 The [BM driver review](reviews/no-deformation-bm-driver.md) now includes the

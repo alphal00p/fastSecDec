@@ -37,8 +37,8 @@ pub struct ProgramGeneration {
 impl ProgramStorage {
     pub(super) fn validate(&self, integrity: bool) -> CliResult<()> {
         validate_filename(&self.data_file)?;
-        if self.catalogue.version != 2 {
-            return Err("recipe manifest requires a version-two native directory".into());
+        if !matches!(self.catalogue.version, 2 | 3) {
+            return Err("recipe manifest requires a supported native program directory".into());
         }
         self.catalogue.validate(integrity)?;
         self.catalogue.recipe(self.default_recipe)?;
@@ -72,8 +72,14 @@ pub struct CatalogueView<'a> {
     pub components: &'a Vec<CoefficientComponent>,
     pub runtime_parameters: &'a Vec<String>,
     pub records: &'a Vec<RecordDescriptor>,
+    program: Option<&'a ProgramRecipeCatalogue>,
 }
 impl CatalogueView<'_> {
+    pub fn threshold_scope(&self) -> CliResult<Option<fastsecdec::kernel::ThresholdResultScope>> {
+        self.program.map_or(Ok(None), |program| {
+            program.threshold_scope().map_err(Into::into)
+        })
+    }
     pub fn source_selection(&self) -> Option<&fastsecdec::generation::SourceSectorSelection> {
         self.records
             .first()
@@ -101,6 +107,7 @@ impl<'a> From<&'a KernelCatalogue> for CatalogueView<'a> {
             components: &value.components,
             runtime_parameters: &value.runtime_parameters,
             records: &value.records,
+            program: None,
         }
     }
 }
@@ -112,6 +119,7 @@ impl<'a> From<&'a ProgramRecipeCatalogue> for CatalogueView<'a> {
             components: &value.components,
             runtime_parameters: &value.runtime_parameters,
             records: &value.records,
+            program: Some(value),
         }
     }
 }
@@ -233,8 +241,8 @@ impl Artifact {
         default_recipe: ProgramRecipe,
         provenance: Provenance,
     ) -> CliResult<Self> {
-        if catalogue.version != 2 {
-            return Err("new recipe artifacts require a version-two archive".into());
+        if !matches!(catalogue.version, 2 | 3) {
+            return Err("new recipe artifacts require a supported native program archive".into());
         }
         let reader = ProgramArchiveReader::from_reader(
             File::open(staged)?,

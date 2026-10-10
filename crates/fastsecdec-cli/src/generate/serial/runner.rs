@@ -237,6 +237,9 @@ impl Runner {
                 }
                 for result in &results {
                     match result {
+                        Response::PreparedThreshold(prepared) => {
+                            self.source_charts = prepared.native.endpoint_charts;
+                        }
                         Response::Prepared(prepared) => {
                             self.source_charts = prepared.native.charts.len();
                         }
@@ -254,6 +257,9 @@ impl Runner {
                 status.kernels = results
                     .iter()
                     .filter_map(|r| match r {
+                        Response::CompiledThreshold(c) => {
+                            Some(usize::from(c.receipt.record().dimension.is_some()))
+                        }
                         Response::Compiled(c) => {
                             Some(c.receipts.iter().filter(|r| r.dimension.is_some()).count())
                         }

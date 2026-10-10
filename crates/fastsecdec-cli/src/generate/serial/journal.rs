@@ -14,7 +14,7 @@ use std::{
     fs::{self, File, OpenOptions},
     path::{Path, PathBuf},
 };
-pub(super) use validation::validate;
+pub(super) use validation::{validate, validate_provenance};
 
 // Schema three binds the full canonical capability family before resume.
 const JOURNAL_VERSION: u32 = 3;
@@ -38,6 +38,8 @@ struct State {
     run_directory: String,
     completed: bool,
     entries: BTreeMap<String, Entry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    threshold_preparation: Option<String>,
 }
 pub(super) struct Journal {
     _lock: File,
@@ -145,6 +147,7 @@ impl Journal {
                 run_directory: format!("run-{run_id}"),
                 completed: false,
                 entries: BTreeMap::new(),
+                threshold_preparation: None,
             }
         };
         if Path::new(&state.run_directory).components().count() != 1
@@ -286,6 +289,39 @@ impl Journal {
         self.state.entries.get_mut(key).unwrap().response_hash = Some(hash);
         self.save()?;
         Ok(response)
+    }
+    pub fn threshold_preparation(
+        &mut self,
+    ) -> CliResult<Option<super::jobs::threshold::PreparedThreshold>> {
+        let Some(key) = self.state.threshold_preparation.clone() else {
+            return Ok(None);
+        };
+        if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
+            return Err("invalid threshold anchor key".into());
+        }
+        let job: Job = serde_json::from_reader(File::open(self.job_path(&key))?)?;
+        if job.root != self.root || job.response != self.response_path(&key) {
+            return Err("threshold anchor job path changed".into());
+        }
+        match self.accept(&key, &job.request)? {
+            Response::PreparedThreshold(value) => Ok(Some(*value)),
+            _ => Err("threshold anchor has wrong response kind".into()),
+        }
+    }
+    pub fn anchor_threshold_preparation(&mut self, key: &str) -> CliResult<()> {
+        if self.state.threshold_preparation.is_some() {
+            return Err("threshold preparation anchor is immutable".into());
+        }
+        if self
+            .state
+            .entries
+            .get(key)
+            .is_none_or(|entry| entry.response_hash.is_none())
+        {
+            return Err("threshold anchor was not accepted".into());
+        }
+        self.state.threshold_preparation = Some(key.into());
+        self.save()
     }
     pub fn complete(&mut self) -> CliResult<()> {
         self.state.completed = true;

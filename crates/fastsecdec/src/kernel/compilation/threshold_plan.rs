@@ -243,7 +243,9 @@ impl ThresholdCompilationPlan {
                 return Err(failure("duplicate compilation completion"));
             }
         }
-        if ordered.keys().copied().collect::<BTreeSet<_>>() != (0..self.job_count()).collect() {
+        if ordered.keys().copied().collect::<BTreeSet<_>>()
+            != (0..self.job_count()).collect::<BTreeSet<_>>()
+        {
             return Err(failure("incomplete compilation inventory"));
         }
         let mut assembly = crate::kernel::artifact::indexed::assembly::ResidentAssembly::default();

@@ -83,7 +83,7 @@ impl PyRecipeArchive {
         mut input: impl io::Read,
         default_recipe: Option<&str>,
     ) -> PyResult<Self> {
-        let default_recipe = default_recipe.map(super::recipe).transpose()?;
+        let default_recipe = default_recipe.map(super::archive_recipe).transpose()?;
         let storage = Rc::new(
             tempfile::Builder::new()
                 .prefix("fastsecdec-family-")
@@ -165,7 +165,7 @@ impl PyRecipeArchive {
     /// Selection does not bind kinematics or bypass dynamic numerical admission.
     fn select(&self, py: Python<'_>, recipe: &str) -> PyResult<Py<PyKernels>> {
         py.check_signals()?;
-        let recipe = super::recipe(recipe)?;
+        let recipe = super::archive_recipe(recipe)?;
         self.catalogue
             .recipe(recipe)
             .map_err(|e| error::native(py, "archive selection", e))?;

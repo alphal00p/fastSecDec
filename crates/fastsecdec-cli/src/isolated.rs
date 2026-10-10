@@ -291,10 +291,19 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                 diagnostics
                     .record_contour_runtime(fastsecdec::status::IntegrationStage::Pilot, &report)?;
             }
+            let threshold_scope = catalogue.threshold_scope()?;
+            // Exact-only loading has a selected contribution identity. The
+            // coordinator below holds the complete catalogue's sector layout,
+            // so retain that owner and scope for threshold accumulation.
+            let kernel_content_id = if threshold_scope.is_some() {
+                catalogue.content_id.clone()
+            } else {
+                exact.content_id().into()
+            };
             let manifest = KernelResultManifest {
-                threshold_scope: None,
+                threshold_scope,
                 source_selection: catalogue.source_selection().cloned(),
-                kernel_content_id: exact.content_id().into(),
+                kernel_content_id,
                 orders: catalogue.orders.clone(),
                 components: catalogue.components.clone(),
                 exact_coefficients: exact.exact_coefficients().to_vec(),

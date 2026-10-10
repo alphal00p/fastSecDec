@@ -22,6 +22,7 @@ mod serial_cli;
 mod status_policy;
 mod symanzik_export;
 mod terminal_policy;
+mod threshold_cli;
 
 use clap::{Args, Parser, Subcommand};
 use config::IntegrationInput;
@@ -112,6 +113,9 @@ enum Action {
         /// Generate all contour recipes; the saved default remains undeformed.
         #[arg(long, conflicts_with = "recipe")]
         contour: bool,
+        /// Resolve real thresholds using verified GCAD cells and symbolic subtraction.
+        #[arg(long, conflicts_with = "contour")]
+        threshold_decomposition: bool,
         /// Generate one native recipe, such as dynamic-sign-aware-v1.
         #[arg(long, value_parser = parse_program_recipe, conflicts_with = "contour")]
         recipe: Option<fastsecdec::kernel::ProgramRecipe>,
@@ -134,6 +138,9 @@ enum Action {
     /// Generate and integrate a native TOML run card.
     Run {
         input: PathBuf,
+        /// Generate a threshold-decomposition recipe before integration.
+        #[arg(long)]
+        threshold_decomposition: bool,
         /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -545,6 +552,7 @@ fn run(cli: Cli) -> CliResult<()> {
         Action::Generate {
             input,
             contour,
+            threshold_decomposition,
             recipe,
             contour_jacobian,
             output,
@@ -566,6 +574,7 @@ fn run(cli: Cli) -> CliResult<()> {
                     resume,
                     config::GenerationOverrides {
                         contour,
+                        threshold_decomposition,
                         recipe,
                         contour_jacobian,
                     },
@@ -586,6 +595,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 geometry_workers.get(),
                 config::GenerationOverrides {
                     contour,
+                    threshold_decomposition,
                     recipe,
                     contour_jacobian,
                 },
@@ -600,6 +610,7 @@ fn run(cli: Cli) -> CliResult<()> {
         }
         Action::Run {
             input,
+            threshold_decomposition,
             output,
             geometry_workers,
             integration,
@@ -611,11 +622,18 @@ fn run(cli: Cli) -> CliResult<()> {
                 None
             } else {
                 let mut card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
-                let (overrides, requested_recipe) = integration.contour.generation_request(
-                    &card.integration,
-                    integration.integration_settings.as_deref(),
-                )?;
+                let (mut overrides, mut requested_recipe) =
+                    integration.contour.generation_request(
+                        &card.integration,
+                        integration.integration_settings.as_deref(),
+                    )?;
+                overrides.threshold_decomposition = threshold_decomposition;
                 overrides.apply(&mut card);
+                if card.generation.threshold_enabled()
+                    && requested_recipe == fastsecdec::kernel::ProgramRecipe::UndeformedV1
+                {
+                    requested_recipe = fastsecdec::kernel::ProgramRecipe::ThresholdV1;
+                }
                 card.generation.validate_resident_recipe(requested_recipe)?;
                 if card.generation.serial || integration.serial_seconds.is_some() {
                     generate::serial::generate_with_overrides(
@@ -1034,6 +1052,48 @@ fn parse_contour_jacobian(value: &str) -> Result<fastsecdec::contour::ContourJac
 #[cfg(test)]
 mod jacobian_cli_tests {
     use super::*;
+
+    #[test]
+    fn threshold_switch_is_generation_only_and_forwards_from_run() {
+        for action in ["generate", "run"] {
+            let cli = Cli::try_parse_from([
+                "fastsecdec",
+                action,
+                "input.toml",
+                "--threshold-decomposition",
+            ])
+            .unwrap();
+            assert!(matches!(
+                cli.command,
+                Action::Generate {
+                    threshold_decomposition: true,
+                    ..
+                } | Action::Run {
+                    threshold_decomposition: true,
+                    ..
+                }
+            ));
+        }
+        assert!(
+            Cli::try_parse_from([
+                "fastsecdec",
+                "generate",
+                "input.toml",
+                "--contour",
+                "--threshold-decomposition"
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "fastsecdec",
+                "integrate",
+                "input.fsd",
+                "--threshold-decomposition"
+            ])
+            .is_err()
+        );
+    }
 
     #[test]
     fn contour_jacobian_is_a_generation_only_choice() {

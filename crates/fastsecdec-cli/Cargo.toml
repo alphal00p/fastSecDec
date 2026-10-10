@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 feynkit-model.workspace = true
-fastsecdec = { workspace = true, features = ["native"] }
+fastsecdec = { workspace = true, features = ["native", "threshold-decomposition"] }
 symbolica.workspace = true
 numerica.workspace = true
 spenso.workspace = true

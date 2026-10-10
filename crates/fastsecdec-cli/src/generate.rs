@@ -80,6 +80,18 @@ pub(crate) fn generate_with_resident_recipe(
     if workers == 0 {
         return Err("generation workers must be positive".into());
     }
+    let mut threshold_card: crate::config::RunCard =
+        toml::from_str(&std::fs::read_to_string(path)?)?;
+    overrides.apply(&mut threshold_card);
+    if threshold_card.generation.threshold_enabled() {
+        if let Some(recipe) = resident_recipe {
+            threshold_card.generation.validate_resident_recipe(recipe)?;
+        }
+        serial::generate_with_overrides(
+            path, output, dashboard, reference, workers, false, overrides,
+        )?;
+        return Artifact::load(output);
+    }
     let started = Instant::now();
     let mut status = GenerationSnapshot {
         stage: GenerationStage::Input,

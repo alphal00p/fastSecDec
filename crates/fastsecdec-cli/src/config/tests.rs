@@ -259,6 +259,7 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
         assert_eq!(card.generation.recipe_family().recipes().len(), 4);
         let overrides = super::GenerationOverrides {
             contour: false,
+            threshold_decomposition: false,
             recipe: Some(recipe),
             contour_jacobian: None,
         };

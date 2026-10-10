@@ -10,6 +10,9 @@ mod program_recovery_tests;
 #[cfg(test)]
 mod recovery_tests;
 mod runner;
+mod threshold;
+#[cfg(test)]
+mod threshold_tests;
 
 use crate::{
     CliResult,
@@ -57,6 +60,19 @@ pub(crate) fn generate_with_overrides(
 ) -> CliResult<Artifact> {
     let mut card: RunCard = toml::from_str(&fs::read_to_string(path)?)?;
     overrides.apply(&mut card);
+    if card.generation.threshold_enabled() {
+        return threshold::generate(
+            GenerationRun {
+                path,
+                output,
+                reference,
+                workers,
+                resume,
+                overrides,
+            },
+            dashboard,
+        );
+    }
     let family = card.generation.recipe_family();
     generate_family(
         GenerationRun {

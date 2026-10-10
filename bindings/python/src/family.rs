@@ -20,6 +20,20 @@ pub(crate) fn recipe(value: &str) -> PyResult<ProgramRecipe> {
     }
 }
 
+/// Saved threshold programs use the same native archive reader. Their generation
+/// requires a separate verified preparation path, not ordinary recipe-family work.
+fn archive_recipe(value: &str) -> PyResult<ProgramRecipe> {
+    if value == "threshold" {
+        Ok(ProgramRecipe::ThresholdV1)
+    } else {
+        recipe(value).map_err(|_| {
+            pyo3::exceptions::PyValueError::new_err(
+                "archive recipe must be off, fixed, polynomial, sign_aware, or threshold",
+            )
+        })
+    }
+}
+
 fn label(recipe: ProgramRecipe) -> &'static str {
     match recipe {
         ProgramRecipe::UndeformedV1 => "off",

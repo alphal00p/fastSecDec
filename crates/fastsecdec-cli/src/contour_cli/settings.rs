@@ -103,6 +103,7 @@ impl ContourArgs {
         Ok((
             crate::config::GenerationOverrides {
                 contour: !matches!(contour.deformation, ContourMode::Off),
+                threshold_decomposition: false,
                 recipe: None,
                 contour_jacobian: None,
             },

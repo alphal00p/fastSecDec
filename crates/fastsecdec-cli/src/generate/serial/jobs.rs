@@ -1,5 +1,6 @@
 //! File-backed synchronous jobs. This module runs only in recyclable children.
 mod preparation;
+pub(super) mod threshold;
 use crate::{
     CliResult,
     artifact::{self, GenerationRecord, Provenance},
@@ -31,6 +32,18 @@ pub(crate) struct Job {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Request {
+    PrepareThreshold {
+        input: PathBuf,
+        workers: usize,
+        overrides: crate::config::GenerationOverrides,
+        attempt: String,
+        prior: Option<Box<threshold::PreparedThreshold>>,
+    },
+    CompileThreshold {
+        directory: String,
+        work: fastsecdec::kernel::ThresholdCompilationWork,
+        output: PathBuf,
+    },
     Prepare {
         input: PathBuf,
         workers: usize,
@@ -108,6 +121,8 @@ pub(crate) struct Compiled {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) enum Response {
+    PreparedThreshold(Box<threshold::PreparedThreshold>),
+    CompiledThreshold(Box<threshold::CompiledThreshold>),
     Prepared(Box<Prepared>),
     PreparedPrograms(Box<PreparedPrograms>),
     ChartSource(native::PreparedChartSource),
@@ -195,6 +210,26 @@ pub(crate) fn execute(
         }
     };
     let mut response = match job.request {
+        Request::PrepareThreshold {
+            input,
+            workers,
+            overrides,
+            attempt,
+            prior,
+        } => threshold::prepare(
+            &job.root,
+            &input,
+            workers,
+            overrides,
+            &attempt,
+            prior.as_deref(),
+            emit,
+        )?,
+        Request::CompileThreshold {
+            directory,
+            work,
+            output,
+        } => threshold::compile(&job.root, &directory, work, &output, emit)?,
         Request::Prepare {
             input,
             workers,

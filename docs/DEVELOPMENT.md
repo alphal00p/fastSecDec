@@ -67,8 +67,12 @@ archives containing local v16 programs. These retain caller-owned scheduling
 and selective sector loading. `threshold::generation::{prepare,resume,resume_evidence}`
 provides the corresponding native preparation and recovery adapter, with compact
 receipts for caller-owned processes and fresh verification of saved solve output.
-These are not yet the complete CLI/HEPKit threshold workflow or general algebraic
-resolver. The direct solver call is synchronous;
+The CLI exposes this fixed, one-dimensional rational path through
+`--threshold-decomposition` and the corresponding run-card setting; see
+[`examples/no_deformation/README.md`](../examples/no_deformation/README.md).
+Both generation schedules publish the same indexed format for ordinary or serial
+integration. This is not yet the complete HEPKit threshold workflow or general
+algebraic resolver. The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:
 

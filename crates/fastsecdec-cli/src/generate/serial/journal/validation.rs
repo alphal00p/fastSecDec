@@ -10,6 +10,53 @@ pub(in super::super) fn validate(
 ) -> CliResult<()> {
     match (request, response) {
         (
+            Request::PrepareThreshold {
+                input,
+                overrides,
+                attempt,
+                prior,
+                ..
+            },
+            Response::PreparedThreshold(prepared),
+        ) => {
+            let mut card: crate::config::RunCard = toml::from_str(&fs::read_to_string(input)?)?;
+            overrides.apply(&mut card);
+            if !card.generation.threshold_enabled()
+                || prepared.attempt != *attempt
+                || prepared.generation.mode
+                    != Some(fastsecdec::generation::GenerationMode::Symbolic)
+            {
+                return Err("threshold preparation differs from issued capability/attempt".into());
+            }
+            validate_provenance(input, &prepared.provenance)?;
+            super::super::jobs::threshold::validate_prepared(root, prepared)?;
+            if let Some(prior) = prior
+                && (prepared.native.publication.source_identity
+                    != prior.native.publication.source_identity
+                    || prepared.native.publication.prepared_identity
+                        != prior.native.publication.prepared_identity)
+            {
+                return Err("threshold resume mathematical identity changed".into());
+            }
+        }
+        (
+            Request::CompileThreshold {
+                directory,
+                work,
+                output,
+            },
+            Response::CompiledThreshold(compiled),
+        ) => {
+            if compiled.directory != *directory
+                || compiled.data != *output
+                || compiled.receipt.work() != work
+            {
+                return Err("threshold compile response differs from issued work".into());
+            }
+            super::super::jobs::threshold::validate_compiled(compiled)?;
+        }
+
+        (
             Request::Prepare {
                 input, overrides, ..
             },
@@ -216,7 +263,10 @@ pub(in super::super) fn validate(
     Ok(())
 }
 
-fn validate_provenance(input: &Path, provenance: &crate::artifact::Provenance) -> CliResult<()> {
+pub(in super::super) fn validate_provenance(
+    input: &Path,
+    provenance: &crate::artifact::Provenance,
+) -> CliResult<()> {
     if provenance.dependencies != artifact::dependencies() {
         return Err("prepared dependencies changed".into());
     }

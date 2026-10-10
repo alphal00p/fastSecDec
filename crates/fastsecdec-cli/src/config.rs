@@ -25,6 +25,8 @@ mod tests;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, Deserialize)]
 pub(crate) struct GenerationOverrides {
     pub contour: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub threshold_decomposition: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -33,6 +35,7 @@ pub(crate) struct GenerationOverrides {
 impl GenerationOverrides {
     pub(crate) fn apply(self, card: &mut RunCard) {
         card.generation.contour |= self.contour;
+        card.generation.threshold_decomposition |= self.threshold_decomposition;
         if let Some(choice) = self.contour_jacobian {
             card.generation.contour_jacobian = choice;
         }
@@ -57,6 +60,8 @@ pub struct RunCard {
     pub integral: IntegralInput,
     #[serde(default)]
     pub generation: GenerationInput,
+    #[serde(default)]
+    pub threshold_decomposition: crate::threshold_cli::Input,
     #[serde(default)]
     pub integration: IntegrationInput,
     pub reference: Option<ReferenceInput>,
@@ -149,6 +154,8 @@ pub struct GenerationInput {
     pub serial: bool,
     /// Generate every contour capability, defaulting to undeformed execution.
     pub contour: bool,
+    /// Resolve real causal thresholds using verified cell and endpoint maps.
+    pub threshold_decomposition: bool,
     /// Explicit singleton recipe; otherwise `contour` enables the complete family.
     pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
     pub order: i32,
@@ -169,14 +176,39 @@ pub struct GenerationInput {
 impl GenerationInput {
     /// Resolve computational settings before reading models or preparing geometry.
     pub(crate) fn resolve_jacobian(&mut self) -> crate::CliResult<()> {
+        self.validate_capabilities()?;
         self.evaluator = self
             .evaluator
             .resolve_contour_jacobian(self.contour_jacobian)?;
         Ok(())
     }
 
+    pub(crate) fn threshold_enabled(&self) -> bool {
+        self.threshold_decomposition
+            || self.recipe == Some(fastsecdec::kernel::ProgramRecipe::ThresholdV1)
+    }
+
+    pub(crate) fn validate_capabilities(&self) -> crate::CliResult<()> {
+        use fastsecdec::{generation::GenerationMode, kernel::ProgramRecipe};
+        if self.threshold_enabled() {
+            if self.contour || self.recipe.is_some_and(|r| r != ProgramRecipe::ThresholdV1) {
+                return Err("threshold decomposition and contour/other generation recipes are mutually exclusive".into());
+            }
+            if self.mode != GenerationMode::Symbolic {
+                return Err("threshold decomposition requires symbolic endpoint reduction".into());
+            }
+            if self.contour_jacobian != fastsecdec::contour::ContourJacobian::Symbolic {
+                return Err("contour_jacobian is inapplicable to threshold decomposition".into());
+            }
+        }
+        Ok(())
+    }
+
     pub fn recipe_family(&self) -> fastsecdec::generation::RecipeFamily {
         use fastsecdec::{generation::RecipeFamily, kernel::ProgramRecipe};
+        if self.threshold_enabled() {
+            return RecipeFamily::single(ProgramRecipe::ThresholdV1);
+        }
         match self.recipe {
             Some(recipe) => RecipeFamily::single(recipe),
             None if self.contour => RecipeFamily::contour(),
@@ -194,6 +226,7 @@ impl GenerationInput {
         &self,
         requested: fastsecdec::kernel::ProgramRecipe,
     ) -> crate::CliResult<()> {
+        self.validate_capabilities()?;
         self.recipe_family().validate_resident(Some(requested))?;
         Ok(())
     }
@@ -205,6 +238,7 @@ impl Default for GenerationInput {
             source_sectors: None,
             serial: false,
             contour: false,
+            threshold_decomposition: false,
             recipe: None,
             order: 0,
             mode: Default::default(),

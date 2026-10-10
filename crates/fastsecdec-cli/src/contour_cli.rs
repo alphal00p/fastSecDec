@@ -110,10 +110,25 @@ pub(crate) fn select_program(
     artifact: &mut crate::artifact::Artifact,
     settings: &ContourSettings,
 ) -> CliResult<()> {
+    let recipe = runtime_recipe(artifact.selected_recipe(), settings.deformation)?;
     if artifact.programs.is_some() {
-        artifact.select_recipe(settings.deformation.program_recipe())?;
+        artifact.select_recipe(recipe)?;
     }
     Ok(())
+}
+
+fn runtime_recipe(
+    saved: Option<fastsecdec::kernel::ProgramRecipe>,
+    deformation: ContourMode,
+) -> CliResult<fastsecdec::kernel::ProgramRecipe> {
+    use fastsecdec::kernel::ProgramRecipe;
+    if saved == Some(ProgramRecipe::ThresholdV1) {
+        if deformation != ContourMode::Off {
+            return Err("threshold-decomposition artifacts do not support contour deformation; generate a separate contour recipe for that comparison".into());
+        }
+        return Ok(ProgramRecipe::ThresholdV1);
+    }
+    Ok(deformation.program_recipe())
 }
 
 /// CLI presentation joins existing native settings and evidence without changing
@@ -158,6 +173,32 @@ mod tests {
     struct ParserProbe {
         #[command(flatten)]
         contour: ContourArgs,
+    }
+
+    #[test]
+    fn contour_off_preserves_threshold_capability_and_rejects_mixed_recipes() {
+        use fastsecdec::kernel::ProgramRecipe;
+        assert_eq!(
+            runtime_recipe(Some(ProgramRecipe::ThresholdV1), ContourMode::Off).unwrap(),
+            ProgramRecipe::ThresholdV1
+        );
+        for mode in [
+            ContourMode::Fixed { lambda: 0.1 },
+            ContourMode::dynamical(0.8),
+        ] {
+            assert!(runtime_recipe(Some(ProgramRecipe::ThresholdV1), mode).is_err());
+            assert_eq!(runtime_recipe(None, mode).unwrap(), mode.program_recipe());
+        }
+        for saved in [
+            None,
+            Some(ProgramRecipe::FixedV1),
+            Some(ProgramRecipe::UndeformedV1),
+        ] {
+            assert_eq!(
+                runtime_recipe(saved, ContourMode::Off).unwrap(),
+                ProgramRecipe::UndeformedV1
+            );
+        }
     }
 
     #[test]
