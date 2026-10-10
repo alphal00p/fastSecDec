@@ -20,6 +20,9 @@ pub(super) fn finish_layout(
         ));
     }
     records.sort_by(|a, b| {
+        if let (Some(a), Some(b)) = (&a.receipt.threshold, &b.receipt.threshold) {
+            return a.sort_key().cmp(&b.sort_key());
+        }
         a.receipt
             .source_indices
             .cmp(&b.receipt.source_indices)

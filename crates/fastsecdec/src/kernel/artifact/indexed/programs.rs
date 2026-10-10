@@ -13,6 +13,8 @@ pub(crate) use resident::ProgramResidentAssembly;
 pub use writer::ProgramArchiveWriter;
 
 pub(crate) const MAGIC: &[u8] = b"FastSecDec\0indexed\x02";
+pub(crate) const MAGIC_V3: &[u8] = b"FastSecDec\0indexed\x03";
+const FOOTER_V3: &[u8] = b"FastSecDec\0catalogue\x03";
 const FOOTER: &[u8] = b"FastSecDec\0catalogue\x02";
 
 impl crate::kernel::KernelSet {

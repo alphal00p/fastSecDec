@@ -62,8 +62,10 @@ The native `fastsecdec/threshold-decomposition` feature exposes verified GCAD,
 local resolution operations and certified rational-fiber continuation. The
 native `KernelSet::compile_threshold_fiber` factory compiles the currently
 admitted one-dimensional continuation into standalone v15 kernels. This is
-not yet the complete CLI/HEPKit threshold workflow or general algebraic
-resolver. Its direct solver call is synchronous;
+complemented by detached `ThresholdCompilationPlan` jobs and indexed v3
+archives containing local v16 programs. These retain caller-owned scheduling
+and selective sector loading. They are not yet the complete CLI/HEPKit
+threshold workflow or general algebraic resolver. The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:
 

@@ -1,5 +1,7 @@
 use super::super::differential::relative_differential_ideal;
-use super::super::{Budget, Error, Ideal, MarkedIdeal, OpenCoverCertificate, VerifiedOpenCover};
+use super::super::{
+    Budget, Error, EtaleFrame, Ideal, MarkedIdeal, OpenCoverCertificate, Poly, VerifiedOpenCover,
+};
 use super::factor::WholeCartierFactorization;
 use std::sync::Arc;
 type Result<T> = std::result::Result<T, Error>;
@@ -96,7 +98,7 @@ pub fn produce_restricted_residual_order(
         Err(e) => Err(e),
     }
 }
-enum Stage {
+pub(super) enum Stage {
     Empty,
     Terminal,
     Order(Arc<Ideal>, usize, VerifiedOpenCover, Option<MarkedIdeal>),
@@ -106,9 +108,33 @@ fn run(
     budget: &mut Budget,
     progress: &mut ResidualOrderProgress,
 ) -> Result<Stage> {
-    let frame = factors.ledger().frame();
+    run_input(
+        OrderInput {
+            frame: factors.ledger().frame(),
+            source: factors.source(),
+            monomial: factors.monomial(),
+            residual: factors.residual(),
+        },
+        budget,
+        progress,
+    )
+}
+/// Shared native derivative engine. Provenance is supplied by either the
+/// existing whole-equation owner or a checked component factor leaf.
+pub(super) struct OrderInput<'a> {
+    pub frame: &'a Arc<EtaleFrame>,
+    pub source: &'a MarkedIdeal,
+    pub monomial: &'a Poly,
+    pub residual: &'a Arc<Ideal>,
+}
+pub(super) fn run_input(
+    input: OrderInput<'_>,
+    budget: &mut Budget,
+    progress: &mut ResidualOrderProgress,
+) -> Result<Stage> {
+    let frame = input.frame;
     let local = frame.local();
-    let source = factors.source();
+    let source = input.source;
     if source.mark() > budget.limits.max_mark {
         return Err(Error::ResourceIncomplete("source derivative mark cap"));
     }
@@ -136,7 +162,7 @@ fn run(
     budget.reserve_slots(1)?;
     progress.residual_layers.push(RelativeOrderLayer {
         order: 0,
-        ideal: factors.residual().clone(),
+        ideal: input.residual.clone(),
         unit_on_cosupport: None,
     });
     for order in 0..=budget.limits.max_mark {
@@ -166,14 +192,10 @@ fn run(
             let companion = if order == 0 {
                 None
             } else {
-                let residual = MarkedIdeal::new((**factors.residual()).clone(), order, budget)?;
+                let residual = MarkedIdeal::new((**input.residual).clone(), order, budget)?;
                 Some(if order < source.mark() {
                     let monomial = MarkedIdeal::new(
-                        Ideal::new(
-                            local.ring().clone(),
-                            vec![factors.monomial().clone()],
-                            budget,
-                        )?,
+                        Ideal::new(local.ring().clone(), vec![input.monomial.clone()], budget)?,
                         source.mark() - order,
                         budget,
                     )?;

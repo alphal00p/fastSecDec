@@ -14,6 +14,8 @@ pub struct RecordReceipt {
     /// Original-geometry subset and this record's local chart lineage.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_scope: Option<crate::generation::GenerationSourceScope>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threshold: Option<super::ThresholdRecordReceipt>,
     pub version: u32,
     /// Version-two receipts identify the native v10 recipe explicitly. Legacy
     /// receipts keep their original JSON shape and schema classification.
@@ -63,7 +65,12 @@ impl RecordReceipt {
             .unwrap_or_else(|| super::ProgramRecipe::legacy(&self.runtime_parameters))
     }
     pub(crate) fn validate(&self) -> Result<(), KernelError> {
-        if self.recipe == Some(super::programs::ProgramRecipe::ThresholdV1) {
+        if let Some(threshold) = &self.threshold {
+            threshold.validate(self)?;
+        }
+        if self.recipe == Some(super::programs::ProgramRecipe::ThresholdV1)
+            && self.threshold.is_none()
+        {
             return Err(failure(
                 "legacy source receipt cannot store threshold lineage",
             ));
@@ -71,7 +78,11 @@ impl RecordReceipt {
         if let Some(scope) = &self.source_scope {
             scope.validate(self.source_indices.len()).map_err(failure)?;
         }
-        if !matches!((self.version, self.recipe), (1, None) | (2, Some(_))) || self.length == 0 {
+        if !(matches!((self.version, self.recipe), (1, None) | (2, Some(_)))
+            && self.threshold.is_none()
+            || self.version == 3 && self.threshold.is_some())
+            || self.length == 0
+        {
             return Err(failure("unsupported or empty worker record"));
         }
         if let Some(recipe) = self.recipe {
@@ -154,6 +165,11 @@ impl KernelCatalogue {
         records: Vec<RecordDescriptor>,
         records_end: u64,
     ) -> Result<Self, KernelError> {
+        if records.iter().any(|r| r.receipt.threshold.is_some()) {
+            return Err(failure(
+                "legacy indexed catalogue cannot own threshold records",
+            ));
+        }
         let super::layout::RecordLayout {
             orders,
             components,
@@ -200,6 +216,11 @@ impl KernelCatalogue {
     /// Cheap schema/range checks are mandatory; semantic digest recomputation is
     /// controlled by the caller's existing trusted-cache validation policy.
     pub fn validate(&self, integrity: bool) -> Result<(), KernelError> {
+        if self.records.iter().any(|r| r.receipt.threshold.is_some()) {
+            return Err(failure(
+                "threshold records need the new program archive capability",
+            ));
+        }
         if self.version != 1 || self.records.is_empty() {
             return Err(failure("unsupported or empty catalogue"));
         }

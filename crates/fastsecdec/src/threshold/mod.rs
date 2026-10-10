@@ -4,6 +4,7 @@
 //! continuation. Each later generation stage must preserve and strengthen this
 //! evidence before publishing an integration artifact.
 
+pub mod algebraic_branch;
 pub mod gcad;
 pub mod maps;
 pub mod options;

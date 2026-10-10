@@ -780,3 +780,9 @@ fn has_complex_coefficients(expression: &Atom) -> bool {
     });
     found
 }
+
+#[cfg(feature = "threshold-decomposition")]
+pub use compilation::{
+    ThresholdCompilationCompletion, ThresholdCompilationJob, ThresholdCompilationPlan,
+    ThresholdCompilationWork, ThresholdJobKind, ThresholdWorkReceipt,
+};

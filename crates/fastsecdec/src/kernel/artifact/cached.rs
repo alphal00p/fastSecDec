@@ -94,14 +94,24 @@ pub(super) fn load_with_retention(
     retain: bool,
     progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
+    load_with_parent(bytes, options, retain, progress, None)
+}
+pub(super) fn load_with_parent(
+    bytes: &[u8],
+    options: KernelLoadOptions,
+    retain: bool,
+    progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
+    parent: Option<&crate::kernel::ThresholdMetadata>,
+) -> Result<KernelSet, KernelError> {
     let record = decode(bytes)?;
-    let mut kernels = super::binary::load_with_primary(
+    let mut kernels = super::binary::load_with_primary_and_parent(
         record.base,
         options,
         Some(record.primaries),
         Some(record.content_id),
         false,
         progress,
+        parent,
     )?;
     if retain {
         kernels.portable_artifact = Some(bytes.to_vec().into());

@@ -3470,3 +3470,38 @@ The factory and root independently reviewed original versus exact identities,
 projective preparation ordering and restoration under caller caps. Numerical
 equivalence does not erase source precision or uncertainty semantics. Native
 normalization's transient memory remains outside postchecked output limits.
+
+## Generic algebraic germs and component factors (2026-10-10)
+
+The [algebraic-germ review](reviews/no-deformation-algebraic-germs.md) records
+native selected roots, algebraic fields, polynomial products, resultants and
+implicit differentiation on actual checked frames. Quintic and nested-constant
+controls establish that the local construction does not rely on quadratic
+formulas. A root-degree budget failure remains explicitly resource-incomplete.
+Independent root and resolver-agent reviews accept the local scope; global
+branch coverage and collision/endpoint resolution remain unfinished.
+
+The [factor-frontier review](reviews/no-deformation-component-factors.md) records
+caller-steered, componentwise extraction through the already audited split,
+localization and Cartier-division owners. Root and runtime-agent reviews accept
+exact generator association, coverage and history retention. Degree-five
+controls exercise the same algorithm. Neither milestone introduces an alternate
+CAS or converts local algebraic evidence into a complete real integration atlas.
+
+The componentwise residual-order adapter reuses the existing derivative-ideal
+engine and keeps its whole-equation API. It reconstructs the marked source on
+the actual localized chart, verifies recombination and retains its upper-order
+cover. An algebraic maximum on marked cosupport is not a global companion bound
+or a specialized real-fiber maximum. Unguarded parameter-only strata remain
+unresolved. Root and runtime-agent reviews accept this deliberately local step.
+
+## Indexed threshold compilation (2026-10-10)
+
+The [indexed-record review](reviews/no-deformation-indexed-records.md) records
+reuse of native evaluator compilation, primary caches, Atom codecs and existing
+archive transactions. Native jobs detach from global proof/continuation owners;
+local expression tables support selected-sector loading. Independent root and
+runtime reviews check complete versus selected lineage, exact offsets and
+cross-process work identity. The portable reader remains available without the
+native threshold-generation feature. CLI recovery and global proof replay are
+separate gates.

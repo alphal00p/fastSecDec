@@ -577,6 +577,13 @@ fn threshold_native_state_restores_in_fresh_process() {
 
 #[test]
 fn threshold_v15_native_graph_gamma_projective_oneloop() {
+    threshold_native_graph_gamma_projective_oneloop(false);
+}
+#[test]
+fn threshold_indexed_native_graph_gamma_projective_oneloop() {
+    threshold_native_graph_gamma_projective_oneloop(true);
+}
+fn threshold_native_graph_gamma_projective_oneloop(indexed: bool) {
     use crate::integration::{Periodization, QmcSession, QmcSettings, RuleSource};
     let (x, t, eps) = symbol!(
         "regular_bubble_qmc::x",
@@ -672,16 +679,30 @@ fn threshold_v15_native_graph_gamma_projective_oneloop() {
     let bound = continued.bind_fiber(|_| ControlFlow::Continue(())).unwrap();
 
     let staging = tempfile::tempdir().unwrap();
-    let kernels = KernelSet::compile_threshold_fiber(
-        &bound,
-        staging.path(),
-        0,
-        Default::default(),
-        Default::default(),
-    )
-    .unwrap();
+    let bytes = if indexed {
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            &bound,
+            staging.path(),
+            0,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        threshold_plan_archive(&plan).0
+    } else {
+        KernelSet::compile_threshold_fiber(
+            &bound,
+            staging.path(),
+            0,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap()
+        .to_bytes()
+        .unwrap()
+    };
     let mut kernels = KernelSet::from_bytes_with_options(
-        &kernels.to_bytes().unwrap(),
+        &bytes,
         crate::kernel::KernelLoadOptions { validate: true },
     )
     .unwrap();
@@ -742,7 +763,7 @@ fn threshold_v15_native_graph_gamma_projective_oneloop() {
     }
     println!(
         "{}",
-        serde_json::json!({"scope":"native HEPKit graph Gamma/projective, metadata-bound threshold-v15 restored KernelSet, ordinary QmcSession","mean":estimate.mean,"covariance":estimate.covariance_of_mean,"reference":expected})
+        serde_json::json!({"scope":"native HEPKit graph Gamma/projective, metadata-bound restored KernelSet, ordinary QmcSession", "indexed":indexed,"mean":estimate.mean,"covariance":estimate.covariance_of_mean,"reference":expected})
     );
 }
 
@@ -806,4 +827,693 @@ fn threshold_epsilon_numerator_slots_have_registration_independent_identity() {
         });
     }
     assert_eq!(ids[0], ids[1]);
+}
+
+#[test]
+fn threshold_detached_plan_releases_global_owner_and_preserves_v15_vectors() {
+    for backend in [
+        crate::kernel::EvaluatorBackend::Eager,
+        crate::kernel::EvaluatorBackend::Symjit,
+    ] {
+        let staging = tempfile::tempdir().unwrap();
+        let mut detached = None;
+        with_bound(false, |bound| {
+            let old = compile(bound, backend).0;
+            let weak = Arc::downgrade(bound.certificate().decomposition());
+            let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+                bound,
+                staging.path(),
+                1,
+                Default::default(),
+                CompilationSettings {
+                    backend,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            detached = Some((weak, plan, old));
+        });
+        let (weak, plan, mut old) = detached.unwrap();
+        assert!(
+            weak.upgrade().is_none(),
+            "detached job plan retained global CAD/continuation"
+        );
+        let mut completions = Vec::new();
+        let mut partial_tested = false;
+        for index in (0..plan.job_count()).rev() {
+            let completion = plan.job(index).unwrap().run().unwrap();
+            plan.validate_completion(&completion).unwrap();
+            let kernels = completion.kernels();
+            assert!(
+                !kernels
+                    .threshold_metadata()
+                    .unwrap()
+                    .full_original_scope()
+                    .unwrap()
+            );
+            let bytes = kernels.to_bytes().unwrap();
+            if backend == crate::kernel::EvaluatorBackend::Eager {
+                assert!(bytes.starts_with(b"FastSecDec\0binserde\x10"));
+            }
+            let restored = KernelSet::from_bytes_with_options(
+                &bytes,
+                crate::kernel::KernelLoadOptions { validate: true },
+            )
+            .unwrap();
+            assert_eq!(restored.content_id(), kernels.content_id());
+            assert_eq!(
+                restored.threshold_metadata().unwrap().resident(),
+                kernels.threshold_metadata().unwrap().resident()
+            );
+            if !kernels.sectors().is_empty() {
+                let metadata = restored.threshold_metadata().unwrap();
+                let missing = metadata
+                    .lineage()
+                    .endpoint_charts
+                    .iter()
+                    .filter(|chart| {
+                        let g = chart.map.geometry();
+                        metadata
+                            .native_atom(&g.expressions, g.positive_measure)
+                            .is_err()
+                    })
+                    .count();
+                assert!(
+                    missing > 0,
+                    "selected restore imported unrelated native map tables"
+                );
+                partial_tested = true;
+            }
+            completions.push(completion);
+        }
+        assert!(partial_tested);
+        let mut assembled = plan.assemble(completions).unwrap();
+        assert!(
+            assembled
+                .threshold_metadata()
+                .unwrap()
+                .full_original_scope()
+                .unwrap()
+        );
+        assert_eq!(
+            assembled.content_id(),
+            old.content_id(),
+            "mathematical identity depends on local native table grouping"
+        );
+        assert_eq!(assembled.orders(), old.orders());
+        for point in [0.071, 0.317, 0.829] {
+            let evaluate = |kernels: &mut KernelSet| {
+                let mut values = kernels.exact_coefficients().to_vec();
+                for sector in kernels.sectors_mut() {
+                    let mut local = vec![0.; values.len()];
+                    sector.evaluate(&[point], &mut local).unwrap();
+                    for (sum, value) in values.iter_mut().zip(local) {
+                        *sum += value;
+                    }
+                }
+                values
+            };
+            for (actual, expected) in evaluate(&mut assembled).iter().zip(evaluate(&mut old)) {
+                assert!((actual - expected).abs() / (1. + expected.abs()) < 2e-12);
+            }
+        }
+        let bytes = assembled.to_bytes().unwrap();
+        let restored = KernelSet::from_bytes_with_options(
+            &bytes,
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        assert_eq!(restored.content_id(), assembled.content_id());
+        assert!(
+            restored
+                .threshold_metadata()
+                .unwrap()
+                .full_original_scope()
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn threshold_detached_plan_refuses_missing_duplicate_and_foreign_work() {
+    with_bound(true, |bound| {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let settings = CompilationSettings {
+            backend: crate::kernel::EvaluatorBackend::Eager,
+            ..Default::default()
+        };
+        let a = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            first.path(),
+            1,
+            Default::default(),
+            settings,
+        )
+        .unwrap();
+        let b = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            second.path(),
+            1,
+            Default::default(),
+            settings,
+        )
+        .unwrap();
+        assert!(a.assemble(vec![]).is_err());
+        assert!(
+            a.validate_completion(&b.job(0).unwrap().run().unwrap())
+                .is_err()
+        );
+        assert!(
+            a.assemble(vec![
+                a.job(0).unwrap().run().unwrap(),
+                a.job(0).unwrap().run().unwrap()
+            ])
+            .is_err()
+        );
+        assert!(a.job(a.job_count()).is_err());
+        assert!(matches!(
+            a.job(0).unwrap().kind(),
+            super::threshold_plan::ThresholdJobKind::Setup {}
+        ));
+    });
+}
+
+fn threshold_plan_archive(
+    plan: &super::threshold_plan::ThresholdCompilationPlan,
+) -> (Vec<u8>, crate::kernel::indexed::ProgramArchiveCatalogue) {
+    let mut writer = plan
+        .archive_writer(std::io::Cursor::new(Vec::new()))
+        .unwrap();
+    for index in (0..plan.job_count()).rev() {
+        let completed = plan.job(index).unwrap().run().unwrap();
+        let mut bytes = Vec::new();
+        let receipt = completed.write_record(&mut bytes).unwrap();
+        if !matches!(
+            completed.kind(),
+            super::threshold_plan::ThresholdJobKind::Stochastic { .. }
+        ) {
+            assert!(
+                KernelSet::from_bytes_with_options(
+                    &bytes,
+                    crate::kernel::KernelLoadOptions { validate: true }
+                )
+                .is_ok()
+            );
+        } else {
+            assert!(
+                KernelSet::from_bytes_with_options(
+                    &bytes,
+                    crate::kernel::KernelLoadOptions { validate: true }
+                )
+                .is_err(),
+                "reference-only native record decoded without its parent"
+            );
+        }
+        writer
+            .append_record(
+                crate::kernel::ProgramRecipe::ThresholdV1,
+                &mut bytes.as_slice(),
+                receipt,
+            )
+            .unwrap();
+    }
+    let (bytes, catalogue) = writer.finish().unwrap();
+    (bytes.into_inner(), catalogue)
+}
+
+#[test]
+fn threshold_indexed_native_parent_selected_scope_cache_and_complete_identity() {
+    for backend in [
+        crate::kernel::EvaluatorBackend::Eager,
+        crate::kernel::EvaluatorBackend::Symjit,
+    ] {
+        with_bound(false, |bound| {
+            let staging = tempfile::tempdir().unwrap();
+            let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+                bound,
+                staging.path(),
+                1,
+                Default::default(),
+                CompilationSettings {
+                    backend,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let (bytes, catalogue) = threshold_plan_archive(&plan);
+            assert_eq!(catalogue.version, 3);
+            assert!(bytes.starts_with(b"FastSecDec\0indexed\x03"));
+            let recipe = crate::kernel::ProgramRecipe::ThresholdV1;
+            assert!(
+                catalogue
+                    .recipe(recipe)
+                    .unwrap()
+                    .threshold_scope()
+                    .unwrap()
+                    .unwrap()
+                    .is_full_original()
+            );
+            let mut missing = catalogue.recipe(recipe).unwrap().clone();
+            missing.records.pop();
+            assert!(missing.threshold_scope().is_err());
+            let mut reader = crate::kernel::indexed::ProgramArchiveReader::from_reader(
+                std::io::Cursor::new(bytes.clone()),
+                crate::kernel::KernelLoadOptions { validate: true },
+            )
+            .unwrap();
+            let mut selected = reader.select(recipe).unwrap();
+            let mut sector = selected.load_sector(0).unwrap();
+            assert!(
+                !sector
+                    .threshold_metadata()
+                    .unwrap()
+                    .full_original_scope()
+                    .unwrap()
+            );
+            let mut restored = KernelSet::from_bytes_with_options(
+                &sector.to_bytes().unwrap(),
+                crate::kernel::KernelLoadOptions { validate: true },
+            )
+            .unwrap();
+            assert_eq!(restored.content_id(), sector.content_id());
+            let mut a = vec![0.; sector.orders().len()];
+            let mut b = a.clone();
+            sector.sectors_mut()[0].evaluate(&[0.317], &mut a).unwrap();
+            restored.sectors_mut()[0]
+                .evaluate(&[0.317], &mut b)
+                .unwrap();
+            assert_eq!(a, b);
+            let exact = selected.load_exact().unwrap();
+            assert!(exact.sectors().is_empty());
+            assert!(
+                !exact
+                    .threshold_metadata()
+                    .unwrap()
+                    .full_original_scope()
+                    .unwrap()
+            );
+            let exact_saved = KernelSet::from_bytes(&exact.to_bytes().unwrap()).unwrap();
+            assert_eq!(exact_saved.content_id(), exact.content_id());
+            let mut all = selected.load_all().unwrap();
+            assert!(
+                all.threshold_metadata()
+                    .unwrap()
+                    .full_original_scope()
+                    .unwrap()
+            );
+            let mut resident = compile(bound, backend).0;
+            assert_eq!(all.content_id(), resident.content_id());
+            assert_eq!(
+                all.content_id(),
+                catalogue.recipe(recipe).unwrap().content_id
+            );
+            let all_saved = KernelSet::from_bytes_with_options(
+                &all.to_bytes().unwrap(),
+                crate::kernel::KernelLoadOptions { validate: true },
+            )
+            .unwrap();
+            assert_eq!(all_saved.content_id(), all.content_id());
+            let components = all.orders().len();
+            for (a, b) in all.sectors_mut().iter_mut().zip(resident.sectors_mut()) {
+                let mut x = vec![0.; components];
+                let mut y = x.clone();
+                a.evaluate(&[0.293], &mut x).unwrap();
+                b.evaluate(&[0.293], &mut y).unwrap();
+                assert_eq!(x, y);
+            }
+            let (cached, cached_catalogue) = reader
+                .write_with_native_cache(std::io::Cursor::new(Vec::new()), |_| {
+                    ControlFlow::Continue(())
+                })
+                .unwrap();
+            assert_eq!(cached_catalogue.content_id, catalogue.content_id);
+            assert_eq!(
+                KernelSet::from_bytes_with_options(
+                    &cached.into_inner(),
+                    crate::kernel::KernelLoadOptions { validate: true }
+                )
+                .unwrap()
+                .content_id(),
+                all.content_id()
+            );
+        });
+    }
+}
+
+#[test]
+fn threshold_indexed_zero_layout_and_incomplete_archive_are_distinct() {
+    with_bound(true, |bound| {
+        let staging = tempfile::tempdir().unwrap();
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            staging.path(),
+            -2,
+            Default::default(),
+            CompilationSettings {
+                backend: crate::kernel::EvaluatorBackend::Eager,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(plan.job_count(), 1);
+        assert!(
+            plan.archive_writer(std::io::Cursor::new(Vec::new()))
+                .unwrap()
+                .finish()
+                .is_err()
+        );
+        let (bytes, _) = threshold_plan_archive(&plan);
+        let restored = KernelSet::from_bytes_with_options(
+            &bytes,
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        assert!(restored.sectors().is_empty());
+        assert_eq!(restored.exact_coefficients(), [0., 0.]);
+        assert!(
+            restored
+                .threshold_metadata()
+                .unwrap()
+                .full_original_scope()
+                .unwrap()
+        );
+        assert!(
+            restored
+                .threshold_metadata()
+                .unwrap()
+                .lineage()
+                .contributions
+                .iter()
+                .all(|c| matches!(
+                    c.kind,
+                    crate::kernel::threshold_metadata::ContributionKind::CertifiedZero { .. }
+                ))
+        );
+    });
+}
+
+#[test]
+fn threshold_indexed_historical_v15_projection_is_not_migrated_on_restore() {
+    with_bound(false, |bound| {
+        let (mut kernels, orders) = compile(bound, crate::kernel::EvaluatorBackend::Eager);
+        let current_id = kernels.content_id().to_owned();
+        let staging = tempfile::tempdir().unwrap();
+        let request = bound.certificate().decomposition().request();
+        let source = generation::source_identity(
+            request.input(),
+            &request.kinematics().runtime_parameters,
+            &[],
+        )
+        .unwrap();
+        let records = (0..bound.chart_expressions().len())
+            .map(|chart| {
+                crate::threshold::records::write(staging.path(), &source, bound, chart, 1).unwrap()
+            })
+            .collect::<Vec<_>>();
+        let historical = crate::kernel::ThresholdMetadata::from_bound_historical_projection(
+            bound, &records, orders,
+        )
+        .unwrap();
+        kernels.threshold = Some(Arc::new(historical));
+        kernels.initialize_artifact().unwrap();
+        let historical_id = kernels.content_id().to_owned();
+        assert_ne!(
+            historical_id, current_id,
+            "a new projection must have a versioned identity"
+        );
+        let bytes = kernels.to_bytes().unwrap();
+        assert!(bytes.starts_with(b"FastSecDec\0binserde\x0f"));
+        let restored = KernelSet::from_bytes_with_options(
+            &bytes,
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        assert_eq!(restored.content_id(), historical_id);
+        assert_eq!(restored.to_bytes().unwrap(), bytes);
+        let saved_again = KernelSet::from_bytes_with_options(
+            &restored.to_bytes().unwrap(),
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        assert_eq!(saved_again.content_id(), historical_id);
+    });
+}
+
+#[test]
+fn threshold_indexed_reads_only_carrier_and_requested_program() {
+    use std::io::{Read, Seek};
+    struct CountingReader {
+        bytes: std::io::Cursor<Vec<u8>>,
+        reads: Arc<std::sync::Mutex<Vec<(u64, u64)>>>,
+    }
+    impl Read for CountingReader {
+        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
+            let start = self.bytes.position();
+            let count = self.bytes.read(output)?;
+            if count != 0 {
+                self.reads
+                    .lock()
+                    .unwrap()
+                    .push((start, start + count as u64));
+            }
+            Ok(count)
+        }
+    }
+    impl Seek for CountingReader {
+        fn seek(&mut self, from: std::io::SeekFrom) -> std::io::Result<u64> {
+            self.bytes.seek(from)
+        }
+    }
+    with_bound(true, |bound| {
+        let staging = tempfile::tempdir().unwrap();
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            staging.path(),
+            1,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        let (bytes, catalogue) = threshold_plan_archive(&plan);
+        let recipe = crate::kernel::ProgramRecipe::ThresholdV1;
+        let records = &catalogue.recipe(recipe).unwrap().records;
+        let carrier = &records[0];
+        let chosen = catalogue.recipe(recipe).unwrap().sector(2).unwrap();
+        let allowed = [
+            (carrier.offset, carrier.offset + carrier.receipt.length),
+            (chosen.offset, chosen.offset + chosen.receipt.length),
+        ];
+        let reads = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut reader = crate::kernel::indexed::ProgramArchiveReader::from_reader(
+            CountingReader {
+                bytes: std::io::Cursor::new(bytes),
+                reads: reads.clone(),
+            },
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        // Footer inspection is metadata-only. Measure subsequent native reads.
+        reads.lock().unwrap().clear();
+        let selected = reader.select(recipe).unwrap().load_sector(2).unwrap();
+        assert_eq!(selected.sectors().len(), 1);
+        let actual = reads.lock().unwrap();
+        assert!(!actual.is_empty());
+        assert!(
+            actual
+                .iter()
+                .all(|(lo, hi)| allowed.iter().any(|(a, b)| a <= lo && hi <= b)),
+            "an unrelated native record was read: {actual:?}"
+        );
+        assert_eq!(
+            actual.iter().map(|(a, b)| b - a).sum::<u64>(),
+            carrier.receipt.length + chosen.receipt.length
+        );
+    });
+}
+
+#[test]
+fn threshold_indexed_native_state_restores_in_fresh_process() {
+    with_bound(true, |bound| {
+        let staging = tempfile::tempdir().unwrap();
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            staging.path(),
+            1,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        let (bytes, catalogue) = threshold_plan_archive(&plan);
+        let path = staging.path().join("indexed.fsd");
+        std::fs::write(&path, bytes).unwrap();
+        let status = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "kernel::compilation::threshold_tests::threshold_fresh_restore_child",
+                "--test-threads=1",
+            ])
+            .env("FSD_THRESHOLD_FRESH_ARTIFACT", path)
+            .env(
+                "FSD_THRESHOLD_FRESH_ID",
+                &catalogue
+                    .recipe(crate::kernel::ProgramRecipe::ThresholdV1)
+                    .unwrap()
+                    .content_id,
+            )
+            .status()
+            .unwrap();
+        assert!(status.success());
+    });
+}
+
+#[test]
+fn threshold_serial_worker_child() {
+    let Ok(path) = std::env::var("FSD_THRESHOLD_WORK") else {
+        return;
+    };
+    let work: crate::kernel::ThresholdCompilationWork =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let root = std::path::Path::new(&path).parent().unwrap();
+    let mut output = std::fs::File::create(root.join("worker.fsd")).unwrap();
+    let receipt = work
+        .compile_record(root, 16 * 1024 * 1024, &mut output)
+        .unwrap();
+    std::fs::write(
+        root.join("worker-receipt.json"),
+        serde_json::to_vec(&receipt).unwrap(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn threshold_serial_fresh_process_records_and_receipt_admission() {
+    with_bound(false, |bound| {
+        let staging = tempfile::tempdir().unwrap();
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            staging.path(),
+            1,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        let mut archive = plan
+            .archive_writer(std::io::Cursor::new(Vec::new()))
+            .unwrap();
+        for index in (0..plan.job_count()).rev() {
+            let work = plan.work(index).unwrap();
+            let path = staging.path().join("work.json");
+            std::fs::write(&path, serde_json::to_vec(&work).unwrap()).unwrap();
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "kernel::compilation::threshold_tests::threshold_serial_worker_child",
+                    "--test-threads=1",
+                ])
+                .env("FSD_THRESHOLD_WORK", &path)
+                .status()
+                .unwrap();
+            assert!(status.success());
+            let receipt: crate::kernel::ThresholdWorkReceipt = serde_json::from_slice(
+                &std::fs::read(staging.path().join("worker-receipt.json")).unwrap(),
+            )
+            .unwrap();
+            plan.validate_work_receipt(&receipt).unwrap();
+            // Admission does not consume a receipt. A caller can retain it for
+            // retry while this same native preparation authority is live.
+            plan.validate_work_receipt(&receipt).unwrap();
+            plan.append_work_record(
+                &mut archive,
+                &mut std::fs::File::open(staging.path().join("worker.fsd")).unwrap(),
+                receipt,
+            )
+            .unwrap();
+        }
+        let (bytes, catalogue) = archive.finish().unwrap();
+        let restored = KernelSet::from_bytes_with_options(
+            &bytes.into_inner(),
+            crate::kernel::KernelLoadOptions { validate: true },
+        )
+        .unwrap();
+        assert_eq!(
+            restored.content_id(),
+            catalogue
+                .recipe(crate::kernel::ProgramRecipe::ThresholdV1)
+                .unwrap()
+                .content_id
+        );
+        assert_eq!(
+            restored.content_id(),
+            compile(bound, crate::kernel::EvaluatorBackend::Auto)
+                .0
+                .content_id()
+        );
+        assert!(
+            restored
+                .threshold_metadata()
+                .unwrap()
+                .full_original_scope()
+                .unwrap()
+        );
+    });
+}
+
+#[test]
+fn threshold_serial_refuses_changed_plan_source_and_program_bytes() {
+    with_bound(false, |bound| {
+        let staging = tempfile::tempdir().unwrap();
+        let plan = super::threshold_plan::ThresholdCompilationPlan::prepare(
+            bound,
+            staging.path(),
+            1,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
+        let work = plan.work(1).unwrap();
+        let mut bytes = Vec::new();
+        let receipt = work
+            .compile_record(staging.path(), u64::MAX, &mut bytes)
+            .unwrap();
+        assert!(
+            work.compile_record(
+                staging.path(),
+                work.plan_record().bytes - 1,
+                &mut Vec::new()
+            )
+            .is_err()
+        );
+        let mut foreign = serde_json::to_value(&receipt).unwrap();
+        foreign["work"]["plan"]["blake3"] = serde_json::json!("0".repeat(64));
+        assert!(
+            plan.validate_work_receipt(&serde_json::from_value(foreign).unwrap())
+                .is_err()
+        );
+        let mut archive = plan
+            .archive_writer(std::io::Cursor::new(Vec::new()))
+            .unwrap();
+        bytes[0] ^= 1;
+        assert!(
+            plan.append_work_record(&mut archive, &mut bytes.as_slice(), receipt)
+                .is_err()
+        );
+        assert!(archive.finish().is_err());
+        let path = work.plan_record().resolve(staging.path()).unwrap();
+        let original = std::fs::read(&path).unwrap();
+        let mut replaced = original.clone();
+        *replaced.last_mut().unwrap() ^= 1;
+        std::fs::write(&path, replaced).unwrap();
+        assert!(
+            work.compile_record(staging.path(), u64::MAX, &mut Vec::new())
+                .is_err()
+        );
+        let mut longer = original;
+        longer.push(0);
+        std::fs::write(&path, longer).unwrap();
+        assert!(
+            work.compile_record(staging.path(), u64::MAX, &mut Vec::new())
+                .is_err()
+        );
+    });
 }

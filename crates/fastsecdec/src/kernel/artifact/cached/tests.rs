@@ -103,8 +103,13 @@ fn native_primary_real_complex_roundtrip_retains_exact_program_and_loaded_bytes(
             Restoration::CacheMissing
         );
         assert_eq!(values(&mut legacy), expected);
-        let moved =
-            super::super::owned_record(bytes.clone(), KernelLoadOptions::default(), false).unwrap();
+        let moved = super::super::owned_record_with_parent(
+            bytes.clone(),
+            KernelLoadOptions::default(),
+            false,
+            None,
+        )
+        .unwrap();
         assert!(moved.portable_artifact.is_none());
         assert_eq!(moved.content_id(), id);
     }

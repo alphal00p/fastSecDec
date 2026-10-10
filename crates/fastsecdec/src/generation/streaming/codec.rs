@@ -253,8 +253,21 @@ pub(super) fn read_with_program<M: DeserializeOwned>(
     reference: &RecordRef,
     kind: &str,
 ) -> Result<(M, Atoms, Vec<Symbol>, super::super::program::ProgramData), StreamingError> {
-    reference.verify(root)?;
-    let bytes = fs::read(reference.resolve(root)?)?;
+    // Hash exactly the bytes subsequently imported. Verifying one open and
+    // decoding a second open could race a caller replacing a staged record.
+    let file = File::open(reference.resolve(root)?)?;
+    if file.metadata()?.len() != reference.bytes {
+        return Err(invalid("record length mismatch"));
+    }
+    let mut bytes = Vec::new();
+    file.take(reference.bytes.saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 != reference.bytes {
+        return Err(invalid("record length mismatch"));
+    }
+    if blake3::hash(&bytes).to_hex().as_str() != reference.blake3 {
+        return Err(invalid("record digest mismatch"));
+    }
     let bytes = bytes
         .strip_prefix(MAGIC)
         .ok_or_else(|| invalid("unsupported record version"))?;

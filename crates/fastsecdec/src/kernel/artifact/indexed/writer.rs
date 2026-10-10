@@ -108,6 +108,7 @@ fn receipt(
     source_indices: Vec<usize>,
 ) -> RecordReceipt {
     RecordReceipt {
+        threshold: None,
         source_scope: kernels
             .generation_metadata()
             .and_then(|metadata| metadata.source_scope().cloned()),

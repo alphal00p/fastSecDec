@@ -11,6 +11,7 @@ mod algebra;
 mod blowup;
 mod chart;
 mod companion;
+mod component_factor;
 mod components;
 mod contact;
 mod cover;
@@ -34,12 +35,18 @@ pub use blowup::{
 };
 pub use chart::{Boundary, Chart, FrameCertificate, Guard, Map, VerifiedFrame};
 pub use companion::{
-    CartierDivision, FactorProduction, FactorProgress, OldBoundaryCoefficient,
-    OldBoundaryProduction, OldBoundaryProgress, OldIncidence, QuotientMethod, RelativeOrderLayer,
-    ResidualOrderProduction, ResidualOrderProgress, RestrictedResidualOrder,
-    VerifiedCartierQuotient, WholeCartierFactorization, divide_cartier,
-    factor_whole_cartier_equations, produce_old_boundary_coefficient,
+    CartierDivision, ComponentResidualOrder, ComponentResidualProduction, FactorProduction,
+    FactorProgress, OldBoundaryCoefficient, OldBoundaryProduction, OldBoundaryProgress,
+    OldIncidence, QuotientMethod, RelativeOrderLayer, ResidualOrderProduction,
+    ResidualOrderProgress, RestrictedResidualOrder, VerifiedCartierQuotient,
+    WholeCartierFactorization, divide_cartier, factor_whole_cartier_equations,
+    produce_component_residual_order, produce_old_boundary_coefficient,
     produce_restricted_residual_order,
+};
+pub use component_factor::{
+    BoundaryMaximality, CompletedComponentFactors, ComponentFactorCompletion,
+    ComponentFactorFrontier, ComponentFactorLimits, FactorAdvance, FactorChild, FactorData,
+    FactorLeaf, FactorNode, FactorPath, FactorPendingEvidence,
 };
 pub use components::{
     BoundaryAlgebra, ComponentOpen, ComponentPattern, ComponentProduction, ComponentProgress,

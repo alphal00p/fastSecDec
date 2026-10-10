@@ -25,6 +25,7 @@ const MAGIC_V10: &[u8] = b"FastSecDec\0binserde\x0a";
 const MAGIC_V11: &[u8] = b"FastSecDec\0binserde\x0b";
 const MAGIC_V12: &[u8] = b"FastSecDec\0binserde\x0c";
 const MAGIC_V15: &[u8] = b"FastSecDec\0binserde\x0f";
+const MAGIC_V16: &[u8] = b"FastSecDec\0binserde\x10";
 const MAGIC_V14: &[u8] = b"FastSecDec\0binserde\x0e";
 const MAGIC_V8: &[u8] = b"FastSecDec\0binserde\x08";
 const MAGIC_V7: &[u8] = b"FastSecDec\0binserde\x07";
@@ -106,6 +107,13 @@ struct PayloadV14 {
 struct PayloadV15 {
     base: PayloadV12,
     threshold: crate::kernel::threshold_owner::Saved,
+}
+
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV16 {
+    base: PayloadV12,
+    threshold: crate::kernel::threshold_owner::SavedV16,
 }
 
 #[derive(Encode, Decode)]
@@ -435,13 +443,14 @@ fn encode_with_requests(
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
 ) -> Result<(String, Vec<u8>), KernelError> {
-    encode_with_threshold(payload, descriptor, exact_requests, None)
+    encode_with_threshold(payload, descriptor, exact_requests, None, true)
 }
 fn encode_with_threshold(
     mut payload: Payload,
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
     threshold: Option<&crate::kernel::ThresholdMetadata>,
+    inline_threshold_parent: bool,
 ) -> Result<(String, Vec<u8>), KernelError> {
     let source_scope = payload
         .metadata
@@ -516,22 +525,37 @@ fn encode_with_threshold(
             &payload.runtime_parameters,
         )?;
         content_id = threshold.semantic_identity(&payload.compiler_policy, &payload.precision)?;
-        (
-            MAGIC_V15,
-            bincode::encode_to_vec(
-                PayloadV15 {
-                    base: PayloadV12 {
-                        base: payload,
-                        descriptor,
-                        exact_requests,
-                        contour_definitions,
+        let base = PayloadV12 {
+            base: payload,
+            descriptor,
+            exact_requests,
+            contour_definitions,
+        };
+        if threshold.is_local() {
+            (
+                MAGIC_V16,
+                bincode::encode_to_vec(
+                    PayloadV16 {
+                        base,
+                        threshold: threshold.save_v16_with_parent(inline_threshold_parent)?,
                     },
-                    threshold: threshold.save()?,
-                },
-                bincode::config::standard(),
+                    bincode::config::standard(),
+                )
+                .map_err(failure)?,
             )
-            .map_err(failure)?,
-        )
+        } else {
+            (
+                MAGIC_V15,
+                bincode::encode_to_vec(
+                    PayloadV15 {
+                        base,
+                        threshold: threshold.save()?,
+                    },
+                    bincode::config::standard(),
+                )
+                .map_err(failure)?,
+            )
+        }
     } else if let Some(scope) = source_scope {
         content_id = semantic_id_v14(&content_id, &scope)?;
         (
@@ -625,6 +649,12 @@ fn semantic_id_v14(
     Ok(hash.finalize().to_hex().to_string())
 }
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
+    compiled_with_parent(kernels, true)
+}
+pub(super) fn compiled_with_parent(
+    kernels: &KernelSet,
+    inline_threshold_parent: bool,
+) -> Result<(String, Vec<u8>), KernelError> {
     let (id, bytes) = encode_with_threshold(
         Payload {
             codec: CODEC.into(),
@@ -668,6 +698,7 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
             .transpose()?,
         kernels.exact_requests.clone(),
         kernels.threshold.as_deref(),
+        inline_threshold_parent,
     )?;
     let primaries = kernels
         .sectors
@@ -918,7 +949,29 @@ pub(super) fn load_with_primary(
     retain: bool,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
-    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V15) {
+    load_with_primary_and_parent(
+        bytes,
+        options,
+        primary_caches,
+        cache_content_id,
+        retain,
+        progress,
+        None,
+    )
+}
+#[allow(clippy::too_many_arguments)]
+pub(super) fn load_with_primary_and_parent(
+    bytes: &[u8],
+    options: KernelLoadOptions,
+    primary_caches: Option<Vec<Option<crate::kernel::evaluator::SavedPrimary>>>,
+    cache_content_id: Option<&str>,
+    retain: bool,
+    progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
+    threshold_parent: Option<&crate::kernel::ThresholdMetadata>,
+) -> Result<KernelSet, KernelError> {
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V16) {
+        (wire, MAGIC_V16, 16)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V15) {
         (wire, MAGIC_V15, 15)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V14) {
         (wire, MAGIC_V14, 14)
@@ -971,34 +1024,54 @@ pub(super) fn load_with_primary(
     let mut exact_requests = Vec::new();
     let mut source_scope = None;
     let mut threshold = None;
-    let (mut payload, used): (Payload, usize) = if version == 15 {
-        let (payload, used): (PayloadV15, usize) = bincode::decode_from_slice_with_context(
-            envelope.payload,
-            bincode::config::standard(),
-            context,
-        )
-        .map_err(failure)?;
-        if payload.base.base.metadata.is_some()
-            || payload.base.descriptor.is_some()
-            || !payload.base.exact_requests.is_empty()
-            || !payload.base.contour_definitions.is_empty()
+    let (mut payload, used): (Payload, usize) = if version == 15 || version == 16 {
+        let (payload, owner, used) = if version == 15 {
+            let (payload, used): (PayloadV15, usize) = bincode::decode_from_slice_with_context(
+                envelope.payload,
+                bincode::config::standard(),
+                context,
+            )
+            .map_err(failure)?;
+            (
+                payload.base,
+                crate::kernel::ThresholdMetadata::restore(payload.threshold)?,
+                used,
+            )
+        } else {
+            let (payload, used): (PayloadV16, usize) = bincode::decode_from_slice_with_context(
+                envelope.payload,
+                bincode::config::standard(),
+                context,
+            )
+            .map_err(failure)?;
+            (
+                payload.base,
+                crate::kernel::ThresholdMetadata::restore_v16_with_parent(
+                    payload.threshold,
+                    threshold_parent,
+                )?,
+                used,
+            )
+        };
+        if payload.base.metadata.is_some()
+            || payload.descriptor.is_some()
+            || !payload.exact_requests.is_empty()
+            || !payload.contour_definitions.is_empty()
         {
             return Err(failure("mixed threshold and legacy payload"));
         }
-        let owner = crate::kernel::ThresholdMetadata::restore(payload.threshold)?;
         owner.validate_layout(
             &payload
-                .base
                 .base
                 .sectors
                 .iter()
                 .map(|s| s.parameters.clone())
                 .collect::<Vec<_>>(),
-            &payload.base.base.orders,
-            &payload.base.base.runtime_parameters,
+            &payload.base.orders,
+            &payload.base.runtime_parameters,
         )?;
         threshold = Some(owner);
-        (payload.base.base, used)
+        (payload.base, used)
     } else if version == 14 {
         let (mut payload, used): (PayloadV14, usize) = bincode::decode_from_slice_with_context(
             envelope.payload,

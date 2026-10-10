@@ -15,6 +15,7 @@ pub struct ProgramArchiveWriter<W> {
     source_identity: String,
     recipes: BTreeMap<ProgramRecipe, Vec<RecordDescriptor>>,
     failed: bool,
+    threshold: Option<super::super::ThresholdArchiveSummary>,
 }
 impl<W: Write + Seek> ProgramArchiveWriter<W> {
     pub fn new(
@@ -29,6 +30,11 @@ impl<W: Write + Seek> ProgramArchiveWriter<W> {
                 return Err(failure("duplicate requested recipe"));
             }
         }
+        if requested.contains_key(&ProgramRecipe::ThresholdV1) {
+            return Err(failure(
+                "threshold writer requires a closed native publication plan",
+            ));
+        }
         if requested.is_empty() || writer.stream_position().map_err(failure)? != 0 {
             return Err(failure(
                 "program writer requires recipes and must start at byte zero",
@@ -40,6 +46,24 @@ impl<W: Write + Seek> ProgramArchiveWriter<W> {
             source_identity,
             recipes: requested,
             failed: false,
+            threshold: None,
+        })
+    }
+    #[cfg(feature = "native")]
+    pub(crate) fn new_threshold(
+        mut writer: W,
+        summary: super::super::ThresholdArchiveSummary,
+    ) -> Result<Self, KernelError> {
+        if writer.stream_position().map_err(failure)? != 0 {
+            return Err(failure("threshold writer must start at byte zero"));
+        }
+        writer.write_all(super::MAGIC_V3).map_err(failure)?;
+        Ok(Self {
+            writer,
+            source_identity: summary.source_identity.clone(),
+            recipes: BTreeMap::from([(ProgramRecipe::ThresholdV1, Vec::new())]),
+            failed: false,
+            threshold: Some(summary),
         })
     }
     pub fn append_record(
@@ -122,11 +146,20 @@ impl<W: Write + Seek> ProgramArchiveWriter<W> {
             .recipes
             .into_iter()
             .map(|(recipe, records)| {
-                ProgramRecipeCatalogue::finish(recipe, records, &self.source_identity)
+                if let Some(summary) = self.threshold.take() {
+                    ProgramRecipeCatalogue::finish_threshold(records, summary)
+                } else {
+                    ProgramRecipeCatalogue::finish(recipe, records, &self.source_identity)
+                }
             })
             .collect::<Result<Vec<_>, _>>()?;
         let catalogue = ProgramArchiveCatalogue::finish(self.source_identity, recipes, end)?;
-        transport::write_footer(&mut self.writer, &catalogue, super::FOOTER)?;
+        let footer = if catalogue.version == 3 {
+            super::FOOTER_V3
+        } else {
+            super::FOOTER
+        };
+        transport::write_footer(&mut self.writer, &catalogue, footer)?;
         Ok((self.writer, catalogue))
     }
 }

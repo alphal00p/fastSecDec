@@ -76,19 +76,20 @@ fn parameter_names(parameters: &[Symbol]) -> Vec<String> {
 /// Indexed readers already own exactly one record buffer. Transfer it only
 /// when the returned standalone owner needs byte-identical later saving;
 /// resident assembly intentionally discards it after moving the native owners.
-fn owned_record(
+fn owned_record_with_parent(
     bytes: Vec<u8>,
     options: KernelLoadOptions,
     retain: bool,
+    parent: Option<&crate::kernel::ThresholdMetadata>,
 ) -> Result<KernelSet, KernelError> {
     let progress =
         &mut |_: &crate::kernel::CompilationProgress| std::ops::ControlFlow::Continue(());
     let mut kernels = if bytes.starts_with(cached::MAGIC) {
-        cached::load_with_retention(&bytes, options, false, progress)?
+        cached::load_with_parent(&bytes, options, false, progress, parent)?
     } else {
-        binary::load_with_primary(&bytes, options, None, None, false, progress)?
+        binary::load_with_primary_and_parent(&bytes, options, None, None, false, progress, parent)?
     };
-    if retain {
+    if retain && parent.is_none() {
         kernels.portable_artifact = Some(bytes.into());
     }
     Ok(kernels)
@@ -201,7 +202,9 @@ impl KernelSet {
         }
         let mut restoring =
             |step: &super::CompilationProgress| progress(&KernelLoadProgress::Restoring(*step));
-        let kernels = if bytes.starts_with(indexed::programs::MAGIC) {
+        let kernels = if bytes.starts_with(indexed::programs::MAGIC)
+            || bytes.starts_with(indexed::programs::MAGIC_V3)
+        {
             indexed::programs::from_bytes(bytes, options, &mut progress)
         } else if bytes.starts_with(indexed::MAGIC) {
             indexed::from_bytes(bytes, options, &mut progress)
@@ -237,4 +240,8 @@ impl KernelSet {
         }
         Ok(kernels)
     }
+}
+
+pub(crate) fn compiler_policy_with_settings(settings: CompilationSettings) -> String {
+    native::compiler_policy_with_settings(settings)
 }

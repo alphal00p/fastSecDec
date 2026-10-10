@@ -15,10 +15,13 @@ pub struct RingExtension {
 }
 impl RingExtension {
     pub fn new(source: Arc<Ring>, fresh: [Symbol; 2], budget: &mut Budget) -> Result<Self> {
+        Self::with_symbols(source, &fresh, budget)
+    }
+    pub fn with_symbols(source: Arc<Ring>, fresh: &[Symbol], budget: &mut Budget) -> Result<Self> {
         budget.reserve_slots(
             source
                 .len()
-                .checked_add(2)
+                .checked_add(fresh.len())
                 .ok_or(Error::ResourceIncomplete("extended ring size"))?,
         )?;
         let mut symbols = source
@@ -30,7 +33,7 @@ impl RingExtension {
                 _ => Err(Error::Invalid("ring coordinate is not a symbol")),
             })
             .collect::<Result<Vec<_>>>()?;
-        symbols.extend(fresh);
+        symbols.extend_from_slice(fresh);
         let params = (0..source.len())
             .filter(|i| source.is_parameter(*i))
             .collect();

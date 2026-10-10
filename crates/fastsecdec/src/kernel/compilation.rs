@@ -799,3 +799,11 @@ mod threshold_tests;
 
 #[cfg(feature = "threshold-decomposition")]
 mod threshold_factory;
+
+#[cfg(feature = "threshold-decomposition")]
+mod threshold_plan;
+#[cfg(feature = "threshold-decomposition")]
+pub use threshold_plan::{
+    ThresholdCompilationCompletion, ThresholdCompilationJob, ThresholdCompilationPlan,
+    ThresholdCompilationWork, ThresholdJobKind, ThresholdWorkReceipt,
+};

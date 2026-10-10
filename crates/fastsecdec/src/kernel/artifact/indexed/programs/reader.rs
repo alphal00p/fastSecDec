@@ -38,13 +38,23 @@ impl<R: Read + Seek> ProgramArchiveReader<R> {
             .iter()
             .map(|recipe| recipe.records.len())
             .sum();
-        let mut writer = super::ProgramArchiveWriter::new(
-            writer,
-            source,
-            self.catalogue.recipes.iter().map(|recipe| recipe.recipe),
-        )?;
+        let mut writer = if let Some(summary) = self
+            .catalogue
+            .recipes
+            .first()
+            .and_then(|r| r.threshold.as_ref())
+        {
+            super::ProgramArchiveWriter::new_threshold(writer, summary.clone())?
+        } else {
+            super::ProgramArchiveWriter::new(
+                writer,
+                source,
+                self.catalogue.recipes.iter().map(|recipe| recipe.recipe),
+            )?
+        };
         let mut completed = 0;
         for recipe in &self.catalogue.recipes {
+            let mut parent: Option<std::sync::Arc<crate::kernel::ThresholdMetadata>> = None;
             for record in &recipe.records {
                 if progress(&crate::kernel::CompilationProgress {
                     completed,
@@ -55,8 +65,30 @@ impl<R: Read + Seek> ProgramArchiveReader<R> {
                 {
                     return Err(KernelError::Cancelled);
                 }
-                let kernels = record_reader::read_record(&mut self.reader, record, self.options)?;
-                let bytes = super::super::super::cached::refresh(&kernels)?;
+                let kernels = record_reader::read_record_with_parent(
+                    &mut self.reader,
+                    record,
+                    self.options,
+                    true,
+                    parent.as_deref(),
+                )?;
+                let bytes = if let Some(summary) = &recipe.threshold {
+                    let owner = kernels
+                        .threshold
+                        .as_ref()
+                        .ok_or_else(|| failure("missing threshold cache parent"))?;
+                    summary.check_parent(owner)?;
+                    if parent.is_none() {
+                        parent = Some(owner.clone());
+                    }
+                    super::super::super::binary::compiled_with_parent(
+                        &kernels,
+                        record.receipt.threshold.as_ref().unwrap().carrier,
+                    )?
+                    .1
+                } else {
+                    super::super::super::cached::refresh(&kernels)?
+                };
                 let mut receipt = record.receipt.clone();
                 receipt.length = bytes.len() as u64;
                 receipt.digest = blake3::hash(&bytes).to_hex().to_string();
@@ -97,12 +129,20 @@ impl<R: Read + Seek> ProgramArchiveReader<R> {
                 options,
             });
         }
-        if header != super::MAGIC {
+        if header != super::MAGIC && header != super::MAGIC_V3 {
             return Err(failure("unsupported program archive header"));
         }
-        let (catalogue, start): (ProgramArchiveCatalogue, _) =
-            transport::read_footer(&mut reader, super::FOOTER)?;
-        if catalogue.version != 2 || catalogue.records_end != start {
+        let (catalogue, start): (ProgramArchiveCatalogue, _) = transport::read_footer(
+            &mut reader,
+            if header == super::MAGIC_V3 {
+                super::FOOTER_V3
+            } else {
+                super::FOOTER
+            },
+        )?;
+        if catalogue.version != if header == super::MAGIC_V3 { 3 } else { 2 }
+            || catalogue.records_end != start
+        {
             return Err(failure(
                 "program directory extent/version differs from transport",
             ));
@@ -132,6 +172,7 @@ impl<R: Read + Seek> ProgramArchiveReader<R> {
             catalogue,
             options: self.options,
             source_identity: self.catalogue.source_identity.as_deref(),
+            threshold_parent: None,
         })
     }
 }
@@ -143,10 +184,39 @@ pub struct SelectedProgramReader<'a, R> {
     catalogue: &'a ProgramRecipeCatalogue,
     options: KernelLoadOptions,
     source_identity: Option<&'a str>,
+    threshold_parent: Option<std::sync::Arc<crate::kernel::ThresholdMetadata>>,
 }
 impl<R: Read + Seek> SelectedProgramReader<'_, R> {
     pub fn catalogue(&self) -> &ProgramRecipeCatalogue {
         self.catalogue
+    }
+    fn parent(
+        &mut self,
+    ) -> Result<Option<std::sync::Arc<crate::kernel::ThresholdMetadata>>, KernelError> {
+        if self.catalogue.threshold.is_none() {
+            return Ok(None);
+        }
+        if let Some(parent) = &self.threshold_parent {
+            return Ok(Some(parent.clone()));
+        }
+        let record = self
+            .catalogue
+            .records
+            .first()
+            .ok_or_else(|| failure("threshold carrier missing"))?;
+        let kernels = record_reader::read_record(self.reader, record, self.options)?;
+        let owner = kernels
+            .threshold
+            .as_ref()
+            .ok_or_else(|| failure("threshold carrier lacks native parent"))?
+            .clone();
+        self.catalogue
+            .threshold
+            .as_ref()
+            .unwrap()
+            .check_parent(&owner)?;
+        self.threshold_parent = Some(owner.clone());
+        Ok(Some(owner))
     }
     pub fn load_record(&mut self, record: usize) -> Result<KernelSet, KernelError> {
         let descriptor = self
@@ -154,11 +224,25 @@ impl<R: Read + Seek> SelectedProgramReader<'_, R> {
             .records
             .get(record)
             .ok_or_else(|| failure(format!("unknown recipe record {record}")))?;
-        record_reader::read_record(self.reader, descriptor, self.options)
+        let parent = self.parent()?;
+        record_reader::read_record_with_parent(
+            self.reader,
+            descriptor,
+            self.options,
+            true,
+            parent.as_deref(),
+        )
     }
     pub fn load_sector(&mut self, sector: usize) -> Result<KernelSet, KernelError> {
         let descriptor = self.catalogue.sector(sector)?;
-        record_reader::read_record(self.reader, descriptor, self.options)
+        let parent = self.parent()?;
+        record_reader::read_record_with_parent(
+            self.reader,
+            descriptor,
+            self.options,
+            true,
+            parent.as_deref(),
+        )
     }
     pub fn load_all(&mut self) -> Result<KernelSet, KernelError> {
         self.load_all_with_progress(&mut |_| ControlFlow::Continue(()))
@@ -171,7 +255,9 @@ impl<R: Read + Seek> SelectedProgramReader<'_, R> {
         // Resident owners already retain portable programs. Keep only this
         // recipe's original records, so a later to_bytes cannot silently drop
         // its mathematical/source identity by writing a version-one archive.
-        kernels.portable_artifact = Some(self.selected_bytes()?.into());
+        if self.catalogue.threshold.is_none() {
+            kernels.portable_artifact = Some(self.selected_bytes()?.into());
+        }
         Ok(kernels)
     }
     /// Compact exact aggregation. Validate each selected exact record's contour
@@ -184,6 +270,9 @@ impl<R: Read + Seek> SelectedProgramReader<'_, R> {
         exact: bool,
         progress: &mut impl FnMut(&KernelLoadProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
+        if self.catalogue.threshold.is_some() {
+            return self.load_threshold(exact, progress);
+        }
         record_reader::load_selected(
             self.reader,
             RecordSelection {
@@ -198,6 +287,96 @@ impl<R: Read + Seek> SelectedProgramReader<'_, R> {
         )
     }
 
+    fn load_threshold(
+        &mut self,
+        exact: bool,
+        progress: &mut impl FnMut(&KernelLoadProgress) -> ControlFlow<()>,
+    ) -> Result<KernelSet, KernelError> {
+        use crate::kernel::threshold_metadata as m;
+        let parent = self
+            .parent()?
+            .ok_or_else(|| failure("threshold parent unavailable"))?;
+        let mut owner: Option<crate::kernel::ThresholdMetadata> = None;
+        let mut assembly = super::super::assembly::ResidentAssembly::default();
+        let started = std::time::Instant::now();
+        let total = if exact {
+            0
+        } else {
+            self.catalogue.sector_count()
+        };
+        let mut completed = 0;
+        for record in &self.catalogue.records {
+            if exact && record.sector.is_some() {
+                continue;
+            }
+            if progress(&KernelLoadProgress::Restoring(
+                crate::kernel::CompilationProgress {
+                    completed,
+                    total,
+                    elapsed_seconds: started.elapsed().as_secs_f64(),
+                },
+            ))
+            .is_break()
+            {
+                return Err(KernelError::Cancelled);
+            }
+            let mut local = record_reader::read_record_with_parent(
+                self.reader,
+                record,
+                self.options,
+                false,
+                Some(&parent),
+            )?;
+            let metadata = local
+                .threshold
+                .take()
+                .ok_or_else(|| failure("missing local threshold provenance"))?;
+            if let Some(owner) = &mut owner {
+                owner.merge_local(&metadata)?;
+            } else {
+                owner = Some(metadata.as_ref().clone());
+            }
+            completed += usize::from(record.sector.is_some());
+            assembly.push(local, &[], exact)?;
+        }
+        let owner = owner
+            .ok_or_else(|| failure("missing exact/setup carrier"))?
+            .selected(if exact {
+                m::ResidentSelection::Selected {
+                    stochastic_contributions: Vec::new(),
+                    exact_policy: crate::results::ExactContributionPolicy::IncludeAll,
+                }
+            } else {
+                m::ResidentSelection::Complete
+            })?;
+        let mut kernels = assembly.finish(
+            String::new(),
+            &self.catalogue.orders,
+            &self.catalogue.components,
+            exact,
+        )?;
+        let identity = owner.semantic_identity(
+            &crate::kernel::artifact::compiler_policy_with_settings(kernels.compilation_settings),
+            &kernels.precision,
+        )?;
+        if !exact && identity != self.catalogue.content_id {
+            return Err(failure("complete native threshold identity differs"));
+        }
+        kernels.attach_threshold(owner)?;
+        kernels.content_id = identity;
+        if progress(&KernelLoadProgress::Restoring(
+            crate::kernel::CompilationProgress {
+                completed,
+                total,
+                elapsed_seconds: started.elapsed().as_secs_f64(),
+            },
+        ))
+        .is_break()
+        {
+            return Err(KernelError::Cancelled);
+        }
+        Ok(kernels)
+    }
     fn selected_bytes(&mut self) -> Result<Vec<u8>, KernelError> {
         if let Some(source_identity) = self.source_identity {
             let mut writer = super::ProgramArchiveWriter::new(

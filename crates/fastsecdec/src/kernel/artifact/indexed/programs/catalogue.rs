@@ -85,6 +85,8 @@ impl ProgramRecipe {
 #[serde(deny_unknown_fields)]
 pub struct ProgramRecipeCatalogue {
     pub recipe: ProgramRecipe,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threshold: Option<super::super::ThresholdArchiveSummary>,
     pub content_id: String,
     pub orders: Vec<i32>,
     pub components: Vec<CoefficientComponent>,
@@ -95,6 +97,23 @@ pub struct ProgramRecipeCatalogue {
     pub records: Vec<RecordDescriptor>,
 }
 impl ProgramRecipeCatalogue {
+    /// Scope of this complete, structurally checked contribution catalogue.
+    /// Use it only with the full catalogue sector inventory and exact carrier;
+    /// `load_exact()` and selected records retain their own narrower scope.
+    /// This view does not replay global geometry/continuation proofs.
+    pub fn threshold_scope(
+        &self,
+    ) -> Result<Option<crate::kernel::ThresholdResultScope>, KernelError> {
+        let Some(summary) = &self.threshold else {
+            if self.recipe == ProgramRecipe::ThresholdV1 {
+                return Err(failure("threshold catalogue lacks its closed inventory"));
+            }
+            return Ok(None);
+        };
+        self.validate(&summary.source_identity, true)?;
+        crate::kernel::ThresholdResultScope::complete_catalogue(summary.source_extent.clone())
+            .map(Some)
+    }
     pub fn source_selection(&self) -> Option<&crate::generation::SourceSectorSelection> {
         self.records
             .first()
@@ -142,6 +161,7 @@ impl ProgramRecipeCatalogue {
             .collect();
         let mut catalogue = Self {
             recipe,
+            threshold: None,
             content_id: String::new(),
             orders: layout.orders,
             components: layout.components,
@@ -154,7 +174,36 @@ impl ProgramRecipeCatalogue {
         catalogue.validate(source, true)?;
         Ok(catalogue)
     }
+    pub(super) fn finish_threshold(
+        records: Vec<RecordDescriptor>,
+        summary: super::super::ThresholdArchiveSummary,
+    ) -> Result<Self, KernelError> {
+        let layout = layout::finish_layout(records)?;
+        let value = Self {
+            recipe: ProgramRecipe::ThresholdV1,
+            content_id: summary.complete_content_id.clone(),
+            orders: layout.orders,
+            components: layout.components,
+            runtime_parameters: layout.runtime_parameters,
+            physics_parameters: Vec::new(),
+            recipe_parameters: Vec::new(),
+            records: layout.records,
+            threshold: Some(summary),
+        };
+        value.validate(
+            value.threshold.as_ref().unwrap().source_identity.as_str(),
+            true,
+        )?;
+        Ok(value)
+    }
     fn identity(&self, source: &str) -> Result<String, KernelError> {
+        if let Some(threshold) = &self.threshold {
+            if threshold.source_identity != source {
+                return Err(failure("threshold source identity differs"));
+            }
+            return Ok(threshold.complete_content_id.clone());
+        }
+
         let mut hash = blake3::Hasher::new();
         hash.update(b"fastsecdec-program-recipe-v1\0");
         serde_json::to_writer(
@@ -183,6 +232,13 @@ impl ProgramRecipeCatalogue {
         Ok(hash.finalize().to_hex().to_string())
     }
     fn validate_schema(&self) -> Result<(), KernelError> {
+        if (self.recipe == ProgramRecipe::ThresholdV1) != self.threshold.is_some() {
+            return Err(failure("threshold archive capability missing or mixed"));
+        }
+        if let Some(threshold) = &self.threshold {
+            threshold.validate(&self.records)?;
+        }
+
         super::super::super::validate_content_id(&self.content_id)?;
         self.recipe
             .validate_runtime_schema(&self.runtime_parameters)?;
@@ -265,7 +321,11 @@ impl ProgramArchiveCatalogue {
     ) -> Result<Self, KernelError> {
         recipes.sort_by_key(|recipe| recipe.recipe);
         let mut catalogue = Self {
-            version: 2,
+            version: if recipes.iter().any(|r| r.threshold.is_some()) {
+                3
+            } else {
+                2
+            },
             source_identity: Some(source_identity),
             content_id: String::new(),
             records_end,
@@ -298,8 +358,13 @@ impl ProgramArchiveCatalogue {
             recipe.validate_schema()?;
             return self.legacy_catalogue()?.validate(integrity);
         }
-        if self.version != 2 || self.recipes.is_empty() {
+        if !matches!(self.version, 2 | 3) || self.recipes.is_empty() {
             return Err(failure("unsupported or empty program archive"));
+        }
+        if (self.version == 3) != self.recipes.iter().any(|r| r.threshold.is_some())
+            || self.version == 3 && self.recipes.len() != 1
+        {
+            return Err(failure("threshold archive recipe capability"));
         }
         let source = self
             .source_identity
@@ -356,6 +421,7 @@ impl ProgramArchiveCatalogue {
             records_end: catalogue.records_end,
             recipes: vec![ProgramRecipeCatalogue {
                 recipe,
+                threshold: None,
                 content_id: catalogue.content_id,
                 orders: catalogue.orders,
                 components: catalogue.components,

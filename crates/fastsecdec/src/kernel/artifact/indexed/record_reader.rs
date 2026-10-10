@@ -32,6 +32,15 @@ fn read_record_with_retention(
     options: KernelLoadOptions,
     retain: bool,
 ) -> Result<KernelSet, KernelError> {
+    read_record_with_parent(reader, descriptor, options, retain, None)
+}
+pub(super) fn read_record_with_parent(
+    reader: &mut (impl Read + Seek),
+    descriptor: &RecordDescriptor,
+    options: KernelLoadOptions,
+    retain: bool,
+    parent: Option<&crate::kernel::ThresholdMetadata>,
+) -> Result<KernelSet, KernelError> {
     let count = usize::try_from(descriptor.receipt.length).map_err(failure)?;
     let mut bytes = Vec::new();
     bytes.try_reserve_exact(count).map_err(failure)?;
@@ -46,7 +55,7 @@ fn read_record_with_retention(
     if !bytes.starts_with(super::super::binary::PREFIX) {
         return Err(failure("nested archive or unsupported record codec"));
     }
-    let kernels = super::super::owned_record(bytes, options, retain)?;
+    let kernels = super::super::owned_record_with_parent(bytes, options, retain, parent)?;
     check_record(descriptor, &kernels)?;
     Ok(kernels)
 }
@@ -56,7 +65,8 @@ pub(super) fn check_record(
 ) -> Result<(), KernelError> {
     if kernels.template_content_id() != record.receipt.native_content_id
         || kernels.program_recipe() != record.receipt.program_recipe()
-        || kernels.program_descriptor().is_some() != record.receipt.recipe.is_some()
+        || (kernels.program_descriptor().is_some() || kernels.threshold_metadata().is_some())
+            != record.receipt.recipe.is_some()
         || kernels.orders() != record.receipt.orders
         || kernels.components() != record.receipt.components
         || kernels.sectors().len() != usize::from(record.receipt.dimension.is_some())
@@ -74,6 +84,20 @@ pub(super) fn check_record(
         return Err(failure(
             "native record differs from its catalogue descriptor",
         ));
+    }
+    if let Some(receipt) = &record.receipt.threshold {
+        let owner = kernels
+            .threshold_metadata()
+            .ok_or_else(|| failure("threshold receipt lacks native parent"))?;
+        if owner.resident().manifest != receipt.parent
+            || owner.combined_record_lineage()? != receipt.lineage
+        {
+            return Err(failure(
+                "native threshold contribution differs from receipt",
+            ));
+        }
+    } else if kernels.threshold_metadata().is_some() {
+        return Err(failure("threshold native owner used legacy receipt"));
     }
     let chart_count = record.receipt.source_indices.len();
     if kernels

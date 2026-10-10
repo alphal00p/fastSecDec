@@ -57,6 +57,8 @@ struct Stored {
     definitions: Vec<Definition>,
     profiles: Vec<generation::EndpointProfileRow>,
 }
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct StagedVector {
     pub record: RecordRef,
     pub chart: usize,
@@ -299,5 +301,52 @@ pub(crate) fn read(
         functions,
         profiles: stored.profiles,
         kind: stored.kind,
+    })
+}
+
+/// Exact offsets are one complete vector/group. The caller has already checked
+/// each local exact contribution; all original contribution IDs stay in metadata.
+pub(crate) fn write_exact(
+    root: &Path,
+    parent: &str,
+    coordinates: &[Symbol],
+    coefficients: &BTreeMap<i32, Atom>,
+    maximum: i32,
+) -> Result<StagedVector> {
+    let mut atoms = Atoms::default();
+    let values = coefficients
+        .iter()
+        .map(|(order, value)| (*order, alias(&AliasedAtom::from(value.clone()), &mut atoms)))
+        .collect();
+    let minimum = coefficients
+        .keys()
+        .next()
+        .copied()
+        .unwrap_or(maximum)
+        .min(maximum.min(0));
+    let stored = Stored {
+        parent: parent.into(),
+        chart: usize::MAX,
+        maximum,
+        coordinates: (0..coordinates.len()).collect(),
+        kind: VectorKind::Exact {},
+        coefficients: values,
+        definitions: Vec::new(),
+        profiles: Vec::new(),
+    };
+    let record = codec::write(
+        root,
+        "threshold-exact-sum",
+        KIND,
+        &stored,
+        atoms,
+        coordinates.to_vec(),
+    )?;
+    Ok(StagedVector {
+        record,
+        chart: usize::MAX,
+        minimum,
+        maximum,
+        kind: VectorKind::Exact {},
     })
 }

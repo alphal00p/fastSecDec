@@ -1,6 +1,6 @@
 //! Indexed transport around the existing native evaluator codec. Neither this
 //! module nor its readers/writers own threads, processes or a scheduling loop.
-mod assembly;
+pub(crate) mod assembly;
 mod catalogue;
 mod layout;
 pub(crate) mod programs;
@@ -103,3 +103,6 @@ pub(crate) fn from_bytes(
     kernels.portable_artifact = Some(bytes.to_vec().into());
     Ok(kernels)
 }
+
+pub(crate) mod threshold;
+pub use threshold::{ThresholdArchiveSummary, ThresholdExpectedRecord, ThresholdRecordReceipt};

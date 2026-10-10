@@ -18,5 +18,11 @@ pub use order::{
     produce_restricted_residual_order,
 };
 
+mod component_order;
+#[cfg(test)]
+mod component_order_tests;
 #[cfg(test)]
 mod tests;
+pub use component_order::{
+    ComponentResidualOrder, ComponentResidualProduction, produce_component_residual_order,
+};

@@ -10,15 +10,16 @@ use symbolica::{
 
 #[derive(Clone)]
 pub struct ThresholdMetadata {
-    manifest: m::LineageManifestV1,
+    manifest: Arc<m::LineageManifestV1>,
     atoms: Vec<Atom>,
+    local: Option<local::LocalTables>,
     symbols: Vec<Symbol>,
     records: Vec<m::RecordLineageV1>,
     resident: m::ResidentLineageV1,
     /// Compact canonical semantic projection/digests, excludes transport IDs
     /// and grouping. Global source/proof replay requires external evidence.
-    semantic: String,
-    orders: Vec<i32>,
+    semantic: Arc<str>,
+    orders: Arc<Vec<i32>>,
 }
 #[derive(bincode::Encode, bincode::Decode)]
 #[bincode(decode_context = "symbolica::state::StateMap")]
@@ -40,6 +41,30 @@ fn invalid(e: impl std::fmt::Display) -> KernelError {
     KernelError::Artifact(format!("threshold metadata: {e}"))
 }
 impl ThresholdMetadata {
+    pub(crate) fn combined_record_lineage(
+        &self,
+    ) -> Result<Option<m::RecordLineageV1>, KernelError> {
+        let Some(first) = self.records.first() else {
+            return Ok(None);
+        };
+        if self.records.iter().any(|r| r.kind != first.kind) {
+            return Err(invalid("mixed scientific record kinds"));
+        }
+        let mut contributions = self
+            .records
+            .iter()
+            .flat_map(|r| r.contributions.iter().copied())
+            .collect::<Vec<_>>();
+        contributions.sort();
+        if contributions.windows(2).any(|p| p[0] == p[1]) {
+            return Err(invalid("duplicate native contributions"));
+        }
+        Ok(Some(m::RecordLineageV1 {
+            manifest: self.resident.manifest.clone(),
+            contributions,
+            kind: first.kind.clone(),
+        }))
+    }
     pub fn lineage(&self) -> &m::LineageManifestV1 {
         &self.manifest
     }
@@ -72,6 +97,9 @@ impl ThresholdMetadata {
         Err(m::Error::ProofUnavailable)
     }
     pub(crate) fn tables(&self) -> m::NativeTables {
+        if let Some(local) = &self.local {
+            return local.tables(self.symbols.len());
+        }
         m::NativeTables {
             expression_records: BTreeMap::from([(
                 self.manifest.preparation.expressions.clone(),
@@ -86,7 +114,8 @@ impl ThresholdMetadata {
         orders: &[i32],
         runtime: &[Symbol],
     ) -> Result<(), KernelError> {
-        if !runtime.is_empty() || self.orders != orders {
+        self.validate_local_tables()?;
+        if !runtime.is_empty() || self.orders.as_slice() != orders {
             return Err(invalid("fixed fiber/layout differs"));
         }
         let checked = self
@@ -120,7 +149,11 @@ impl ThresholdMetadata {
             return Err(invalid("native kernel/lineage coordinate association"));
         }
         for binding in &self.manifest.preparation.fiber.bindings {
-            Rational::try_from(self.atoms[binding.value.0].as_view()).map_err(invalid)?;
+            Rational::try_from(
+                self.native_atom(&self.manifest.preparation.expressions, binding.value)?
+                    .as_view(),
+            )
+            .map_err(invalid)?;
         }
         if self
             .symbols
@@ -138,6 +171,9 @@ impl ThresholdMetadata {
         for a in &self.atoms {
             f(a)
         }
+        if let Some(local) = &self.local {
+            local.visit_atoms(f);
+        }
         for s in &self.symbols {
             f(&Atom::var(*s))
         }
@@ -152,19 +188,22 @@ impl ThresholdMetadata {
         h.update(compiler_policy.as_bytes());
         serde_json::to_writer(&mut h, precision)?;
         h.update(self.semantic.as_bytes());
-        serde_json::to_writer(&mut h, &self.orders)?;
+        serde_json::to_writer(&mut h, self.orders.as_ref())?;
         // Scope is semantic; physical record grouping/transport hashes are not.
         serde_json::to_writer(&mut h, &self.resident.selection)?;
         Ok(h.finalize().to_hex().to_string())
     }
     pub(crate) fn save(&self) -> Result<Saved, KernelError> {
+        if self.local.is_some() {
+            return Err(invalid("local threshold owner requires native v16"));
+        }
         Ok(Saved {
             descriptor: serde_json::to_vec(&Descriptor {
-                manifest: self.manifest.clone(),
+                manifest: self.manifest.as_ref().clone(),
                 records: self.records.clone(),
                 resident: self.resident.clone(),
-                semantic: self.semantic.clone(),
-                orders: self.orders.clone(),
+                semantic: self.semantic.to_string(),
+                orders: self.orders.as_ref().clone(),
             })?,
             atoms: self.atoms.clone(),
             symbols: self.symbols.clone(),
@@ -173,12 +212,13 @@ impl ThresholdMetadata {
     pub(crate) fn restore(saved: Saved) -> Result<Self, KernelError> {
         let d: Descriptor = serde_json::from_slice(&saved.descriptor)?;
         Ok(Self {
-            manifest: d.manifest,
+            manifest: Arc::new(d.manifest),
             records: d.records,
             resident: d.resident,
-            semantic: d.semantic,
-            orders: d.orders,
+            semantic: Arc::from(d.semantic),
+            orders: Arc::new(d.orders),
             atoms: saved.atoms,
+            local: None,
             symbols: saved.symbols,
         })
     }
@@ -219,7 +259,8 @@ mod build {
         records::{StagedVector, VectorKind},
         regularization::BoundContinuation,
     };
-    use symbolica::atom::{AtomCore, AtomView, FunctionBuilder};
+    use symbolica::atom::AtomCore;
+    use symbolica::atom::{AtomView, FunctionBuilder};
     fn digest(domain: &str, value: &impl serde::Serialize) -> Result<m::Digest, KernelError> {
         let mut h = blake3::Hasher::new();
         h.update(domain.as_bytes());
@@ -252,6 +293,24 @@ mod build {
             bound: &BoundContinuation<'_>,
             staged: &[StagedVector],
             orders: Vec<i32>,
+        ) -> Result<Self, KernelError> {
+            Self::from_bound_projection(bound, staged, orders, true)
+        }
+        #[cfg(test)]
+        pub(crate) fn from_bound_historical_projection(
+            bound: &BoundContinuation<'_>,
+            staged: &[StagedVector],
+            orders: Vec<i32>,
+        ) -> Result<Self, KernelError> {
+            // Frozen v15 semantic projection, used only to construct an old
+            // owner wire fixture. Restoring it must never migrate its identity.
+            Self::from_bound_projection(bound, staged, orders, false)
+        }
+        fn from_bound_projection(
+            bound: &BoundContinuation<'_>,
+            staged: &[StagedVector],
+            orders: Vec<i32>,
+            compact: bool,
         ) -> Result<Self, KernelError> {
             let certificate = bound.certificate();
             let request = certificate.decomposition().request();
@@ -517,9 +576,23 @@ mod build {
                     kind,
                 });
             }
-            let semantic = serde_json::to_string(
-                &serde_json::json!({"source":source,"continuation_policy":continuation_policy,"strategy":"gcad_first","origin":format!("{:?}",request.domain().origin()),"domain":request.domain().strict_positive().iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),"parameter_chamber":request.kinematics().strict_positive.iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),"fiber":physical.iter().zip(&bindings).map(|(s,b)|(Atom::var(*s).to_canonical_string(),canonical_values[b.value.0].clone())).collect::<Vec<_>>(),"maps":canonical_values,"continued_charts":bound.chart_expressions().iter().map(|a|digest("threshold-canonical-continued-chart-v1",&canonical(a,&renames))).collect::<Result<Vec<_>,_>>()?,"functions":definitions.iter().map(|d|digest("threshold-canonical-function-v1",&(d.derivative_order(),d.tags().iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),canonical(d.body(),&renames)))).collect::<Result<Vec<_>,_>>()?,"strip":[certificate.convergence_strip().lower().map(ToString::to_string),certificate.convergence_strip().upper().map(ToString::to_string)]}),
-            )?;
+            let mut projection = serde_json::json!({"source":source,"continuation_policy":continuation_policy,"strategy":"gcad_first","origin":format!("{:?}",request.domain().origin()),"domain":request.domain().strict_positive().iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),"parameter_chamber":request.kinematics().strict_positive.iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),"fiber":physical.iter().zip(&bindings).map(|(s,b)|(Atom::var(*s).to_canonical_string(),canonical_values[b.value.0].clone())).collect::<Vec<_>>(),"maps":canonical_values,"continued_charts":bound.chart_expressions().iter().map(|a|digest("threshold-canonical-continued-chart-v1",&canonical(a,&renames))).collect::<Result<Vec<_>,_>>()?,"functions":definitions.iter().map(|d|digest("threshold-canonical-function-v1",&(d.derivative_order(),d.tags().iter().map(|a|canonical(a,&renames)).collect::<Vec<_>>(),canonical(d.body(),&renames)))).collect::<Result<Vec<_>,_>>()?,"strip":[certificate.convergence_strip().lower().map(ToString::to_string),certificate.convergence_strip().upper().map(ToString::to_string)]});
+            if compact {
+                let object = projection.as_object_mut().expect("native semantic object");
+                for (field, domain) in [
+                    ("maps", "threshold-canonical-map-list-v2"),
+                    ("domain", "threshold-canonical-domain-list-v2"),
+                    ("parameter_chamber", "threshold-canonical-chamber-list-v2"),
+                ] {
+                    let value = object.remove(field).expect("native semantic field");
+                    object.insert(
+                        format!("{field}_digest"),
+                        serde_json::to_value(digest(domain, &value)?)?,
+                    );
+                }
+                object.insert("projection_version".into(), serde_json::json!(2));
+            }
+            let semantic = serde_json::to_string(&projection)?;
             let manifest = m::LineageManifestV1 {
                 version: 1,
                 preparation: m::Preparation {
@@ -576,16 +649,17 @@ mod build {
                 })
                 .collect();
             Ok(Self {
-                manifest,
+                manifest: Arc::new(manifest),
                 atoms,
+                local: None,
                 symbols,
                 records,
                 resident: m::ResidentLineageV1 {
                     manifest: descriptor,
                     selection: m::ResidentSelection::Complete,
                 },
-                semantic,
-                orders,
+                semantic: Arc::from(semantic),
+                orders: Arc::new(orders),
             })
         }
     }
@@ -599,6 +673,14 @@ pub struct ThresholdResultScope {
     selection: m::ResidentSelection,
 }
 impl ThresholdResultScope {
+    pub(crate) fn complete_catalogue(source_extent: m::SourceExtent) -> Result<Self, KernelError> {
+        let scope = Self {
+            source_extent,
+            selection: m::ResidentSelection::Complete,
+        };
+        scope.validate()?;
+        Ok(scope)
+    }
     pub fn is_full_original(&self) -> bool {
         matches!(self.source_extent, m::SourceExtent::Full { .. })
             && matches!(self.selection, m::ResidentSelection::Complete)
@@ -616,3 +698,8 @@ impl ThresholdResultScope {
         Ok(())
     }
 }
+
+mod local;
+pub(crate) use local::SavedV16;
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use local::{StagedTablePlan, StagedTables};
