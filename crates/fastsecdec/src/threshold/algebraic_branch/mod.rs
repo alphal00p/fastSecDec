@@ -2,6 +2,7 @@
 mod constants;
 mod factor;
 mod polynomial;
+pub mod quasiordinary;
 use crate::threshold::resolution::Error;
 pub use constants::FactorSeed;
 pub use factor::{FactorBranch, FactorJet};

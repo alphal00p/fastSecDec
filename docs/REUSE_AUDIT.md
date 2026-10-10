@@ -1,5 +1,14 @@
 # Ecosystem reuse evidence
 
+## Quasi-ordinary discriminant prerequisite (2026-10-10)
+
+The [discriminant review](reviews/no-deformation-quasiordinary.md) records
+guarded coefficient clearing, native monicization identities, resultant-based
+discriminants and original-localization Cartier/unit admission. It reuses the
+same regular/SNC owners and native algebra as the factor-germ implementation.
+Independent reviews and ten new native control groups pass. Automatic
+ramification and complete real branch/endpoint coverage remain unfinished.
+
 ## Generic real-root neighborhoods and closed coverage (2026-10-10)
 
 The [real-atlas review](reviews/no-deformation-real-atlas.md) records native

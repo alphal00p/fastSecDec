@@ -59,6 +59,7 @@ pub use components::{
     EliminationEvidence, RegularAlgebra, RegularOrigin, VerifiedAnnihilator,
     VerifiedComponentSplit, produce_component_split,
 };
+pub(crate) use contact::clear_units;
 pub use contact::{
     ContactJet, ContactProduction, ContactProgress, ContactQuotient, RingExtension, UnitClearing,
     construct_contact_quotient,
