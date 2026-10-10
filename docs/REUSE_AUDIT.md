@@ -1,5 +1,24 @@
 # Ecosystem reuse evidence
 
+## Compact dynamic Jacobian owner audit (2026-10-10)
+
+The [source/API/probe review](reviews/contour-ltd-generation-memory-audit.md)
+and [independent contract audit](reviews/contour-jacobian-alias-audit.md)
+identify repeated large coefficient Atoms before evaluator optimization as the
+first dynamic LTD chart's memory limit. Native `FunctionMap` supports compact
+coefficient calls and explicitly registered native derivative bodies; late
+`Always` inlining remains compatible with the existing native `Dualizer`.
+An actual-chart probe reduces measured peak memory from a greater-than-3-GiB
+failure to about 575 MiB through native evaluator lowering, with exact equality
+of all 36 Jacobian entries. No replacement CAS, AD, determinant or codec is used.
+
+Opaque `AliasedAtom` differentiation and retained sub-evaluator vectorization
+are not interchangeable with this supported route. Full dependency signatures,
+native symmetry verification, subtraction faces, exact-offset cancellation and
+trace ownership, record-local storage and fresh-process restoration remain
+explicit implementation gates. No owner patch is justified by these probes;
+the production pipeline has not yet adopted the compact representation.
+
 ## Dynamic observations and installed HEPKit family audit (2026-10-10)
 
 Optional [runtime observations](reviews/contour-dynamic-diagnostics.md) consume
