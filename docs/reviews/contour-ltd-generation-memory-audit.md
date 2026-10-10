@@ -212,7 +212,7 @@ before exact/stochastic classification; only exact outputs are then fully
 materialized before aggregate cancellation and lazy direct evaluation.
 Finished metadata uses the independently reviewed v12 native wrapper. The
 initial combined core all-target check passed in 22.18 s; focused executable
-acceptance remains in progress.
+and final workspace results follow below.
 
 The first compiled snapshot passes 11 source/symmetry controls, eight native
 dual cache controls, the restricted-call exact-folding control, and 16 streamed
@@ -379,6 +379,92 @@ counts and identities; the campaign's `execution.json`, `rss-samples.json` and
 The runtime owner receives the complete archive only after this measurement
 closes, for the separately bounded map and pilot gates. No further measured
 generation overlaps that admission work.
+
+### Follow-up preparation gates: plan and measured results
+
+The corresponding sign-aware K1 recipe uses the same compact-definition
+factory, but its native smooth-positive coefficient and derivative bodies
+differ. The polynomial result does not establish its physical chart cost.
+The proposed next gate is one genuine chart through native shared preparation,
+`discover_prepared`, `generate_sector`, compilation and saved restoration,
+bounded to 120 seconds / 3 GiB with one worker. A fresh `PreparedRecipeSet`
+can share geometry and the selected chart's extracted source across polynomial
+and sign-aware recipes. Its canonical physical identity must equal the
+completed K1 identity. The existing singleton-family journal must remain
+unchanged: adding a recipe is not a scheduling-only resume change. This probe
+would establish one-chart feasibility only, and will not overlap runtime K1
+admission.
+
+For massive `2L4P.b.K1*`, the existing native import proves seven propagators,
+seven projective parameters and the same 15-term U. Its exact mass `2/5`
+changes F to 63 terms, with 33 positive and 30 negative coefficients, versus
+31 terms for massless K1. There is no observed massive geometry/chart count;
+186 charts must not be assumed or copied from K1. A separate proposed
+60-second / 3-GiB preparation-only gate for both dynamic recipes would obtain
+that count and native source sizes before selecting a full-generation budget.
+Its numerical reference remains the Table 6 value with stated uncertainties,
+`(2.8020 ± 0.0080 + i (3.3450 ± 0.0080)) × 10^-6`; the ancillary zero is a
+placeholder. Those were the predeclared limits before the following probes;
+neither probe performs integral estimation.
+
+The approved sign-aware probe then uses the unchanged maintained native LTD
+importer and public streaming APIs. Shared preparation reproduces exactly the
+K1 physical identity and 186 six-dimensional maps. Actual source chart 0 is
+mapped and persisted at 1.601 s (54,567,660 bytes), its genuine native unit is
+generated at 11.229 s, and SymJIT compilation plus native save completes at
+49.198 s (26,545,373 bytes). The generated unit is dropped before evaluation.
+The compiled owner passes its actual checked pilot, readiness gate and complete
+finite complex vector evaluations at `S=0.8, L=0.01, R=1`, at the two declared
+interior points `(0.2,0.3,0.4,0.5,0.6,0.7)` and its reversed ordering.
+
+The first process then fails an **ignored-driver bookkeeping assertion**: it
+compares a restored unbound template identity with the original post-binding
+identity. The initial failure and raw log are retained. No native evaluator or
+numeric policy changes. A corrected fresh process restores the already-saved
+record, checks its unbound identity, performs the same binding/pilot/readiness
+sequence, and obtains both complete `[Re, Im]` vectors exactly equal to the
+original. The resulting bound identity also matches the original bound owner.
+Measured costs are 63.121 s / 765,128,704 bytes (729.684 MiB) for the initial
+process, and 14.180 s / 388,145,152 bytes (370.164 MiB) for the fresh restore:
+**77.301 s cumulative**, inside the original 120-second / 3-GiB allowance.
+
+This establishes actual one-chart sign-aware generation, branch checking and
+saved numerical parity. It does **not** establish all 186 charts, all boundary
+faces, an independent determinant oracle or a complete K1 integral. The
+independent foundation review confirms this interpretation and the actual 2×2
+vector shapes. Native identities and record provenance are:
+
+| Identity | Value |
+|---|---|
+| Sign-aware source context | `3f78f71969c3c9f1b00b171bbd657be93ba45d9765b20aea832ca92dfc39b6e5` |
+| Shared chart-0 source record BLAKE3 | `4b3436f73e66429d66463eaa645fa0871930bec79b765823a0a01e55dc0f6632` |
+| Mapped chart-0 record BLAKE3 | `ac1c4acc083562a79644560a5c5b4163f12b2a8b2f2a87339c59ab860a5d1062` |
+| Saved unit SHA256 | `b6448affd73643ba28c10ba7bfdbb21bc6d1a8b2a24361328b3c15ee35d63a3d` |
+| Unbound native content ID | `08e4bff1fcee7d034fb3d14d74165d81149f40737c03e148d3d5070724004ff8` |
+| Bound native content ID | `678d585f26144b2dbc6ceeeca069853630b30a7c287daf38c84a7d0e7b308e36` |
+
+The separately bounded massive K1* preparation succeeds in **0.447 s**, with
+33,185,792 bytes (31.648 MiB) sampled peak RSS. It finds **30 actual
+six-dimensional maps** and persists all 30 complete shared sources, each
+4153–4335 bytes, totalling 126,232 bytes. Both dynamic recipes share that
+preparation. Its distinct canonical physical source identity is
+`740924389a4ae0f3debe607a6924204973692fecb2431b64759a068f35906579`.
+No massive deformed chart, compiled evaluator or numerical estimate is produced.
+The importer reports the nonzero Table 6 reference with its stated `8e-9`
+component uncertainties; the ancillary placeholder is never used.
+
+Ignored evidence is under `target/generation-agent-ltd-next/`: `probe.rs`,
+`plan.json`, fingerprint-resolved `build-command.json`, `summary.json`, and
+`runs/{sign-aware,sign-aware-restore,massive-prepare}/` with independent execution
+and RSS records. The corrected driver SHA256 is
+`06d944e31b5164fcfab73378c95b4674d7ed00a2de278d669e3d44299eef436c`;
+its source SHA256 is
+`110321188cbe1cba078f7b0980f065e634ccf9622aba06c243de97e0c830ac83`.
+It links the coherent existing `fastsecdec-88a3f23976bd40a9` and
+`symbolica-0a72932a9eb0c783` native libraries; no Cargo/dependency migration or
+production source edit occurs. All three process groups close before the
+runtime owner receives the resource handoff for the complete polynomial map
+gate.
 
 A separate native parity probe verifies that the failed new run's actual
 prepared-source-0 record has exactly the retained fixed chart's F, U and

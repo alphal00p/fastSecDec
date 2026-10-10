@@ -1,5 +1,25 @@
 # Ecosystem reuse evidence
 
+## Physical multiloop saved-program admission (2026-10-10)
+
+The [independent runtime audit](reviews/contour-k1-runtime-admission-audit.md)
+checks the existing native archive reader, exact aggregation, per-owner pilot
+readiness and democratic QMC covariance/stream identities. Loading restores
+saved native programs and prepares their backends; it does not repeat symbolic
+evaluator construction or Horner/CPE. A bounded single-record comparison takes
+7.915 seconds with optional artifact revalidation and 1.369 seconds with the
+normal load setting, while backend restoration takes about 0.30 seconds in
+each. This identifies expensive pre-backend work, not a Symbolica defect or a
+missing native API. Both preserve the same content/layout and native map data.
+
+The full-map comparison separately verifies the immutable artifact bytes and
+uses native equality for geometry, undeformed maps, designated F, ordered U
+and face ownership. This narrower trusted-artifact check does not claim to
+repeat every optional semantic validation. Pilot and production acceptance
+remain separate. Native exact offsets enter the full-vector estimator once,
+and actual coordinate/weight hashes are required for prospective paired runs;
+matching seed integers alone is insufficient evidence.
+
 ## Above-threshold D05 input fixture (2026-10-10)
 
 The [400 GeV double-box fixture](../examples/contour/gghh_double_box_400/README.md)
