@@ -6,6 +6,9 @@
 
 pub mod gcad;
 pub mod maps;
+pub mod options;
 pub mod phase;
 pub mod projective;
 pub mod resolution;
+
+pub use options::{ThresholdDecompositionOptions, ThresholdStrategy};

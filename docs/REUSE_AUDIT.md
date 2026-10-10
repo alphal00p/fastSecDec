@@ -88,6 +88,24 @@ The single verified decomposition owner preserves raw selectors and proof
 provenance. Closed-face regularity and nonlinear root programs remain separate;
 sample isolating enclosures never substitute for runtime branch selection.
 
+### Relative algebraic charts and native request admission
+
+The [étale/contact review](reviews/no-deformation-etale-contact.md) records
+native Jacobian solves, exact localized relation checks and a constructive
+ordinary derivative-ideal/contact-open stage. The root and runtime reviewers
+accepted the algebraic scope, inert parameters, inverse-unit derivatives,
+empty-system/terminal cases and preserved incomplete evidence. It does not
+claim the full resolution invariant or a real integration atlas.
+
+The [request-options review](reviews/no-deformation-request-options.md) covers
+source-preserving strategy admission and exact bindings across geometry, phases
+and complete-density callers. It delegates native preparation and solver
+settings, keeps endpoint reduction symbolic, and rejects incompatible contour
+requests. Forty-four combined threshold tests and strict native Clippy pass.
+No integration loop, RNG allocation or statistics implementation changes in
+this milestone; complete threshold execution and its memory/statistics gates
+remain outstanding.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)

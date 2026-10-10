@@ -49,21 +49,22 @@ impl<'a> CausalCell<'a> {
                     factor.factor_index
                 )));
             }
-            if sign < 0 && !factor.exponent.is_zero() {
+            let exponent = request.kinematics().specialize_exact(&factor.exponent);
+            if sign < 0 && !exponent.is_zero() {
                 if factor.semantics != FactorSemantics::Causal {
                     return Err(GcadError::Unsupported(format!(
                         "negative cell factor {}:{} needs explicit causal branch semantics",
                         factor.term_index, factor.factor_index
                     )));
                 }
-                let (constant, _) = endpoint_power_with_regulators(&factor.exponent, regulators)
+                let (constant, _) = endpoint_power_with_regulators(&exponent, regulators)
                     .map_err(|e| GcadError::Unsupported(e.to_string()))?;
                 let constant = Atom::num(constant);
                 // Principal (-1)^(-q0) gives exp(-i*pi*q0), with exact native
                 // integer/half-integer simplification. Never freeze the
                 // regulator-dependent part before removing cell poles.
                 let phase = Atom::num(-1).pow(-&constant)
-                    * (-Atom::i() * Atom::var(Symbol::PI) * (&factor.exponent - constant)).exp();
+                    * (-Atom::i() * Atom::var(Symbol::PI) * (exponent - constant)).exp();
                 term_phases[factor.term_index] *= phase;
             }
         }

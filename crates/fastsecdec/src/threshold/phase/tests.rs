@@ -186,3 +186,53 @@ fn regulators_cannot_reclassify_kinematics_or_coordinates() {
         Err(GcadError::Unsupported(_))
     ));
 }
+
+#[test]
+fn exact_kinematic_bindings_apply_before_phase_admission() {
+    let (_, eps, eta) = axes();
+    let (power, slope) = symbol!("cell_phase::power", "cell_phase::slope");
+    let bindings = GcadKinematics {
+        exact_values: [(power, (-1).into()), (slope, 2.into())].into(),
+        ..Default::default()
+    };
+    let exponent = Atom::var(power) + Atom::var(slope) * Atom::var(eps) + Atom::var(eta);
+    let geometry = verified(
+        vec![term(
+            Atom::num(-1),
+            exponent.clone(),
+            FactorSemantics::Causal,
+        )],
+        bindings.clone(),
+    );
+    let phase = CausalCell::new(geometry.cells().next().unwrap(), &[eps, eta]).unwrap();
+    assert_eq!(
+        phase.term_phases()[0],
+        -(-Atom::i() * Atom::var(Symbol::PI) * (Atom::num(2) * Atom::var(eps) + Atom::var(eta)))
+            .exp()
+    );
+    assert_eq!(geometry.request().signed_factors()[0].exponent, exponent);
+    let complete_density = Atom::i() * Atom::var(power) * Atom::var(slope);
+    assert_eq!(
+        bindings.specialize_exact(&complete_density),
+        Atom::num(-2) * Atom::i()
+    );
+
+    // A vanishing bound exponent needs no branch, even for a generic factor.
+    let zero = verified(
+        vec![term(
+            Atom::num(-1),
+            Atom::var(slope),
+            FactorSemantics::Generic,
+        )],
+        GcadKinematics {
+            exact_values: [(slope, 0.into())].into(),
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        CausalCell::new(zero.cells().next().unwrap(), &[eps])
+            .unwrap()
+            .term_phases(),
+        &[Atom::one()]
+    );
+}

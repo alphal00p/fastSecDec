@@ -5,6 +5,7 @@ use std::{
 
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
+    id::{Pattern, Replacement},
     prelude::{PolyVariable, Q, Rational},
 };
 use symgcad::{
@@ -90,6 +91,18 @@ pub struct GcadKinematics {
 }
 
 impl GcadKinematics {
+    /// Apply only the declared exact bindings with Symbolica's simultaneous
+    /// replacement. Use this for the complete density as well as its geometry;
+    /// specializing a denominator alone does not specialize numerator or phase.
+    pub fn specialize_exact(&self, expression: &Atom) -> Atom {
+        expression.replace_multiple(self.exact_values.iter().map(|(symbol, value)| {
+            Replacement::new(
+                Pattern::Literal(Atom::var(*symbol)),
+                Pattern::Literal(Atom::num(value.clone())),
+            )
+        }))
+    }
+
     /// Preserve every finite IEEE value exactly using Numerica's native
     /// conversion, without guessing small rational kinematics.
     pub fn from_f64(values: &BTreeMap<Symbol, f64>) -> Result<Self> {
@@ -305,12 +318,7 @@ impl GcadRequest {
                 .collect::<Vec<_>>(),
         );
         let native_polynomial = |expression: &Atom| -> Result<Poly> {
-            let mut exact = expression.clone();
-            for (symbol, value) in &kinematics.exact_values {
-                exact = exact
-                    .replace(Atom::var(*symbol))
-                    .with(Atom::num(value.clone()));
-            }
+            let exact = kinematics.specialize_exact(expression);
             let poly: Poly = exact
                 .try_to_polynomial(&Q, variables.clone())
                 .map_err(|e| {

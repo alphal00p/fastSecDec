@@ -43,12 +43,19 @@ The initial plain-exponential probe retained `exp(i*pi)` symbolically rather
 than simplifying it to `-1`; the factored form uses the owner's exact power
 normalization and preserves that failing observation as evidence.
 
-Four integrated geometry/phase controls pass in the native Cargo-built core.
+Five integrated geometry/phase controls pass in the native Cargo-built core.
 They test separate phases for terms with opposite original factor
 signs, unchanged complex numerator data, the scaled finite-imaginary control,
 rational third phases, and rejection of ambiguous branches/regulator roles.
 An independent runtime review checked the mathematical factorization and
 requested the regulator-role guard, which is implemented.
+
+The fifth control admits exactly bound kinematic symbols in the phase exponent,
+retaining all regulator dependence and the original unbound source identity.
+Geometry and phase now share the native simultaneous specialization helper;
+see the [request review](no-deformation-request-options.md). Runtime-dependent
+exponents still require a separately admitted fiber and are not inferred from
+an open-cell proof sample.
 
 ## Scope
 
