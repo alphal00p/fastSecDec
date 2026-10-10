@@ -114,6 +114,8 @@ macro_rules! facts_view {
     };
 }
 
+mod contour_runtime;
+
 facts_view!(crate::input::PyIntegral,"Native integral",["Input owner"=>"input_kind","Spacetime dimension"=>"dimension","Regulator"=>"regulator","Explicit propagator powers"=>"powers"]);
 facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Generation mode"=>"mode","Subtraction"=>"subtraction","Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
 facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Generation mode"=>"mode","Subtraction"=>"subtraction","Complete"=>"complete","Failure"=>"failed"]);
@@ -133,7 +135,6 @@ facts_view!(crate::status::generation::PyFormulaPreparationSnapshot,"Subtraction
 facts_view!(crate::status::generation::PyCoefficientExpansionSnapshot,"Coefficient expansion",["Sector"=>"sector","Stage"=>"stage","Requested method"=>"requested_method","Effective method"=>"effective_method","Expansion pass"=>"attempt","Relative depth"=>"relative_width"]);
 facts_view!(crate::status::generation::PyCoefficientRequestCounts,"Native request counters",["Source bodies"=>"source_bodies","Distinct requests"=>"unique_requests","Cached partials"=>"cached_partials","Aliases"=>"aliases","Interleaved"=>"interleaved_requests","Fallback"=>"fallback_requests"]);
 facts_view!(crate::status::integration::PySectorSnapshot,"Sector coverage",["Sector ID"=>"id","Coordinates"=>"dimension","Accepted points"=>"completed_points","Planned points"=>"planned_points","Complete replicas"=>"complete_replicas","Planned replicas"=>"planned_replicas","Worker seconds"=>"worker_seconds"]);
-facts_view!(crate::status::diagnostics::PyEvaluationDiagnostics,"Native evaluation diagnostics",["Assessed points"=>"evaluations","f64"=>"f64_points","DoubleFloat"=>"double_float_points","Arbitrary precision"=>"arbitrary_points","Unstable"=>"unstable_points","Cutoff zero"=>"cutoff_zero_points","Rescues"=>"rescues","Failures"=>"failures"]);
 facts_view!(crate::status::diagnostics::PyEvaluatorTiming,"Evaluator timing",["Evaluated rows"=>"calls","Nanoseconds"=>"nanoseconds","Native matrix calls"=>"matrix_invocations","Matrix rows"=>"matrix_points"]);
 facts_view!(crate::status::allocation::PyDiscreteSectorAllocation,"Native sector proposal",["Selection probability"=>"probability","Global points per batch"=>"points_per_batch"]);
 

@@ -12,11 +12,24 @@ QMC packages or native Havana global batches, with native replay, covariance and
 checkpoint validation. The
 binding introduces no graph, algebra or numerical integration implementation.
 
-Contour generation is opt-in on every entrypoint with `contour=True`. Bind
+Fixed contour generation is opt-in on singleton entrypoints with `contour=True`. Bind
 the fixed strength separately from physical parameters using
 `template.with_parameters(point, contour=ContourSettings.fixed(0.1,
 validation="pilot", pilot_points=256))`. Native `ContourSettings` validates the
 strength; rebinding does not repeat symbolic generation or optimization.
+
+Use `integral.generation_family_session(["fixed", "polynomial", "sign_aware"],
+compilation_settings=CompilationSettings(backend="eager"))` to generate the
+three contour recipes with shared native preparation. Advance its `step()` from
+the caller's Generate action; after `.complete`, `.result` is a retained
+`RecipeArchive`. Select a template with `.result.select("polynomial")` and bind
+`ContourSettings.dynamical(0.8, lambda_cap=1.0, displacement_cap=1.0,
+construction="polynomial", validation="pilot")`. The selected recipe must
+match the construction; runtime strength and caps do not trigger generation.
+The optional `"off"` recipe retains the undeformed path. These mathematical
+bounds ensure causal deformation; they do not guarantee good convergence for
+every cap. Physical variance and accuracy evidence is recorded in the
+[Phase B ledger](../../docs/reviews/contour-phase-b-progress.md).
 
 The caller performs validation explicitly before creating the integration
 session: read `kernels.contour_validation_charts`, supply independent validation
@@ -70,6 +83,12 @@ weights. Both inputs use the normalized Minkowski loop measure
 `prod_l d^D k_l / (i*pi^(D/2))`, with an optional extra `measure_multiplier`.
 The default integration dimension is `4-2*eps`; the native symbolic tensor
 dimension is specialized consistently during parametrization.
+
+For cooperative generation from the same native family, construct
+`Integral.from_family(family, regulator=eps, powers=powers, numerator=numerator,
+kinematics=kinematics)`. Its singleton and recipe-family sessions use the same
+native preparation as `family.sector_decompose(...)`. Construction and passive
+inspection retain the input objects without doing algebra or starting generation.
 
 The diagram route retains its native numerator, projector and weights and accepts
 positive power overrides by native edge ID. It does not accept a second numerator.
@@ -263,3 +282,14 @@ work since a restored checkpoint. Previews never enter convergence or
 checkpoints. `StabilitySettings` transports native distance/validated policy,
 including optional cutoffs and per-power thresholds. Diagnostic final-class
 counts remain separate from attempted evaluator points and matrix invocations.
+
+Optional contour work observations are enabled with
+`kernels.with_contour_diagnostics("aggregate")`; the default is `"disabled"`.
+The copied owner preserves physical identity, pilot evidence and sampling
+streams. Sampling snapshots expose
+`.evaluation_diagnostics.contour_runtime`, with separate `.adaptation` and
+`.production` reports. Rich views group evaluation, conditioning, preparation,
+exact-contribution and pilot work, with collapsible strength/displacement and
+solver details. Ranges are approximate observed centres, not certified bounds.
+Missing observations are explicitly unavailable. Reading or rendering a report
+does not evaluate, drain observations or advance the retained session.

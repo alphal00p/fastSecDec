@@ -32,6 +32,13 @@ native checked merges, actual owner drains, phase-labelled work and
 mode-independent sampling/checkpoint identities. No Python estimator,
 sampling stream, root solve or worker pool is introduced.
 
+The subsequent [runtime presentation](reviews/contour-runtime-presentation.md)
+consumes those same immutable DTO getters. Bounded HTML tables preserve phases,
+work categories and unavailable observations; expandable ranges are labelled
+approximate centres. Actual native/Pyodide rendering controls confirm that
+report JSON and sampling state remain unchanged. No presentation callback
+performs native algebra or numerical work.
+
 The nonlinear sampling controls reuse Symbolica primitives and exact ray
 series, native complete-vector QMC/Havana estimators and native OneLOop's
 unequal-mass physical bubble. No alternate integration estimator or analytic

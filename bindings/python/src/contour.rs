@@ -14,7 +14,10 @@ use crate::{error, kernels::PyKernels};
 mod provenance;
 mod runtime;
 pub(crate) use provenance::{PyContourCheckpointProvenance, checkpoint_provenance};
-pub(crate) use runtime::PyContourRuntimeDiagnostics;
+pub(crate) use runtime::{
+    PyContourDiagnosticRange, PyContourRuntimeDiagnostics, PyContourRuntimeReport,
+    PyContourRuntimeWork,
+};
 
 fn policy(value: &str) -> PyResult<ContourValidation> {
     serde_json::from_value(serde_json::Value::String(value.into())).map_err(|_| {

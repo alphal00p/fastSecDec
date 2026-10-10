@@ -273,6 +273,9 @@ def test_optional_runtime_observations_preserve_native_identity_and_pilot(integr
     payload = json.loads(report.to_json())
     assert payload["pilot"] == json.loads(report.pilot.to_json())
     assert payload["pilot"]["strength"] == json.loads(report.pilot.strength.to_json())
+    assert "Validation pilot" in report._repr_html_()
+    assert "approximate centres" in report.pilot.strength._repr_html_()
+    assert json.loads(observed.contour_runtime_report().to_json()) == payload
     with pytest.raises(AttributeError):
         report.pilot.strength.minimum = 0.0
     assert plain.contour_runtime_report() is None
@@ -307,6 +310,7 @@ def test_streamed_runtime_work_and_resume_preserve_full_statistics(runtime_kerne
         restore = lambda kernels, checkpoint: kernels.restore_mc(checkpoint)
     baseline, sampled = create(plain), create(observed)
     assert sampled.snapshot().evaluation_diagnostics.contour_runtime is None
+    assert "not recorded" in sampled.snapshot().evaluation_diagnostics._repr_html_()
     sampled.step()
     first = sampled.snapshot().evaluation_diagnostics.contour_runtime
     assert first is not None and first.production.evaluation.callback_calls > 0
@@ -315,6 +319,10 @@ def test_streamed_runtime_work_and_resume_preserve_full_statistics(runtime_kerne
     assert first.adaptation.evaluation.callback_calls == 0
     payload = json.loads(first.to_json())
     # Presentation snapshots do not advance work or expose a mutable native owner.
+    html = sampled.snapshot().evaluation_diagnostics._repr_html_()
+    assert "Production" in html and "Adaptation" in html
+    assert "Root solves" in html and "Physical displacement" in html
+    assert "<details" in html
     assert json.loads(sampled.observation().snapshot.evaluation_diagnostics.contour_runtime.to_json()) == payload
     with pytest.raises(AttributeError):
         first.production.evaluation.callback_calls = 0
