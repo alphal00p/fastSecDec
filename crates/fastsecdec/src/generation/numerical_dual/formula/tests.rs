@@ -75,6 +75,11 @@ fn exact_signature_preserves_ordered_powers_prefactors_strategy_and_limits() {
         },
         {
             let mut value = options.clone();
+            value.coefficient_expansion.initial_relative_width = 2;
+            value
+        },
+        {
+            let mut value = options.clone();
             value.coefficient_expansion.max_series_attempts = Some(2);
             value
         },
@@ -89,7 +94,9 @@ fn exact_signature_preserves_ordered_powers_prefactors_strategy_and_limits() {
             value
         },
     ] {
-        assert_ne!(baseline, key(&terms(), &variant));
+        let changed = key(&terms(), &variant);
+        assert_ne!(baseline, changed);
+        assert_ne!(baseline.lookup_key(), changed.lookup_key());
     }
     let rebuilt = baseline.terms(symbol!("formula_key::eps"));
     for (original, rebuilt) in terms().iter().zip(rebuilt) {

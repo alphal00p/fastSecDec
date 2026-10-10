@@ -1,5 +1,18 @@
 # Ecosystem reuse evidence
 
+## Caller-selected initial native Series width (2026-10-10)
+
+The [independent width audit](reviews/contour-initial-series-width.md) checks
+Symbolica's existing `SeriesDepth::relative` and absolute remainder APIs, the
+current composer, native exact-coefficient tests and staged restoration. The
+new native/TOML start option defaults to one, preserves historical default wire
+and formula-key bytes, and separates opted-in cache policy. The unchanged
+strict absolute-coverage check and checked retry decide acceptance; no valuation
+heuristic, new algebra or endpoint/contour reordering is introduced. The physical
+fallback remains unchanged. Twenty-three distinct focused tests, strict
+workspace/all-target Clippy and formatting pass. Physical speedup is measured
+separately rather than inferred from skipping a known discarded request.
+
 ## Symbolic endpoints with contour-only dual derivatives (2026-10-10)
 
 The [independent endpoint audit](reviews/contour-symbolic-endpoints.md) applies

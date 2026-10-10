@@ -240,7 +240,12 @@ pub(super) fn expand(
         }
     }
 
-    let mut width = 1i64;
+    let mut width = options.coefficient_expansion.initial_relative_width;
+    if width <= 0 {
+        return Err(GenerationError::ResourceLimit(
+            "coefficient-first initial series width must be positive",
+        ));
+    }
     let mut attempts = 0usize;
     loop {
         if limits

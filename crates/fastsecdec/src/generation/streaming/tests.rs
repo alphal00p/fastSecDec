@@ -292,6 +292,7 @@ fn symmetry_multiplicity_and_all_original_chart_metadata_survive_spooling() {
     .unwrap();
     let mut options = GenerationOptions::default();
     options.coefficient_expansion.method = CoefficientExpansionMethod::NativeNamed;
+    options.coefficient_expansion.initial_relative_width = 2;
     let ordinary = generate(&input, &options, keep).unwrap();
     let dir = tempfile::tempdir().unwrap();
     let plan = prepared(dir.path(), &input, &options, &[], &[]);
@@ -300,7 +301,22 @@ fn symmetry_multiplicity_and_all_original_chart_metadata_survive_spooling() {
     let mut actual = Vector::new();
     let mut covered = vec![];
     for job in &plan.sectors {
-        let unit = generate_sector(dir.path(), job, keep).unwrap();
+        let mut first_width = None;
+        let unit = generate_sector(dir.path(), job, |event| {
+            if let crate::generation::GenerationProgress::CoefficientExpansion {
+                attempt,
+                relative_width,
+                ..
+            } = event
+                && *attempt > 0
+                && first_width.is_none()
+            {
+                first_width = Some(*relative_width);
+            }
+            keep(event)
+        })
+        .unwrap();
+        assert_eq!(first_width, Some(2), "staged options must retain the start");
         assert_eq!(
             unit.source_indices.len(),
             unit.generated.metadata().charts().len()

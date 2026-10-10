@@ -74,13 +74,34 @@ impl CoefficientExpansionMethod {
 /// These limits do not affect `Physical` or the named route's exact physical
 /// fallback for unregulated endpoint admission. Width is a native relative
 /// request, not a claim about absolute Laurent coverage.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct CoefficientExpansionOptions {
     pub method: CoefficientExpansionMethod,
+    /// First native relative Series request. A larger value can avoid discarded
+    /// attempts; native absolute Laurent coverage is still checked unchanged.
+    /// Must be positive and no greater than `max_relative_width`, when set.
+    #[serde(skip_serializing_if = "is_initial_width_one")]
+    pub initial_relative_width: i64,
     pub max_series_attempts: Option<usize>,
     pub max_relative_width: Option<i64>,
     pub max_unique_requests: Option<usize>,
+}
+
+fn is_initial_width_one(width: &i64) -> bool {
+    *width == 1
+}
+
+impl Default for CoefficientExpansionOptions {
+    fn default() -> Self {
+        Self {
+            method: CoefficientExpansionMethod::default(),
+            initial_relative_width: 1,
+            max_series_attempts: None,
+            max_relative_width: None,
+            max_unique_requests: None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

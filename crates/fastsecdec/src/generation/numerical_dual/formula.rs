@@ -22,6 +22,7 @@ pub(in crate::generation) struct Key {
     max_subtractions_per_axis: usize,
     max_subtraction_terms: usize,
     method: &'static str,
+    initial_relative_width: i64,
     max_series_attempts: Option<usize>,
     max_relative_width: Option<i64>,
     max_unique_requests: Option<usize>,
@@ -59,6 +60,7 @@ impl Key {
             max_subtractions_per_axis: options.max_subtractions_per_axis,
             max_subtraction_terms: options.max_subtraction_terms,
             method: options.coefficient_expansion.method.name(),
+            initial_relative_width: options.coefficient_expansion.initial_relative_width,
             max_series_attempts: options.coefficient_expansion.max_series_attempts,
             max_relative_width: options.coefficient_expansion.max_relative_width,
             max_unique_requests: options.coefficient_expansion.max_unique_requests,
@@ -101,7 +103,7 @@ impl Key {
                 )
             })
             .collect::<Vec<_>>();
-        let bytes = serde_json::to_vec(&(
+        let legacy = (
             self.dimension,
             terms,
             self.max_order,
@@ -112,7 +114,14 @@ impl Key {
             self.max_series_attempts,
             self.max_relative_width,
             self.max_unique_requests,
-        ))
+        );
+        // Default callers retain the historical portable key bytes. Explicit
+        // wider starts remain distinct because attempt caps can change success.
+        let bytes = if self.initial_relative_width == 1 {
+            serde_json::to_vec(&legacy)
+        } else {
+            serde_json::to_vec(&(legacy, self.initial_relative_width))
+        }
         .expect("formula key contains native canonical strings and integers");
         blake3::hash(&bytes).to_hex().to_string()
     }

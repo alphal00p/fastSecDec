@@ -22,6 +22,7 @@ fn options(method: Method) -> GenerationOptions {
         max_order: 1,
         coefficient_expansion: CoefficientExpansionOptions {
             method,
+            initial_relative_width: 1,
             max_series_attempts: Some(8),
             max_relative_width: Some(32),
             max_unique_requests: Some(4096),
@@ -473,6 +474,7 @@ fn successful_exact_fallback_keeps_its_route_and_ignores_named_only_caps() {
     let options = GenerationOptions {
         coefficient_expansion: CoefficientExpansionOptions {
             method: Method::NativeNamed,
+            initial_relative_width: 0,
             max_series_attempts: Some(0),
             max_relative_width: Some(0),
             max_unique_requests: Some(0),

@@ -588,3 +588,133 @@ fn cancellation_stops_at_each_composition_boundary_without_further_callbacks() {
         assert!(cancelled && matches!(result, Err(GenerationError::Cancelled)));
     }
 }
+
+#[test]
+fn initial_width_skips_discarded_work_without_skipping_native_coverage() {
+    let x = symbol!("coefficient_start::x");
+    let eps = symbol!("coefficient_start::eps");
+    let terms = [term(
+        Atom::one(),
+        parse!("(1+coefficient_start::x)^(-1-coefficient_start::eps)"),
+        vec![Atom::var(eps) - Atom::one()],
+    )];
+    for strategy in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        let mut reference: Option<BTreeMap<i32, Atom>> = None;
+        for (initial, maximum, expected_widths) in [
+            (1, 0, vec![1, 2]),
+            (2, 0, vec![2]),
+            (3, 0, vec![3]),
+            (2, 2, vec![2, 4]),
+        ] {
+            let mut options = GenerationOptions {
+                subtraction: strategy,
+                max_order: maximum,
+                ..Default::default()
+            };
+            options.coefficient_expansion.initial_relative_width = initial;
+            let mut widths = Vec::new();
+            let result = expand(
+                &terms,
+                &[x],
+                eps,
+                &options,
+                limits(),
+                &mut TemplateCache::default(),
+                &mut |event| {
+                    if let Progress::Attempt { width, .. } = event {
+                        widths.push(width);
+                    }
+                    ControlFlow::Continue(())
+                },
+            )
+            .unwrap();
+            assert_eq!(widths, expected_widths);
+            let Route::Native { absolute_order, .. } = result.route else {
+                panic!("regular coefficient control unexpectedly fell back");
+            };
+            assert!(absolute_order > maximum);
+            let actual = result
+                .coefficients
+                .into_iter()
+                .map(|(order, value)| (order, value.into_inner()))
+                .collect::<BTreeMap<_, _>>();
+            if maximum == 0 {
+                if let Some(reference) = &reference {
+                    assert_eq!(
+                        actual.keys().collect::<Vec<_>>(),
+                        reference.keys().collect::<Vec<_>>()
+                    );
+                    for (order, value) in &actual {
+                        assert!((value - &reference[order]).together().expand().is_zero());
+                    }
+                } else {
+                    reference = Some(actual);
+                }
+            } else {
+                let physical_terms = terms
+                    .iter()
+                    .map(|t| term(t.prefactor.clone(), t.regular.clone(), t.powers.clone()))
+                    .collect();
+                let (expression, _, _) =
+                    subtraction::subtract(physical_terms, &[x], eps, &options).unwrap();
+                let physical = laurent::expand(
+                    &expression,
+                    &[x],
+                    eps,
+                    maximum,
+                    &mut TemplateCache::default(),
+                )
+                .unwrap();
+                assert_eq!(
+                    actual.keys().collect::<Vec<_>>(),
+                    physical.keys().collect::<Vec<_>>()
+                );
+                for (order, value) in actual {
+                    assert!(
+                        (value - physical[&order].clone().into_inner())
+                            .together()
+                            .expand()
+                            .is_zero()
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn invalid_initial_width_refuses_before_native_series_and_request_work() {
+    let x = symbol!("coefficient_invalid_start::x");
+    let eps = symbol!("coefficient_invalid_start::eps");
+    let terms = [term(
+        Atom::one(),
+        Atom::one() + Atom::var(x),
+        vec![Atom::var(eps) - 1],
+    )];
+    for (initial, maximum) in [(0, None), (-1, None), (2, Some(1))] {
+        let mut options = GenerationOptions::default();
+        options.coefficient_expansion.initial_relative_width = initial;
+        let result = expand(
+            &terms,
+            &[x],
+            eps,
+            &options,
+            Limits {
+                max_relative_width: maximum,
+                ..limits()
+            },
+            &mut TemplateCache::default(),
+            &mut |event| {
+                assert!(
+                    matches!(event, Progress::Admission { .. }),
+                    "invalid width performed native work: {event:?}"
+                );
+                ControlFlow::Continue(())
+            },
+        );
+        assert!(matches!(result, Err(GenerationError::ResourceLimit(_))));
+    }
+}

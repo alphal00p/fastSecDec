@@ -119,13 +119,25 @@ fn coefficient_options_reuse_native_defaults_and_reject_unknown_steering() {
         historical.coefficient_expansion,
         CoefficientExpansionOptions::default()
     );
+    assert_eq!(
+        serde_json::to_string(&historical.coefficient_expansion).unwrap(),
+        r#"{"method":"full_expression","max_series_attempts":null,"max_relative_width":null,"max_unique_requests":null}"#,
+        "default1 retains the historical serialized options"
+    );
+    let explicit_default: GenerationInput =
+        toml::from_str("[coefficient_expansion]\ninitial_relative_width=1").unwrap();
+    assert_eq!(
+        explicit_default.coefficient_expansion,
+        historical.coefficient_expansion
+    );
     let opted_in: GenerationInput = toml::from_str(
-        "[coefficient_expansion]\nmethod='coefficient_series'\nmax_series_attempts=4\nmax_relative_width=12\nmax_unique_requests=32",
+        "[coefficient_expansion]\nmethod='coefficient_series'\ninitial_relative_width=2\nmax_series_attempts=4\nmax_relative_width=12\nmax_unique_requests=32",
     ).unwrap();
     assert_eq!(
         opted_in.coefficient_expansion,
         CoefficientExpansionOptions {
             method: CoefficientExpansionMethod::NativeNamed,
+            initial_relative_width: 2,
             max_series_attempts: Some(4),
             max_relative_width: Some(12),
             max_unique_requests: Some(32),
@@ -135,6 +147,7 @@ fn coefficient_options_reuse_native_defaults_and_reject_unknown_steering() {
         "[coefficient_expansion]\nmethod='unknown'",
         "[coefficient_expansion]\nresolver='interleaved'",
         "[coefficient_expansion]\nmax_unique_requests=-1",
+        "[coefficient_expansion]\ninitial_relative_width=9223372036854775808",
     ] {
         assert!(toml::from_str::<GenerationInput>(invalid).is_err());
     }

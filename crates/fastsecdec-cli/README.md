@@ -234,6 +234,7 @@ The coefficient-expansion method is selected in the run card:
 ```toml
 [generation.coefficient_expansion]
 method = "coefficient_series"
+initial_relative_width = 2 # optional; defaults to 1
 max_series_attempts = 12
 max_relative_width = 128
 max_unique_requests = 10000
@@ -300,6 +301,14 @@ not trigger a different algorithm. Relative depth is measured from each native s
 not an absolute Laurent cutoff for the final integral or a count of nonzero
 terms. The unique-request cap counts distinct
 derivative/face tuples within one pass, not intermediate memory or body size.
+
+`initial_relative_width` chooses the first relative Series request (default 1).
+For a source known to need depth 2, setting it to 2 avoids the discarded depth 1
+attempt. Native absolute Laurent coverage is still checked; insufficient depth
+retries normally. The start must be positive and within `max_relative_width`
+when that cap is present. The option applies to the native coefficient-series
+route, including numerical-dual formal recipes, and does not alter the physical
+fallback. It is retained in staged generation and formula-cache policy.
 
 Coefficient-series snapshots include `coefficient_expansion`, with canonical
 requested/effective methods, the expansion pass, formal pieces and request/alias
