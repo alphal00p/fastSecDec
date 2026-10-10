@@ -104,25 +104,27 @@ not tested.
 
 ## Smallest missing operation and FastSecDec boundary
 
-The missing operation belongs in the native owners: a versioned SymJIT
-application cache that retains machine code plus relocation information and
-portable MIR, admits compatible OS/ABI/ISA code, rebinds function/environment
-references, and falls back to MIR compilation when the cached code is unsuitable.
-It should expose whether code was reused or recompiled so callers can report and
-test the distinction. Symbolica should preserve that native cache, including
-non-inlined evaluator bodies, through its existing typed JIT serialization.
+The original review identified a possible native-owner capability: an
+application cache retaining machine code, relocation information and portable
+MIR, with OS/ABI/ISA admission, callback rebinding and a MIR fallback. This is
+an **optional optimization contingent on measured benefit**, not an established
+required next step. The small historical probes above did not isolate a
+large-artifact loader bottleneck.
 
-Once that exists, FastSecDec can store the primary native evaluator alongside
-the exact instruction program needed by DoubleFloat, Arb and eager/portable
-consumers. Backend cache bytes must have their own version and integrity
-binding, while scientific identity remains tied to the exact program. A cache
-miss must not require symbolic substitution, Horner optimization, or CPE.
+Existing Symbolica JIT serialization can already avoid exact-evaluator translation
+and optimization into SymJIT. FastSecDec's historical v8 artifact instead stores
+exact evaluators and rebuilds JIT programs when loading. The subsequent
+[matched historical loader profile](symjit-loader-profile.md) measures those
+separate paths and corrects the earlier whole-loader attribution. Native JIT
+persistence should be evaluated before requiring a new machine-code format;
+retain exact instructions for DoubleFloat, arbitrary precision and portable
+consumers. Neither using JIT serde nor saving a mapped eager evaluator establishes
+raw machine-code reuse or promises a whole-artifact startup speedup.
 
-Using current Symbolica JIT serialization could already skip exact-program
-translation into SymJIT, and saving a mapped eager evaluator could skip its
-coefficient conversion. Neither change establishes machine-code reuse. This
-milestone therefore makes no new JIT cache-format claim; startup improvements
-remain separately measurable reductions in redundant loading work.
+Any future backend cache must have version/integrity binding while mathematical
+identity remains tied to exact instructions. Raw executable bytes with stale
+process-local function/environment pointers remain unsuitable. No cache-format
+or pinned-dependency change was made in either investigation.
 
 ## Independent startup-change source review
 
