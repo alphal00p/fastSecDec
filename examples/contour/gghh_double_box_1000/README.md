@@ -87,7 +87,36 @@ fresh seeds for independent evidence.
 The polynomial campaign uses the same **symbolic endpoint** route with
 `--contour-jacobian dual` and initial relative width 2. That choice dualizes
 contour-image derivatives only; it does not select numerical-dual endpoint
-reduction. Its full-artifact cap selection and final runtime cards remain
-pending. Width changes the first native series attempt, while the same native
+reduction. The full-artifact selection on separate seeds chose `S=0.8`,
+`L=1e-6`,
+`R=1`; the polynomial runtime cards preserve those settings. Width changes the first native series attempt, while the same native
 remainder-coverage test still determines acceptance. The original `run.toml`
 and exporter-produced identities are unchanged.
+
+Reproduce the polynomial construction and its independently seeded runtime rows:
+
+```sh
+fastsecdec generate examples/contour/gghh_double_box_1000/benchmark-generation-polynomial.toml \
+  --serial --workers 2 --output target/gghh-double-box-1000-polynomial.fsd
+
+fastsecdec --plain --json --status-json integrate target/gghh-double-box-1000-polynomial.fsd \
+  --parameters examples/contour/gghh_double_box_1000/point.toml --full-integral \
+  --integration-settings examples/contour/gghh_double_box_1000/benchmark-polynomial-qmc.toml \
+  --seed 202610102002 --checkpoint target/gghh-double-box-1000-polynomial-qmc.checkpoint.json \
+  --save-result target/gghh-double-box-1000-polynomial-qmc.result.json
+
+fastsecdec --plain --json --status-json integrate target/gghh-double-box-1000-polynomial.fsd \
+  --parameters examples/contour/gghh_double_box_1000/point.toml --full-integral \
+  --integration-settings examples/contour/gghh_double_box_1000/benchmark-polynomial-discrete-mc.toml \
+  --seed 202610102004 --checkpoint target/gghh-double-box-1000-polynomial-mc.checkpoint.json \
+  --save-result target/gghh-double-box-1000-polynomial-mc.result.json
+```
+
+Apply the same native 300-second integration-clock stop and allowed final flush
+described above. Generation's initial width and Jacobian policy are independent
+of the symbolic endpoint mode. The fixed and polynomial cards both retain the
+complete Laurent vector and all covariance entries.
+
+The measured polynomial generation began with two workers and resumed with four
+after two durable units. The fixed two-worker command above reproduces the
+construction and physics, rather than that historical scheduling sequence.

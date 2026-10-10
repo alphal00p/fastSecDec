@@ -3,8 +3,10 @@
 Status: inventory and execution design, 2026-10-10. No scalar benchmark has
 been launched. The physical D05 campaign finishes first, as required by the
 [current plan](../../CONTOUR_DEFORMATION_PLAN.md#scalar-benchmark-extension-before-the-stopping-checkpoint).
-The root review accepts the four-case direction and bounded protocol below;
-native input/reference admission and a maintained driver remain to be implemented.
+The root review accepts the four-case direction and bounded protocol below,
+including a separate all-six-arm common-cap admission stage. Native fixture
+and maintained-driver implementation is under review; execution acceptance is
+pending.
 
 ## Four cases and independent references
 
@@ -78,11 +80,16 @@ of [Fleischer, Smirnov and Tarasov](https://arxiv.org/abs/hep-ph/9605392).
 Its explicit additional multiplier is `-1` to match that paper's measure.
 Use the same explicit multiplier, not a fitted sign. The
 [upstream reference script](https://github.com/gudrunhe/secdec/blob/master/examples/bubble2L_largem_ebr/integrate_bubble2L_full.py)
-quotes the finite value
-`4.403658192582334 + 1.5704037847169694*i` at the proposed point.
-This printed value is a cross-check; compute the reference natively from the
-documented convergent series and retain its truncation bound. No pySecDec,
-SymPy or Mathematica execution is required.
+quotes `4.403658192582334 + 1.5704037847169694*i` at the proposed point,
+using `log(-s-i*1e-15)` in the reference. The native zero-regulator reference
+used by this campaign is
+`4.403658192582334 + 1.5704037847171362*i`. The fixture test reproduces the
+printed finite-regulator value at the original `2e-14` tolerance and separately
+bounds its `1.668e-13` imaginary displacement. The native Gamma series through
+order eight has absolute truncation bound `3.60836e-28`, excluding floating-point
+roundoff. All three native fixture controls pass; no scalar generation or
+sampling is implied by that admission. No pySecDec, SymPy or Mathematica
+execution is required.
 
 The local read-only reference checkout is
 `2b3287ecd59436147350ae630a6fdd19eaba9097`. Before admitting the kite, verify
@@ -202,18 +209,26 @@ generation arm early before spending its remaining five arms.
 | --- | ---: | ---: | ---: |
 | Native input/reference admission, including optional bubble calibration | 1 | 300 s | 300 s |
 | Generation and compiled artifact serialization | 24 | 120 s | 2880 s |
+| Common-cap admission across all six arms, before production | 24 | 15 s | 360 s |
 | Restore, bind and separate causal pilot | 48 | 15 s | 720 s |
 | Production, all three lattice epochs within one seed execution | 48 | 20 s | 960 s |
-| **Total** | | | **4860 s = 81 min** |
+| **Total** | | | **5220 s = 87 min** |
 
 Use a 90-minute campaign wall guard, at most two task processes concurrently,
 and the user-approved 100 GB aggregate campaign RSS bound.
-The 81-minute sum excludes compiling the maintained driver and bounded
+The 87-minute sum excludes compiling the maintained driver and bounded
 termination grace; both must be reported separately. A short first-arm setup
 probe consumes its corresponding allowance rather than creating another
 unbounded campaign. Censored tasks retain partial native evidence and do not
 automatically resume. Physical final runs must already be closed before this
 campaign launches.
+
+The 360-second common-cap stage is distinct from the 48 fresh production
+owners' restore/pilot allowances. It establishes the predeclared common
+prescription before either production seed is dispatched; pilot readiness is
+not transferred between owners. Each of the 24 arms has a cumulative
+15-second allowance for its admission-ladder work, rather than a new allowance
+for every attempted cap.
 
 Measure generation, serialization, fresh-process restoration, cache outcome,
 binding/pilot, and sampling separately. Sampling includes native worker

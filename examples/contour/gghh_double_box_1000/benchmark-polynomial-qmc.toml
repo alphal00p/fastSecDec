@@ -1,0 +1,27 @@
+# Symbolic endpoint IBP, contour-only Dual Jacobian, independently selected polynomial cap.
+[integration]
+method = "qmc"
+workers = 50
+points = 4096
+shifts = 64
+package_points = 4096
+evaluation_batch_size = 256
+lattice = "kuo33002"
+periodization = "korobov3"
+double_points = false
+max_rounds = 20
+accuracy_target = { target = "laurent_order", order = 0 }
+relative_tolerance = 1e-30
+absolute_tolerance = 1e-30
+contour_diagnostics = "disabled"
+
+[integration.contour.validation]
+policy = "pilot"
+pilot_points = 16
+
+[integration.contour.deformation]
+mode = "dynamical"
+construction = "polynomial"
+safety_fraction = 0.8
+lambda_cap = 1e-06
+displacement_cap = 1.0

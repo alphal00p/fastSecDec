@@ -1,5 +1,5 @@
 {
-  "status": "in progress; dynamic_qmc, dynamic_discrete_mc pending",
+  "status": "complete: physical 1000 GeV double-box campaign; the scalar benchmark extension and broader Phase B are tracked separately",
   "date": "2026-10-10",
   "scope": "Individual D05 double box, incoming ++, sqrt(s)=1000 GeV, cos(theta)=4/5, mH=125 GeV, mt=ymt=172.5 GeV; unnormalized delta_ab; prod_l d^Dk_l/(i*pi^(D/2)), D=4-2*eps, multiplier 1. Not a full amplitude.",
   "reference": "No independent numerical reference at this point. Native estimator uncertainty is not a demonstrated physical error.",
@@ -661,11 +661,688 @@
         "optional_production_checks": 0,
         "production_rng_changes_for_contour": false
       }
+    },
+    {
+      "label": "dynamic_qmc",
+      "method": "DemocraticQmc",
+      "prescription": {
+        "mode": "dynamical",
+        "construction": "polynomial",
+        "safety_fraction": 0.8,
+        "lambda_cap": 1e-06,
+        "displacement_cap": 1.0
+      },
+      "jacobian": "dual",
+      "endpoint_reduction": "symbolic IBP",
+      "seed": 202610102002,
+      "cpus": [
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149
+      ],
+      "binary_sha256": "7b4563df8392e884267a9aed2a85fa9a37d04a4ede0142b31641af9ffdda9243",
+      "plan_sha256": "1b9f5797e58794b4ea5405cbfecff2fa18405d817b549a3360c12d89dc739f13",
+      "native_result_sha256": "8b0fdd1c4523b956fb82749d98d66a9c3c3e30107765e9bec0bfc548361372c4",
+      "summary_sha256": "2a454da69a66345b82ffe036f61700e14bd5a359bb07cf4d15f2d79773680432",
+      "identities": {
+        "source_identity": "d13a5cdc7aa156d2630b78ffc2738c732a17f7b26ea2b47f7e8b72bca934d414",
+        "content_id": "af31cf2fc2b65360a5a3cf657f08b62f970db13cbdee361dba46f45f1dcd7fb0",
+        "artifact_content_id": "93f4b0c7aef446271906cfede41e54f62833e6202de434e1de6cd6ab099ca6ac",
+        "program_archive_identity": "53c7b35d45d580d3edc43030b944e8843c89e1f155caaf503ec82b5a486ab1f3",
+        "selected_recipe": "dynamic-polynomial-v1"
+      },
+      "source_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "stochastic_sectors": 30,
+      "finite_mean": [
+        69.45376717337149,
+        24.11417712448752
+      ],
+      "finite_covariance_of_mean": [
+        [
+          4.03105207146699,
+          0.09272651750097625
+        ],
+        [
+          0.09272651750097625,
+          3.801650431081306
+        ]
+      ],
+      "joint_estimator_variance": 7.832702502548297,
+      "joint_standard_error": 2.798696572075704,
+      "relative_joint_standard_error": 0.038066692035230505,
+      "full_laurent_estimate": {
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "mean": [
+          -0.0054421941171938736,
+          -11.503877091274196,
+          69.45376717337149,
+          24.11417712448752
+        ],
+        "standard_error": [
+          0.005540279973774773,
+          0.008054371354900267,
+          2.0077480099521927,
+          1.9497821496468024
+        ],
+        "covariance_of_mean": [
+          3.06947021878098e-05,
+          -1.7591287033911865e-05,
+          -0.00227606038036581,
+          -0.000986826994225981,
+          -1.7591287033911865e-05,
+          6.487289792263795e-05,
+          0.0010997871163038458,
+          0.0009439057720595902,
+          -0.00227606038036581,
+          0.0010997871163038458,
+          4.03105207146699,
+          0.09272651750097625,
+          -0.000986826994225981,
+          0.0009439057720595902,
+          0.09272651750097625,
+          3.801650431081306
+        ],
+        "production_complete": false
+      },
+      "exact_coefficients": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stopping_reason": "Cancelled",
+      "production_quota_complete": false,
+      "replica_relation": "SharedAcrossSectors",
+      "timings": {
+        "elapsed_seconds": 302.367671049,
+        "artifact_load_seconds": 5.135805672,
+        "requested_integration_seconds": 300,
+        "native_elapsed_minus_budget_seconds": 2.3676710490000232,
+        "whole_process_seconds": 315.20392177673057,
+        "closure_after_interrupt_seconds": 2.801350605674088
+      },
+      "peak_aggregate_rss_bytes": 2023014400,
+      "work": {
+        "used_points": 447897600,
+        "completed_sector_points": 447909888,
+        "evaluations_including_adaptation_and_provisional_work": 447909888,
+        "used_replicas_by_sector": {
+          "0": 3645,
+          "1": 3645,
+          "2": 3645,
+          "3": 3645,
+          "4": 3645,
+          "5": 3645,
+          "6": 3645,
+          "7": 3645,
+          "8": 3645,
+          "9": 3645,
+          "10": 3645,
+          "11": 3645,
+          "12": 3645,
+          "13": 3645,
+          "14": 3645,
+          "15": 3645,
+          "16": 3645,
+          "17": 3645,
+          "18": 3645,
+          "19": 3645,
+          "20": 3645,
+          "21": 3645,
+          "22": 3645,
+          "23": 3645,
+          "24": 3645,
+          "25": 3645,
+          "26": 3645,
+          "27": 3645,
+          "28": 3645,
+          "29": 3645
+        },
+        "interpretation": "Native estimator work excludes incomplete replicas; operational evaluations also include adaptation and provisional work. previous_complete is separate and is not added."
+      },
+      "sample_cost_us": {
+        "integrand_average_sector_mean": 16.066651228856884,
+        "integrand_maximum_sector_mean": 28.972109561739106,
+        "integrand_pooled": 16.06681937311909,
+        "evaluator_average_sector_mean": 15.785908846430448,
+        "evaluator_maximum_sector_mean": 28.673950100402415
+      },
+      "precision": {
+        "evaluations": 447909888,
+        "rescues": 38076,
+        "max_precision_bits": 106,
+        "double_float_points": 38076,
+        "arbitrary_points": 0,
+        "failures": 0,
+        "unstable_points": 0,
+        "cutoff_zero_points": 0
+      },
+      "validation": {
+        "policy": "pilot",
+        "points_per_chart": 16,
+        "required_charts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29
+        ],
+        "optional_production_checks": 0,
+        "production_rng_changes_for_contour": false
+      }
+    },
+    {
+      "label": "dynamic_discrete_mc",
+      "method": "HavanaDiscreteMc",
+      "prescription": {
+        "mode": "dynamical",
+        "construction": "polynomial",
+        "safety_fraction": 0.8,
+        "lambda_cap": 1e-06,
+        "displacement_cap": 1.0
+      },
+      "jacobian": "dual",
+      "endpoint_reduction": "symbolic IBP",
+      "seed": 202610102004,
+      "cpus": [
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199
+      ],
+      "binary_sha256": "7b4563df8392e884267a9aed2a85fa9a37d04a4ede0142b31641af9ffdda9243",
+      "plan_sha256": "24c71bb44f20e3ccf1886d602ed1145ce69aa5177a1cfd31d4b34d134e743463",
+      "native_result_sha256": "6bc1c6faf8c1c10fbb2d30334595bd575f3c4f512cc7c1b03bfdd00c2fcc347d",
+      "summary_sha256": "3da907726881e885f9dec96d61de64013ef8ce7897d480122a22df3518772ba2",
+      "identities": {
+        "source_identity": "d13a5cdc7aa156d2630b78ffc2738c732a17f7b26ea2b47f7e8b72bca934d414",
+        "content_id": "af31cf2fc2b65360a5a3cf657f08b62f970db13cbdee361dba46f45f1dcd7fb0",
+        "artifact_content_id": "93f4b0c7aef446271906cfede41e54f62833e6202de434e1de6cd6ab099ca6ac",
+        "program_archive_identity": "53c7b35d45d580d3edc43030b944e8843c89e1f155caaf503ec82b5a486ab1f3",
+        "selected_recipe": "dynamic-polynomial-v1"
+      },
+      "source_indices": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "stochastic_sectors": 30,
+      "finite_mean": [
+        68.45461296775532,
+        24.64826593556871
+      ],
+      "finite_covariance_of_mean": [
+        [
+          0.24740990884763234,
+          0.004974797066388131
+        ],
+        [
+          0.004974797066388131,
+          0.25269206784996273
+        ]
+      ],
+      "joint_estimator_variance": 0.500101976697595,
+      "joint_standard_error": 0.7071788859246259,
+      "relative_joint_standard_error": 0.009719745918668681,
+      "full_laurent_estimate": {
+        "orders": [
+          -1,
+          -1,
+          0,
+          0
+        ],
+        "components": [
+          "Real",
+          "Imag",
+          "Real",
+          "Imag"
+        ],
+        "mean": [
+          0.0013646689392562972,
+          -11.512229320172256,
+          68.45461296775532,
+          24.64826593556871
+        ],
+        "standard_error": [
+          0.0031112528051635323,
+          0.004164078164066411,
+          0.49740316529715844,
+          0.502684859380072
+        ],
+        "covariance_of_mean": [
+          9.679894017637949e-06,
+          -4.065218353670792e-06,
+          -0.0002343881704938152,
+          4.8961041281450495e-05,
+          -4.065218353670792e-06,
+          1.7339546956454694e-05,
+          3.905145129477339e-05,
+          -0.00043452341046348457,
+          -0.0002343881704938152,
+          3.905145129477339e-05,
+          0.24740990884763234,
+          0.004974797066388131,
+          4.8961041281450495e-05,
+          -0.00043452341046348457,
+          0.004974797066388131,
+          0.25269206784996273
+        ],
+        "production_complete": false
+      },
+      "exact_coefficients": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "stopping_reason": "Cancelled",
+      "production_quota_complete": false,
+      "replica_relation": "SharedAcrossSectors",
+      "timings": {
+        "elapsed_seconds": 302.274466585,
+        "artifact_load_seconds": 5.122754592,
+        "requested_integration_seconds": 300,
+        "native_elapsed_minus_budget_seconds": 2.2744665850000274,
+        "whole_process_seconds": 321.4005469721742,
+        "closure_after_interrupt_seconds": 9.074759347829968
+      },
+      "peak_aggregate_rss_bytes": 11307020288,
+      "work": {
+        "used_points": 134144000,
+        "completed_sector_points": 134144000,
+        "evaluations_including_adaptation_and_provisional_work": 134195200,
+        "used_replicas_by_sector": {
+          "0": 32750,
+          "1": 32750,
+          "2": 32750,
+          "3": 32750,
+          "4": 32750,
+          "5": 32750,
+          "6": 32750,
+          "7": 32750,
+          "8": 32750,
+          "9": 32750,
+          "10": 32750,
+          "11": 32750,
+          "12": 32750,
+          "13": 32750,
+          "14": 32750,
+          "15": 32750,
+          "16": 32750,
+          "17": 32750,
+          "18": 32750,
+          "19": 32750,
+          "20": 32750,
+          "21": 32750,
+          "22": 32750,
+          "23": 32750,
+          "24": 32750,
+          "25": 32750,
+          "26": 32750,
+          "27": 32750,
+          "28": 32750,
+          "29": 32750
+        },
+        "interpretation": "Native estimator work excludes incomplete replicas; operational evaluations also include adaptation and provisional work. previous_complete is separate and is not added."
+      },
+      "sample_cost_us": {
+        "integrand_average_sector_mean": 71.79112681032342,
+        "integrand_maximum_sector_mean": 164.47627675564917,
+        "integrand_pooled": 37.65266172761029,
+        "evaluator_average_sector_mean": 68.22507934018475,
+        "evaluator_maximum_sector_mean": 154.63274783435193
+      },
+      "precision": {
+        "evaluations": 134195200,
+        "rescues": 9421,
+        "max_precision_bits": 106,
+        "double_float_points": 9421,
+        "arbitrary_points": 0,
+        "failures": 0,
+        "unstable_points": 0,
+        "cutoff_zero_points": 0
+      },
+      "validation": {
+        "policy": "pilot",
+        "points_per_chart": 16,
+        "required_charts": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29
+        ],
+        "optional_production_checks": 0,
+        "production_rng_changes_for_contour": false
+      }
     }
   ],
-  "pending": [
-    "dynamic_qmc",
-    "dynamic_discrete_mc"
-  ],
-  "comparisons": {}
+  "pending": [],
+  "comparisons": {
+    "qmc": {
+      "fixed_variance_over_dynamic_variance": 0.31413032539984165,
+      "scope": "One independent production run per method/prescription at the requested native 300-second/50-core budget; a ratio of reported estimator variances, not a repeated-run confidence interval or a demonstrated physical-error ratio."
+    },
+    "discrete_mc": {
+      "fixed_variance_over_dynamic_variance": 0.5126395422756159,
+      "scope": "One independent production run per method/prescription at the requested native 300-second/50-core budget; a ratio of reported estimator variances, not a repeated-run confidence interval or a demonstrated physical-error ratio."
+    }
+  },
+  "selection": {
+    "fixed": {
+      "selected": {
+        "arm": "fixed_lambda_1e-06",
+        "lambda": 1e-06,
+        "mean_score": 6026.289342635684,
+        "individual_scores": [
+          5664.767359401966,
+          6387.811325869403
+        ]
+      },
+      "scores": [
+        {
+          "arm": "fixed_lambda_1e-06",
+          "lambda": 1e-06,
+          "mean_score": 6026.289342635684,
+          "individual_scores": [
+            5664.767359401966,
+            6387.811325869403
+          ]
+        },
+        {
+          "arm": "fixed_lambda_1e-07",
+          "lambda": 1e-07,
+          "mean_score": 177032110.8538248,
+          "individual_scores": [
+            43302765.77187413,
+            310761455.93577546
+          ]
+        },
+        {
+          "arm": "fixed_lambda_1e-08",
+          "lambda": 1e-08,
+          "mean_score": 1457954943674.5813,
+          "individual_scores": [
+            341749108878.6286,
+            2574160778470.534
+          ]
+        }
+      ],
+      "selection_rule": "Mean across two fresh complete native runs of finite-order covariance trace times native worker_seconds; no estimates pooled",
+      "seeds": [
+        202610101901,
+        202610101902
+      ],
+      "source_sha256": "079b0413f091d9bf54b6d9198dbf5a5bf859369a7100a3b17710475a47bb250c",
+      "scope": "Bounded preliminary QMC search, common to the final QMC and MC prescriptions; it does not establish a globally optimal cap or a separate MC optimum."
+    },
+    "dynamic": {
+      "selected": {
+        "arm": "polynomial_cap_1e-06",
+        "lambda_cap": 1e-06,
+        "mean_score": 26444.331412740055,
+        "individual_scores": [
+          24977.138570373852,
+          27911.52425510626
+        ]
+      },
+      "scores": [
+        {
+          "arm": "polynomial_cap_1e-06",
+          "lambda_cap": 1e-06,
+          "mean_score": 26444.331412740055,
+          "individual_scores": [
+            24977.138570373852,
+            27911.52425510626
+          ]
+        },
+        {
+          "arm": "polynomial_cap_1e-05",
+          "lambda_cap": 1e-05,
+          "mean_score": 55095.24521131786,
+          "individual_scores": [
+            74025.27189174142,
+            36165.21853089429
+          ]
+        },
+        {
+          "arm": "polynomial_cap_1",
+          "lambda_cap": 1.0,
+          "mean_score": 15061766.487001525,
+          "individual_scores": [
+            14956441.60491887,
+            15167091.369084181
+          ]
+        },
+        {
+          "arm": "polynomial_cap_1e-07",
+          "lambda_cap": 1e-07,
+          "mean_score": 840661434.8682832,
+          "individual_scores": [
+            223453672.131154,
+            1457869197.6054122
+          ]
+        }
+      ],
+      "selection_rule": "Among caps with both complete native runs and no numerical failure, minimize arithmetic mean over two selection seeds of finite covariance trace \u00d7 aggregate worker_seconds. Retain all incomplete/refused caps without scores. No pooled estimates, accuracy or global-optimality claim.",
+      "seeds": [
+        202610101901,
+        202610101902
+      ],
+      "source_sha256": "97c161dd533853932a048294270151261fd3a785ce86910da55919565bb02436",
+      "scope": "Bounded preliminary QMC search, common to the final QMC and MC prescriptions; it does not establish a globally optimal cap or a separate MC optimum."
+    }
+  }
 }

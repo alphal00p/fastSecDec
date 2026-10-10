@@ -357,10 +357,55 @@ Publication checks pin both attempts, the intentional stop, settings and
 source identity, and verify the native indexed header, whole-file digest and
 contiguous receipt spans. Raw records and `handoff.json` remain under
 `target/contour-gghh-double-box-1000-symbolic-endpoints-full-polynomial-dual-c7/`.
-The closed artifact has been handed to the separately reviewed all-cap native
-readiness gate. Complete publication establishes generation feasibility;
-full physical admission, dynamic parameter selection and final integrations
-are separate subsequent gates.
+The closed artifact passed the separately reviewed all-cap native readiness,
+selection and final integration gates described below. Complete publication
+and numerical admission remain separately recorded boundaries.
+
+## Complete physical runtime campaign
+
+All four 50-worker, 300-second native-budget runs are closed and accepted.
+Both constructions retain Symbolic endpoint IBP and the full 30-sector
+integral with exact offsets included once. Fixed uses Symbolic J at
+`lambda=1e-6`; polynomial uses contour-only Dual J at `S=0.8`, `L=1e-6`,
+`R=1`. The polynomial cap was selected on the predeclared all-four-cap sweep
+using seeds 1901/1902, after all 120 cap/sector owners passed Pilot16.
+Its independent all-sector Kuo `4096 × 2` cost was 30.8351 microseconds per
+point averaged over sector means, with a maximum sector mean of 47.8500
+microseconds; this is distinct from the source0 comparison above.
+
+The final seeds are `202610102001`/`202610102003` for fixed QMC/discrete MC
+and `202610102002`/`202610102004` for polynomial QMC/discrete MC. The final
+outcomes were not used for parameter selection. Every final owner passed its
+full Pilot480 and aggregate exact readiness. All four runs stopped at the
+native time budget and drained cleanly; their large point quotas remain
+incomplete. The native estimates use complete accepted work and exclude
+incomplete replicas, while operational counts retain provisional/adaptation
+work separately.
+
+| Final method | Finite mean (Re, Im) | Finite covariance trace | Native elapsed (s) | Peak owned RSS (GB) |
+| --- | --- | ---: | ---: | ---: |
+| Fixed QMC | (68.350857, 26.244676) | 2.460489 | 302.316 | 1.943 |
+| Fixed discrete MC | (69.066155, 24.927379) | 0.256372 | 303.533 | 4.129 |
+| Polynomial QMC | (69.453767, 24.114177) | 7.832703 | 302.368 | 2.023 |
+| Polynomial discrete MC | (68.454613, 24.648266) | 0.500102 | 302.274 | 11.307 |
+
+The trace is the sum of the real/imaginary **estimator covariance** diagonal,
+not pointwise integrand variance. The native integration clock includes worker
+setup and MC adaptation; global loading, binding and causal pilot precede it.
+Owned memory is independently sampled and reported in decimal GB. Actual
+concurrent work is permitted and recorded; these are finite-budget campaign
+observations, not a controlled asymptotic scaling measurement.
+
+The [curated native results](../contour-deformation-results.json) preserve all
+four Laurent mean components, all 16 covariance entries, exact offsets,
+accepted/operational work, precision counters, timing scopes and pinned native
+result identities. Raw accepted results remain under
+`target/contour-d05-1000-runtime/symbolic-endpoints/final-{fixed,polynomial}/`.
+The [Typst report](../contour-deformation.typ) compares these rows with the
+generation and source0 evidence. There is no independent numerical reference
+for this physical D05 point; estimator uncertainty does not establish its
+physical error. The separate scalar suite supplies independent references
+and is not inferred from these results.
 
 ## Definition registration follow-up
 

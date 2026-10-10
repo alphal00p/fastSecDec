@@ -231,9 +231,9 @@ GB and MB are decimal; RSS includes the owned parent and child processes.
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
   table.header([*Method*], [*Contour*], [*Finite coefficient*], [*Joint variance*], [*Relative SE*]),
   [QMC], [Fixed], [$68.35+26.24 i$], [2.46049], [2.142%],
-  [QMC], [Dynamic], pending, pending, pending,
+  [QMC], [Dynamic], [$69.45+24.11 i$], [7.8327], [3.807%],
   [Discrete MC], [Fixed], [$69.07+24.93 i$], [0.256372], [0.690%],
-  [Discrete MC], [Dynamic], pending, pending, pending,
+  [Discrete MC], [Dynamic], [$68.45+24.65 i$], [0.500102], [0.972%],
 )
 For the finite complex estimate $hat I_0$, the joint estimator variance is
 $V=tr Sigma_0$ and relative joint standard error is $sqrt(V)/abs(hat I_0)$.
@@ -244,16 +244,19 @@ components, exact offsets, work counts and precision-rescue diagnostics.
 #table(columns: (1.05fr, .9fr, .85fr, .9fr, 1.3fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
   table.header([*Method*], [*Contour*], [*Seconds*], [*Peak GB*], [*Sample µs avg / max*]),
   [QMC], [Fixed], [302.32], [1.94], [3.73 / 4.02],
-  [QMC], [Dynamic], pending, pending, pending,
+  [QMC], [Dynamic], [302.37], [2.02], [16.07 / 28.97],
   [Discrete MC], [Fixed], [303.53], [4.13], [23.99 / 43.54],
-  [Discrete MC], [Dynamic], pending, pending, pending,
+  [Discrete MC], [Dynamic], [302.27], [11.31], [71.79 / 164.48],
 )
 Sample costs are the average and maximum of per-sector mean integrand costs,
 including precision rescue and amortized setup/adaptation work; they are not
 maximum single-point latency. A separate fixed all-sector probe measured
 10.44 µs average and 14.06 µs maximum sector mean on a smaller fixed point set.
 
-Fixed production uses $lambda=10^(-6)$, chosen with separate tuning seeds.
+Fixed uses $lambda=10^(-6)$; dynamic uses $S=.8$, $L=10^(-6)$, $R=1$,
+selected with separate tuning seeds. Dynamic/fixed variance ratios are 3.18
+(QMC) and 1.95 (MC): fixed performs better in these runs. Each row is one
+independent production run; these ratios have no repeated-run confidence interval.
 The 300-second native integration budget includes worker setup and Havana
 adaptation. Loading, binding and causal Pilot16 precede that clock; optional
 production causal checks are disabled. Complete accepted work is drained after
@@ -313,7 +316,7 @@ implicit-radius prescriptions, complete complex Laurent vectors and restored
 programs. Conditional bodies requiring hoisted image inputs are explicitly
 unsupported by this opt-in route. The matched source-sector comparison below
 includes generation, RSS, program sizes and sampling cost. Full-integral
-generation has completed; dynamic integration measurements are pending.
+generation and all four physical integration runs have completed.
 No mathematical reordering, alternative CAS or AD implementation is introduced.
 An optional initial native Series width avoids a known discarded attempt; the
 strict absolute Laurent-remainder coverage check and checked retries remain
@@ -399,5 +402,5 @@ sector cancellations even at a time-budget stop.
 #v(2mm)
 #text(size: 9pt)[*Reproduction and source:* #link("https://github.com/alphal00p/fastSecDec/tree/contour_deformation")[FastSecDec, contour_deformation].
 Native input: `examples/contour/gghh_double_box_1000/`. Mathematical audit:
-`docs/reviews/contour-foundation.md`. Final campaign provenance and validated
-implementation revision will accompany the completed measurements.]
+`docs/reviews/contour-foundation.md`. Physical campaign provenance and complete covariance are in
+`docs/contour-deformation-results.json`; the scalar extension is in progress.]
