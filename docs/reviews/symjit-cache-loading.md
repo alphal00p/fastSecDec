@@ -6,6 +6,10 @@ This review distinguishes the evaluator instruction program, SymJIT's saved
 application, and executable machine code. No dependency or artifact-format
 change was made for this investigation.
 
+This is historical investigation evidence. The subsequent v13 implementation
+reuses the native primary JIT codec described here; its current contract and
+measurements are in the [primary-cache review](symjit-primary-cache.md).
+
 ## What the native owners currently save
 
 Symbolica's `JITCompiledEvaluator<T>` serializes its external-function

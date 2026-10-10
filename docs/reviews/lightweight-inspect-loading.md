@@ -6,6 +6,11 @@ conditioning, loading presentation, and generation-step elapsed clocks. The
 reviewer did not run a large artifact load or another build concurrently with the
 implementation owners.
 
+The backend-preparation measurements and descriptions below are historical.
+Current optional primary JIT persistence is documented in the
+[primary-cache review](symjit-primary-cache.md); the metadata-only inspection
+and caller-owned loading boundaries remain applicable.
+
 ## Inspection and identity
 
 Previously, inspecting an artifact called the full native loader. That decoded

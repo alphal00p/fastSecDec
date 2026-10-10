@@ -20,9 +20,14 @@ remain mandatory. This switch is a CLI loading option, not a TOML integration
 setting, and does not change numerical policy or checkpoint identity. Both modes
 require trusted native artifacts; integrity hashes do not authenticate a producer.
 
-Skipping validation is not a machine-code cache. SymJIT still compiles the saved
-optimized native instructions into executable code; it does not repeat symbolic
-sector generation or Horner/CPE optimization.
+Newly compiled native artifacts save the primary Symbolica JIT payload alongside
+the exact program. Compatible payloads avoid exact-to-JIT translation; missing
+or incompatible caches prepare the backend from the admitted exact program.
+The load-completion status reports those outcomes. This is independent of
+`--validate-artifact`: SymJIT still compiles saved application instructions into
+executable code, and neither path repeats symbolic generation or Horner/CPE.
+See [native cache restoration](DEVELOPMENT.md) for the exact-only export API and
+explicit indexed-cache refresh.
 
 `inspect --validate-artifact` still reads only JSON and checks its identity.
 Use `inspect --deep --validate-artifact` for binary certification. `--deep` or

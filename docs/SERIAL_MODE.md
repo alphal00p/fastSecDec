@@ -60,9 +60,13 @@ mapping to the complete Laurent vector. `--expressions` exposes its retained
 change of variables and subtraction metadata. Expensive validation remains
 opt-in with `--validate-artifact`, including resident-sector reloads.
 
-Reloading reuses the saved optimized native evaluator program. SymJIT may
-translate it again; symbolic generation and Horner/CPE optimization are not
-repeated.
+Newly compiled records include the native primary JIT payload as well as the
+exact program. A compatible payload restores through Symbolica without another
+exact-to-JIT translation; older records or incompatible primary caches prepare
+the backend from their admitted exact program. Native application restoration
+still compiles executable code. Symbolic generation and Horner/CPE are not
+repeated. Selected-record loading and caller-owned residency are unchanged;
+see [the native cache contract](DEVELOPMENT.md).
 
 ## Coverage, refinement and uncertainty
 
