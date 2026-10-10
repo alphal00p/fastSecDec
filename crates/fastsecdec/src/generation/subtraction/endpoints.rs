@@ -18,6 +18,21 @@ pub(in crate::generation) struct EndpointAdmission {
     pub subtractions: usize,
 }
 
+/// Ordered affine regulator data. This is endpoint admission only: a nonzero
+/// slope does not certify a common convergence chamber or auxiliary-pole
+/// cancellation across charts.
+pub(in crate::generation) struct RegulatedEndpointAdmission {
+    pub constant: Rational,
+    pub slopes: Vec<Rational>,
+    pub subtractions: usize,
+}
+
+impl RegulatedEndpointAdmission {
+    pub fn is_regulated(&self) -> bool {
+        self.slopes.iter().any(|slope| !slope.is_zero())
+    }
+}
+
 pub(in crate::generation) fn rational(expression: &Atom) -> Option<Rational> {
     if expression.is_zero() {
         return Some(Rational::from(0));
@@ -35,22 +50,53 @@ pub(in crate::generation) fn endpoint_power(
     expression: &Atom,
     regulator: Symbol,
 ) -> Result<(Rational, Rational), GenerationError> {
-    let epsilon = Atom::var(regulator);
-    let constant = expression
-        .replace(Pattern::Literal(epsilon.clone()))
-        .with(Atom::Zero)
-        .expand();
-    let slope = expression.derivative(regulator).expand();
-    if rational(&slope).is_none()
-        || !(expression - &constant - &slope * epsilon)
-            .expand()
-            .is_zero()
+    let (constant, mut slopes) = endpoint_power_with_regulators(expression, &[regulator])?;
+    Ok((constant, slopes.remove(0)))
+}
+
+/// Recognize an exact rational affine function of these explicit regulators.
+/// Symbols not listed here are not silently treated as additional regulators.
+pub(crate) fn endpoint_power_with_regulators(
+    expression: &Atom,
+    regulators: &[Symbol],
+) -> Result<(Rational, Vec<Rational>), GenerationError> {
+    if regulators.is_empty()
+        || regulators
+            .iter()
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
+            != regulators.len()
     {
+        return Err(GenerationError::Invariant(
+            "endpoint regulators must be nonempty and distinct".into(),
+        ));
+    }
+    let mut constant = expression.clone();
+    for regulator in regulators {
+        constant = constant
+            .replace(Pattern::Literal(Atom::var(*regulator)))
+            .with(Atom::Zero);
+    }
+    let constant = constant.expand();
+    let constant =
+        rational(&constant).ok_or_else(|| GenerationError::EndpointExponent(expression.clone()))?;
+    let slopes = regulators
+        .iter()
+        .map(|regulator| {
+            rational(&expression.derivative(*regulator).expand())
+                .ok_or_else(|| GenerationError::EndpointExponent(expression.clone()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let affine = regulators
+        .iter()
+        .zip(&slopes)
+        .fold(Atom::num(constant.clone()), |sum, (regulator, slope)| {
+            sum + Atom::num(slope.clone()) * Atom::var(*regulator)
+        });
+    if !(expression - affine).expand().is_zero() {
         return Err(GenerationError::EndpointExponent(expression.clone()));
     }
-    rational(&constant)
-        .map(|a| (a, rational(&slope).unwrap()))
-        .ok_or_else(|| GenerationError::EndpointExponent(expression.clone()))
+    Ok((constant, slopes))
 }
 
 /// Admit the exponent before checking its degree, preserving error precedence.
@@ -85,6 +131,20 @@ fn subtraction_count(constant: &Rational, maximum: usize) -> Result<usize, Gener
         return Err(GenerationError::ResourceLimit("Taylor subtraction degree"));
     }
     Ok(count)
+}
+
+pub(in crate::generation) fn admit_with_regulators(
+    expression: &Atom,
+    regulators: &[Symbol],
+    max_subtractions: usize,
+) -> Result<RegulatedEndpointAdmission, GenerationError> {
+    let (constant, slopes) = endpoint_power_with_regulators(expression, regulators)?;
+    let subtractions = subtraction_count(&constant, max_subtractions)?;
+    Ok(RegulatedEndpointAdmission {
+        constant,
+        slopes,
+        subtractions,
+    })
 }
 
 /// Checked total degree of the retained physical endpoint profiles.

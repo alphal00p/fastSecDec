@@ -13,7 +13,12 @@ use symgcad::{
 };
 
 use super::{GcadError, Result};
-use crate::parametric::{FactorRole, FactorSemantics, ParametricDomain, ParametricIntegrand};
+use crate::{
+    parametric::{
+        FactorRole, FactorSemantics, ParametricDomain, ParametricIntegrand, ParametricTerm,
+    },
+    threshold::projective::{AffineProjectivePreparation, FactorOrigin},
+};
 
 /// The role is retained independently of the chosen native lifting order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,6 +39,7 @@ pub struct SymbolAlias {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DomainOrigin {
     NativeUnitCube,
+    AffineProjective { eliminated_index: usize },
     ExplicitPrepared { provenance: String },
 }
 
@@ -107,9 +113,12 @@ impl GcadKinematics {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SignedFactor {
     pub term_index: usize,
+    /// Index in the prepared term. `origin` identifies the original density factor.
     pub factor_index: usize,
+    pub origin: FactorOrigin,
     pub split_index: usize,
     pub original_polynomial: Atom,
+    pub prepared_polynomial: Atom,
     pub exponent: Atom,
     pub semantics: FactorSemantics,
 }
@@ -119,6 +128,7 @@ pub struct SignedFactor {
 #[derive(Clone, Debug)]
 pub struct RequestIdentity {
     input: Arc<ParametricIntegrand>,
+    preparation: Option<Arc<AffineProjectivePreparation>>,
     domain: PreparedDomain,
     kinematics: GcadKinematics,
     aliases: Vec<SymbolAlias>,
@@ -128,7 +138,8 @@ pub struct RequestIdentity {
 
 impl PartialEq for RequestIdentity {
     fn eq(&self, other: &Self) -> bool {
-        self.domain == other.domain
+        self.preparation == other.preparation
+            && self.domain == other.domain
             && self.kinematics == other.kinematics
             && self.aliases == other.aliases
             && self.factors == other.factors
@@ -191,6 +202,58 @@ impl GcadRequest {
                 "prepared coordinates differ from native integration parameters".into(),
             ));
         }
+        Self::from_preparation(
+            Arc::new(input.clone()),
+            domain,
+            None,
+            kinematics,
+            solver,
+            limits,
+        )
+    }
+
+    /// Admit a proved affine delta-gauge preparation while retaining its original
+    /// projective density, map, factor associations and simplex boundary. An owned
+    /// preparation is moved; a supplied `Arc` is retained without copying terms.
+    pub fn projective(
+        preparation: impl Into<Arc<AffineProjectivePreparation>>,
+        kinematics: GcadKinematics,
+        solver: SolverOptions,
+        limits: Limits,
+    ) -> Result<Self> {
+        let preparation = preparation.into();
+        if preparation.coordinates().is_empty() {
+            return Err(GcadError::Unsupported(
+                "zero-dimensional projective preparation is exact-only and needs no GCAD decomposition".into(),
+            ));
+        }
+        let domain = PreparedDomain {
+            coordinates: preparation.coordinates().to_vec(),
+            strict_positive: preparation.strict_positive().to_vec(),
+            origin: DomainOrigin::AffineProjective {
+                eliminated_index: preparation.eliminated_index(),
+            },
+        };
+        Self::from_preparation(
+            preparation.input_owner().clone(),
+            domain,
+            Some(preparation),
+            kinematics,
+            solver,
+            limits,
+        )
+    }
+
+    fn from_preparation(
+        input: Arc<ParametricIntegrand>,
+        domain: PreparedDomain,
+        preparation: Option<Arc<AffineProjectivePreparation>>,
+        kinematics: GcadKinematics,
+        solver: SolverOptions,
+        limits: Limits,
+    ) -> Result<Self> {
+        // An eliminated integration variable must not reappear as a kinematic
+        // parameter or binding merely because it is absent from the target axes.
         let coordinates = input.parameters().iter().copied().collect::<BTreeSet<_>>();
         let parameters = kinematics
             .runtime_parameters
@@ -221,8 +284,8 @@ impl GcadRequest {
             .iter()
             .map(|s| (*s, AliasRole::RuntimeParameter))
             .chain(
-                input
-                    .parameters()
+                domain
+                    .coordinates
                     .iter()
                     .map(|s| (*s, AliasRole::IntegrationCoordinate)),
             )
@@ -280,7 +343,8 @@ impl GcadRequest {
         }
         let mut polynomials = Vec::<Poly>::new();
         let mut factors = Vec::new();
-        for (term_index, term) in input.terms().iter().enumerate() {
+        let terms = preparation.as_ref().map_or(input.terms(), |p| p.terms());
+        for (term_index, term) in terms.iter().enumerate() {
             for (factor_index, factor) in term.factors().iter().enumerate() {
                 if factor.role() != FactorRole::Singularity {
                     continue;
@@ -298,11 +362,27 @@ impl GcadRequest {
                     polynomials.push(polynomial);
                     polynomials.len() - 1
                 };
+                let origin = preparation
+                    .as_ref()
+                    .map_or(FactorOrigin::OriginalFactor { factor_index }, |p| {
+                        p.factor_origins()[term_index][factor_index]
+                    });
+                let original_polynomial = match origin {
+                    FactorOrigin::OriginalFactor { factor_index } => input.terms()[term_index]
+                        .factors()[factor_index]
+                        .polynomial()
+                        .clone(),
+                    FactorOrigin::OriginalMonomial { parameter_index } => {
+                        Atom::var(input.parameters()[parameter_index])
+                    }
+                };
                 factors.push(SignedFactor {
                     term_index,
                     factor_index,
+                    origin,
                     split_index,
-                    original_polynomial: factor.polynomial().clone(),
+                    original_polynomial,
+                    prepared_polynomial: factor.polynomial().clone(),
                     exponent: factor.exponent().clone(),
                     semantics: factor.semantics(),
                 });
@@ -337,7 +417,8 @@ impl GcadRequest {
         let problem_bytes =
             serde_json::to_vec(&problem).map_err(|e| GcadError::Invalid(e.to_string()))?;
         let identity = RequestIdentity {
-            input: Arc::new(input.clone()),
+            input,
+            preparation,
             domain,
             kinematics,
             aliases,
@@ -347,8 +428,17 @@ impl GcadRequest {
         Ok(Self { identity, problem })
     }
 
+    /// Original native density, before any typed projective preparation.
     pub fn input(&self) -> &ParametricIntegrand {
         &self.identity.input
+    }
+    pub fn projective_preparation(&self) -> Option<&AffineProjectivePreparation> {
+        self.identity.preparation.as_deref()
+    }
+    /// Complete factorized density in `domain().coordinates()`, retaining term order.
+    pub fn prepared_terms(&self) -> &[ParametricTerm] {
+        self.projective_preparation()
+            .map_or(self.input().terms(), |p| p.terms())
     }
     pub fn domain(&self) -> &PreparedDomain {
         &self.identity.domain

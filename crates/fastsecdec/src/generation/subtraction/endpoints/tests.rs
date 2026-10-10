@@ -4,6 +4,198 @@ use crate::generation::{
 };
 use symbolica::{parse, symbol};
 
+fn continued(
+    terms: Vec<MappedTerm>,
+    parameters: &[Symbol],
+    regulators: &[Symbol],
+    subtraction: SubtractionStrategy,
+) -> Result<Atom, GenerationError> {
+    crate::generation::subtraction::subtract_profiled_with_regulators(
+        terms,
+        parameters,
+        regulators,
+        &GenerationOptions {
+            subtraction,
+            ..Default::default()
+        },
+    )
+    .map(|result| result.expression)
+}
+
+#[test]
+fn ordered_regulator_family_keeps_exact_fractional_affine_data() {
+    let [eps, eta, rho] = [
+        symbol!("multi_endpoint::eps"),
+        symbol!("multi_endpoint::eta"),
+        symbol!("multi_endpoint::rho"),
+    ];
+    let exponent = Atom::num((-7, 3)) + Atom::num((2, 5)) * Atom::var(eps)
+        - Atom::num((3, 2)) * Atom::var(eta);
+    let endpoint = admit_with_regulators(&exponent, &[eta, eps, rho], 2).unwrap();
+    assert_eq!(endpoint.constant, Rational::from((-7, 3)));
+    assert_eq!(
+        endpoint.slopes,
+        [
+            Rational::from((-3, 2)),
+            Rational::from((2, 5)),
+            Rational::from(0)
+        ]
+    );
+    assert_eq!(endpoint.subtractions, 2);
+    assert!(endpoint.is_regulated());
+    for invalid in [
+        &exponent + Atom::var(eps) * Atom::var(eta),
+        &exponent + Atom::var(rho).pow(Atom::num(2)),
+        &exponent + Atom::var(symbol!("multi_endpoint::undeclared")),
+    ] {
+        assert!(matches!(
+            admit_with_regulators(&invalid, &[eta, eps, rho], 0),
+            Err(GenerationError::EndpointExponent(value)) if value == invalid
+        ));
+    }
+    for regulators in [vec![], vec![eps, eta, eps]] {
+        assert!(matches!(
+            admit_with_regulators(&Atom::num(-2), &regulators, 0),
+            Err(GenerationError::Invariant(_))
+        ));
+    }
+}
+
+#[test]
+fn auxiliary_slope_regulates_fractional_endpoint_without_epsilon_slope() {
+    let x = symbol!("multi_endpoint::x");
+    let eps = symbol!("multi_endpoint::eps");
+    let eta = symbol!("multi_endpoint::eta");
+    let eta_atom = Atom::var(eta);
+    let expected = Atom::one() / (&eta_atom - Atom::num((1, 2)))
+        + Atom::var(x).pow(&eta_atom - Atom::num((1, 2)));
+    for subtraction in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        let actual = continued(
+            vec![MappedTerm {
+                powers: vec![&eta_atom - Atom::num((3, 2))],
+                prefactor: Atom::one(),
+                regular: Atom::one() + Atom::var(x),
+            }],
+            &[x],
+            &[eps, eta],
+            subtraction,
+        )
+        .unwrap();
+        assert!((actual - &expected).expand().is_zero());
+    }
+}
+
+#[test]
+fn full_regulator_denominators_keep_symbolic_taylor_ibp_parity_and_phase() {
+    let x = symbol!("multi_endpoint::x");
+    let eps = symbol!("multi_endpoint::eps");
+    let eta = symbol!("multi_endpoint::eta");
+    let q: Atom = Atom::var(eps) + 2 * Atom::var(eta);
+    let phase: Atom = parse!("exp(-I*pi*(-3+multi_endpoint::eps+2*multi_endpoint::eta))");
+    let expected: Atom =
+        &phase * (Atom::one() / (&q - 2) + Atom::num(2) / (&q - 1) + Atom::num(3) / &q);
+    for subtraction in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        let actual = continued(
+            vec![MappedTerm {
+                powers: vec![&q - 3],
+                prefactor: phase.clone(),
+                regular: Atom::one() + 2 * Atom::var(x) + 3 * Atom::var(x).pow(Atom::num(2)),
+            }],
+            &[x],
+            &[eps, eta],
+            subtraction,
+        )
+        .unwrap();
+        assert!(!actual.contains_symbol(x));
+        assert!(actual.contains_symbol(eta));
+        assert!((actual - &expected).together().expand().is_zero());
+    }
+}
+
+#[test]
+fn mixed_regulator_hyperplanes_are_retained_without_auxiliary_removal() {
+    let x = symbol!("multi_endpoint::x");
+    let y = symbol!("multi_endpoint::y");
+    let eps = symbol!("multi_endpoint::eps");
+    let eta = symbol!("multi_endpoint::eta");
+    let q = Atom::var(eps) + Atom::var(eta);
+    let r = Atom::var(eps) - Atom::var(eta);
+    let expected = Atom::one() / (&q * (&r - 1));
+    for subtraction in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        let actual = continued(
+            vec![MappedTerm {
+                powers: vec![&q - 1, &r - 2],
+                prefactor: Atom::one(),
+                regular: Atom::one(),
+            }],
+            &[x, y],
+            &[eps, eta],
+            subtraction,
+        )
+        .unwrap();
+        assert!((actual - &expected).together().expand().is_zero());
+    }
+    // Both original causal lips retain the same complete auxiliary family.
+    let phase = parse!("exp(-I*pi*(-1+multi_endpoint::eta))");
+    let terms = [Atom::one(), phase.clone()]
+        .into_iter()
+        .map(|prefactor| MappedTerm {
+            powers: vec![Atom::var(eta) - 1],
+            prefactor,
+            regular: Atom::one(),
+        })
+        .collect();
+    let actual = continued(terms, &[x], &[eps, eta], SubtractionStrategy::Taylor).unwrap();
+    assert!(
+        (actual - (Atom::one() + phase) / Atom::var(eta))
+            .together()
+            .expand()
+            .is_zero()
+    );
+}
+
+#[test]
+fn all_zero_slopes_preserve_pruning_and_unregulated_refusal() {
+    let x = symbol!("multi_endpoint::x");
+    let eps = symbol!("multi_endpoint::eps");
+    let eta = symbol!("multi_endpoint::eta");
+    for subtraction in [
+        SubtractionStrategy::Taylor,
+        SubtractionStrategy::IntegrateByParts,
+    ] {
+        let run = |regular| {
+            continued(
+                vec![MappedTerm {
+                    powers: vec![Atom::num(-2)],
+                    prefactor: Atom::one(),
+                    regular,
+                }],
+                &[x],
+                &[eps, eta],
+                subtraction,
+            )
+        };
+        assert_eq!(run(Atom::var(x).pow(Atom::num(2))).unwrap(), Atom::one());
+        assert!(run(Atom::Zero).unwrap().is_zero());
+        assert!(
+            matches!(run(Atom::one()), Err(GenerationError::UnregulatedEndpoint { parameter }) if parameter == x)
+        );
+    }
+    assert!(matches!(
+        continued(vec![], &[x], &[eps, x], SubtractionStrategy::Taylor),
+        Err(GenerationError::Invariant(_))
+    ));
+}
+
 #[test]
 fn affine_rational_endpoints_keep_the_exact_integrability_threshold() {
     let epsilon = symbol!("endpoint_admission::eps_");

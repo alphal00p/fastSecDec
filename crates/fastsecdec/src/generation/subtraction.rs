@@ -51,6 +51,37 @@ pub(super) fn subtract_profiled(
     regulator: Symbol,
     options: &GenerationOptions,
 ) -> Result<Subtracted, GenerationError> {
+    subtract_profiled_with_regulators(terms, parameters, &[regulator], options)
+}
+
+/// Exact endpoint continuation with an explicit ordered regulator family.
+/// Retain all regulator-dependent powers, denominators and prefactors. This
+/// entry does not remove auxiliaries, expand in epsilon, establish a common
+/// convergence domain, or certify cancellation of poles between contributions.
+pub(super) fn subtract_profiled_with_regulators(
+    terms: Vec<MappedTerm>,
+    parameters: &[Symbol],
+    regulators: &[Symbol],
+    options: &GenerationOptions,
+) -> Result<Subtracted, GenerationError> {
+    // Validate the family even for an empty density, before any derivatives.
+    endpoints::endpoint_power_with_regulators(&Atom::Zero, regulators)?;
+    if regulators
+        .iter()
+        .any(|regulator| parameters.contains(regulator))
+    {
+        return Err(GenerationError::Invariant(
+            "endpoint regulators overlap integration coordinates".into(),
+        ));
+    }
+    if terms
+        .iter()
+        .any(|term| term.powers.len() != parameters.len())
+    {
+        return Err(GenerationError::Invariant(
+            "mapped endpoint dimension mismatch".into(),
+        ));
+    }
     let mut pieces = terms
         .into_iter()
         .map(|term| {
@@ -59,7 +90,7 @@ pub(super) fn subtract_profiled(
                     .powers
                     .iter()
                     .map(|power| {
-                        endpoints::endpoint_power(power, regulator)
+                        endpoints::endpoint_power_with_regulators(power, regulators)
                             .map(|(constant, _)| (-constant).to_string())
                     })
                     .collect::<Result<Vec<_>, GenerationError>>()?
@@ -76,14 +107,18 @@ pub(super) fn subtract_profiled(
         let mut next = Vec::new();
         for mut piece in pieces {
             let mut power = piece.powers[axis].as_ref().unwrap().clone();
-            let endpoint = endpoints::admit(&power, regulator, options.max_subtractions_per_axis)?;
+            let endpoint = endpoints::admit_with_regulators(
+                &power,
+                regulators,
+                options.max_subtractions_per_axis,
+            )?;
             if endpoint.constant > -1 {
                 next.push(piece);
                 continue;
             }
-            let slope = endpoint.slope;
+            let regulated = endpoint.is_regulated();
             let mut count = endpoint.subtractions;
-            if options.subtraction == SubtractionStrategy::IntegrateByParts && !slope.is_zero() {
+            if options.subtraction == SubtractionStrategy::IntegrateByParts && regulated {
                 for _ in 1..count {
                     let denominator = (&power + Atom::one()).expand();
                     let boundary = piece
@@ -118,7 +153,7 @@ pub(super) fn subtract_profiled(
                     .with(Atom::Zero);
                 if !coefficient.is_zero() {
                     let denominator = (&power + Atom::num(degree + 1)).expand();
-                    if denominator.is_zero() || slope.is_zero() {
+                    if denominator.is_zero() || !regulated {
                         return Err(GenerationError::UnregulatedEndpoint {
                             parameter: *parameter,
                         });

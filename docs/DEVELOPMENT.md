@@ -42,7 +42,7 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public `community`-based fork revision `74225696cd445247fa81c499c5110decd19257ed`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation and scoped callback reuse, with independent callback environments for JIT clones and single-pass elimination of dependent duplicate instructions; [upstream contour PRs](reviews/contour-upstream-prs.md) |
+| Symbolica | Public `community`-based fork revision `c540d3f68c90fe7bff1e507458e57a20fb95b11c`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation, independent callback environments and single-pass elimination of dependent duplicate instructions, plus [fractional-series precision fixes](reviews/no-deformation-dependencies.md); [upstream contour PRs](reviews/contour-upstream-prs.md) |
 | FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
 | Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
 | symGCAD | Optional native geometry dependency, public revision `a1132d4f4545c7784b3ec61239a05485e544b403` from [PR #1](https://github.com/alphal00p/symGCAD/pull/1); shares the consuming workspace's Symbolica identity |

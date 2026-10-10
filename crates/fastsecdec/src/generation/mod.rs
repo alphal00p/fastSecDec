@@ -39,6 +39,8 @@ pub use metadata_display::MetadataView;
 pub(crate) mod profiling;
 pub mod streaming;
 mod subtraction;
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use subtraction::endpoints::endpoint_power_with_regulators;
 mod support;
 mod symmetry;
 mod types;

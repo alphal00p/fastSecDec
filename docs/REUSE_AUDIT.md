@@ -31,8 +31,33 @@ verification and invalid/incomplete evidence. Twenty-nine existing contour and
 artifact controls and sixteen streamed-generation controls pass for the
 explicit contour-capability predicate. The optional native feature shares one
 Symbolica identity and is absent from the portable/Python dependency graphs.
-Projective preparation, endpoint certificates and threshold integration remain
-separate implementation work.
+The later compact preparation and phase milestone below extends that boundary;
+endpoint certificates and complete threshold integration remain separate work.
+
+### Projective preparation, regulator families and causal phases
+
+The [projective audit](reviews/no-deformation-projective.md) verifies a compact
+affine delta gauge using native HEPKit `ParametricIntegrand` inputs, Symbolica
+substitution and native matrix identities. Six integrated controls pass,
+including a physical massive bubble and explicit shared-owner lifetime checks.
+The request retains one original input owner and one preparation owner rather
+than copying the heavy density again. This ownership check is not an aggregate
+RSS measurement or a general generation-memory claim.
+
+The [symbolic regulator review](reviews/no-deformation-symbolic-regulators.md)
+covers exact affine multi-regulator admission and the existing symbolic
+IBP/Taylor engine. No second differentiation or endpoint engine was introduced.
+The [causal-phase review](reviews/no-deformation-phases.md) checks term-local
+phases using native exact powers, derivatives and series, including a nonzero
+finite imaginary part from cancelling cell poles. Neither extension certifies
+general auxiliary removal, common convergence chambers or closed-face limits.
+
+The combined native `c540d3f` gate passes 477 tests (20 existing ignores),
+including the four maintained algebra probes; the portable consumer passes 88
+tests and the isolated Python binding/stub build passes. Portable checks use the
+host portable arithmetic backend, not an actual browser. Threshold generation
+and its HEPKit entry are still incomplete; existing consumers continue to work
+without importing symGCAD.
 
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 

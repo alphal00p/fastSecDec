@@ -47,9 +47,41 @@ with passing focused strict lint, formatting and independent source review.
 These owner checks are separate from adopting a combined FastSecDec consumer
 revision and replaying its maintained algebra probes.
 
+The public combined child `c540d3f68c90fe7bff1e507458e57a20fb95b11c` adds only
+this two-file fix to `74225696`. It passes the ten owner controls and all four
+unchanged maintained FastSecDec algebra probes when linked against that exact
+owner. These include fractional series, polynomial blow-up identities,
+resultants versus shifted norms, and symbolic moving-root derivatives with
+native evaluator composition. The moving-root test agrees with its explicit
+control to a maximum scaled difference of `2.1e-15`; it does not implement a
+generic implicit-root solver or general collision detector.
+
+All three consuming manifests and lockfiles now select that combined revision.
+Only the Symbolica/Numerica source identities changed in each lockfile. Their
+Cargo-built portable consumer passes all 88 tests; the Python binding and stub
+build passes with an explicit Nix Python interpreter. These are separate from
+the direct native-owner probe evidence above. The combined native core gate is
+recorded with the projective, phase and regulator milestone in
+[the reuse audit](../REUSE_AUDIT.md): 477 tests pass with 20 existing ignores.
+
 Publication uses `ValentinHirschi`. GitHub rejected formal reviewer assignment;
 the authorized [review invitation to benruijl](https://github.com/symbolica-dev/symbolica/pull/66#issuecomment-6101430131)
 records the request without claiming formal assignment. The PR is attached.
+
+## Zero-generator ideal admission
+
+The native resolution probes also expose a constructor robustness issue:
+`GroebnerBasis::new` attempts monic normalization of a zero generator and divides
+by zero. FastSecDec's supplied-ideal admission removes exact native zeros, so
+this does not require another consumer dependency change. A separate narrow
+owner patch retains the unified variable map, drops zeros and uses the existing
+empty-ideal return. Four public controls fail before the patch and pass after
+it; strict focused lint, formatting and independent review pass.
+[Symbolica PR #67](https://github.com/symbolica-dev/symbolica/pull/67), commit
+`a22686a`, is published as ValentinHirschi and attached to this task. GitHub
+declined formal reviewer assignment; the requested review is recorded by
+tagging `benruijl` in the PR. This optional owner robustness fix is not part of
+FastSecDec's pinned consumer revision.
 
 ## Limits and reproduction evidence
 
