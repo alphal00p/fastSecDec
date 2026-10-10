@@ -365,3 +365,36 @@ formatting and lint checks for the delivered changes. Commit and push the
 validated result on `contour_deformation`, return the four-way comparison table,
 then **set the active goal to paused and stop** under this explicit user
 authorization. Do not mark the broader Phase B goal complete.
+
+## Subsequent report and resource requirements (2026-10-10)
+
+### User instruction, verbatim
+
+Continue as planned, but also produce a typst file in the docs (with the compiled PDF also pushed) which describes the two deformation styles and corresponding formulaes in first section (about 3 pages max), then in a second section the results when applied to g g > h h with fastSecDec (one, page, reporting the generation, runtime, and convergence metrics), and a third section detailing some of the implementation details especially regarding performance.
+Don't get to hang-up on the 8 GiB caps, and lift it to 100 GB, but really still make sure to consider low-hanging optimizations for keeping runtime and memory under control. And also consider adding an option for computing the jacobian determinant for the deformation using dualized evaluation only (this should significantly help generation, and you can report on the correspoding runtime performance then).
+
+### Delivery additions
+
+Publish a self-contained Typst report and its compiled PDF under `docs/`.
+Section one explains fixed and dynamic deformation, the smooth causal bounds,
+full Jacobian and branch/subtraction conventions in at most approximately three
+pages. Section two occupies one page and reports the native 1000 GeV double-box
+input, generation, runtime and convergence evidence for the four requested
+five-minute, 50-core runs. Section three explains the performance-relevant
+implementation decisions and measured tradeoffs. Keep unmeasured entries
+explicitly pending until the campaign completes; distinguish joint estimator
+variance from pointwise variance and preserve the full complex covariance.
+
+Raise the campaign aggregate process-RSS limit to **100 GB
+(100,000,000,000 bytes)**. Keep measured memory reporting and straightforward
+optimizations; do not spend effort forcing this workload below the superseded
+8 GiB cap. Preserve prior capped attempts as failed admission measurements.
+
+Investigate a selectable Jacobian evaluator using existing native dual and
+matrix facilities instead of materializing the symbolic determinant. Verify
+complete higher subtraction derivatives, dynamic-strength derivatives,
+factorwise branches, saved-program restoration and precision rescue. Compare
+generation size/time and sampling cost against the shared symbolic determinant
+before choosing a campaign implementation. Document native reuse evidence and
+any unresolved limitation; never substitute a first-derivative-only Jacobian
+for the full jets required by endpoint subtraction.

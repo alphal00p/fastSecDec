@@ -16,6 +16,14 @@ for the user's next decision. This explicitly supersedes pursuing every open
 multiloop gate before that stopping checkpoint; it does not mark those gates
 passed. See the verbatim addendum in the approved plan.
 
+The subsequent report request adds a Typst source and compiled PDF, with three
+pages for contour formulae, one for the physical results, and an implementation
+section. The campaign RSS ceiling is now **100 GB (decimal)**. The initial
+eight-GiB D05 attempt remains an interrupted measurement, not a failed scientific
+test. Shared symbolic Jacobian bodies and a native dual-evaluated determinant
+option are being assessed with generation and sampling tradeoffs. Final D05
+generation and four-way integration measurements are still pending.
+
 | Area | Evidence and remaining work |
 | --- | --- |
 | Fixed map and subtraction | Symbolica-derived map, Jacobian, endpoint ratios and factorwise causal logarithms; symbolic and numerical-dual Taylor/IBP controls pass. |

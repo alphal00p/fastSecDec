@@ -14,6 +14,9 @@ generation and five-minute 50-worker QMC/discrete-MC comparisons. Preserve
 passing LTD evidence without further high-variance refinement. After green
 local checks, publication and the requested results table, pause the active goal
 and stop for the user's next decision; do not declare the broader phase complete.
+The same checkpoint includes the requested Typst source and compiled PDF report,
+a 100 GB campaign RSS cap, and investigation of a native dual-evaluated Jacobian
+option with measured generation and sampling tradeoffs.
 
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
