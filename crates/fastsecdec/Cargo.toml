@@ -54,3 +54,8 @@ path = "examples/gghh_double_box/main.rs"
 name = "gghh_double_box_400"
 path = "../../examples/contour/gghh_double_box_400/prepare.rs"
 required-features = ["native"]
+
+[[example]]
+name = "contour_scalar_benchmark"
+path = "examples/contour_scalar_benchmark.rs"
+required-features = ["native"]

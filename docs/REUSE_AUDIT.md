@@ -1,5 +1,31 @@
 # Ecosystem reuse evidence
 
+## Scalar reference and caller-owned comparison protocol (2026-10-10)
+
+The [independent scalar audit](reviews/contour-scalar-benchmark-audit.md) checks
+four maintained inputs and their bounded six-arm comparison protocol. HEPKit
+graphs, routing, kinematics and scalar parametric conversion remain the input
+owners. Existing physical OneLOop expressions supply the triangle/box
+references; Symbolica Gamma, Laurent series and exact polynomial equality
+check the connected sunrise and kite conventions. The kite's native causal
+limit is distinguished from the upstream finite-regulator printout. No new
+CAS, graph parser, AD engine or numerical reference engine is introduced.
+
+The example reuses native Symbolic endpoint IBP, the contour-only degree-one
+Jacobian option, saved evaluator restoration, the existing CLI pilot helper,
+`QmcSession`, weighted evaluation and full native covariance. Its coordinate
+hasher is extracted unchanged from the existing contour example. Different
+lattice sizes use separate sessions without pooling; shared seeds across arms
+support paired comparisons only after matching actual coordinates and weights.
+Censored epochs and numerical failures remain distinct. A separate process
+wrapper enforces the fixed budgets and uses hashes for evidence admission,
+without implementing physics or statistics.
+
+Five native example controls, one existing coordinate-hasher control, strict
+workspace/all-target Clippy and formatting pass. These gates accept the input
+and protocol implementation, not benchmark speed or convergence. Final linked
+plan and raw scalar campaign acceptance remain separately recorded boundaries.
+
 ## Native primary JIT restoration and immutable loader ownership (2026-10-10)
 
 The [primary-cache audit](reviews/symjit-primary-cache.md) checks the current

@@ -4,6 +4,9 @@
 use std::{collections::BTreeMap, error::Error, ops::ControlFlow, time::Instant};
 #[path = "contour_variance/comparison.rs"]
 mod comparison;
+#[path = "contour_variance/coordinates.rs"]
+mod coordinates;
+use coordinates::{CoordinateRange, RangeHasher};
 
 use fastsecdec::{
     contour::{
@@ -84,53 +87,6 @@ impl Control {
                 (index / 9) as f64 / 2.,
             ],
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize)]
-struct CoordinateRange {
-    sector: u64,
-    shift: u64,
-    start: u64,
-    count: u64,
-    dimension: usize,
-    digest: String,
-}
-
-struct RangeHasher {
-    range: CoordinateRange,
-    hash: blake3::Hasher,
-}
-impl RangeHasher {
-    fn new(sector: u64, shift: u64, start: u64, dimension: usize) -> Self {
-        let mut hash = blake3::Hasher::new();
-        hash.update(b"fastsecdec-contour-coordinate-audit-v1");
-        for value in [sector, shift, start, dimension as u64] {
-            hash.update(&value.to_le_bytes());
-        }
-        Self {
-            range: CoordinateRange {
-                sector,
-                shift,
-                start,
-                count: 0,
-                dimension,
-                digest: String::new(),
-            },
-            hash,
-        }
-    }
-    fn push(&mut self, index: u64, point: &[f64], weight: f64) {
-        self.hash.update(&index.to_le_bytes());
-        for coordinate in point.iter().chain(std::iter::once(&weight)) {
-            self.hash.update(&coordinate.to_bits().to_le_bytes());
-        }
-        self.range.count += 1;
-    }
-    fn finish(mut self) -> CoordinateRange {
-        self.hash.update(&self.range.count.to_le_bytes());
-        self.range.digest = self.hash.finalize().to_hex().to_string();
-        self.range
     }
 }
 

@@ -1,0 +1,13 @@
+// Native HEPKit routing: external P(1)=-P(0), loop edges 2 and 5.
+digraph scalar_zero_threshold_kite {
+  ext0 [style=invis];
+  ext1 [style=invis];
+  a; b; c; d;
+  a -> ext0 [id=0, particle="chi"];
+  b -> ext1 [id=1, particle="chi"];
+  a -> c [id=2, particle="phi", lmb_id=0];
+  d -> a [id=3, particle="phi"];
+  c -> d [id=4, particle="phi"];
+  c -> b [id=5, particle="chi", lmb_id=1];
+  b -> d [id=6, particle="chi"];
+}
