@@ -1,4 +1,4 @@
-# Exact graph input for future no-deformation analysis
+# Exact graph export and threshold implementation status
 
 This preparation lives on the explicitly authorized `no_deformation` branch.
 For this work, that instruction supersedes the older main-branch publication
@@ -6,10 +6,8 @@ and reviewer guidance in `AGENTS.md`. FastSecDec remains a separate repository;
 consumers may optionally clone this branch and pin a tested commit. No copy of
 FastSecDec is vendored into symGCAD.
 
-The milestone exports exact native graph U/F and provenance. It does **not**
-implement no-deformation integration, sector decomposition, an integration
-contour, or a sign/coverage certificate. Existing generation and integration
-commands retain their behavior.
+The exporter documented here produces exact native graph U/F and provenance.
+Export itself does not perform integration or supply a sign/coverage certificate.
 
 The ongoing native implementation is governed by
 [the approved threshold plan](../NO_DEFORMATION_PLAN.md). Its optional
@@ -17,10 +15,14 @@ The ongoing native implementation is governed by
 solve/verify requests, compact projective preparation, causal cell phases,
 composed linear cell maps and durable proof staging. A restricted, certified
 rational-fiber continuation also reuses symbolic subtraction and has a native
-above-threshold bubble comparison with OneLOop. These are separate from
-the exporter contract documented below. The general endpoint resolver and
-complete threshold artifact/CLI path remain under development; a verified
-GCAD result alone is not an executable integral. See the
+above-threshold bubble comparison with OneLOop. The corresponding CLI path now
+supports fixed one-dimensional rational cells, indexed artifacts, ordinary and
+serial execution, and recovery. The [runnable bubble](../examples/no_deformation/README.md)
+and [CLI review](reviews/no-deformation-cli.md) describe that supported subset.
+These capabilities are separate from the exporter contract documented below.
+The general endpoint resolver, parametric chambers, complete HEPKit generation
+interface and higher-dimensional physics suite remain under development. A
+verified GCAD result alone is not an executable integral. See the
 [reuse and acceptance ledger](REUSE_AUDIT.md#no-contour-foundation-and-consolidation-2026-10-10).
 
 ## Native interface
