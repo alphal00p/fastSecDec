@@ -1,5 +1,20 @@
 # FastSecDec first-phase implementation plan
 
+## No-contour threshold decomposition (2026-10-10)
+
+The approved [no-contour implementation plan](NO_DEFORMATION_PLAN.md) is the
+active goal. Its full text is preserved verbatim. Implement on `no_deformation`
+after consolidating the validated contour work into `main`; this supersedes the
+earlier branch and pause instructions for ongoing work. Keep the contour methods
+as supported comparisons. The separate graph exporter below is retained as an
+interoperability boundary, not mistaken for an implemented threshold integrator.
+
+Completion requires verified GCAD, general algebraic endpoint resolution and
+certificates, symbolic subtraction with auxiliary-regulator continuation,
+composed native evaluators, native HEPKit interfaces and bounded execution.
+Rational or quadratic controls alone do not complete this phase. Preserve
+existing WASM functionality; threshold decomposition in WASM is deferred.
+
 ## Phase B: causal contour deformation (2026-10-09)
 
 The approved [contour-deformation plan](CONTOUR_DEFORMATION_PLAN.md) governs the
