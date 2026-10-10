@@ -1,12 +1,13 @@
-//! Small native determinant templates avoid repeated large pivot cancellation.
+//! Native determinants for causal gradient maps.
 //!
-//! Symbolica computes every determinant. Only its argument size changes: the
-//! complete polynomial in short matrix entries is substituted before symbolic
-//! subtraction, so derivatives always see the physical entries' dependence.
+//! Symbolica computes every determinant. Small maps substitute physical entries
+//! into native polynomial templates before symbolic subtraction, so derivatives
+//! always see those entries' dependence.
+//! Larger maps use the gradient structure to retain safe native pivot quotients.
 use crate::generation::GenerationError;
 use std::sync::OnceLock;
 use symbolica::{
-    atom::{Atom, AtomCore},
+    atom::{Atom, AtomCore, Symbol},
     domains::atom::AtomField,
     id::{Pattern, Replacement},
     symbol,
@@ -14,11 +15,13 @@ use symbolica::{
 };
 
 #[cfg(test)]
+mod structured_tests;
+#[cfg(test)]
 mod tests;
 
 // Generic determinant polynomials grow factorially. Bound retained template
-// storage independently of sector count; larger dimensions keep the existing
-// native path until a separately measured owner-supported approach is ready.
+// storage independently of sector count. Larger causal maps use the structured
+// native determinant below, without constructing another generic template.
 const FIRST_TEMPLATE: usize = 4;
 const LAST_TEMPLATE: usize = 6;
 static TEMPLATES: [OnceLock<Result<Template, String>>; LAST_TEMPLATE - FIRST_TEMPLATE + 1] =
@@ -30,8 +33,8 @@ struct Template {
 }
 
 fn field() -> AtomField {
-    // Bareiss pivot divisions must cancel exactly; retaining an uncancelled
-    // quotient creates false numerical poles even when the determinant is regular.
+    // For arbitrary entries Bareiss pivot divisions must cancel exactly;
+    // an uncancelled quotient can create false poles in a regular determinant.
     AtomField {
         statistical_zero_test: false,
         cancel_check_on_division: true,
@@ -94,4 +97,70 @@ pub(super) fn determinant(entries: Vec<Atom>, dimension: u32) -> Result<Atom, Ge
     };
     result
         .map_err(|error| GenerationError::Contour(format!("native Jacobian determinant: {error}")))
+}
+
+/// Determinant of `z = x - i strength(x) v(x)`, `v_i=x_i(1-x_i) d_i F`.
+///
+/// This private boundary requires a real F and a caller-proved real smooth
+/// strength on the admitted cube. `SmoothContourMap` checks F; fixed/dynamic
+/// recipe admission supplies the strength premise. It is not a determinant
+/// shortcut for arbitrary Jacobians or complex coordinate values.
+///
+/// Write A=I-i strength Dv. Every principal minor of A is nonzero: in the
+/// interior Dv=D+W Hess(F) is similar to a real symmetric matrix, and a face
+/// leaves a real diagonal block for the zero entries of W. Thus the leading
+/// minors divided by native Bareiss are safe without symbolic cancellation.
+/// The border retains the full native gradient of strength and introduces no
+/// division by the full Jacobian, which is allowed to vanish.
+pub(super) fn real_gradient_jacobian(
+    parameters: &[Symbol],
+    causal_polynomial: &Atom,
+    strength: &Atom,
+) -> Result<Atom, GenerationError> {
+    let direction = parameters
+        .iter()
+        .map(|parameter| {
+            let x = Atom::var(*parameter);
+            &x * (Atom::one() - &x) * causal_polynomial.derivative(*parameter)
+        })
+        .collect::<Vec<_>>();
+    let strength_gradient = parameters
+        .iter()
+        .map(|parameter| strength.derivative(*parameter))
+        .collect::<Vec<_>>();
+    let varying = strength_gradient.iter().any(|entry| !entry.is_zero());
+    let size = parameters
+        .len()
+        .checked_add(usize::from(varying))
+        .ok_or(GenerationError::ResourceLimit("contour Jacobian dimension"))?;
+    let dimension = u32::try_from(size)
+        .map_err(|_| GenerationError::ResourceLimit("contour Jacobian dimension"))?;
+    let count = size
+        .checked_mul(size)
+        .ok_or(GenerationError::ResourceLimit("contour Jacobian entries"))?;
+    let mut entries = Vec::with_capacity(count);
+    for (row, v) in direction.iter().enumerate() {
+        entries.extend(parameters.iter().enumerate().map(|(column, parameter)| {
+            Atom::num(i32::from(row == column)) - Atom::i() * strength * v.derivative(*parameter)
+        }));
+        if varying {
+            entries.push(Atom::i() * v);
+        }
+    }
+    if varying {
+        entries.extend(strength_gradient);
+        entries.push(Atom::one());
+    }
+    Matrix::from_linear(
+        entries,
+        dimension,
+        dimension,
+        AtomField {
+            statistical_zero_test: false,
+            cancel_check_on_division: false,
+            ..AtomField::new()
+        },
+    )
+    .and_then(|matrix| matrix.det().map_err(|error| error.to_string()))
+    .map_err(|error| GenerationError::Contour(format!("native gradient Jacobian: {error}")))
 }

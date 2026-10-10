@@ -186,3 +186,33 @@ size and native IR size, and bound per-chart staging/residency. No full generic
 factorial template cache or unbounded chart metadata retention is justified by
 this audit. An upstream improvement is warranted only for a concrete owner
 defect or missing operation established by source and an executable reproduction.
+
+## Focused production-candidate gates (2026-10-10)
+
+The candidate in `contour/map.rs` selects the structured native determinant only
+for dimensions at least seven. Dimensions one through six retain their existing
+path. Its private helper constructs the real-gradient matrix and border itself,
+retains the complete native strength gradient, and never applies the uncancelled
+division setting to an arbitrary Jacobian. The existing map real-polynomial
+admission and the recipe's real-strength contract supply the stated premises.
+
+The native determinant filter passed all eight tests, including four new controls:
+exact small-dimensional equality and mixed third derivatives after face
+restriction; a seven-dimensional zero full determinant with nonsingular leading
+matrix; genuine multi-coefficient implicit-strength jets through order three;
+and an eight-dimensional quadratic map compared with a 192-bit native numerical
+matrix determinant at five interior and boundary points in eager and SymJIT
+execution. The last control also restores native IR within the same retained
+program scope. It is not a fresh full-v12 owner round trip.
+
+The broader native contour filter passed 121 tests. The regular native library
+build and strict library/test Clippy both passed. Logs are retained, untracked,
+as `target/contour-higher-determinant-{native-tests,contour-tests,build-lint}.log`.
+Independent source review found no violation of the structured-minor proof or
+change to the lower-dimensional path.
+
+The user then redirected work to the 1000 GeV double-box benchmark. No actual
+eight-dimensional physical-chart run, fresh full-v12 higher-dimensional owner
+test, or portable higher-dimensional test was completed. The drafted public
+test remains unregistered. These are acceptance limits, not claims supplied by
+the focused synthetic tests; no higher-dimensional physical result is reported.

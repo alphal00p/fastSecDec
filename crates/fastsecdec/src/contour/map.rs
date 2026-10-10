@@ -105,11 +105,18 @@ impl SmoothContourMap {
             .collect::<Vec<_>>();
         let dimension = u32::try_from(parameters.len())
             .map_err(|_| GenerationError::ResourceLimit("contour Jacobian dimension"))?;
-        let entries = images
-            .iter()
-            .flat_map(|image| parameters.iter().map(|p| image.derivative(*p)))
-            .collect();
-        let jacobian = super::determinant::determinant(entries, dimension)?;
+        let jacobian = if dimension >= 7 {
+            // F passed the real-polynomial admission above. The private map
+            // constructor requires a real smooth strength from its recipe;
+            // retain its complete native coordinate derivative in the border.
+            super::determinant::real_gradient_jacobian(parameters, &causal_polynomial, &strength)?
+        } else {
+            let entries = images
+                .iter()
+                .flat_map(|image| parameters.iter().map(|p| image.derivative(*p)))
+                .collect();
+            super::determinant::determinant(entries, dimension)?
+        };
         Ok(Self {
             parameters: parameters.to_vec(),
             metadata: ContourMetadata {
