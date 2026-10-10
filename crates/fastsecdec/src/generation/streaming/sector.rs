@@ -43,7 +43,10 @@ pub fn generate_sector(
         return Ok(GeneratedUnit {
             generated: Assembly::new(context.options.max_order)
                 .finish(domain, vec![], context.options.max_order)
-                .preserve_empty_recipe(context.options.program_recipe)?,
+                .preserve_empty_recipe(
+                    context.options.program_recipe,
+                    context.options.contour_jacobian,
+                )?,
             source_indices: vec![],
             runtime_parameters: context.runtime_parameters,
             runtime_mass_constraints: context.runtime_mass_constraints,
@@ -185,6 +188,10 @@ pub fn generate_sector(
         prepared.chart.representative = 0;
         numerical_dual::finish(domain, vec![prepared], context.options.max_order)?
     };
+    let generated = generated.preserve_empty_recipe(
+        context.options.program_recipe,
+        context.options.contour_jacobian,
+    )?;
     if generated.sectors().len() > 1 {
         return Err(generation::GenerationError::Invariant(
             "one streamed representative produced multiple kernels".into(),

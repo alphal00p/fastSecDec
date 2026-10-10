@@ -232,6 +232,7 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
         let overrides = super::GenerationOverrides {
             contour: false,
             recipe: Some(recipe),
+            contour_jacobian: None,
         };
         overrides.apply(&mut card);
         assert_eq!(card.generation.program_recipe(), recipe);
@@ -252,4 +253,46 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
         serde_json::json!({"contour": true})
     );
     assert!(toml::from_str::<GenerationInput>("recipe='dynamic-sign-aware-v2'").is_err());
+}
+
+#[test]
+fn contour_jacobian_choice_resolves_before_input_preparation() {
+    use fastsecdec::contour::ContourJacobian;
+    let mut historical = GenerationInput::default();
+    historical.resolve_jacobian().unwrap();
+    assert_eq!(
+        historical.evaluator.contour_jacobian,
+        ContourJacobian::Symbolic
+    );
+    let mut dual: GenerationInput =
+        toml::from_str("mode='numerical_dual'\ncontour_jacobian='dual'").unwrap();
+    dual.resolve_jacobian().unwrap();
+    assert_eq!(dual.evaluator.contour_jacobian, ContourJacobian::Dual);
+    let mut unsupported: GenerationInput = toml::from_str("contour_jacobian='dual'").unwrap();
+    assert!(
+        unsupported
+            .resolve_jacobian()
+            .unwrap_err()
+            .to_string()
+            .contains("numerical_dual")
+    );
+    let mut contradictory: GenerationInput =
+        toml::from_str("[evaluator]\ncontour_jacobian='dual'").unwrap();
+    assert!(contradictory.resolve_jacobian().is_err());
+    let mut card: super::RunCard = toml::from_str("[generation]\nmode='numerical_dual'").unwrap();
+    let override_choice = super::GenerationOverrides {
+        contour_jacobian: Some(ContourJacobian::Dual),
+        ..Default::default()
+    };
+    let decoded = serde_json::from_value::<super::GenerationOverrides>(
+        serde_json::to_value(override_choice).unwrap(),
+    )
+    .unwrap();
+    decoded.apply(&mut card);
+    card.generation.resolve_jacobian().unwrap();
+    assert_eq!(
+        card.generation.evaluator.contour_jacobian,
+        ContourJacobian::Dual
+    );
+    assert!(toml::from_str::<GenerationInput>("contour_jacobian='automatic'").is_err());
 }

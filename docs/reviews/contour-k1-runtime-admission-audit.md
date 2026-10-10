@@ -425,3 +425,23 @@ from that label. The independent audit is retained at
 `target/contour-ltd-massive-runtime/foundation-evidence-audit.json`; it performs
 no new numerical evaluation and does not repeat the full data-file digest
 pass. Full-integral accuracy remains an open scientific gate.
+
+## Accuracy-run wind-down after the priority change
+
+The first standard-CLI accuracy invocation supplied `.fsd.json` instead of the
+required `.fsd` basename. It exited before sampling; its failed setup evidence
+is retained separately. The corrected one-shot launcher changes that basename
+and the fresh output paths only, while hashing the same `.fsd.json` manifest
+and retaining the same point, settings, seed and limits.
+
+The corrected run was interrupted on the user's new priority, not at the
+requested accuracy. Its outer process group closed after 311.853127828 seconds,
+with no hard kill, no remaining processes and a persisted checkpoint/result.
+The native result records `NumericalFailure: resident worker exited unexpectedly:
+signal: 2 (SIGINT)`. That is a cancellation-classification race, not evidence of
+a failed integrand evaluation: the reported numerical failure counter is zero.
+The serial coordinator observes worker exit before polling caller cancellation;
+its final observer return is also ignored. No source change or further LTD
+execution is made by this audit. New ordinary-process timing monitors should
+signal the coordinator first and reserve whole-group killing for failed grace.
+The saved partial statistics are not promoted to accepted 0.1% accuracy.

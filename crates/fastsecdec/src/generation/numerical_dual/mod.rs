@@ -38,6 +38,7 @@ pub(crate) struct DualTerm {
 /// this owner to Symbolica's ordinary exact scalar IR using its native jets.
 #[derive(Clone, Debug)]
 pub(crate) struct DualSector {
+    pub jacobian: Option<Arc<crate::contour::ContourJacobianPlan>>,
     pub contour_definitions: Arc<crate::contour::ContourDefinitions>,
     pub programs: Arc<native::SourcePrograms>,
     pub source_parameters: Vec<Symbol>,
@@ -77,6 +78,7 @@ pub(super) fn finish(
     let mut program = crate::generation::program::ProgramData::default();
     for mut prepared in prepared {
         program.merge(&crate::generation::program::ProgramData {
+            contour_jacobian: prepared.sector.contour_jacobian,
             descriptor: prepared.sector.program_descriptor.clone(),
             checks: prepared.sector.dynamic_check_sources.clone(),
             ..Default::default()
@@ -113,6 +115,7 @@ pub(super) fn finish(
         sectors.push(prepared.sector);
     }
     Ok(GeneratedIntegral {
+        contour_jacobian: program.contour_jacobian,
         program_descriptor: program.descriptor,
         dynamic_check_sources: program.checks,
         exact_coefficients: exact_coefficients

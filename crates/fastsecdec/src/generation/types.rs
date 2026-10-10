@@ -8,6 +8,8 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 pub struct GenerationOptions {
     /// How sector maps and endpoint derivatives enter evaluator construction.
     pub mode: GenerationMode,
+    /// Compute the contour determinant symbolically or through native map jets.
+    pub contour_jacobian: crate::contour::ContourJacobian,
     /// Select one mathematical evaluator recipe. Scheduling is independent of
     /// this choice; public program archives can retain several alternatives.
     /// Contour recipes require explicit F/U semantics and never infer them
@@ -128,6 +130,7 @@ impl Default for GenerationOptions {
     fn default() -> Self {
         Self {
             mode: GenerationMode::default(),
+            contour_jacobian: Default::default(),
             program_recipe: crate::kernel::indexed::ProgramRecipe::UndeformedV1,
             assume_no_threshold: false,
             max_order: 0,
@@ -252,6 +255,7 @@ pub struct EndpointProfileRow {
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
+    pub(crate) contour_jacobian: crate::contour::ContourJacobian,
     pub(crate) contour_definitions: std::sync::Arc<crate::contour::ContourDefinitions>,
     pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,
     pub(crate) dynamic_check_sources: Vec<std::sync::Arc<crate::kernel::DynamicCheckSource>>,
@@ -342,6 +346,7 @@ impl GeneratedSector {
 
 #[derive(Clone, Debug)]
 pub struct GeneratedIntegral {
+    pub(crate) contour_jacobian: crate::contour::ContourJacobian,
     pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,
     pub(crate) dynamic_check_sources: Vec<std::sync::Arc<crate::kernel::DynamicCheckSource>>,
     pub(crate) metadata: super::GenerationMetadata,
@@ -351,13 +356,21 @@ pub struct GeneratedIntegral {
 }
 
 impl GeneratedIntegral {
+    /// Computational construction retained from generation, independent of
+    /// runtime deformation strength and validation settings.
+    pub fn contour_jacobian(&self) -> crate::contour::ContourJacobian {
+        self.contour_jacobian
+    }
+
     /// An empty result has no chart from which compilation can recover its
     /// requested capability. Preserve that explicit generation choice;
     /// ordinary nonempty records keep their existing descriptor and codec.
     pub(super) fn preserve_empty_recipe(
         mut self,
         recipe: ProgramRecipe,
+        jacobian: crate::contour::ContourJacobian,
     ) -> Result<Self, GenerationError> {
+        self.contour_jacobian = jacobian;
         if self.metadata.charts().is_empty()
             && self.program_descriptor.is_none()
             && recipe != ProgramRecipe::UndeformedV1

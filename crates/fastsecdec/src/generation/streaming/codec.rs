@@ -307,6 +307,7 @@ pub(super) fn read_with_program<M: DeserializeOwned>(
                 .map(|(index, definitions)| (index, std::sync::Arc::new(definitions)))
                 .collect(),
             source_witnesses: payload.source_witnesses,
+            ..Default::default()
         },
     ))
 }

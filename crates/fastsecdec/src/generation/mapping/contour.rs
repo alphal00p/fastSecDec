@@ -8,7 +8,7 @@ use crate::{
     parametric::FactorSemantics,
 };
 use symbolica::atom::{Atom, Symbol};
-pub(super) mod program;
+pub(in crate::generation) mod program;
 
 pub(in crate::generation) struct PreparedTerm {
     pub powers: Vec<Atom>,

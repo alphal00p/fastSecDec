@@ -221,7 +221,8 @@ impl<W: Write + Seek> RecipeFamilySession<W> {
         precision.validate()?;
         compilation.validate()?;
         self.work.precision = precision;
-        self.work.compilation = compilation;
+        self.work.compilation =
+            compilation.resolve_contour_jacobian(self.work.options.contour_jacobian)?;
         Ok(self)
     }
     pub fn snapshot(&self) -> &RecipeFamilySnapshot {

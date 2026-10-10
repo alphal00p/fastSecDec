@@ -8,6 +8,7 @@
 #set heading(numbering: "1.1")
 #show heading.where(level: 1): set text(size: 17pt, fill: rgb("173e59"))
 #show heading.where(level: 2): set text(size: 11.5pt, fill: rgb("173e59"))
+#show table: set par(justify: false)
 #set math.equation(numbering: none)
 #let note(body) = block(width: 100%, inset: 8pt, fill: rgb("edf4f7"), radius: 3pt, body)
 #let pending = text(fill: rgb("9b4a16"))[Pending measurement]
@@ -209,19 +210,23 @@ unnormalized $delta_(a b)$; the measure is
 $product_l d^D k_l/(i pi^(D/2))$, $D=4-2epsilon$, with multiplier one.
 This is not a complete diagram sum or a spin/colour averaged matrix element.
 
-#note[*Campaign status: pending.* Input checks pass. Four final production runs
-and their settings are not yet frozen; no numbers below are inferred from the
+#note[*Campaign status: integration pending.* Fixed generation and its archive
+audit pass. Four production runs and their settings are not yet frozen;
+no numbers below are inferred from the
 earlier 400 GeV example or from different multiloop tests.]
 
 == Generation and resident programs
 #table(columns: (1.4fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
   table.header([*Implementation*], [*Generation / peak RSS*], [*Sampling tradeoff*]),
-  [Shared symbolic determinant], pending, pending,
+  [Fixed, symbolic determinant], [141.9 s / 16.06 GB], pending,
+  [Dynamic, symbolic determinant], pending, pending,
   [Native dual determinant option], [Under investigation], pending,
 )
-Generation is parametric in energy. Report shared preparation separately from
-recipe-specific construction and compilation; do not charge a shared step to
-one method alone. The campaign aggregate RSS cap is *100 GB* (decimal).
+Fixed generation uses eight workers, numerical-dual IBP, Horner iterations zero
+and SymJIT O2. All 30 sectors plus exact contributions occupy 79.04 MB. Its
+141.9 s includes publication; native mapping takes 41.6 s and sector assembly
+90.1 s. Concurrent builds were active: this is a shared-host observation.
+Generation is parametric in energy. The aggregate RSS cap is *100 GB* (decimal).
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),

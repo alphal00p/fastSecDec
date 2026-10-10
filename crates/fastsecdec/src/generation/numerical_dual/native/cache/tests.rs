@@ -56,6 +56,7 @@ fn compact_native_bodies_are_part_of_the_source_and_jet_cache_key() {
             &[],
             CompilationSettings::default(),
             &Arc::new(definitions),
+            None,
         )
         .unwrap();
     let second = cache
@@ -66,6 +67,7 @@ fn compact_native_bodies_are_part_of_the_source_and_jet_cache_key() {
             &[],
             CompilationSettings::default(),
             &Arc::new(changed),
+            None,
         )
         .unwrap();
     assert!(!Arc::ptr_eq(&first, &second));
@@ -264,7 +266,13 @@ fn unrelated_sources_do_not_wait_for_an_initializing_source() {
     let x = symbol!("native_cache_parallel::x");
     let polynomial = Atom::var(x);
     let source = cache
-        .source(&polynomial, &[x], CompilationSettings::default(), None)
+        .source(
+            &polynomial,
+            &[x],
+            CompilationSettings::default(),
+            None,
+            None,
+        )
         .unwrap();
     while_pending(&source.exact, scalar(&polynomial, &[x]), || {
         cache.jets(
@@ -283,7 +291,13 @@ fn unrelated_jet_shapes_do_not_wait_for_an_initializing_jet() {
     let x = symbol!("native_cache_parallel_jet::x");
     let polynomial = Atom::var(x).pow(Atom::num(2));
     let source = cache
-        .source(&polynomial, &[x], CompilationSettings::default(), None)
+        .source(
+            &polynomial,
+            &[x],
+            CompilationSettings::default(),
+            None,
+            None,
+        )
         .unwrap();
     program(&source.exact, || Ok(scalar(&polynomial, &[x]))).unwrap();
     let cell = Arc::new(ProgramCell::new());
@@ -367,4 +381,199 @@ fn initializer_panic_does_not_poison_or_complete_the_cell() {
     let x = symbol!("native_cache_panic::x");
     let result = program(&cell, || Ok(scalar(&Atom::var(x), &[x]))).unwrap();
     assert_eq!(evaluate(&result, &[3.], 1), [3.]);
+}
+
+#[test]
+fn dual_jacobian_cache_composes_mixed_face_jets_before_outer_derivatives() {
+    use crate::contour::{ContourJacobian, lambda_symbol};
+    use crate::kernel::ProgramRecipe;
+    let x = symbol!("dual_jacobian_cache::x");
+    let y = symbol!("dual_jacobian_cache::y");
+    let eps = symbol!("dual_jacobian_cache::eps");
+    let coordinates = [x, y];
+    let f = Atom::one() + Atom::var(x).pow(3) + Atom::var(y).pow(3) + Atom::var(x) * Atom::var(y);
+    let (map, owners) = crate::generation::mapping::contour::program::build(
+        ProgramRecipe::FixedV1,
+        ContourJacobian::Dual,
+        &coordinates,
+        f,
+        &[],
+    )
+    .unwrap();
+    let metadata = map.metadata();
+    let j = metadata.jacobian();
+    let body = j
+        * (Atom::one() + &metadata.images()[0] * &metadata.images()[1])
+        * (Atom::one() + &metadata.images()[0] + &metadata.images()[1]).pow(Atom::var(eps));
+    let inputs = [x, y, eps, lambda_symbol()];
+    let mut shape = Vec::new();
+    for e in 0..=1 {
+        for degree in 0..=3 {
+            for dx in 0..=degree {
+                shape.push(vec![dx, degree - dx, e]);
+            }
+        }
+    }
+    let zeros = (0..inputs.len())
+        .flat_map(|i| {
+            shape.iter().enumerate().filter_map(move |(c, p)| {
+                let nonzero = c == 0
+                    || p.iter().sum::<usize>() == 1
+                        && ((i == 0 && p[0] == 1)
+                            || (i == 1 && p[1] == 1)
+                            || (i == 2 && p[2] == 1));
+                (!nonzero).then_some((i, c))
+            })
+        })
+        .collect::<Vec<_>>();
+    let cache = SourcePrograms::default();
+    let definitions = owners.contour_definitions().unwrap();
+    let build = |plan| {
+        cache
+            .jets_with_definitions(
+                &body,
+                &inputs,
+                &shape,
+                &zeros,
+                CompilationSettings::default(),
+                &definitions,
+                plan,
+            )
+            .unwrap()
+    };
+    let symbolic = build(None);
+    let dual = build(Some(owners.jacobians[0].1.clone()));
+    assert!(!Arc::ptr_eq(&symbolic, &dual));
+    let mut changed = owners.jacobians[0].1.as_ref().clone();
+    // A constant translation has the same J; distinct native image programs
+    // must still have distinct cache owners, independent of output coincidence.
+    changed.images[0] += Atom::one();
+    let translated = build(Some(Arc::new(changed)));
+    assert!(!Arc::ptr_eq(&dual, &translated));
+    assert_eq!(cache.0.lock().unwrap().len(), 3);
+    let second_body = &body * (Atom::one() + Atom::var(x));
+    let second = |plan| {
+        cache
+            .jets_with_definitions(
+                &second_body,
+                &inputs,
+                &shape,
+                &zeros,
+                CompilationSettings::default(),
+                &definitions,
+                plan,
+            )
+            .unwrap()
+    };
+    let second_symbolic = second(None);
+    let second_dual = second(Some(owners.jacobians[0].1.clone()));
+    // Distinct nontrivial density bodies share one native Jacobian program;
+    // the translated image plan has its own cell even when its J agrees.
+    assert_eq!(cache.1.lock().unwrap().len(), 2);
+    let sources = cache.0.lock().unwrap();
+    assert!(Arc::ptr_eq(
+        sources[1].jacobian_program.as_ref().unwrap(),
+        sources[4].jacobian_program.as_ref().unwrap(),
+    ));
+    drop(sources);
+    let mut scaled = owners.jacobians[0].1.as_ref().clone();
+    scaled.images[0] *= Atom::num(2);
+    let doubled = build(Some(Arc::new(scaled)));
+    assert_eq!(cache.1.lock().unwrap().len(), 3);
+    let missing = symbol!("dual_jacobian_cache::missing");
+    let source = |polynomial: &Atom, plan| {
+        cache
+            .source(
+                polynomial,
+                &inputs,
+                CompilationSettings::default(),
+                Some(definitions.clone()),
+                Some(plan),
+            )
+            .unwrap()
+    };
+    let bad_body = &body * Atom::var(missing);
+    let bad = source(&bad_body, owners.jacobians[0].1.clone());
+    assert!(bad.jets(&shape, &zeros).is_err());
+    assert!(
+        bad.jacobian_program
+            .as_ref()
+            .unwrap()
+            .get()
+            .unwrap()
+            .is_ok()
+    );
+    let mut invalid_plan = owners.jacobians[0].1.as_ref().clone();
+    invalid_plan.parameters[0] = missing;
+    let invalid = source(&body, Arc::new(invalid_plan));
+    assert!(invalid.jets(&shape, &zeros).is_err());
+    assert!(
+        invalid
+            .jacobian_program
+            .as_ref()
+            .unwrap()
+            .get()
+            .unwrap()
+            .is_err()
+    );
+    // Neither a failed body nor a failed distinct plan poisons a later valid
+    // body using the successful prefix. No callback or evaluator state is shared.
+    let tripled = source(&(&body * Atom::num(3)), owners.jacobians[0].1.clone())
+        .jets(&shape, &zeros)
+        .unwrap();
+    assert_eq!(cache.1.lock().unwrap().len(), 4);
+    for xx in [0., 0.25, 1.] {
+        for yy in [0., 0.375, 1.] {
+            let inputs = [xx, yy, 0., 0.125]
+                .iter()
+                .enumerate()
+                .flat_map(|(i, v)| {
+                    shape.iter().enumerate().map(move |(c, p)| {
+                        if c == 0 {
+                            *v
+                        } else if p.iter().sum::<usize>() == 1
+                            && ((i == 0 && p[0] == 1)
+                                || (i == 1 && p[1] == 1)
+                                || (i == 2 && p[2] == 1))
+                        {
+                            1.
+                        } else {
+                            0.
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+            // Complex source is essential: retain its imaginary Jacobian entries.
+            let eval = |program: &ExactProgram| {
+                let mut evaluator = program
+                    .clone()
+                    .map_coeff(&|c| Complex::new(c.re.to_f64(), c.im.to_f64()));
+                let mut result = vec![Complex::new(0., 0.); shape.len()];
+                evaluator.evaluate(
+                    &inputs
+                        .iter()
+                        .map(|x| Complex::new(*x, 0.))
+                        .collect::<Vec<_>>(),
+                    &mut result,
+                );
+                result
+            };
+            for (reference, actual, factor) in [
+                (&symbolic, &dual, 1.),
+                (&second_symbolic, &second_dual, 1.),
+                (&symbolic, &doubled, 2.),
+                (&symbolic, &tripled, 3.),
+            ] {
+                for (a, b) in eval(reference).into_iter().zip(eval(actual)) {
+                    assert!(
+                        (factor * a.re - b.re)
+                            .abs()
+                            .max((factor * a.im - b.im).abs())
+                            < factor * 2e-10,
+                        "{xx},{yy}: {factor} * {a:?} vs {b:?}"
+                    );
+                }
+            }
+        }
+    }
 }

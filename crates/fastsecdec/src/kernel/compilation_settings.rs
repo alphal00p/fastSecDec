@@ -1,5 +1,6 @@
 //! Serializable scalar controls for Symbolica's existing evaluator optimizer.
 use super::KernelError;
+use crate::contour::ContourJacobian;
 use serde::{Deserialize, Serialize};
 
 /// Numerical execution owner; `Auto` preserves the build's historical default.
@@ -29,6 +30,9 @@ pub struct CompilationSettings {
     /// Omitting Auto preserves historical compiler-policy bytes and identities.
     #[serde(skip_serializing_if = "EvaluatorBackend::is_auto")]
     pub backend: EvaluatorBackend,
+    /// Retained generation choice; omitted Symbolic preserves historical policy bytes.
+    #[serde(skip_serializing_if = "ContourJacobian::is_symbolic")]
+    pub contour_jacobian: ContourJacobian,
     pub horner_iterations: usize,
     /// Maximum common-pair elimination rounds; zero disables, None is unlimited.
     #[serde(with = "cpe_rounds", alias = "max_cpe_rounds")]
@@ -57,6 +61,7 @@ impl Default for CompilationSettings {
     fn default() -> Self {
         Self {
             backend: EvaluatorBackend::Auto,
+            contour_jacobian: ContourJacobian::Symbolic,
             horner_iterations: 10,
             cpe_rounds: Some(1000),
             cores: 1,
@@ -70,6 +75,22 @@ impl Default for CompilationSettings {
 }
 
 impl CompilationSettings {
+    /// Resolve the saved computational policy from the generated native program.
+    /// The default accepts its retained choice; requesting Dual cannot convert
+    /// an already generated symbolic Jacobian.
+    pub fn resolve_contour_jacobian(
+        mut self,
+        retained: ContourJacobian,
+    ) -> Result<Self, KernelError> {
+        if self.contour_jacobian == ContourJacobian::Dual && retained != ContourJacobian::Dual {
+            return Err(KernelError::Compilation(
+                "dual contour Jacobian must be selected during generation".into(),
+            ));
+        }
+        self.contour_jacobian = retained;
+        Ok(self)
+    }
+
     pub fn validate(&self) -> Result<(), KernelError> {
         if self.backend == EvaluatorBackend::Symjit && cfg!(feature = "portable") {
             return Err(KernelError::Compilation(

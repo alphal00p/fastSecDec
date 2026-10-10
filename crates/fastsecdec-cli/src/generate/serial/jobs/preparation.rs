@@ -14,6 +14,7 @@ pub(super) fn run(
     let mut options = generation::GenerationOptions {
         max_order: settings.order,
         mode: settings.mode,
+        contour_jacobian: settings.contour_jacobian,
         subtraction: settings.subtraction,
         assume_no_threshold: settings.assume_no_threshold,
         program_recipe: settings.program_recipe(),

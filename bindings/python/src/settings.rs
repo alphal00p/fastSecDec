@@ -17,6 +17,19 @@ pub(crate) fn backend(value: &str) -> PyResult<EvaluatorBackend> {
     }
 }
 
+pub(crate) fn contour_jacobian(value: &str) -> PyResult<fastsecdec::contour::ContourJacobian> {
+    serde_json::from_value(serde_json::Value::String(value.into())).map_err(|_| {
+        pyo3::exceptions::PyValueError::new_err("contour_jacobian must be symbolic or dual")
+    })
+}
+
+pub(crate) fn jacobian_name(value: fastsecdec::contour::ContourJacobian) -> &'static str {
+    match value {
+        fastsecdec::contour::ContourJacobian::Symbolic => "symbolic",
+        fastsecdec::contour::ContourJacobian::Dual => "dual",
+    }
+}
+
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "CompilationSettings",
@@ -34,7 +47,7 @@ pub(crate) struct PyCompilationSettings {
 impl PyCompilationSettings {
     /// Eager execution is the notebook default on every host. None means unlimited CPE rounds.
     #[new]
-    #[pyo3(signature = (*, backend="eager", horner_iterations=10, cpe_rounds=Some(1000), cores=1, max_horner_scheme_variables=500, max_common_pair_cache_entries=1_000_000, max_common_pair_distance=1000, verbose=false, direct_translation=true))]
+    #[pyo3(signature = (*, backend="eager", horner_iterations=10, cpe_rounds=Some(1000), cores=1, max_horner_scheme_variables=500, max_common_pair_cache_entries=1_000_000, max_common_pair_distance=1000, verbose=false, direct_translation=true, contour_jacobian="symbolic"))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
@@ -47,9 +60,11 @@ impl PyCompilationSettings {
         max_common_pair_distance: usize,
         verbose: bool,
         direct_translation: bool,
+        contour_jacobian: &str,
     ) -> PyResult<Self> {
         let inner = CompilationSettings {
             backend: self::backend(backend)?,
+            contour_jacobian: self::contour_jacobian(contour_jacobian)?,
             horner_iterations,
             cpe_rounds,
             cores,
@@ -73,6 +88,10 @@ impl PyCompilationSettings {
         }
     }
     #[getter]
+    fn contour_jacobian(&self) -> &'static str {
+        jacobian_name(self.inner.contour_jacobian)
+    }
+    #[getter]
     fn horner_iterations(&self) -> usize {
         self.inner.horner_iterations
     }
@@ -89,8 +108,9 @@ impl PyCompilationSettings {
     }
     fn __repr__(&self) -> String {
         format!(
-            "CompilationSettings(backend='{}', horner_iterations={}, cpe_rounds={:?}, cores={})",
+            "CompilationSettings(backend='{}', contour_jacobian='{}', horner_iterations={}, cpe_rounds={:?}, cores={})",
             self.backend(),
+            self.contour_jacobian(),
             self.inner.horner_iterations,
             self.inner.cpe_rounds,
             self.inner.cores

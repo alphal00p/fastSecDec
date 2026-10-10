@@ -117,8 +117,8 @@ macro_rules! facts_view {
 mod contour_runtime;
 
 facts_view!(crate::input::PyIntegral,"Native integral",["Input owner"=>"input_kind","Spacetime dimension"=>"dimension","Regulator"=>"regulator","Explicit propagator powers"=>"powers"]);
-facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Generation mode"=>"mode","Subtraction"=>"subtraction","Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
-facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Generation mode"=>"mode","Subtraction"=>"subtraction","Complete"=>"complete","Failure"=>"failed"]);
+facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Generation mode"=>"mode","Contour Jacobian"=>"contour_jacobian","Subtraction"=>"subtraction","Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
+facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Generation mode"=>"mode","Contour Jacobian"=>"contour_jacobian","Subtraction"=>"subtraction","Complete"=>"complete","Failure"=>"failed"]);
 facts_view!(crate::kernels::PyKernels,"Native evaluators",["Backend"=>"backend","Sectors"=>"sector_count","Laurent orders"=>"orders","Components"=>"components","Runtime inputs"=>"runtime_parameters","Point bound"=>"parameters_bound","Compiler settings"=>"compilation_settings"]);
 facts_view!(crate::contour::PyContourSettings,"Contour prescription",["Mode"=>"mode","Strength λ"=>"lambda_value","Dynamic construction"=>"construction","Safety fraction S"=>"safety_fraction","Strength cap L"=>"lambda_cap","Displacement cap R"=>"displacement_cap","Validation"=>"validation","Pilot points per chart"=>"pilot_points"]);
 facts_view!(crate::contour::PyContourValidationChart,"Contour validation chart",["Chart"=>"chart_index","Kernel sector"=>"kernel_sector","Coordinates"=>"dimension"]);
@@ -186,6 +186,10 @@ impl crate::settings::PyCompilationSettings {
         let settings = self.inner;
         let rows = [
             ("Backend", format!("{:?}", settings.backend)),
+            (
+                "Contour Jacobian",
+                crate::settings::jacobian_name(settings.contour_jacobian).into(),
+            ),
             ("Horner iterations", settings.horner_iterations.to_string()),
             (
                 "CPE rounds",

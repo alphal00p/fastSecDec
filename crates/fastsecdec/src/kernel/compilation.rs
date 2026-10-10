@@ -203,6 +203,7 @@ impl GeneratedIntegral {
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
+        let settings = settings.resolve_contour_jacobian(self.contour_jacobian())?;
         settings.validate()?;
         let runtime = runtime_inputs(self, runtime_parameters);
         let runtime_parameters = runtime.as_slice();
@@ -301,6 +302,7 @@ impl GeneratedIntegral {
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
         precision.validate()?;
+        let settings = settings.resolve_contour_jacobian(self.contour_jacobian())?;
         settings.validate()?;
         let runtime_inputs = runtime_inputs(self, runtime_parameters);
         let runtime_parameters = runtime_inputs.as_slice();

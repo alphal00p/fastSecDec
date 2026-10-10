@@ -33,7 +33,7 @@ fn label(recipe: ProgramRecipe) -> &'static str {
 impl PyIntegral {
     /// Create inert caller-stepped work sharing native source preparation across recipes.
     /// Recipe availability and dynamic numerical admission are distinct.
-    #[pyo3(signature=(recipes, max_order=0, *, default_recipe="off", resident_recipe=None, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(recipes, max_order=0, *, default_recipe="off", resident_recipe=None, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour_jacobian="symbolic", compilation_settings=None, runtime_parameters=None))]
     #[allow(clippy::too_many_arguments)]
     fn generation_family_session(
         &self,
@@ -45,6 +45,7 @@ impl PyIntegral {
         coefficient_expansion: &str,
         mode: &str,
         subtraction: &str,
+        contour_jacobian: &str,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
     ) -> PyResult<session::PyRecipeFamilySession> {
@@ -60,9 +61,20 @@ impl PyIntegral {
         family
             .validate_resident(resident)
             .map_err(|e| error::native(py, "generation family", e))?;
-        let options =
-            crate::generation::options(max_order, coefficient_expansion, mode, subtraction, false)?;
-        let settings = compilation_settings.cloned().unwrap_or_default().inner;
+        let options = crate::generation::options(
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            false,
+            contour_jacobian,
+        )?;
+        let settings = compilation_settings
+            .cloned()
+            .unwrap_or_default()
+            .inner
+            .resolve_contour_jacobian(options.contour_jacobian)
+            .map_err(|e| error::native(py, "compilation settings", e))?;
         settings
             .validate()
             .map_err(|e| error::native(py, "compilation settings", e))?;
@@ -98,7 +110,7 @@ class PyIntegral:
     def generation_family_session(self, recipes: list[str], max_order: int = 0, *,
         default_recipe: str = "off", resident_recipe: typing.Optional[str] = None,
         coefficient_expansion: str = "coefficient_series", mode: str = "symbolic",
-        subtraction: str = "taylor",
+        subtraction: str = "taylor", contour_jacobian: str = "symbolic",
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.RecipeFamilySession:

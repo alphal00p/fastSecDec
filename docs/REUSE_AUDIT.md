@@ -1,5 +1,25 @@
 # Ecosystem reuse evidence
 
+## Native dual Jacobian and prefix reuse (2026-10-10)
+
+The [Jacobian construction audit](reviews/contour-dual-jacobian.md) records the
+public API, native source and executable probes for `Dualizer`,
+`EvaluatorComposer`, generic native matrix determinants and whole-function
+evaluator inputs. These existing operations support the optional construction:
+differentiate the image vector, compose its determinant into the smooth body,
+then apply the existing outer subtraction jets. No replacement AD engine,
+numerical determinant callback or evaluator codec is needed.
+
+A second source review found that distinct smooth bodies rebuilt their shared
+image/determinant prefix. Native `EvaluatorComposer::append` accepts the saved
+exact program directly. A caller-owned immutable cache therefore shares this
+construction with a key containing the full face-local plan, ordered inputs,
+native definitions and compiler settings. Builds occur outside index locks;
+errors remain local to their complete keys. The existing sector lifetime bounds
+the cache. Focused higher-jet, face, distinct-body and error-isolation controls
+pass; physical performance is measured separately and is not inferred from
+the reuse itself.
+
 ## Independent native JIT callback environments (2026-10-10)
 
 The [callback audit](reviews/contour-jit-clone-callback-audit.md) verifies the

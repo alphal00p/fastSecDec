@@ -73,6 +73,20 @@ impl ContourDefinitions {
         coordinates: &[Symbol],
         coefficients: &[Atom],
     ) -> Result<(Self, Vec<Atom>), String> {
+        Self::with_required_bodies(coordinates, coefficients, &[])
+    }
+
+    /// The designated determinant body remains an explicit native function
+    /// even in one dimension, so an evaluator can bind that complete function
+    /// Atom to a composed image-derivative program before taking outer jets.
+    pub(crate) fn with_required_bodies(
+        coordinates: &[Symbol],
+        coefficients: &[Atom],
+        required: &[usize],
+    ) -> Result<(Self, Vec<Atom>), String> {
+        if required.iter().any(|index| *index >= coefficients.len()) {
+            return Err("required compact body index out of range".into());
+        }
         let mut actual = coordinates.to_vec();
         if actual.iter().copied().collect::<BTreeSet<_>>().len() != actual.len() {
             return Err("duplicate compact coefficient coordinate".into());
@@ -104,7 +118,7 @@ impl ContourDefinitions {
             .collect::<Vec<_>>();
         let mut definitions = Self::default();
         let mut result = Vec::with_capacity(coefficients.len());
-        for coefficient in coefficients {
+        for (index, coefficient) in coefficients.iter().enumerate() {
             let body = coefficient.replace_multiple(&rules);
             let function = owned_symbol(&format!("{PREFIX}{}", identity(&body, formal.len())))?;
             let arguments = actual.iter().map(|p| {
@@ -116,7 +130,9 @@ impl ContourDefinitions {
             });
             let call = function.call_args(arguments);
             // A literal or short expression needs no additional representation.
-            if coefficient.as_view().get_byte_size() <= call.as_view().get_byte_size() {
+            if !required.contains(&index)
+                && coefficient.as_view().get_byte_size() <= call.as_view().get_byte_size()
+            {
                 result.push(coefficient.clone());
                 continue;
             }

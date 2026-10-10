@@ -18,6 +18,10 @@ impl GenerationSession {
                         self.domain.take().expect("admitted domain"),
                         pipeline.take_result(),
                         self.options.max_order,
+                    )?
+                    .preserve_empty_recipe(
+                        self.options.program_recipe,
+                        self.options.contour_jacobian,
                     )?;
                     let _ = progress(
                         &GenerationProgress::Complete {
@@ -375,7 +379,10 @@ impl GenerationSession {
                         std::mem::take(&mut self.charts),
                         self.options.max_order,
                     )
-                    .preserve_empty_recipe(self.options.program_recipe)?;
+                    .preserve_empty_recipe(
+                        self.options.program_recipe,
+                        self.options.contour_jacobian,
+                    )?;
                 let _ = progress(
                     &GenerationProgress::Complete {
                         sectors: result.sectors().len(),

@@ -104,6 +104,7 @@ impl ContourArgs {
             crate::config::GenerationOverrides {
                 contour: !matches!(contour.deformation, ContourMode::Off),
                 recipe: None,
+                contour_jacobian: None,
             },
             contour.deformation.program_recipe(),
         ))

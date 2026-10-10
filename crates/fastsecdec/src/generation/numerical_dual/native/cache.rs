@@ -13,9 +13,20 @@ use symbolica::{
 /// Shared compilation of unmapped source factors and their native jet lowering.
 /// The caller owns this cache; there is no pool or process-global program state.
 #[derive(Default)]
-pub(crate) struct SourcePrograms(Mutex<Vec<Arc<Source>>>);
+pub(crate) struct SourcePrograms(Mutex<Vec<Arc<Source>>>, Mutex<Vec<JacobianEntry>>);
+mod jacobian;
+
 type JetKey = (Vec<Vec<usize>>, Vec<(usize, usize)>);
 type ProgramCell = OnceLock<Result<Arc<ExactProgram>, String>>;
+type JacobianEntry = (JacobianKey, Arc<ProgramCell>);
+
+#[derive(PartialEq, Eq)]
+struct JacobianKey {
+    inputs: Vec<Symbol>,
+    settings: CompilationSettings,
+    definitions: Option<Arc<crate::contour::ContourDefinitions>>,
+    plan: Arc<crate::contour::ContourJacobianPlan>,
+}
 
 #[cfg(test)]
 mod tests;
@@ -25,6 +36,8 @@ struct Source {
     inputs: Vec<Symbol>,
     settings: CompilationSettings,
     definitions: Option<Arc<crate::contour::ContourDefinitions>>,
+    jacobian: Option<Arc<crate::contour::ContourJacobianPlan>>,
+    jacobian_program: Option<Arc<ProgramCell>>,
     exact: ProgramCell,
     jets: Mutex<BTreeMap<JetKey, Arc<ProgramCell>>>,
 }
@@ -42,10 +55,11 @@ impl SourcePrograms {
         zeros: &[(usize, usize)],
         settings: CompilationSettings,
     ) -> Result<Arc<ExactProgram>, KernelError> {
-        self.source(polynomial, inputs, settings, None)?
+        self.source(polynomial, inputs, settings, None, None)?
             .jets(shape, zeros)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn jets_with_definitions(
         &self,
         polynomial: &Atom,
@@ -54,9 +68,10 @@ impl SourcePrograms {
         zeros: &[(usize, usize)],
         settings: CompilationSettings,
         definitions: &Arc<crate::contour::ContourDefinitions>,
+        jacobian: Option<Arc<crate::contour::ContourJacobianPlan>>,
     ) -> Result<Arc<ExactProgram>, KernelError> {
         let definitions = (!definitions.is_empty()).then(|| definitions.clone());
-        self.source(polynomial, inputs, settings, definitions)?
+        self.source(polynomial, inputs, settings, definitions, jacobian)?
             .jets(shape, zeros)
     }
 
@@ -66,6 +81,7 @@ impl SourcePrograms {
         inputs: &[Symbol],
         settings: CompilationSettings,
         definitions: Option<Arc<crate::contour::ContourDefinitions>>,
+        jacobian: Option<Arc<crate::contour::ContourJacobianPlan>>,
     ) -> Result<Arc<Source>, KernelError> {
         let mut sources = self
             .0
@@ -76,14 +92,38 @@ impl SourcePrograms {
                 && source.inputs == inputs
                 && source.settings == settings
                 && source.definitions == definitions
+                && source.jacobian == jacobian
         }) {
             return Ok(source.clone());
         }
+        let jacobian_program = if let Some(plan) = &jacobian {
+            let key = JacobianKey {
+                inputs: inputs.to_vec(),
+                settings,
+                definitions: definitions.clone(),
+                plan: plan.clone(),
+            };
+            let mut prefixes = self
+                .1
+                .lock()
+                .map_err(|_| compilation("Jacobian evaluator cache lock poisoned"))?;
+            if let Some((_, cell)) = prefixes.iter().find(|(existing, _)| existing == &key) {
+                Some(cell.clone())
+            } else {
+                let cell = Arc::new(ProgramCell::new());
+                prefixes.push((key, cell.clone()));
+                Some(cell)
+            }
+        } else {
+            None
+        };
         let source = Arc::new(Source {
             polynomial: polynomial.clone(),
             inputs: inputs.to_vec(),
             settings,
             definitions,
+            jacobian,
+            jacobian_program,
             exact: OnceLock::new(),
             jets: Mutex::default(),
         });
@@ -106,16 +146,23 @@ impl Source {
                 .iter()
                 .map(|s| Atom::var(*s))
                 .collect::<Vec<_>>();
-            let builder = self
-                .polynomial
-                .evaluator(&params)
-                .optimization_settings(self.settings.native());
-            let builder = if let Some(definitions) = &self.definitions {
-                builder.function_map(definitions.function_map([&self.polynomial])?)
+            if let Some(plan) = &self.jacobian
+                && self.polynomial.contains(plan.jacobian.as_view())
+            {
+                // The image derivatives and determinant depend on the full
+                // face-local plan, not on this density body's polynomial.
+                // Build outside both index locks and retain only caller-owned IR.
+                let prefix = program(
+                    self.jacobian_program
+                        .as_ref()
+                        .ok_or("missing Jacobian evaluator cache cell")?,
+                    || jacobian::build_prefix(self, plan),
+                )
+                .map_err(|error| error.to_string())?;
+                jacobian::append_body(self, plan, &prefix)
             } else {
-                builder
-            };
-            builder.build().map_err(|error| error.to_string())
+                jacobian::build_outputs(self, std::slice::from_ref(&self.polynomial), &params)
+            }
         })?;
         let cell = {
             let mut jets = self

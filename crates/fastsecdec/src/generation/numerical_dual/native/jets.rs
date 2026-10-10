@@ -220,6 +220,27 @@ impl Requests<'_> {
             .chain([self.sector.regulator])
             .chain(self.runtime.iter().copied())
             .collect::<Vec<_>>();
+        let jacobian = self
+            .sector
+            .jacobian
+            .as_ref()
+            .map(|plan| -> Result<_, KernelError> {
+                if let Some(lower) = lower.as_deref_mut() {
+                    let images = plan
+                        .images
+                        .iter()
+                        .map(|image| lower(image, &request.coordinates))
+                        .collect::<Result<_, _>>()?;
+                    Ok(std::sync::Arc::new(crate::contour::ContourJacobianPlan {
+                        parameters: plan.parameters.clone(),
+                        images,
+                        jacobian: lower(&plan.jacobian, &request.coordinates)?,
+                    }))
+                } else {
+                    Ok(plan.clone())
+                }
+            })
+            .transpose()?;
         let program = self.sector.programs.jets_with_definitions(
             &body,
             &inputs,
@@ -227,6 +248,7 @@ impl Requests<'_> {
             &self.seed_zeros(request, &shape, 0),
             self.settings,
             &self.sector.contour_definitions,
+            jacobian,
         )?;
         let seeds = self.seeds(request, &shape, composer)?;
         let values = composer.append(&program, &seeds).map_err(compilation)?;

@@ -138,6 +138,7 @@ pub(crate) fn generate_with_resident_recipe(
     let mut options = GenerationOptions {
         max_order: loaded.card.generation.order,
         mode: loaded.card.generation.mode,
+        contour_jacobian: loaded.card.generation.contour_jacobian,
         subtraction: loaded.card.generation.subtraction,
         assume_no_threshold: loaded.card.generation.assume_no_threshold,
         program_recipe: loaded.card.generation.program_recipe(),

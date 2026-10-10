@@ -122,13 +122,27 @@ fn dynamic_helpers_restore_before_chart_atoms_in_a_fresh_worker() {
         } else {
             dynamic_source()
         };
-        for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+        for (mode, contour_jacobian) in [
+            (
+                GenerationMode::Symbolic,
+                crate::contour::ContourJacobian::Symbolic,
+            ),
+            (
+                GenerationMode::NumericalDual,
+                crate::contour::ContourJacobian::Symbolic,
+            ),
+            (
+                GenerationMode::NumericalDual,
+                crate::contour::ContourJacobian::Dual,
+            ),
+        ] {
             let generated = prepared(
                 directory.path(),
                 &source,
                 &GenerationOptions {
                     program_recipe: recipe,
                     mode,
+                    contour_jacobian,
                     ..Default::default()
                 },
                 &[],

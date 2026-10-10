@@ -67,6 +67,7 @@ def sector_decompose(
     model_parameters: str = "runtime",
     max_order: int = 0, coefficient_expansion: str = "full_expression",
     mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
+    contour_jacobian: str = "symbolic",
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
     progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
 ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:
@@ -86,9 +87,9 @@ def sector_decompose(
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
 #[pyo3(
-    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, observer=None, progress='auto')"
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, contour_jacobian='symbolic', observer=None, progress='auto')"
 )]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
@@ -109,6 +110,7 @@ pub(crate) fn sector_decompose(
     mode: &str,
     subtraction: &str,
     contour: bool,
+    contour_jacobian: &str,
     observer: Option<Py<PyAny>>,
     progress: Option<Py<PyAny>>,
 ) -> PyResult<PyGeneratedIntegral> {
@@ -144,6 +146,7 @@ pub(crate) fn sector_decompose(
             mode,
             subtraction,
             contour,
+            contour_jacobian,
             observer,
             progress,
         );
@@ -179,6 +182,7 @@ pub(crate) fn sector_decompose(
             mode,
             subtraction,
             contour,
+            contour_jacobian,
             observer,
             progress,
         );

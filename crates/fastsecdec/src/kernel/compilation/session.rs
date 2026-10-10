@@ -26,6 +26,7 @@ impl CompilationSession {
         settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
+        let settings = settings.resolve_contour_jacobian(generated.contour_jacobian())?;
         settings.validate()?;
         let runtime_parameters = runtime_inputs(&generated, &runtime_parameters);
         validate_descriptor(&generated, &runtime_parameters)?;

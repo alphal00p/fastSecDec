@@ -205,7 +205,7 @@ fn generate_inner(
             symbolic_dispatch,
             &mut progress,
         )?
-        .preserve_empty_recipe(options.program_recipe);
+        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian);
     }
     let mut maps = maps.into_iter();
     let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
@@ -389,7 +389,7 @@ fn generate_inner(
     laurent::profiling::reject_uncaptured_result()?;
     let result = assembly
         .finish(domain, charts, options.max_order)
-        .preserve_empty_recipe(options.program_recipe)?;
+        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian)?;
     emit(
         &mut progress,
         GenerationProgress::Complete {

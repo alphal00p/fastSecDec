@@ -215,3 +215,36 @@ fn compiler_policy_checks_the_linked_code_and_narrow_legacy_spelling() {
         22604
     ));
 }
+
+#[test]
+fn contour_jacobian_policy_preserves_legacy_default_and_records_dual() {
+    use crate::contour::ContourJacobian;
+    let symbolic = CompilationSettings::default();
+    let historical = serde_json::to_value(symbolic).unwrap();
+    assert!(historical.get("contour_jacobian").is_none());
+    assert_eq!(
+        serde_json::from_value::<CompilationSettings>(historical).unwrap(),
+        symbolic
+    );
+    let symbolic_policy = compiler_policy_with_settings(symbolic);
+    assert_eq!(settings_from_policy(&symbolic_policy), Some(symbolic));
+    let dual = symbolic
+        .resolve_contour_jacobian(ContourJacobian::Dual)
+        .unwrap();
+    let dual_policy = compiler_policy_with_settings(dual);
+    assert_ne!(symbolic_policy, dual_policy);
+    assert_eq!(settings_from_policy(&dual_policy), Some(dual));
+    assert_eq!(
+        serde_json::to_value(dual).unwrap()["contour_jacobian"],
+        "dual"
+    );
+    assert!(
+        dual.resolve_contour_jacobian(ContourJacobian::Symbolic)
+            .is_err()
+    );
+    assert_eq!(
+        dual.resolve_contour_jacobian(ContourJacobian::Dual)
+            .unwrap(),
+        dual
+    );
+}

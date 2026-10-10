@@ -15,6 +15,29 @@ tests**, 19 intentionally ignored; 30.55 seconds of tests, 782.901 seconds
 including rebuilding, 6.277 GB aggregate peak RSS. The pending dual-option
 implementation and final D05 runtime measurements are separate acceptance work.
 
+The requested [Typst report](../contour-deformation.typ) and
+[compiled PDF](../contour-deformation.pdf) are published on this branch. The
+formula section occupies three pages and the physical-results section one;
+the latter explicitly marks the four production measurements as pending.
+
+The optional native dual Jacobian now passes higher-jet, subtraction-face,
+fresh-worker staging and public saved-policy controls. The portable host suite
+passes **82 tests**, including a numerical symbolic/dual saved-owner oracle.
+The independently rebuilt native library passes **409 tests**, 19 ignored.
+The complete current workspace passes **917 tests**, 33 explicitly ignored,
+across 91 result groups; these subset counts must not be added to that total. CLI and
+thin-binding type checks pass; this does not claim a newly installed Python or
+browser wheel. The [construction audit](contour-dual-jacobian.md) records the
+native API probes and the separate physical control.
+
+On actual D05 source zero, current-owner Symbolic and initial Dual programs
+agree across eight scalar outputs to `4.08e-15` scaled difference, survive fresh
+restoration, and retain the same excessive-strength refusal. Initial Dual
+generation is slower (473.36 versus 103.50 seconds on the shared debug host),
+although its saved program is smaller. A caller-owned native Jacobian-prefix
+cache passes focused controls; its physical effect and complete production
+costs remain under measurement. No overall Dual speed advantage is claimed.
+
 **Current delivery priority (2026-10-10):** the user now requests the physical
 ggHH D05 double box at 1000 GeV, generation/runtime optimization, and fixed versus
 dynamic five-minute comparisons with QMC and discrete MC on 50 workers. Preserve
@@ -29,8 +52,13 @@ pages for contour formulae, one for the physical results, and an implementation
 section. The campaign RSS ceiling is now **100 GB (decimal)**. The initial
 eight-GiB D05 attempt remains an interrupted measurement, not a failed scientific
 test. Shared symbolic Jacobian bodies and a native dual-evaluated determinant
-option are being assessed with generation and sampling tradeoffs. Final D05
-generation and four-way integration measurements are still pending.
+option are being assessed with generation and sampling tradeoffs. The full fixed
+singleton now completes all 30 sectors in **141.935 seconds**, including
+publication, with **16.056 GB** sampled aggregate RSS and a **79.04 MB** archive.
+Eight generation workers use numerical-dual IBP, a symbolic Jacobian and
+SymJIT O2. Independent file/layout checks pass. Concurrent build activity means
+this is a shared-host observation. Dynamic generation and all four integration
+measurements remain pending.
 
 | Area | Evidence and remaining work |
 | --- | --- |
@@ -40,9 +68,9 @@ generation and four-way integration measurements are still pending.
 | Caller-owned execution | Real CLI tests cover ordinary/serial generation and integration, all validation policies, cancellation during preflight, exact offsets and policy-only resume. |
 | Independent physical references | Above-threshold B0, C0 and D0 agree with native HEPKit/OneLOop in both generation modes. Full fixed-mode 400 GeV ggHH agrees with HEPKit and MadLoop at 0.39 standard errors, with relative uncertainty `2.96355e-4`, pole cancellations and Ward checks. The [physical 400 GeV D05 input fixture](contour-gghh-double-box-fixture.md) now passes native kinematic/helicity/reproduction checks; its generation and integration remain pending, as do the required LTD numerical gates. |
 | Fixed milestone native regression suite | At `f2c2d930`, **730 distinct enabled tests passed; 29 were ignored**: 245 core scientific/integration tests, 252 library tests and 233 CLI/QMC/sector tests. Results for the subsequent dynamic generation increment are recorded separately below. Ignored tests are not acceptance evidence. |
-| Current native library gate | The compact-coefficient increment passes **401 tests, 19 ignored**, including native definition admission, both generation modes, mixed chart signatures, full-vector subtraction, exact symmetry and artifact restoration. This library subset is included in the whole-workspace total below. |
-| Broad native gates | The current compact-coefficient increment passes **904 distinct tests, 33 ignored**, across ninety result groups: core 653/23 ignored, CLI 173/8, QMC 37/0 and sectors 41/2; focused subsets must not be added again. The actual-process matrix covers both constructions, ordinary/serial execution, validation policies and checkpoint admission. |
-| Strict lint gate | The compact-coefficient increment passes `cargo clippy --workspace --all-targets --locked -- -D warnings` in 21.24 seconds, plus standalone binding all-target Clippy with native and stub-generation features. Two test-only unnecessary clones were changed to borrowed slices; no production algorithm, tolerance or assertion changed. |
+| Current native library gate | The native dual-Jacobian/prefix-cache snapshot passes **409 tests, 19 ignored**, including the new higher-jet and face controls. This library subset is included in the whole-workspace total below. |
+| Broad native gates | The current dual-Jacobian/prefix-cache snapshot passes **917 distinct tests, 33 ignored**, across 91 result groups: core 664/23 ignored, CLI 175/8, QMC 37/0 and sectors 41/2; focused subsets must not be added again. The actual-process matrix covers both constructions, ordinary/serial execution, validation policies and checkpoint admission. |
+| Strict lint gate | The current native snapshot passes `cargo clippy --workspace --all-targets --locked -- -D warnings` in 26.92 seconds, formatting and whitespace checks. One equivalent `if let` spelling removes an unnecessary unwrap; both affected scientific tests pass afterward. Earlier standalone binding Clippy remains separately scoped to its recorded snapshot. |
 | Dynamic algebra | Public analytic admission passes for both constructions, symbolic/numerical-dual generation, Taylor/IBP, repeated endpoint poles and complete complex vectors. The three-test public suite retains its original tolerances; physical multiloop acceptance remains pending. |
 | Dynamic numerical root | The 23-test callback gate covers implicit jets, tracked uncertainty, duplicate/conflicting observations, high precision and restoration. The 18-test binding lifecycle gate and public bubble policy/branch control pass. Independent enclosure probes and owner tests provide additional evidence, and the current whole-workspace gate includes these implemented paths. Required physical multiloop acceptance remains pending. |
 | Recipe-addressable artifacts | Public `generate --contour` now writes all four native recipes through shared caller-dispatched preparation; singleton recipe selection remains available. The actual-process family matrix passes all four normal/serial generation–integration combinations in both generation modes, independent default/resident selection, complete covariance, checkpoint isolation and SIGINT preserving prior publication. Native width/reordering/malformed-batch tests pass. |

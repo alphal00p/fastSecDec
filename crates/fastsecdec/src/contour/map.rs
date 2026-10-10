@@ -57,6 +57,16 @@ impl SmoothContourMap {
         strength: Atom,
         definitions: Arc<ContourDefinitions>,
     ) -> Result<Self, GenerationError> {
+        Self::with_jacobian(parameters, causal_polynomial, strength, definitions, None)
+    }
+
+    pub(crate) fn with_jacobian(
+        parameters: &[Symbol],
+        causal_polynomial: Atom,
+        strength: Atom,
+        definitions: Arc<ContourDefinitions>,
+        jacobian_template: Option<super::JacobianTemplate>,
+    ) -> Result<Self, GenerationError> {
         definitions
             .validate(false)
             .map_err(GenerationError::Contour)?;
@@ -106,7 +116,9 @@ impl SmoothContourMap {
             .collect::<Vec<_>>();
         let dimension = u32::try_from(parameters.len())
             .map_err(|_| GenerationError::ResourceLimit("contour Jacobian dimension"))?;
-        let jacobian = if dimension >= 6 {
+        let jacobian = if let Some(template) = jacobian_template {
+            template.substitute(parameters, &images)
+        } else if dimension >= 6 {
             // F passed the real-polynomial admission above. The private map
             // constructor requires a real smooth strength from its recipe;
             // retain its complete native coordinate derivative in the border.

@@ -8,6 +8,8 @@ use std::sync::Arc;
 /// ownership substitute when jobs cross caller-controlled worker boundaries.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ProgramData {
+    pub contour_jacobian: crate::contour::ContourJacobian,
+    pub jacobians: Vec<(usize, Arc<crate::contour::ContourJacobianPlan>)>,
     pub descriptor: Option<Arc<NativeProgramDescriptor>>,
     pub checks: Vec<Arc<DynamicCheckSource>>,
     pub definitions: Vec<(usize, Arc<crate::contour::ContourDefinitions>)>,
@@ -63,7 +65,19 @@ impl ProgramData {
                     .map(move |(_, witness)| (local, witness.clone()))
             })
             .collect();
+        let jacobians = sources
+            .iter()
+            .enumerate()
+            .flat_map(|(local, source)| {
+                self.jacobians
+                    .iter()
+                    .filter(move |(index, _)| index == source)
+                    .map(move |(_, plan)| (local, plan.clone()))
+            })
+            .collect();
         Ok(Self {
+            contour_jacobian: self.contour_jacobian,
+            jacobians,
             descriptor,
             checks,
             definitions,
@@ -87,6 +101,7 @@ impl ProgramData {
             .iter_mut()
             .map(|(index, _)| index)
             .chain(self.source_witnesses.iter_mut().map(|(index, _)| index))
+            .chain(self.jacobians.iter_mut().map(|(index, _)| index))
         {
             *index = *sources.get(*index).ok_or_else(|| {
                 GenerationError::Invariant("compact contour source index mismatch".into())
@@ -105,6 +120,12 @@ impl ProgramData {
                 self.descriptor = Some(incoming.clone());
             }
         }
+        // Each construction has one requested computational policy; an empty
+        // accumulator adopts it before retaining its first chart.
+        if other.contour_jacobian == crate::contour::ContourJacobian::Dual {
+            self.contour_jacobian = other.contour_jacobian;
+        }
+        self.jacobians.extend(other.jacobians.iter().cloned());
         self.checks.extend(other.checks.iter().cloned());
         self.definitions.extend(other.definitions.iter().cloned());
         self.source_witnesses

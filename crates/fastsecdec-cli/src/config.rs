@@ -27,10 +27,15 @@ pub(crate) struct GenerationOverrides {
     pub contour: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contour_jacobian: Option<fastsecdec::contour::ContourJacobian>,
 }
 impl GenerationOverrides {
     pub(crate) fn apply(self, card: &mut RunCard) {
         card.generation.contour |= self.contour;
+        if let Some(choice) = self.contour_jacobian {
+            card.generation.contour_jacobian = choice;
+        }
         if let Some(recipe) = self.recipe {
             card.generation.recipe = Some(recipe);
         } else if self.contour {
@@ -146,6 +151,7 @@ pub struct GenerationInput {
     pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
     pub order: i32,
     pub mode: fastsecdec::generation::GenerationMode,
+    pub contour_jacobian: fastsecdec::contour::ContourJacobian,
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
     pub contraction_mode: fastsecdec::input::NumeratorContraction,
     pub assume_no_threshold: bool,
@@ -159,6 +165,19 @@ pub struct GenerationInput {
 }
 
 impl GenerationInput {
+    /// Resolve computational settings before reading models or preparing geometry.
+    pub(crate) fn resolve_jacobian(&mut self) -> crate::CliResult<()> {
+        if self.contour_jacobian == fastsecdec::contour::ContourJacobian::Dual
+            && self.mode != fastsecdec::generation::GenerationMode::NumericalDual
+        {
+            return Err("dual contour Jacobian requires numerical_dual generation".into());
+        }
+        self.evaluator = self
+            .evaluator
+            .resolve_contour_jacobian(self.contour_jacobian)?;
+        Ok(())
+    }
+
     pub fn recipe_family(&self) -> fastsecdec::generation::RecipeFamily {
         use fastsecdec::{generation::RecipeFamily, kernel::ProgramRecipe};
         match self.recipe {
@@ -191,6 +210,7 @@ impl Default for GenerationInput {
             recipe: None,
             order: 0,
             mode: Default::default(),
+            contour_jacobian: Default::default(),
             subtraction: Default::default(),
             contraction_mode: Default::default(),
             assume_no_threshold: false,

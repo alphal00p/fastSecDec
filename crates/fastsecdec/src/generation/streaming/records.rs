@@ -24,6 +24,11 @@ pub(super) use prepared::{PreparedData, read_prepared, write_prepared};
 #[serde(deny_unknown_fields)]
 pub(super) struct Options {
     mode: GenerationMode,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::contour::ContourJacobian::is_symbolic"
+    )]
+    contour_jacobian: crate::contour::ContourJacobian,
     assume_no_threshold: bool,
     program_recipe: crate::kernel::indexed::ProgramRecipe,
     max_order: i32,
@@ -39,6 +44,7 @@ impl From<&GenerationOptions> for Options {
     fn from(x: &GenerationOptions) -> Self {
         Self {
             mode: x.mode,
+            contour_jacobian: x.contour_jacobian,
             assume_no_threshold: x.assume_no_threshold,
             program_recipe: x.program_recipe,
             max_order: x.max_order,
@@ -56,6 +62,7 @@ impl From<Options> for GenerationOptions {
     fn from(x: Options) -> Self {
         Self {
             mode: x.mode,
+            contour_jacobian: x.contour_jacobian,
             assume_no_threshold: x.assume_no_threshold,
             program_recipe: x.program_recipe,
             max_order: x.max_order,
@@ -300,6 +307,13 @@ struct DeferredFactor {
 }
 #[derive(Serialize, Deserialize)]
 struct Chart {
+    #[serde(
+        default,
+        skip_serializing_if = "crate::contour::ContourJacobian::is_symbolic"
+    )]
+    contour_jacobian: crate::contour::ContourJacobian,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    jacobians: Vec<(usize, JacobianPlan)>,
     index: usize,
     source_id: String,
     map: Map,
@@ -354,6 +368,66 @@ impl Contour {
         })
     }
 }
+// These indices refer to the same native StateMap/Atom table as the chart.
+// The optional semantic source is consumed at compilation, not saved as a
+// second evaluator or reconstructed from process-local symbol names.
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct JacobianPlan {
+    parameters: Vec<usize>,
+    images: Vec<usize>,
+    jacobian: usize,
+}
+impl JacobianPlan {
+    fn save(
+        plan: &crate::contour::ContourJacobianPlan,
+        contour: &Contour,
+        atoms: &mut Atoms,
+    ) -> Self {
+        Self {
+            parameters: plan
+                .parameters
+                .iter()
+                .map(|p| atoms.push(&symbolica::atom::Atom::var(*p)))
+                .collect(),
+            images: contour.images.clone(),
+            jacobian: contour.jacobian,
+        }
+    }
+    fn native(self, atoms: &Atoms) -> Result<crate::contour::ContourJacobianPlan, StreamingError> {
+        let parameters = self
+            .parameters
+            .into_iter()
+            .map(|i| {
+                atoms
+                    .take(i)?
+                    .as_var_view()
+                    .map(|v| v.get_symbol())
+                    .ok_or_else(|| invalid("Jacobian plan coordinate is not a native symbol"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let images = self
+            .images
+            .into_iter()
+            .map(|i| atoms.take(i))
+            .collect::<Result<Vec<_>, _>>()?;
+        if !(1..=6).contains(&parameters.len())
+            || images.len() != parameters.len()
+            || parameters
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len()
+                != parameters.len()
+        {
+            return Err(invalid("invalid native dual Jacobian plan dimension"));
+        }
+        Ok(crate::contour::ContourJacobianPlan {
+            parameters,
+            images,
+            jacobian: atoms.take(self.jacobian)?,
+        })
+    }
+}
 pub(super) struct ChartData {
     pub program: super::super::program::ProgramData,
     pub index: usize,
@@ -389,20 +463,42 @@ pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, St
             })
             .collect()
     });
+    let contour = data
+        .contour
+        .as_ref()
+        .map(|metadata| Contour::save(metadata, &mut atoms));
+    let jacobians =
+        data.program
+            .jacobians
+            .iter()
+            .map(|(index, plan)| {
+                let metadata = data.contour.as_ref().ok_or_else(|| {
+                    invalid("dual Jacobian source requires native contour metadata")
+                })?;
+                if plan.images != metadata.images() || plan.jacobian != *metadata.jacobian() {
+                    return Err(invalid(
+                        "dual Jacobian plan differs from its native contour chart",
+                    ));
+                }
+                Ok((
+                    *index,
+                    JacobianPlan::save(plan, contour.as_ref().unwrap(), &mut atoms),
+                ))
+            })
+            .collect::<Result<Vec<_>, StreamingError>>()?;
     codec::write_with_program(
         root,
         &format!("chart-{}", data.index),
         "chart",
         &Chart {
+            contour_jacobian: data.program.contour_jacobian,
+            jacobians,
             index: data.index,
             source_id: data.source_id.clone(),
             map: (&data.map).into(),
             mapped,
             deferred,
-            contour: data
-                .contour
-                .as_ref()
-                .map(|metadata| Contour::save(metadata, &mut atoms)),
+            contour,
         },
         atoms,
         vec![],
@@ -410,8 +506,17 @@ pub(super) fn write_chart(root: &Path, data: &ChartData) -> Result<RecordRef, St
     )
 }
 pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData, StreamingError> {
-    let (chart, atoms, _, program): (Chart, _, _, _) =
+    let (chart, atoms, _, mut program): (Chart, _, _, _) =
         codec::read_with_program(root, reference, "chart")?;
+    program.contour_jacobian = chart.contour_jacobian;
+    program.jacobians = chart
+        .jacobians
+        .into_iter()
+        .map(|(index, plan)| Ok((index, std::sync::Arc::new(plan.native(&atoms)?))))
+        .collect::<Result<_, StreamingError>>()?;
+    if !program.jacobians.is_empty() && program.contour_jacobian.is_symbolic() {
+        return Err(invalid("symbolic chart contains a dual Jacobian plan"));
+    }
     let mapped = chart
         .mapped
         .into_iter()
@@ -450,6 +555,34 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
         })
         .transpose()?;
     let definitions = program.contour_definitions()?;
+    let contour = chart
+        .contour
+        .map(|metadata| metadata.native(&atoms, definitions))
+        .transpose()?;
+    let needs_plan = program.contour_jacobian == crate::contour::ContourJacobian::Dual
+        && contour
+            .as_ref()
+            .is_some_and(|metadata| !metadata.images().is_empty());
+    if needs_plan {
+        let [(index, plan)] = program.jacobians.as_slice() else {
+            return Err(invalid(
+                "dual contour chart must retain exactly one Jacobian plan",
+            ));
+        };
+        let metadata = contour.as_ref().unwrap();
+        if *index != chart.index
+            || plan.images != metadata.images()
+            || plan.jacobian != *metadata.jacobian()
+        {
+            return Err(invalid(
+                "dual Jacobian plan differs from its native contour chart",
+            ));
+        }
+    } else if !program.jacobians.is_empty() {
+        return Err(invalid(
+            "unexpected dual Jacobian plan for an undeformed or zero-dimensional chart",
+        ));
+    }
     Ok(ChartData {
         program,
         index: chart.index,
@@ -457,10 +590,7 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
         map: chart.map.native()?,
         mapped,
         deferred,
-        contour: chart
-            .contour
-            .map(|metadata| metadata.native(&atoms, definitions))
-            .transpose()?,
+        contour,
     })
 }
 

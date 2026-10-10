@@ -326,3 +326,236 @@ subtraction parity, selected save/restore, checked face associations and measure
 generation/sampling tradeoffs. Existing factorwise branch programs must enter
 the same composed density unchanged. Portable and precision execution should
 reuse the saved scalar native IR, rather than rebuilding a Jacobian on load.
+
+A second focused native control establishes the proposed connection to an
+existing smooth-body evaluator: the entire unresolved function Atom
+`det(x,y)` can be an explicit evaluator input. Compiling `(x+y)*det(x,y)` with
+inputs `[x,y,det(x,y)]` and evaluating `[2,3,7]` returns exactly `35`, without a
+function body or derivative hook. This permits the composer to supply the
+Jacobian output at that input before outer differentiation. The control is
+recorded as `function-parameter.rs` and `function-parameter.log` beside the
+main ignored probe.
+
+The implementation review requires the body, retained Jacobian call and image
+program to use the same face-specific request lowering. Coordinate derivative
+seeds remain unit seeds at endpoints; only their value slots become zero or one.
+The native source-program cache must distinguish retained Jacobian plans as
+well as the expression, ordered inputs, definitions and compilation settings.
+Exact contributions must materialize their genuine determinant expression at
+the existing exact-output boundary before aggregate cancellation and root
+association selection. These are acceptance conditions for the new option,
+not claims that its production integration has already passed.
+
+The subsequent source review confirms those composition and cache boundaries.
+Inner image jets are seeded in the native order `[value, dx0, ..., dxN]`, their
+row-major derivative outputs feed the determinant program, and the resulting
+scalar enters the whole smooth body before its outer jets. Staged chart plans
+reuse the metadata's native Atom indices. Reading requires one matching plan
+for a nonzero-dimensional dual contour, with the original chart index and
+native-equal images/J; instantiation also checks ordered coordinate symbols
+and the requested mode. A chart requiring symbolic stochastic fallback is
+explicitly rejected under this initial dual option. Zero-dimensional and
+undeformed charts require no plan.
+
+Public settings use the same native enum in Rust, CLI and the thin Python
+bindings. Omitted symbolic compiler policy preserves its historical encoding;
+the retained generated choice controls compilation, and requesting dual only
+at compilation cannot convert a previously symbolic generation. Native source
+and API review passes at this boundary. The mixed-face cache and real generated
+higher-jet/checked-owner controls pass 2/2 in 4.23 seconds. The executable was
+independently checked against the current compiler working directory, source
+hashes and its 428-test inventory after a narrow core-package clean; an earlier
+zero-match run used an old executable and supplies no Dual acceptance. The staged filter
+passes 4/4, including the actual fresh-worker restoration control, and the public
+policy owner tests pass 3/3. These are distinct focused gates; portable and
+installed Python execution remain separate. Physical D05 resource
+and sampling benefits must be measured independently of the small API proof. In particular, distinct smooth bodies currently rebuild their common
+image/determinant program inside separate source-cache entries; sharing that
+native work is a candidate optimization, not an established performance result.
+
+## Stochastic kernel-cost harness review
+
+The ignored cost driver reuses native indexed selection, the maintained CLI
+Pilot16 implementation, `QmcSession` and weighted complete-vector batches.
+All arms use the same native rule, seed and allocation; their actual transformed
+coordinate and weight bits are hashed. Task content IDs fence ownership without
+changing those QMC streams. Each arm has an independent numerical context, and
+sector-wise rotation avoids always measuring the same arm first.
+
+The timed batch wrapper includes native precision rescue and replay. Artifact
+loading, binding, causal pilots, context construction and coordinate hashing
+are recorded separately. Production causal-check counts must remain zero under
+the completed Pilot policy. This measures the full stochastic Laurent vector
+with weights applied once; aggregate exact offsets are intentionally outside
+this cost table and require separate admission for a full integral run. The
+reported maximum is a maximum of sector means, not a maximum callback latency.
+
+Review found and corrected a reporting gap: native process exit zero did not
+itself exclude incomplete arms or a limited source prefix. The runner now
+requires exact planned arm/sector/row coverage and finite accepted costs, writes
+separate scope acceptance, and returns nonzero on incomplete scientific scope.
+A source-zero feasibility run cannot be accepted as an all-sector table. Raw
+failures and completed partial work remain available without a full-cost claim.
+
+Source review passes; no concrete plan or cost execution is accepted by this
+review. A run still needs final release/source/pilot-module and archive hashes,
+the frozen physical point, and the actual enclosing resource monitor. The
+one-thread cost measurements remain separate from the requested five-minute,
+50-worker QMC and discrete-MC comparisons.
+
+The source-zero timing feasibility plan later selects the existing native
+`RuleSource::Supplied` with modulus 32, vector `[1,3,5,7,11,13]` and two shifts.
+The runner fixes and records that small allocation and still compares actual
+coordinate/weight hashes. This avoids pretending that the published Kuo table
+supports 32 points; it is a timing-only control, with no QMC quality or integral
+claim and no change to the final production rule.
+
+Independent source review confirms one narrow generation-cost candidate in the
+initial Dual implementation. `SourcePrograms` caches each distinct regular body;
+its Jacobian builder recompiles the common image vector, first native Dualizer
+and determinant program for each such body. The existing native composer can
+append a borrowed exact program, so a caller-owned prefix cache can reuse that
+construction. Its key must retain the complete face-lowered Jacobian plan,
+ordered inputs, native definitions and compilation settings. A shared immutable
+`OnceLock<Result<Arc<ExactProgram>, ...>>` fits the existing cache lifetime and
+error behavior; builds must remain outside index locks. Body composition and the
+outer full-density jets remain unchanged. This would avoid repeated generation
+work, not eliminate each body's stored instructions or establish a runtime gain.
+The actual source-zero measurement must finish before judging the benefit.
+
+The cost harness also admits a raw saved `KernelSet` for source-zero feasibility
+only. It checks the saved receipt digest before native decoding, then requires
+one retained source-zero chart/sector, the recorded unbound identity and native
+equality of source geometry, F/U, positive measure and output layout across
+arms. Its real Pilot16 runs on that same owner, including any exact obligations.
+The bound exact vector is recorded as provenance without entering the stochastic
+timer, and this path always reports `all_sectors=false`.
+
+The first completed physical fixed-Dual source-zero attempt preserves the native
+shared all-recipe preparation exactly, then selects one actual source chart.
+An earlier singleton-preparation attempt stopped at the strict source-metadata
+comparison; its original evidence remains separate. The corrected attempt
+completes in 473.363 seconds, with 405.637 seconds in compilation, sampled peak
+RSS 3,966,705,664 bytes, and a 1,143,374-byte saved owner. A separate fresh process
+restores that owner in a 0.565-second total run with 38,313,984-byte sampled peak.
+Both process groups close without a resource limit.
+
+Fresh restoration reproduces the complete admission/refusal records and all
+eight scalar values at the two prescribed points. The admitted strength is
+`1e-6`; the `1e-5` homotopy refusal remains an identical native causal failure.
+Against the earlier shared-Symbolic saved reference, maximum absolute/scaled
+component differences are `6.75e-14`/`4.08e-15`. A current-owner Symbolic counterpart
+is being measured separately, so these historical comparisons do not establish
+a matched generation-speed result. No integral has been sampled and no Dual
+performance advantage is accepted from this baseline. The immutable raw review
+is retained under `target/foundation-dual-build-provenance/`.
+
+The subsequently completed same-owner Symbolic counterpart also passes fresh
+restoration and the cross-policy pointwise comparison: eight scalar components
+have the same `6.75e-14` absolute / `4.08e-15` scaled maximum differences, with the
+same larger-strength refusal. Its generation run takes 103.498 seconds, including
+54.567 seconds of compilation, and peaks at 2,156,773,376 bytes. These are matched
+source/settings feasibility observations with concurrent host activity, not an
+idle-host benchmark. The initial uncached Dual path is slower and uses more
+memory on this control.
+
+The narrow prefix-cache patch has passed independent source review. It retains
+one immutable native Jacobian program per complete key within the existing
+caller-owned cache, then composes each smooth body and its outer jets normally.
+The focused regression now exercises two distinct bodies sharing a prefix,
+changed images producing twice the determinant, and recovery after a failed
+body and a separately invalid plan. Source ownership, key boundaries and error
+isolation are accepted. The revised mixed-face cache and generated checked-owner
+controls pass 2/2 in 4.05 seconds, followed by the staged filter 4/4 in 0.33
+seconds. Physical performance outcomes for this cache revision remain pending.
+
+The complete fixed singleton artifact now passes an independent publication
+review. The immutable manifest and 79,036,643-byte data file match their recorded
+SHA256 hashes. The native catalogue contains exactly 30 stochastic and 30 exact
+records, with stochastic source indices 0 through 29, six coordinates, and the
+complete `[-1 Real, -1 Imag, 0 Real, 0 Imag]` layout. Its 19 physical parameters,
+fixed-strength parameter, SymJIT O2 evaluator statistics, threshold policy and
+unit measure multiplier agree with the planned input. The owned generation
+process group closes successfully after 141.935 seconds, with a sampled aggregate
+peak of 16,056,111,104 bytes. Concurrent builds and feasibility work were active;
+these are generation observations, not an idle-host benchmark. Native per-record
+decoding and actual causal admission remain separate runtime checks.
+
+The first source-zero cost launch stopped before admission because the ignored
+driver parsed physical symbol names before the saved native StateMap established
+their real attributes. The original refusal is preserved. The reviewed setup
+correction restores the saved owner first and then calls the same physical-point
+parser; it changes neither point values nor numerical evaluation. Wrapper review
+also requires immediate group termination on any RSS breach, including during
+wall-clock grace, and permits the predeclared smaller-strength fallback only
+for a native causal refusal before sampling starts. A sampled failure cannot be
+used to select that fallback.
+
+The later actual SymJIT fixed-artifact sweep retains five predeclared strengths.
+Independent review of all 92 raw rows confirms that `1e-8`, `1e-7` and `1e-6`
+each complete all 30 sectors, with 16 native pilot points and 64 timing samples
+per sector. Actual transformed coordinates and weights match across these arms;
+the complete stochastic Laurent vector is evaluated. Their mean costs are
+158.0, 144.9 and 143.0 microseconds per accepted point, respectively, including
+98, 88 and 81 double-float rescues among 1,920 points each. Maximum sector means
+are 267.2, 267.9 and 366.7 microseconds. No arbitrary-precision rescue or optional
+production causal check is recorded. These tiny matched allocations size work;
+they neither measure integral variance nor establish controlled-host throughput.
+
+The `1e-5` and `1e-4` arms are refused at source-zero centre before sampling, with
+native certified positive imaginary parts of F. Their costs remain null. The
+111.139-second process group closes without a resource limit at a sampled
+264,540,160-byte peak, but the wrapper correctly returns 2 and preserves false
+whole-sweep acceptance because two arms failed. Only the three individually
+complete arms are admitted by this review. Aggregate exact-owner admission and
+full-integral statistics remain outside the cost experiment.
+
+The optimized cache-candidate binary also passes an independent provenance
+review: all 1,434 frozen inventory entries match, including 675 current crate,
+binding and manifest files, and Cargo reports fresh compilation of all four
+runtime workspace packages from the private snapshot at optimization level 3.
+The private build closes in 634.812 seconds at a 2,079,318,016-byte sampled peak.
+The protected user release binary retains its hash, inode, size and timestamp.
+This validates the executable's source identity; physical cached-Dual performance
+and the final timed integration results remain separate gates.
+
+Six subsequent standard-CLI fixed-selection runs also pass raw-result review.
+Each uses 50 ordinary worker threads, the native Kuo rule with 1,024 points and
+eight shifts in each of all 30 sectors, and fresh admission on the actual
+aggregate owner. All 245,760 points per run are accepted; the complete four-slot
+Laurent vector, covariance and exact offsets agree between native stdout and the
+versioned saved result. The two selection seeds are disjoint from final-run
+seeds. No failures, cutoff zeros or optional production causal checks occur.
+The predeclared mean of finite-order covariance trace times aggregate worker
+seconds selects fixed strength `1e-6` among the three surviving candidates.
+This selects a prescription from a small noisy allocation, with no pooled
+covariance, convergence claim or independent physical reference validation.
+
+## Current implementation milestone and reuse verdict
+
+Independent native and HEPKit boundary review accepts this implementation slice.
+The option reuses native generated objects, saved programs, recipe-family
+ownership, evaluator composition and higher-order Dualizer operations. Exact
+offsets still use native materialization and aggregation; the stochastic path
+does not introduce another algebra system, derivative engine or sampling loop.
+The new cache is caller-owned and immutable after construction. CLI and Python
+settings forward the same native choice and reject unsupported mode combinations;
+the default remains backward compatible. Current Python source and compile
+checks do not by themselves establish installed-host execution of the new option.
+
+The final current-source workspace run passes **917 tests**, with **33 explicit
+ignores**, zero failures and zero filtered tests. Package totals are core
+664/23, CLI 175/8, QMC 37/0 and sectors 41/2 (passed/ignored); the core total
+already includes its 409/19 library controls. Existing reference tests, native
+artifact restoration, public Jacobian policy and real CLI process tests are
+included. These totals must not be added to earlier focused subsets.
+
+Strict workspace/all-target Clippy passes with warnings denied after replacing
+one checked `Option::unwrap` with an equivalent `if let` binding in numerical-dual
+chart admission. The optimized candidate2 snapshot retains the preceding
+equivalent spelling; there is no changed branch, numerical instruction, setting
+or identity. Workspace formatting and diff checks pass. The final focused rerun
+after that lint-only edit passes both Dual Jacobian controls in 4.01 seconds;
+these repeat two tests already counted in the workspace total. Physical
+cached-Dual generation benefit, complete
+dynamic-artifact admission and the four final timed estimates remain pending.

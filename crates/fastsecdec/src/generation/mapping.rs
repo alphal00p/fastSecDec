@@ -8,7 +8,7 @@ use symbolica::{
     id::{Pattern, Replacement},
 };
 
-mod contour;
+pub(super) mod contour;
 mod regular;
 pub(super) use contour::{PreparedTerm, declared_factors};
 
@@ -58,6 +58,7 @@ pub(super) fn map_terms(
         coordinates,
         source_supports,
         crate::kernel::indexed::ProgramRecipe::UndeformedV1,
+        crate::contour::ContourJacobian::Symbolic,
         true,
     )
     .map(|(terms, _, _)| terms)
@@ -69,6 +70,7 @@ pub(super) fn map_terms_with_contour(
     coordinates: &CoordinateMap,
     source_supports: &mut super::support::SupportCache,
     recipe: crate::kernel::indexed::ProgramRecipe,
+    jacobian: crate::contour::ContourJacobian,
     combine: bool,
 ) -> Result<MappedOutput, GenerationError> {
     let terms = prepare_terms(
@@ -78,7 +80,13 @@ pub(super) fn map_terms_with_contour(
         source_supports,
         recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1,
     )?;
-    apply_prepared(coordinates.target_parameters(), terms, recipe, combine)
+    apply_prepared(
+        coordinates.target_parameters(),
+        terms,
+        recipe,
+        jacobian,
+        combine,
+    )
 }
 
 /// Perform the expensive native substitution and monomial extraction once.
@@ -258,6 +266,7 @@ pub(super) fn apply_prepared(
     parameters: &[Symbol],
     terms: Vec<PreparedTerm>,
     recipe: crate::kernel::indexed::ProgramRecipe,
+    jacobian: crate::contour::ContourJacobian,
     combine: bool,
 ) -> Result<MappedOutput, GenerationError> {
     let mut program = super::program::ProgramData::default();
@@ -267,7 +276,8 @@ pub(super) fn apply_prepared(
     let contour_metadata = if recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1 {
         let (terms, metadata, source_witness) =
             contour::deform_with(parameters, terms, recipe, |parameters, f, positive| {
-                let (map, owner) = contour::program::build(recipe, parameters, f, positive)?;
+                let (map, owner) =
+                    contour::program::build(recipe, jacobian, parameters, f, positive)?;
                 program = owner;
                 Ok(map)
             })?;

@@ -8,6 +8,14 @@ increment at `3303005`; intervening evidence and the lightweight D05 fixture
 do not establish additional numerical acceptance. No new implementation,
 numerical run, dependency change or upstream defect is asserted here.
 
+**Later priority change:** the user subsequently requested focus on the physical
+D05 double box at 1000 GeV, bounded tuning and four five-minute/50-core
+fixed/dynamic × QMC/discrete-MC results, then a green cleanup/push and an explicit
+goal pause. The open LTD and extended physical gates below remain historical
+backlog; they do not authorize more variance-only campaigns or delay that
+requested pause. The root-owned plan addendum preserves the exact instruction.
+The [1000 GeV audit](contour-gghh-double-box-1000-audit.md) follows the new scope.
+
 The public native, CLI and HEPKit interfaces are implemented and exercised.
 The remaining completion gaps are predominantly the required physical
 multiloop and performance evidence, plus reproducible delivery of those
@@ -59,7 +67,9 @@ source; it does not claim a new test execution.
    published-reference accuracy or time to target. The single sign-aware
    chart's saved-owner parity is still one-chart evidence. See
    [the release smoke report](contour-ltd-k1-variance.md). A fresh standard
-   CLI adaptive accuracy plan is reviewed but its result remains pending.
+   CLI adaptive accuracy run was subsequently interrupted for the user's new
+   priority, with its partial checkpoint/result retained; no 0.1% acceptance
+   is claimed.
 
 2. **Required massive K1* result.** All four recipes publish successfully
    with 30 stochastic sectors each. The completed saved-owner gate verifies
@@ -157,6 +167,7 @@ reviews record its implementation and tests. The progress ledger's later
 saved-K1 row supersedes the earlier memory row's pending-pilot wording.
 
 These historical notes should not trigger duplicate implementation. Conversely,
-the remaining required multiloop numerical/accuracy/performance gates and
-reproduction deliverables are live gaps. Phase B is not complete until those
-requirements are satisfied and independently reviewed.
+the earlier multiloop numerical/accuracy/performance gates and reproduction
+deliverables remain unfulfilled evidence boundaries. The later user priority
+controls current work and its explicit pause point; retaining this backlog
+does not authorize continuing after that pause.

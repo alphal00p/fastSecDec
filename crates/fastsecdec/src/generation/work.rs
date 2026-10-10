@@ -255,6 +255,7 @@ pub(super) fn map_chart(
                 coordinates,
                 supports,
                 options.program_recipe,
+                options.contour_jacobian,
                 true,
             )
         },
@@ -280,6 +281,7 @@ pub(super) fn map_prepared_chart(
                 coordinates.target_parameters(),
                 terms,
                 options.program_recipe,
+                options.contour_jacobian,
                 true,
             )
         },

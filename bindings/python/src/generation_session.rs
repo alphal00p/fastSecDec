@@ -40,7 +40,7 @@ pub(crate) struct PyGenerationSession {
 #[pymethods]
 impl PyIntegral {
     /// Create inert retained work. Only step() performs parameterization, generation or compilation.
-    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour=false, compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", compilation_settings=None, runtime_parameters=None))]
     #[allow(clippy::too_many_arguments)]
     fn generation_session(
         &self,
@@ -50,6 +50,7 @@ impl PyIntegral {
         mode: &str,
         subtraction: &str,
         contour: bool,
+        contour_jacobian: &str,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
     ) -> PyResult<PyGenerationSession> {
@@ -59,8 +60,14 @@ impl PyIntegral {
             mode,
             subtraction,
             contour,
+            contour_jacobian,
         )?;
-        let settings = compilation_settings.cloned().unwrap_or_default().inner;
+        let settings = compilation_settings
+            .cloned()
+            .unwrap_or_default()
+            .inner
+            .resolve_contour_jacobian(options.contour_jacobian)
+            .map_err(|e| error::native(py, "compilation settings", e))?;
         settings
             .validate()
             .map_err(|e| error::native(py, "compilation settings", e))?;
@@ -125,6 +132,10 @@ impl PyGenerationSession {
     #[getter]
     fn mode(&self) -> &'static str {
         self.options.mode.name()
+    }
+    #[getter]
+    fn contour_jacobian(&self) -> &'static str {
+        crate::settings::jacobian_name(self.options.contour_jacobian)
     }
     #[getter]
     fn subtraction(&self) -> &'static str {
@@ -340,6 +351,7 @@ import symbolica.community.hepkit.sector_decomposition
 class PyIntegral:
     def generation_session(self, max_order: int = 0, *, coefficient_expansion: str = "coefficient_series",
         mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
+        contour_jacobian: str = "symbolic",
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.GenerationSession:

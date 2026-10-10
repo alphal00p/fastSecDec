@@ -124,6 +124,7 @@ impl Assembly {
             .into_iter()
             .map(
                 |(map, parameters, coefficients, conditioning, program)| GeneratedSector {
+                    contour_jacobian: program.contour_jacobian,
                     contour_definitions: program
                         .contour_definitions()
                         .expect("previously merged contour definitions"),
@@ -154,6 +155,7 @@ impl Assembly {
             })
             .collect();
         GeneratedIntegral {
+            contour_jacobian: self.program.contour_jacobian,
             program_descriptor: self.program.descriptor,
             dynamic_check_sources: self.program.checks,
             metadata: GenerationMetadata { domain, charts },

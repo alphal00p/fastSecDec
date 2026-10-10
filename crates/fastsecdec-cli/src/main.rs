@@ -101,6 +101,9 @@ enum Action {
         /// Generate one native recipe, such as dynamic-sign-aware-v1.
         #[arg(long, value_parser = parse_program_recipe, conflicts_with = "contour")]
         recipe: Option<fastsecdec::kernel::ProgramRecipe>,
+        /// Determinant construction; dual requires numerical_dual generation.
+        #[arg(long, value_parser = parse_contour_jacobian)]
+        contour_jacobian: Option<fastsecdec::contour::ContourJacobian>,
         /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -529,6 +532,7 @@ fn run(cli: Cli) -> CliResult<()> {
             input,
             contour,
             recipe,
+            contour_jacobian,
             output,
             geometry_workers,
             serial,
@@ -546,7 +550,11 @@ fn run(cli: Cli) -> CliResult<()> {
                     reference.as_ref(),
                     geometry_workers.get(),
                     resume,
-                    config::GenerationOverrides { contour, recipe },
+                    config::GenerationOverrides {
+                        contour,
+                        recipe,
+                        contour_jacobian,
+                    },
                 )?;
                 drop(dashboard);
                 return generation_report::print_indexed(
@@ -562,7 +570,11 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
                 reference.as_ref(),
                 geometry_workers.get(),
-                config::GenerationOverrides { contour, recipe },
+                config::GenerationOverrides {
+                    contour,
+                    recipe,
+                    contour_jacobian,
+                },
             )?;
             if kernels.runtime_parameters().is_empty()
                 && let Some(reference) = &reference
@@ -986,4 +998,53 @@ fn report(value: &serde_json::Value, json: bool) -> CliResult<()> {
 fn parse_program_recipe(value: &str) -> Result<fastsecdec::kernel::indexed::ProgramRecipe, String> {
     serde_json::from_value(serde_json::Value::String(value.to_owned()))
         .map_err(|error| error.to_string())
+}
+
+fn parse_contour_jacobian(value: &str) -> Result<fastsecdec::contour::ContourJacobian, String> {
+    serde_json::from_value(serde_json::Value::String(value.into()))
+        .map_err(|_| "contour Jacobian must be symbolic or dual".into())
+}
+
+#[cfg(test)]
+mod jacobian_cli_tests {
+    use super::*;
+
+    #[test]
+    fn contour_jacobian_is_a_generation_only_choice() {
+        let cli = Cli::try_parse_from([
+            "fastsecdec",
+            "generate",
+            "input.toml",
+            "--contour-jacobian",
+            "dual",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cli.command,
+            Action::Generate {
+                contour_jacobian: Some(fastsecdec::contour::ContourJacobian::Dual),
+                ..
+            }
+        ));
+        assert!(
+            Cli::try_parse_from([
+                "fastsecdec",
+                "generate",
+                "input.toml",
+                "--contour-jacobian",
+                "auto",
+            ])
+            .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "fastsecdec",
+                "integrate",
+                "input.fsd",
+                "--contour-jacobian",
+                "dual",
+            ])
+            .is_err()
+        );
+    }
 }

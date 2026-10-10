@@ -36,6 +36,7 @@ pub(in crate::generation) fn discover(
                 coordinates,
                 supports,
                 context.options.program_recipe,
+                context.options.contour_jacobian,
                 false,
             )?;
             let terms = mapped
@@ -85,6 +86,7 @@ pub(in crate::generation) fn discover_prepared(
                 coordinates.target_parameters(),
                 prepared,
                 context.options.program_recipe,
+                context.options.contour_jacobian,
                 false,
             )?;
             let terms = mapped
@@ -190,6 +192,34 @@ pub(in crate::generation) fn instantiate(
         index,
         total,
     };
+    let jacobian = if context.options.contour_jacobian == crate::contour::ContourJacobian::Dual
+        && let Some(metadata) = contour.as_ref()
+        && !context.parameters.is_empty()
+    {
+        let [(source, plan)] = program.jacobians.as_slice() else {
+            return Err(GenerationError::Invariant(
+                "dual contour requires exactly one retained Jacobian source".into(),
+            ));
+        };
+        if program.contour_jacobian != context.options.contour_jacobian
+            || *source != index
+            || plan.parameters != context.parameters
+            || plan.images != metadata.images()
+            || plan.jacobian != *metadata.jacobian()
+        {
+            return Err(GenerationError::Invariant(
+                "dual Jacobian source/context mismatch".into(),
+            ));
+        }
+        Some(plan.clone())
+    } else {
+        if !program.jacobians.is_empty() {
+            return Err(GenerationError::Invariant(
+                "unexpected dual Jacobian source".into(),
+            ));
+        }
+        None
+    };
     let (coefficients, profile, deferred) = if let Some(recipe) = recipe {
         if let Some(contour) = &mut contour {
             use super::subtraction::Coordinate;
@@ -224,6 +254,7 @@ pub(in crate::generation) fn instantiate(
             coefficients,
             profile,
             Some(Arc::new(DualSector {
+                jacobian,
                 contour_definitions: program.contour_definitions()?,
                 programs: context.programs.clone(),
                 source_parameters: context.input.parameters().to_vec(),
@@ -239,6 +270,11 @@ pub(in crate::generation) fn instantiate(
             })),
         )
     } else {
+        if jacobian.is_some() {
+            return Err(GenerationError::Contour(
+                "dual contour Jacobian requires a native numerical-dual subtraction recipe for every stochastic chart; use symbolic for this exact fallback".into(),
+            ));
+        }
         // Sampled jets cannot certify an unregulated face, signed infinity map
         // or non-polynomial epsilon dependence. Preserve exact admission.
         emit(
@@ -275,6 +311,7 @@ pub(in crate::generation) fn instantiate(
     };
     let orders = coefficients.keys().copied().collect();
     let sector = GeneratedSector {
+        contour_jacobian: context.options.contour_jacobian,
         contour_definitions: program.contour_definitions()?,
         program_descriptor: program.descriptor,
         dynamic_check_sources: program.checks,

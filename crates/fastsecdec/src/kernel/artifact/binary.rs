@@ -708,6 +708,7 @@ pub(super) fn generated(
     settings: CompilationSettings,
 ) -> Result<Vec<u8>, KernelError> {
     precision.validate()?;
+    let settings = settings.resolve_contour_jacobian(value.contour_jacobian())?;
     settings.validate()?;
     let runtime_parameters = crate::kernel::compilation::runtime_inputs(value, &[]);
     crate::kernel::compilation::validate_descriptor(value, &runtime_parameters)?;

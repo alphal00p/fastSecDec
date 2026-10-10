@@ -4,6 +4,7 @@ mod determinant;
 mod diagnostics;
 pub mod dynamic;
 pub(crate) mod functions;
+mod jacobian;
 mod map;
 mod metadata;
 mod settings;
@@ -12,6 +13,8 @@ pub use definitions::{ContourDefinition, ContourDefinitions};
 pub use diagnostics::{
     ContourDiagnosticRange, ContourDiagnosticsMode, ContourRuntimeReport, ContourRuntimeWork,
 };
+pub use jacobian::ContourJacobian;
+pub(crate) use jacobian::{ContourJacobianPlan, JacobianTemplate};
 pub use map::FixedContourMap;
 pub(crate) use map::{SmoothContourMap, continued_power};
 pub use metadata::ContourMetadata;

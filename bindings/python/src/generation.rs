@@ -43,9 +43,9 @@ impl PyIntegral {
     /// every GenerationSnapshot. Observer runs first; None/True continues,
     /// False from either callback cancels at a native event boundary. Original
     /// callback and KeyboardInterrupt exceptions propagate after UI cleanup.
-    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
     #[pyo3(
-        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, observer=None, progress='auto')"
+        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, contour_jacobian='symbolic', observer=None, progress='auto')"
     )]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate(
@@ -56,12 +56,20 @@ impl PyIntegral {
         mode: &str,
         subtraction: &str,
         contour: bool,
+        contour_jacobian: &str,
         observer: Option<Py<PyAny>>,
         progress: Option<Py<PyAny>>,
     ) -> PyResult<PyGeneratedIntegral> {
         generate_native(
             py,
-            options(max_order, coefficient_expansion, mode, subtraction, contour)?,
+            options(
+                max_order,
+                coefficient_expansion,
+                mode,
+                subtraction,
+                contour,
+                contour_jacobian,
+            )?,
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native integral",
@@ -78,6 +86,7 @@ pub(crate) fn options(
     mode: &str,
     subtraction: &str,
     contour: bool,
+    contour_jacobian: &str,
 ) -> PyResult<GenerationOptions> {
     let method = match coefficient_expansion {
         "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
@@ -100,6 +109,7 @@ pub(crate) fn options(
     let mut options = GenerationOptions {
         max_order,
         mode,
+        contour_jacobian: crate::settings::contour_jacobian(contour_jacobian)?,
         subtraction,
         program_recipe: if contour {
             fastsecdec::kernel::ProgramRecipe::FixedV1
@@ -108,6 +118,13 @@ pub(crate) fn options(
         },
         ..Default::default()
     };
+    if options.contour_jacobian == fastsecdec::contour::ContourJacobian::Dual
+        && options.mode != GenerationMode::NumericalDual
+    {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "dual contour Jacobian requires numerical_dual generation",
+        ));
+    }
     options.coefficient_expansion.method = method;
     Ok(options)
 }
@@ -196,6 +213,10 @@ impl PyGeneratedIntegral {
     #[getter]
     fn mode(&self) -> &'static str {
         self.mode.name()
+    }
+    #[getter]
+    fn contour_jacobian(&self) -> &'static str {
+        crate::settings::jacobian_name(self.inner.contour_jacobian())
     }
     #[getter]
     fn subtraction(&self) -> &'static str {
@@ -359,6 +380,7 @@ import symbolica.community.hepkit.sector_decomposition
 class PyIntegral:
     def generate(self, max_order: int = 0, *, coefficient_expansion: str = "full_expression",
                  mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
+                 contour_jacobian: str = "symbolic",
                  observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                  progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                  ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:

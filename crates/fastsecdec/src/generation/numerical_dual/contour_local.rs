@@ -73,6 +73,7 @@ fn programs(degree: i32, strategy: SubtractionStrategy) -> (ExactProgram, ExactP
     };
     let dual = native::build(
         &DualSector {
+            jacobian: None,
             contour_definitions: Arc::default(),
             programs: Arc::new(native::SourcePrograms::default()),
             source_parameters: vec![x],

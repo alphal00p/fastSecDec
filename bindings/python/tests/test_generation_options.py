@@ -35,6 +35,7 @@ def test_generation_session_options_are_inert_and_inspectable(prepared, mode, su
 @pytest.mark.parametrize("argument,value", [
     ("mode", "numerical"), ("mode", "Symbolic"),
     ("subtraction", "ibp"), ("subtraction", "Taylor"),
+    ("contour_jacobian", "automatic"),
 ])
 def test_invalid_generation_choices_fail_before_observer(prepared, argument, value):
     events = []
@@ -94,3 +95,27 @@ def test_generation_choices_reach_sync_and_retained_native_owners(prepared, mode
         assert (retained.completed, retained.total, retained.sectors, retained.reused) == (
             preparation.completed, preparation.total, preparation.sectors, preparation.reused)
     assert owner.kernels.to_bytes() == generated.compile(settings=settings, progress=None).to_bytes()
+
+
+def test_dual_jacobian_is_an_explicit_inert_generation_choice(prepared):
+    import json
+    assert sd.CompilationSettings().contour_jacobian == "symbolic"
+    assert "contour_jacobian" not in json.loads(sd.CompilationSettings().to_json())
+    settings = sd.CompilationSettings(contour_jacobian="dual")
+    assert settings.contour_jacobian == "dual"
+    assert json.loads(settings.to_json())["contour_jacobian"] == "dual"
+    events = []
+    with pytest.raises(ValueError, match="numerical_dual"):
+        prepared[1].generate(contour_jacobian="dual", observer=events.append, progress=None)
+    assert events == []
+    for make in (
+        lambda **kw: prepared[1].generation_session(**kw),
+        lambda **kw: prepared[1].generation_family_session(["off", "fixed"], **kw),
+    ):
+        with pytest.raises(ValueError, match="numerical_dual"):
+            make(contour_jacobian="dual")
+        with pytest.raises(sd.FastSecDecError, match="selected during generation"):
+            make(compilation_settings=settings)
+        owner = make(mode="numerical_dual", contour_jacobian="dual")
+        assert owner.contour_jacobian == "dual"
+        assert not owner.complete and owner.failed is None

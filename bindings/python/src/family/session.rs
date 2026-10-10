@@ -211,6 +211,11 @@ fn observe(
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyRecipeFamilySession {
+    #[getter]
+    fn contour_jacobian(&self) -> &'static str {
+        crate::settings::jacobian_name(self.options.contour_jacobian)
+    }
+
     /// Execute at most max_units caller-owned units; parameterization is the first
     /// unit. False callbacks and KeyboardInterrupt pause without losing completed work.
     #[pyo3(signature=(max_units=1, *, observer=None))]

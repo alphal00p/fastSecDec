@@ -125,6 +125,7 @@ pub(crate) fn load_observed_with_overrides(
     sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
     let mut card: RunCard = toml::from_str(&text)?;
     overrides.apply(&mut card);
+    card.generation.resolve_jacobian()?;
     observe(LoadProgress::Parsed(&card))?;
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let mut values = BTreeMap::new();

@@ -305,3 +305,31 @@ the functions, differentiate them or construct evaluators. Views retain their
 native owner, so they remain usable after the original Python wrapper is
 released. A missing historical metadata record gives `None`; a known map-free
 artifact gives an empty list.
+
+### Contour Jacobian construction
+
+Generation accepts `contour_jacobian="symbolic"` (the default) or `"dual"` on
+`generate`, `generation_session`, `generation_family_session`, and
+`sector_decompose`. For example, create inert retained work with:
+
+```python
+work = integral.generation_family_session(
+    ["fixed", "polynomial", "sign_aware"],
+    mode="numerical_dual", contour_jacobian="dual",
+    compilation_settings=CompilationSettings(backend="eager"),
+)
+assert work.contour_jacobian == "dual"
+```
+
+Dual construction uses native image derivatives and determinant composition;
+it currently requires numerical-dual generation and at most six contour
+coordinates. Unsupported requests raise an error without switching modes.
+Construction does no generation or compilation until the caller steps the owner.
+Synchronous `generate` and `sector_decompose` remain explicit generation actions.
+
+The generated owner retains this choice. Default compilation settings adopt it,
+and `kernels.compilation_settings.contour_jacobian` reports the saved value.
+Setting `CompilationSettings(contour_jacobian="dual")` cannot retrofit a
+symbolic generated owner; select Dual during generation. Strengths, caps and
+validation are still bound separately at runtime. This is a computational choice,
+not an accuracy or speed guarantee.

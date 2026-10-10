@@ -30,3 +30,27 @@ The optional causal-validation policy defaults to `always`; selecting `pilot`
 or `off` is separate from the mathematical prescription. Implementation and
 acceptance progress is recorded in the Phase B review documents; these fixtures
 are not a claim that the full physical test suite has passed.
+
+## Jacobian construction
+
+The default `symbolic` choice constructs the contour determinant during symbolic
+preparation. To compose it from native derivatives of the contour images in the
+numerical-dual evaluator, set both generation choices in the run card:
+
+```toml
+[generation]
+mode = "numerical_dual"
+contour_jacobian = "dual"
+```
+
+`generate --contour-jacobian dual` overrides the second setting. This option
+currently supports contour charts with at most six coordinates and requires
+`mode = "numerical_dual"`; unsupported requests fail explicitly. It does not
+change the selected contour recipe, strength, caps, subtraction method, or
+validation policy. All image derivatives, including the coordinate dependence
+of dynamic strength, remain native derivatives before subtraction jets.
+
+The choice is saved with the compiled policy and cannot be changed while
+integrating an existing artifact. Compare generation time and evaluation cost
+on the same source before choosing it for a large calculation; neither choice
+promises a speedup for every integral.

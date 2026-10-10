@@ -15,6 +15,7 @@ use symbolica::{
 
 mod compact;
 mod cubic;
+mod dual_jacobian;
 mod empty;
 mod higher;
 mod lowering;
