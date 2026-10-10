@@ -52,7 +52,18 @@ pub(super) fn render(
     };
     let json_size = file_size(json_path);
     let data_size = file_size(data_path);
-    let charts = if let Some(native) = restored {
+    let charts = if let Some(metadata) = restored.and_then(|k| k.threshold_metadata()) {
+        format!(
+            "{} cells · {} endpoint charts",
+            metadata.lineage().cells.len(),
+            metadata.lineage().endpoint_charts.len()
+        )
+    } else if artifact
+        .catalogue()
+        .is_some_and(|c| c.threshold().is_some())
+    {
+        "Threshold lineage; see native record details".into()
+    } else if let Some(native) = restored {
         native
             .generation_metadata()
             .map(|m| {

@@ -74,7 +74,10 @@ pub struct CatalogueView<'a> {
     pub records: &'a Vec<RecordDescriptor>,
     program: Option<&'a ProgramRecipeCatalogue>,
 }
-impl CatalogueView<'_> {
+impl<'a> CatalogueView<'a> {
+    pub fn threshold(self) -> Option<&'a fastsecdec::kernel::indexed::ThresholdArchiveSummary> {
+        self.program.and_then(|p| p.threshold.as_ref())
+    }
     pub fn threshold_scope(&self) -> CliResult<Option<fastsecdec::kernel::ThresholdResultScope>> {
         self.program.map_or(Ok(None), |program| {
             program.threshold_scope().map_err(Into::into)
@@ -92,7 +95,7 @@ impl CatalogueView<'_> {
             .filter(|record| record.sector.is_some())
             .count()
     }
-    pub fn sector(&self, id: usize) -> CliResult<&RecordDescriptor> {
+    pub fn sector(&self, id: usize) -> CliResult<&'a RecordDescriptor> {
         self.records
             .iter()
             .find(|record| record.sector == Some(id))

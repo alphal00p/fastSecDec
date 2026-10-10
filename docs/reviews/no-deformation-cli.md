@@ -74,9 +74,20 @@ not expose threshold generation or establish Python runtime/WASM support for it;
 the native preparation wrapper is separate pending work.
 
 Metadata-only and selected-record deep inspection also run successfully, with
-optional record-integrity validation. The current CLI presentation still omits
-the native threshold lineage from its sector view; exposing that retained data
-is a separate pending presentation task.
+optional record-integrity validation. Inspection now exposes the existing native
+threshold directory and record receipts without reading evaluator data. Deep
+inspection adds the native lineage, map descriptors, certificate identities,
+resident selection and physical result scope. Parent inventory counts are
+explicitly distinguished from the resident contribution. Saved map descriptors
+use native expression-record references; printing their algebraic expressions is
+still a separate presentation extension. Loading saved descriptors is explicitly
+not global proof replay.
+
+The six inspection tests pass, including a threshold control which loads one
+numerical record, compares full versus selected residency, deletes the binary,
+and still inspects metadata successfully. Independent HEPKit/ecosystem review
+accepts reuse of the native owners and selective-loading boundary. No new algebra,
+lineage schema or artifact format is introduced.
 
 After registration, the complete CLI test suite passes 127 tests with five
 existing ignored process/host entries; final all-target CLI Clippy and formatting

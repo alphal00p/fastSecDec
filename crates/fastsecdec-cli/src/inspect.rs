@@ -5,6 +5,7 @@ mod overview;
 mod presentation;
 mod selected;
 mod tables;
+mod threshold;
 
 use crate::{CliResult, artifact::Artifact, terminal_policy::ColorPolicy};
 use fastsecdec::kernel::{KernelLoadOptions, KernelSet, PortableMetadata};
@@ -87,6 +88,7 @@ pub fn artifact(
                 "orders":kernels.orders(),"components":kernels.components(),
                 "runtime_parameters":kernels.runtime_parameters().iter().map(|symbol|symbol.get_name()).collect::<Vec<_>>(),
                 "parameters_bound":kernels.parameters_bound(),
+                "threshold":threshold::native_document(&kernels),
                 "selected_sector": {
                 "id": id,
                 "content_id": kernels.sector_content_id(id)?,
@@ -204,10 +206,11 @@ fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
         "exact_coefficients":kernels.parameters_bound().then(|| kernels.exact_coefficients()),
         "runtime_parameters":kernels.runtime_parameters().iter().map(|symbol| symbol.get_name()).collect::<Vec<_>>(),
         "parameters_bound":kernels.parameters_bound(),
+        "threshold":threshold::native_document(kernels),
         "source_selection":kernels.generation_metadata().and_then(|metadata| metadata.source_scope()).map(|scope|scope.selection()),
         "generation":artifact.generation,
         "generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds,
-        "retained_metadata_available":kernels.generation_metadata().is_some()
+        "retained_metadata_available":kernels.generation_metadata().is_some() || kernels.threshold_metadata().is_some()
     })
 }
 

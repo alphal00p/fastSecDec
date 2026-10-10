@@ -35,6 +35,7 @@ pub(super) fn render(
         out.push('\n');
         out.push_str(&sector(artifact, kernels, id, expressions, width, colors)?);
     } else {
+        out.push_str(&super::threshold::native_facts(kernels, width, colors));
         out.push('\n');
         let rows = super::ranked_sectors(kernels)
             .into_iter()
@@ -115,7 +116,7 @@ pub(super) fn render(
             out.push_str(&input_expressions(kernels, width, colors));
         }
     }
-    if kernels.generation_metadata().is_none() {
+    if kernels.generation_metadata().is_none() && kernels.threshold_metadata().is_none() {
         out.push_str(&heading(
             "Retained chart metadata is unavailable in this older artifact.",
             width,
@@ -303,6 +304,7 @@ fn sector_labeled(
     out.push('\n');
     out.push_str(&heading("Evaluator size is serialized exact program data; SymJIT size is its compressed application. Neither is machine-code size.",width,colors,Color::FG_BRIGHT_BLACK));
     out.push_str(&heading("Operations describe the shared Laurent-vector program after native symbolic optimization, before real/complex lowering and backend optimization.",width,colors,Color::FG_BRIGHT_BLACK));
+    out.push_str(&super::threshold::native_facts(kernels, width, colors));
     let Some(metadata) = kernels.generation_metadata() else {
         return Ok(out);
     };

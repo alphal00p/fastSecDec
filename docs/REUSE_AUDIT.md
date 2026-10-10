@@ -3562,3 +3562,11 @@ runtime reviews check complete versus selected lineage, exact offsets and
 cross-process work identity. The portable reader remains available without the
 native threshold-generation feature. CLI recovery and global proof replay are
 separate gates.
+
+CLI threshold inspection reuses the native publication directory, record
+receipts and immutable lineage owner. Metadata-only views perform no evaluator
+read; deep selected views load one numerical record and its compact parent.
+Independent HEPKit review checked source extent, resident selection and the
+explicit distinction between certificate identities and global proof replay.
+Six inspection regressions pass, including a deleted-binary metadata control.
+See the [CLI review](reviews/no-deformation-cli.md).

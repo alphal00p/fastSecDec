@@ -22,6 +22,73 @@ fn metadata(path: &Path, artifact: &Artifact) {
     )
     .unwrap();
 }
+
+#[test]
+fn threshold_inspection_retains_scope_and_lineage_without_opening_other_records() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = dir.path().join("input.toml");
+    let path = dir.path().join("threshold.fsd");
+    fs::write(&input, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nprefactor='1/eps'\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='x-1/3'\nexponent='-eps'\nsemantics='causal'\n[generation]\nthreshold_decomposition=true\norder=0\n[generation.evaluator]\nbackend='eager'\n").unwrap();
+    let (artifact, native) = crate::generate::generate(
+        &input,
+        &path,
+        &mut crate::display::Dashboard::new(false, false).unwrap(),
+        None,
+    )
+    .unwrap();
+    let summary = artifact.kernel_summary().unwrap();
+    assert!(summary.sectors > 1);
+    let selected = summary.sectors - 1;
+    let mut archive = artifact
+        .open_program_archive(&path, KernelLoadOptions { validate: true })
+        .unwrap();
+    let mut reader = archive.select(artifact.selected_recipe().unwrap()).unwrap();
+    let local = reader.load_sector(selected).unwrap();
+    assert_eq!(local.sectors().len(), 1);
+    let global_doc = threshold::native_document(&native).unwrap();
+    let local_doc = threshold::native_document(&local).unwrap();
+    assert_eq!(global_doc["resident"]["selection"]["kind"], "complete");
+    assert_eq!(local_doc["resident"]["selection"]["kind"], "selected");
+    assert_eq!(local_doc["global_proof_replayed"], false);
+    assert!(
+        !local_doc["lineage"]["endpoint_charts"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let expected = serde_json::to_value(
+        &artifact
+            .catalogue()
+            .unwrap()
+            .sector(selected)
+            .unwrap()
+            .receipt
+            .threshold,
+    )
+    .unwrap();
+    fs::remove_file(artifact.data_path(&path).unwrap()).unwrap();
+    let restored = Artifact::load_metadata(&path).unwrap();
+    let doc = lightweight::document(&restored, &summary, Some(selected)).unwrap();
+    assert_eq!(doc["binary_loaded"], false);
+    assert_eq!(doc["selected_sector"]["threshold_record"], expected);
+    assert!(
+        !doc["threshold"]["contributions"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let plain = ColorPolicy::for_stream(true, false);
+    for width in [40, 80, 120] {
+        let text =
+            lightweight::render(&path, &restored, &summary, Some(selected), width, plain).unwrap();
+        assert!(text.contains("Threshold lineage"));
+        assert!(text.contains("binary not read"));
+        let text =
+            presentation::render(&path, &restored, &local, Some(0), false, width, plain).unwrap();
+        assert!(text.contains("Threshold lineage"));
+        assert!(!text.contains("older artifact"));
+    }
+}
 #[test]
 fn metadata_only_inspection_never_opens_binary_and_preserves_native_summary() {
     let (_dir, path, artifact, kernels) = fixture();

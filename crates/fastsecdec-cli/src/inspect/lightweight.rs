@@ -80,6 +80,7 @@ pub(super) fn document(
         "inspection_note":"Binary data was not read. Optional producer-recorded inspection/generation observations are not checked against the binary.",
         "retained_metadata_available":artifact.inspection_index().map(|i|i.retained_metadata_available),
         "exact_coefficients":null,
+        "threshold":artifact.catalogue().and_then(|c|c.threshold()),
     });
     if let Some(id) = sector {
         value["selected_sector"] = serde_json::json!({
@@ -90,6 +91,7 @@ pub(super) fn document(
             "chart_previews":charts(artifact,id),
             "omitted_index_charts":artifact.inspection_index().map(|i|i.omitted_charts),
             "details_note":"Per-sector content identity and complete chart metadata require --deep.",
+            "threshold_record":artifact.catalogue().map(|c|c.sector(id)).transpose()?.and_then(|r|r.receipt.threshold.as_ref()),
         });
     } else {
         value["dimensions"] = serde_json::to_value(&summary.dimensions)?;
@@ -109,6 +111,9 @@ pub(super) fn render(
 ) -> CliResult<String> {
     validate_sector(summary, selected)?;
     let mut out = super::overview::render(path, artifact, summary, None, width, colors)?;
+    out.push_str(&super::threshold::catalogue_facts(
+        artifact, selected, width, colors,
+    )?);
     out.push('\n');
     let mut monomials_shown = false;
     if let Some(id) = selected {

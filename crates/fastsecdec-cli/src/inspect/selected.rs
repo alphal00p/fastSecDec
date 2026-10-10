@@ -61,6 +61,7 @@ pub(super) fn inspect(
                 "generation":artifact.generation,"generation_timings":artifact.generation_timings,
                 "sectors":catalogue.sector_count(),"orders":catalogue.orders,"components":catalogue.components,
                 "runtime_parameters":catalogue.runtime_parameters,"parameters_bound":kernels.parameters_bound(),
+                "threshold":super::threshold::native_document(&kernels),
                 "selected_sector":{
                     "id":id,"content_id":kernels.sector_content_id(0)?,
                     "dimension":kernels.sectors()[0].dimension(),
@@ -68,6 +69,7 @@ pub(super) fn inspect(
                     "global_output_indices":descriptor.output_indices,
                     "source_chart_generation_modes":super::source_chart_modes_mapped(&artifact,&kernels,0,Some(sources)),
                     "evaluator_statistics":kernels.sectors()[0].statistics(),"charts":charts,
+                    "threshold_record":descriptor.receipt.threshold,
                 }
             }),
             true,
