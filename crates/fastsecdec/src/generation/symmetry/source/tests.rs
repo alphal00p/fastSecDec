@@ -24,30 +24,24 @@ fn source_witness_preserves_zero_exponent_branches_and_recipe() {
             .prepare(&parameters)
             .unwrap()
     };
-    let source = prepare(
-        parse!("1-x-y"),
-        parse!("1+x+y"),
-        ProgramRecipe::DynamicPolynomialV1,
-    );
-    for target in [
-        prepare(
-            parse!("2-2*x-2*y"),
-            parse!("1+x+y"),
-            ProgramRecipe::DynamicPolynomialV1,
-        ),
-        prepare(
-            parse!("1-x-y"),
-            parse!("1+x+2*y"),
-            ProgramRecipe::DynamicPolynomialV1,
-        ),
-        prepare(
-            parse!("1-x-y"),
-            parse!("1+x+y"),
-            ProgramRecipe::DynamicSignAwareV1,
-        ),
-    ] {
-        assert_eq!(source.density, target.density);
-        assert!(source.equivalent_to(&target).unwrap().is_none());
+    for recipe in [ProgramRecipe::FixedV1, ProgramRecipe::DynamicPolynomialV1] {
+        let source = prepare(parse!("1-x-y"), parse!("1+x+y"), recipe);
+        for target in [
+            prepare(parse!("2-2*x-2*y"), parse!("1+x+y"), recipe),
+            prepare(parse!("1-x-y"), parse!("1+x+2*y"), recipe),
+            prepare(
+                parse!("1-x-y"),
+                parse!("1+x+y"),
+                if recipe == ProgramRecipe::FixedV1 {
+                    ProgramRecipe::DynamicPolynomialV1
+                } else {
+                    ProgramRecipe::FixedV1
+                },
+            ),
+        ] {
+            assert_eq!(source.density, target.density);
+            assert!(source.equivalent_to(&target).unwrap().is_none());
+        }
     }
 }
 
@@ -70,22 +64,40 @@ fn source_witness_proves_the_complete_density_permutation() {
             .map(|(factor, power, role)| (swap(factor), swap(power), *role))
             .collect(),
     };
-    let source = SourceWitness::new(&parameters, &[original], ProgramRecipe::DynamicPolynomialV1)
+    for recipe in [ProgramRecipe::FixedV1, ProgramRecipe::DynamicPolynomialV1] {
+        let source = SourceWitness::new(
+            &parameters,
+            &[PreparedTerm {
+                powers: original.powers.clone(),
+                prefactor: original.prefactor.clone(),
+                residuals: original.residuals.clone(),
+            }],
+            recipe,
+        )
         .unwrap()
         .unwrap()
         .prepare(&parameters)
         .unwrap();
-    let target = SourceWitness::new(&parameters, &[permuted], ProgramRecipe::DynamicPolynomialV1)
+        let target = SourceWitness::new(
+            &parameters,
+            &[PreparedTerm {
+                powers: permuted.powers.clone(),
+                prefactor: permuted.prefactor.clone(),
+                residuals: permuted.residuals.clone(),
+            }],
+            recipe,
+        )
         .unwrap()
         .unwrap()
         .prepare(&parameters)
         .unwrap();
-    assert_eq!(source.equivalent_to(&target).unwrap(), Some(vec![1, 0]));
-    let mut changed = target;
-    changed.density *= Atom::num(2);
-    // Even an otherwise identical candidate graph cannot waive the native
-    // exact proof of prefactors, regulator powers and numerator factors.
-    assert!(source.equivalent_to(&changed).unwrap().is_none());
+        assert_eq!(source.equivalent_to(&target).unwrap(), Some(vec![1, 0]));
+        let mut changed = target;
+        changed.density *= Atom::num(2);
+        // Even an otherwise identical candidate graph cannot waive the native
+        // exact proof of prefactors, regulator powers and numerator factors.
+        assert!(source.equivalent_to(&changed).unwrap().is_none());
+    }
 }
 
 #[test]

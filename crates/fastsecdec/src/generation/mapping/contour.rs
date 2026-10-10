@@ -3,6 +3,8 @@ use super::MappedTerm;
 use crate::{
     contour::{ContourMetadata, SmoothContourMap},
     generation::GenerationError,
+    generation::symmetry::SourceWitness,
+    kernel::ProgramRecipe,
     parametric::FactorSemantics,
 };
 use symbolica::atom::{Atom, Symbol};
@@ -14,16 +16,29 @@ pub(in crate::generation) struct PreparedTerm {
     pub residuals: Vec<(Atom, Atom, FactorSemantics)>,
 }
 
+type DeformedChart = (
+    Vec<MappedTerm>,
+    Option<ContourMetadata>,
+    Option<SourceWitness>,
+);
+
 pub(super) fn deform_with(
     parameters: &[Symbol],
     terms: Vec<PreparedTerm>,
+    recipe: ProgramRecipe,
     build: impl FnOnce(&[Symbol], Atom, &[Atom]) -> Result<SmoothContourMap, GenerationError>,
-) -> Result<(Vec<MappedTerm>, Option<ContourMetadata>), GenerationError> {
+) -> Result<DeformedChart, GenerationError> {
     let (causal, positive) = declared_factors(&terms)?;
     let Some(causal) = causal else {
-        return Ok((Vec::new(), None));
+        return Ok((Vec::new(), None, None));
     };
     let mut map = build(parameters, causal, &positive)?;
+    let witness =
+        if recipe != ProgramRecipe::FixedV1 || !map.metadata().function_definitions().is_empty() {
+            SourceWitness::new(parameters, &terms, recipe)?
+        } else {
+            None
+        };
     let mapped = terms
         .into_iter()
         .map(|term| {
@@ -35,7 +50,7 @@ pub(super) fn deform_with(
             }
         })
         .collect();
-    Ok((mapped, Some(map.metadata().clone())))
+    Ok((mapped, Some(map.metadata().clone()), witness))
 }
 
 pub(in crate::generation) fn declared_factors(

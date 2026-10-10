@@ -67,64 +67,73 @@ fn expected_finite() -> Complex<f64> {
 }
 
 #[test]
-fn sign_aware_higher_endpoint_jets_preserve_pole_and_finite_part() {
+fn compact_fixed_and_sign_aware_higher_endpoint_jets_preserve_pole_and_finite_part() {
     let input = source();
     let expected = expected_finite();
-    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
-        for subtraction in [
-            SubtractionStrategy::Taylor,
-            SubtractionStrategy::IntegrateByParts,
-        ] {
-            let generated = generate(
-                &input,
-                &GenerationOptions {
-                    program_recipe: ProgramRecipe::DynamicSignAwareV1,
-                    mode,
-                    subtraction,
-                    ..Default::default()
-                },
-                |_| ControlFlow::Continue(()),
-            )
-            .unwrap();
-            assert_eq!(generated.orders(), &[-1, 0]);
-            for sector in generated.sectors() {
-                assert_eq!(sector.generation_mode(), mode);
-                if let Some(deferred) = &sector.deferred {
-                    assert!(
-                        deferred
-                            .recipe
-                            .requests
-                            .iter()
-                            .any(|request| request.derivatives[0] >= 2)
-                    );
+    for recipe in [ProgramRecipe::FixedV1, ProgramRecipe::DynamicSignAwareV1] {
+        for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+            for subtraction in [
+                SubtractionStrategy::Taylor,
+                SubtractionStrategy::IntegrateByParts,
+            ] {
+                let generated = generate(
+                    &input,
+                    &GenerationOptions {
+                        program_recipe: recipe,
+                        mode,
+                        subtraction,
+                        ..Default::default()
+                    },
+                    |_| ControlFlow::Continue(()),
+                )
+                .unwrap();
+                assert_eq!(generated.orders(), &[-1, 0]);
+                assert!(
+                    !generated.metadata().charts()[0]
+                        .contour()
+                        .unwrap()
+                        .function_definitions()
+                        .is_empty()
+                );
+                for sector in generated.sectors() {
+                    assert_eq!(sector.generation_mode(), mode);
+                    if let Some(deferred) = &sector.deferred {
+                        assert!(
+                            deferred
+                                .recipe
+                                .requests
+                                .iter()
+                                .any(|request| request.derivatives[0] >= 2)
+                        );
+                    }
                 }
+                let faces = generated.metadata().charts()[0]
+                    .contour()
+                    .unwrap()
+                    .validation_faces();
+                assert!(faces.contains(&vec![(0, 0)]));
+                assert_eq!(
+                    faces.contains(&vec![(0, 1)]),
+                    subtraction == SubtractionStrategy::IntegrateByParts
+                );
+                let values = super::cubic::integrate(&generated, recipe);
+                assert!(
+                    (values[0].re + 60.).abs() < 1e-8,
+                    "{mode:?}/{subtraction:?}: {values:?}"
+                );
+                assert!(
+                    values[0].im.abs() < 1e-8,
+                    "{mode:?}/{subtraction:?}: {values:?}"
+                );
+                assert!(
+                    (values[1].re - expected.re).abs() < 2e-4,
+                    "{mode:?}/{subtraction:?}: {values:?}"
+                );
+                assert!(
+                    (values[1].im - expected.im).abs() < 2e-4,
+                    "{mode:?}/{subtraction:?}: {values:?}"
+                );
             }
-            let faces = generated.metadata().charts()[0]
-                .contour()
-                .unwrap()
-                .validation_faces();
-            assert!(faces.contains(&vec![(0, 0)]));
-            assert_eq!(
-                faces.contains(&vec![(0, 1)]),
-                subtraction == SubtractionStrategy::IntegrateByParts
-            );
-            let values = super::cubic::integrate(&generated, ProgramRecipe::DynamicSignAwareV1);
-            assert!(
-                (values[0].re + 60.).abs() < 1e-8,
-                "{mode:?}/{subtraction:?}: {values:?}"
-            );
-            assert!(
-                values[0].im.abs() < 1e-8,
-                "{mode:?}/{subtraction:?}: {values:?}"
-            );
-            assert!(
-                (values[1].re - expected.re).abs() < 2e-4,
-                "{mode:?}/{subtraction:?}: {values:?}"
-            );
-            assert!(
-                (values[1].im - expected.im).abs() < 2e-4,
-                "{mode:?}/{subtraction:?}: {values:?}"
-            );
         }
     }
 }

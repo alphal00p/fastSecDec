@@ -133,6 +133,12 @@ pub(super) fn integrate(generated: &GeneratedIntegral, recipe: ProgramRecipe) ->
                 .unwrap()
             } else {
                 Atom::evaluator_multiple(sector.coefficients(), &inputs)
+                    .function_map(
+                        sector
+                            .contour_definitions()
+                            .function_map(sector.coefficients())
+                            .unwrap(),
+                    )
                     .build()
                     .unwrap()
             };

@@ -23,10 +23,16 @@ pub(in crate::generation) fn build(
     positive: &[Atom],
 ) -> Result<(SmoothContourMap, ProgramData), GenerationError> {
     match recipe {
-        ProgramRecipe::FixedV1 => Ok((
-            FixedContourMap::new(parameters, causal)?.into_inner(),
-            ProgramData::default(),
-        )),
+        ProgramRecipe::FixedV1 => {
+            let mut map = FixedContourMap::new(parameters, causal)?.into_inner();
+            map.compact_fixed_density()?;
+            let definitions = map.metadata().definitions.clone();
+            let mut program = ProgramData::default();
+            if !definitions.is_empty() {
+                program.definitions.push((0, definitions));
+            }
+            Ok((map, program))
+        }
         ProgramRecipe::DynamicPolynomialV1 | ProgramRecipe::DynamicSignAwareV1 => {
             let envelope = DynamicEnvelope::new(parameters, causal.clone(), positive)?;
             let coefficients = if recipe == ProgramRecipe::DynamicPolynomialV1 {

@@ -1,5 +1,25 @@
 # Ecosystem reuse evidence
 
+## D05 shared fixed Jacobian and native dual composition (2026-10-10)
+
+The [fixed Jacobian review](reviews/contour-fixed-shared-jacobian.md) reuses
+native function definitions, derivative hooks, exact source symmetry witnesses,
+the existing dualizer and v12 storage. It introduces no determinant, AD or
+serialization implementation. Ninety-three focused tests pass (two child-only
+helpers ignored), with strict core library/test Clippy. Independently verified
+physical source-zero compiled/restored vectors agree at two admitted points;
+the excessive-strength refusal is identical. Intermediate records and measured
+generation memory decrease, while saved binary size increases by 6.6%.
+These measurements do not establish full-integral convergence.
+
+The [independent D05 audit](reviews/contour-gghh-double-box-1000-audit.md) also
+checks the public APIs, source and a focused executable composition of native
+image duals, native determinant IR and smooth-density IR before outer subtraction
+jets. Fixed and implicit dynamic controls agree at 192-bit precision through
+mixed third derivatives and regulator order one, including faces. This proves
+an existing native route for the proposed dual-Jacobian option; its production
+implementation, fresh-process artifacts and physical performance remain pending.
+
 ## Phase B delivery boundary audit (2026-10-10)
 
 The [independent delivery audit](reviews/contour-delivery-gap-audit.md) reviews

@@ -261,16 +261,17 @@ pub(super) fn apply_prepared(
     combine: bool,
 ) -> Result<MappedOutput, GenerationError> {
     let mut program = super::program::ProgramData::default();
-    let witness = super::symmetry::SourceWitness::new(parameters, &terms, recipe)?;
+    let mut witness = None;
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     let mut separate = Vec::new();
     let contour_metadata = if recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1 {
-        let (terms, metadata) =
-            contour::deform_with(parameters, terms, |parameters, f, positive| {
+        let (terms, metadata, source_witness) =
+            contour::deform_with(parameters, terms, recipe, |parameters, f, positive| {
                 let (map, owner) = contour::program::build(recipe, parameters, f, positive)?;
                 program = owner;
                 Ok(map)
             })?;
+        witness = source_witness;
         for term in terms {
             retain_term(term, combine, &mut combined, &mut separate);
         }

@@ -26,6 +26,7 @@ generation and four-way integration measurements are still pending.
 
 | Area | Evidence and remaining work |
 | --- | --- |
+| D05 fixed Jacobian sharing | The [reviewed shared-body increment](contour-fixed-shared-jacobian.md) passes 93 focused tests and strict core Clippy. Actual source-zero mapped records fall from 683.8 MB to 365.6 MB; observed compilation falls from 169.5 s to 58.2 s. Complete four-component saved vectors at two admitted points agree, and both representations reject the same excessive fixed strength. These are native debug-graph, single-chart measurements on a shared host; saved binary size increases 6.6%. Full 1000 GeV generation/integration remains pending. |
 | Fixed map and subtraction | Symbolica-derived map, Jacobian, endpoint ratios and factorwise causal logarithms; symbolic and numerical-dual Taylor/IBP controls pass. |
 | Fixed runtime | Runtime binding, eager/SymJIT and precision rescue, scoped preflight, `always`/`pilot`/`off`, selective reload and checkpoint provenance pass native tests. |
 | Caller-owned execution | Real CLI tests cover ordinary/serial generation and integration, all validation policies, cancellation during preflight, exact offsets and policy-only resume. |

@@ -22,7 +22,7 @@ fn point(kernels: &mut KernelSet, x: f64) -> Vec<f64> {
 }
 
 #[test]
-fn source_symmetric_dynamic_charts_keep_complete_checked_face_associations() {
+fn source_symmetric_compact_charts_keep_complete_checked_face_associations() {
     let x = symbol!("compact_symmetry::x");
     let y = symbol!("compact_symmetry::y");
     let eps = symbol!("compact_symmetry::eps");
@@ -58,14 +58,25 @@ fn source_symmetric_dynamic_charts_keep_complete_checked_face_associations() {
         )],
     )
     .unwrap();
-    for (recipe, construction) in [
+    for (recipe, deformation) in [
+        (ProgramRecipe::FixedV1, ContourMode::Fixed { lambda: 0.05 }),
         (
             ProgramRecipe::DynamicPolynomialV1,
-            DynamicConstruction::Polynomial,
+            ContourMode::Dynamical {
+                safety_fraction: 0.8,
+                lambda_cap: 0.05,
+                displacement_cap: 1.,
+                construction: DynamicConstruction::Polynomial,
+            },
         ),
         (
             ProgramRecipe::DynamicSignAwareV1,
-            DynamicConstruction::SignAware,
+            ContourMode::Dynamical {
+                safety_fraction: 0.8,
+                lambda_cap: 0.05,
+                displacement_cap: 1.,
+                construction: DynamicConstruction::SignAware,
+            },
         ),
     ] {
         let options = GenerationOptions {
@@ -93,12 +104,7 @@ fn source_symmetric_dynamic_charts_keep_complete_checked_face_associations() {
                 .bind_parameters_with_contour(
                     &BTreeMap::new(),
                     &ContourSettings {
-                        deformation: ContourMode::Dynamical {
-                            safety_fraction: 0.8,
-                            lambda_cap: 0.05,
-                            displacement_cap: 1.,
-                            construction,
-                        },
+                        deformation,
                         validation: ContourValidationOptions {
                             policy: ContourValidation::Always,
                             pilot_points: 1,

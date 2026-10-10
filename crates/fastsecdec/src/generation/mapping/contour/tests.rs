@@ -1,6 +1,6 @@
 use super::*;
 use crate::contour::dynamic::DynamicEnvelope;
-use symbolica::{parse, symbol};
+use symbolica::{atom::AtomCore, parse, symbol};
 
 #[test]
 fn every_term_contributes_positive_factors_before_the_single_map_is_built() {
@@ -23,15 +23,20 @@ fn every_term_contributes_positive_factors_before_the_single_map_is_built() {
         })
         .collect();
     let mut calls = 0;
-    let (mapped, metadata) = deform_with(&[x], terms, |parameters, f, all_positive| {
-        calls += 1;
-        assert_eq!(all_positive, positive);
-        let envelope = DynamicEnvelope::new(parameters, f.clone(), all_positive)?;
-        // Only the second term introduces a quartic radius condition.
-        assert_eq!(envelope.maximum_even_order(), 4);
-        assert_eq!(envelope.positive_factors().len(), 2);
-        SmoothContourMap::new(parameters, f, Atom::num((1, 10)))
-    })
+    let (mapped, metadata, _) = deform_with(
+        &[x],
+        terms,
+        ProgramRecipe::FixedV1,
+        |parameters, f, all_positive| {
+            calls += 1;
+            assert_eq!(all_positive, positive);
+            let envelope = DynamicEnvelope::new(parameters, f.clone(), all_positive)?;
+            // Only the second term introduces a quartic radius condition.
+            assert_eq!(envelope.maximum_even_order(), 4);
+            assert_eq!(envelope.positive_factors().len(), 2);
+            SmoothContourMap::new(parameters, f, Atom::num((1, 10)))
+        },
+    )
     .unwrap();
     assert_eq!(calls, 1);
     assert_eq!(mapped.len(), 2);
@@ -52,8 +57,54 @@ fn chart_terms_cannot_change_the_causal_polynomial_or_build_a_partial_map() {
             )],
         })
         .into();
-    let result = deform_with(&[x], terms, |_, _, _| {
+    let result = deform_with(&[x], terms, ProgramRecipe::FixedV1, |_, _, _| {
         panic!("must check the entire chart first")
     });
     assert!(result.is_err());
+}
+
+#[test]
+fn fixed_shared_jacobian_preserves_native_metadata_derivatives_and_faces() {
+    let x = symbol!("fixed_shared_jacobian::x");
+    let y = symbol!("fixed_shared_jacobian::y");
+    let f = Atom::one() + Atom::var(x).pow(3);
+    let mut original = crate::contour::FixedContourMap::new(&[x, y], f)
+        .unwrap()
+        .into_inner();
+    let mut compact = original.clone();
+    compact.compact_fixed_density().unwrap();
+    assert_eq!(
+        compact.metadata().jacobian(),
+        original.metadata().jacobian()
+    );
+    assert_eq!(compact.metadata().images(), original.metadata().images());
+    assert_eq!(compact.metadata().ratios(), original.metadata().ratios());
+    let definitions = compact.metadata().function_definitions().clone();
+    assert_eq!(definitions.entries().len(), 1);
+    let powers = [Atom::Zero, Atom::Zero];
+    let raw = original.smooth_density(&powers, &[]);
+    let mut shared = compact.smooth_density(&powers, &[]);
+    assert_ne!(shared, raw);
+    assert_eq!(definitions.materialize(&shared).unwrap(), raw);
+    assert!(!shared.contains(Atom::var(y).as_view()));
+    let mut derivative = raw;
+    for order in 1..=3 {
+        shared = shared.derivative(x);
+        derivative = derivative.derivative(x);
+        assert!(
+            (definitions.materialize(&shared).unwrap() - &derivative)
+                .expand()
+                .is_zero(),
+            "native shared Jacobian derivative {order}"
+        );
+        for face in [0, 1] {
+            let restricted = shared.replace(Atom::var(x)).with(Atom::num(face));
+            let expected = derivative.replace(Atom::var(x)).with(Atom::num(face));
+            assert!(
+                (definitions.materialize(&restricted).unwrap() - expected)
+                    .expand()
+                    .is_zero()
+            );
+        }
+    }
 }

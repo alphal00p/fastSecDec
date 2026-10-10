@@ -1,4 +1,4 @@
-//! Exact source witness for a permutation-equivariant dynamic contour.
+//! Exact source witness for a permutation-equivariant contour with definitions.
 //!
 //! The native density and explicitly designated branch factors are compared
 //! before compact functions are introduced. A hash or function name is never
@@ -30,7 +30,9 @@ impl SourceWitness {
     ) -> Result<Option<Self>, GenerationError> {
         if !matches!(
             recipe,
-            ProgramRecipe::DynamicPolynomialV1 | ProgramRecipe::DynamicSignAwareV1
+            ProgramRecipe::FixedV1
+                | ProgramRecipe::DynamicPolynomialV1
+                | ProgramRecipe::DynamicSignAwareV1
         ) || terms.is_empty()
         {
             return Ok(None);
@@ -90,11 +92,12 @@ impl SourceWitness {
             ));
         }
         let recipe = match self.recipe {
+            ProgramRecipe::FixedV1 => 0,
             ProgramRecipe::DynamicPolynomialV1 => 1,
             ProgramRecipe::DynamicSignAwareV1 => 2,
             _ => {
                 return Err(GenerationError::Invariant(
-                    "non-dynamic source symmetry witness".into(),
+                    "undeformed source symmetry witness".into(),
                 ));
             }
         };

@@ -40,6 +40,7 @@ impl FixedContourMap {
 pub(crate) struct SmoothContourMap {
     parameters: Vec<Symbol>,
     metadata: ContourMetadata,
+    density_jacobian: Option<Atom>,
 }
 impl SmoothContourMap {
     pub(crate) fn new(
@@ -105,7 +106,7 @@ impl SmoothContourMap {
             .collect::<Vec<_>>();
         let dimension = u32::try_from(parameters.len())
             .map_err(|_| GenerationError::ResourceLimit("contour Jacobian dimension"))?;
-        let jacobian = if dimension >= 7 {
+        let jacobian = if dimension >= 6 {
             // F passed the real-polynomial admission above. The private map
             // constructor requires a real smooth strength from its recipe;
             // retain its complete native coordinate derivative in the border.
@@ -119,6 +120,7 @@ impl SmoothContourMap {
         };
         Ok(Self {
             parameters: parameters.to_vec(),
+            density_jacobian: None,
             metadata: ContourMetadata {
                 definitions,
                 causal_polynomial,
@@ -133,6 +135,27 @@ impl SmoothContourMap {
 
     pub(crate) fn metadata(&self) -> &ContourMetadata {
         &self.metadata
+    }
+
+    /// Share a root-free fixed Jacobian across the chart's source terms.
+    /// Public inspection retains the original native map. The existing native
+    /// function map supplies derivatives and inlines this body before jets.
+    pub(crate) fn compact_fixed_density(&mut self) -> Result<(), GenerationError> {
+        if !self.metadata.definitions.is_empty() {
+            return Err(GenerationError::Invariant(
+                "fixed Jacobian compaction received existing coefficient definitions".into(),
+            ));
+        }
+        let (definitions, mut calls) = ContourDefinitions::coefficients(
+            &self.parameters,
+            std::slice::from_ref(&self.metadata.jacobian),
+        )
+        .map_err(GenerationError::Contour)?;
+        if !definitions.is_empty() {
+            self.density_jacobian = calls.pop();
+            self.metadata.definitions = Arc::new(definitions);
+        }
+        Ok(())
     }
 
     pub(crate) fn substitute(&self, expression: &Atom) -> Atom {
@@ -153,7 +176,11 @@ impl SmoothContourMap {
         powers: &[Atom],
         factors: &[(Atom, Atom, FactorSemantics)],
     ) -> Atom {
-        let mut density = self.metadata.jacobian.clone();
+        let mut density = self
+            .density_jacobian
+            .as_ref()
+            .unwrap_or(&self.metadata.jacobian)
+            .clone();
         for (ratio, power) in self.metadata.ratios.iter().zip(powers) {
             density *= continued_power(ratio, power, false);
         }
