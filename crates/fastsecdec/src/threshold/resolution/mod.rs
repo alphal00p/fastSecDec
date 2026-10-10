@@ -26,6 +26,7 @@ mod marked;
 mod matrix;
 mod native_basis;
 mod producer;
+mod recursive;
 mod transform;
 pub use algebra::{Budget, Error, Ideal, Limits, Poly, Ring};
 pub use blowup::{
@@ -91,6 +92,10 @@ pub use marked::{
 pub use producer::{
     ContactCandidate, DerivativeStage, OrderProduction, ProducedContactCover, ProductionProgress,
     produce_ordinary_contact_cover,
+};
+pub use recursive::{
+    BoundaryFreeFirstCenter, FirstBlowup, LiftReceipt, RecursiveAdvance, RecursiveBlowupChart,
+    RecursiveCenter, RecursiveLevel, RecursiveOutcome, first_coordinate_blowup,
 };
 pub use transform::{ControlledTransformCertificate, DivisorTransform, VerifiedTransform};
 

@@ -1,0 +1,244 @@
+use super::*;
+use symbolica::symbol;
+#[derive(Clone, Debug)]
+pub enum RecursiveOutcome {
+    Pending,
+    Center(Arc<RecursiveCenter>),
+    EmptyMarkedCosupport {
+        frame: Arc<EtaleFrame>,
+        source: Arc<MarkedIdeal>,
+    },
+    TopLevelZeroIdeal {
+        frame: Arc<EtaleFrame>,
+        source: Arc<MarkedIdeal>,
+    },
+    MultipleContactOpensRequired {
+        source: Arc<ProducedContactCover>,
+    },
+}
+#[derive(Clone, Debug)]
+enum Pending {
+    Descend {
+        frame: Arc<EtaleFrame>,
+        source: Arc<MarkedIdeal>,
+    },
+    Ascend(Arc<RecursiveCenter>),
+}
+#[derive(Clone, Debug)]
+pub struct BoundaryFreeFirstCenter {
+    stack: Vec<Arc<RecursiveLevel>>,
+    pending: Option<Pending>,
+    outcome: RecursiveOutcome,
+    namespace: String,
+    reverse_contacts: bool,
+    accepted_steps: usize,
+}
+#[derive(Clone, Debug)]
+pub enum RecursiveAdvance {
+    Progress,
+    Complete,
+    Incomplete { reason: &'static str },
+}
+impl BoundaryFreeFirstCenter {
+    pub fn new(
+        frame: Arc<EtaleFrame>,
+        source: Arc<MarkedIdeal>,
+        namespace: &str,
+        reverse_contacts: bool,
+    ) -> Result<Self> {
+        if source.ideal().ring() != frame.local().ring()
+            || (0..frame.local().ring().len()).any(|i| frame.local().ring().is_parameter(i))
+        {
+            return Err(Error::Invalid("first-center fixed-parameter source/frame"));
+        }
+        Ok(Self {
+            stack: vec![],
+            pending: Some(Pending::Descend { frame, source }),
+            outcome: RecursiveOutcome::Pending,
+            namespace: namespace.into(),
+            reverse_contacts,
+            accepted_steps: 0,
+        })
+    }
+    pub fn outcome(&self) -> &RecursiveOutcome {
+        &self.outcome
+    }
+    pub fn accepted_steps(&self) -> usize {
+        self.accepted_steps
+    }
+    pub fn depth(&self) -> usize {
+        self.stack.len()
+    }
+    /// Caller-stepped, atomic accepted state. An incomplete native operation is
+    /// retried from this state; it is not a durable or inner-work checkpoint.
+    pub fn advance(&mut self, b: &mut Budget) -> Result<RecursiveAdvance> {
+        if self.pending.is_none() {
+            return Ok(RecursiveAdvance::Complete);
+        }
+        let mut proposed = self.clone();
+        match proposed.step(b) {
+            Ok(()) => {
+                proposed.accepted_steps = proposed
+                    .accepted_steps
+                    .checked_add(1)
+                    .ok_or(Error::ResourceIncomplete("recursive step counter"))?;
+                *self = proposed;
+                Ok(if self.pending.is_none() {
+                    RecursiveAdvance::Complete
+                } else {
+                    RecursiveAdvance::Progress
+                })
+            }
+            Err(Error::ResourceIncomplete(reason)) => Ok(RecursiveAdvance::Incomplete { reason }),
+            Err(e) => Err(e),
+        }
+    }
+    fn step(&mut self, b: &mut Budget) -> Result<()> {
+        match self
+            .pending
+            .clone()
+            .ok_or(Error::Invalid("recursive pending owner"))?
+        {
+            Pending::Ascend(child) => {
+                if let Some(level) = self.stack.last().cloned() {
+                    let center = Arc::new(super::lift::ascend(level, child, b)?);
+                    self.stack.pop();
+                    self.pending = Some(Pending::Ascend(center));
+                } else {
+                    self.pending = None;
+                    self.outcome = RecursiveOutcome::Center(child);
+                }
+            }
+            Pending::Descend { frame, source } => {
+                let normalizer = QuotientNormalizer::prepare(frame.local().clone(), b)?;
+                let normalization = match normalizer.normalize(source.clone(), b)? {
+                    NormalizationOutcome::Complete(n) => Arc::new(*n),
+                    NormalizationOutcome::Incomplete { reason, .. } => {
+                        return Err(Error::ResourceIncomplete(reason));
+                    }
+                };
+                match produce_ordinary_contact_cover(
+                    frame.clone(),
+                    Arc::new(normalization.normalized().ideal().clone()),
+                    b,
+                )? {
+                    OrderProduction::ZeroIdeal { .. } => {
+                        if self.stack.is_empty() {
+                            self.pending = None;
+                            self.outcome = RecursiveOutcome::TopLevelZeroIdeal { frame, source };
+                            return Ok(());
+                        }
+                        let center = RecursiveCenter {
+                            ideal: Ideal::new(frame.local().ring().clone(), vec![], b)?,
+                            frame,
+                            source,
+                            normals: vec![],
+                            invariant: vec![],
+                            lift: None,
+                        };
+                        self.pending = Some(Pending::Ascend(Arc::new(center)));
+                    }
+                    OrderProduction::UnitIdeal { .. } => self.empty(frame, source)?,
+                    OrderProduction::TerminalParameterLocus { .. } => {
+                        return Err(Error::Invalid("fixed-parameter terminal proper ideal"));
+                    }
+                    OrderProduction::Incomplete { reason, .. } => {
+                        return Err(Error::ResourceIncomplete(reason));
+                    }
+                    OrderProduction::ContactCover(cover) => {
+                        if cover.algebraic_maximum_order() < source.mark() {
+                            self.empty(frame, source)?;
+                            return Ok(());
+                        }
+                        let cover = Arc::new(cover);
+                        b.reserve_slots(cover.candidates().len())?;
+                        let mut candidates = (0..cover.candidates().len()).collect::<Vec<_>>();
+                        if self.reverse_contacts {
+                            candidates.reverse();
+                        }
+                        let mut chosen = None;
+                        for i in candidates {
+                            let unit = frame.local().ideal().sum(
+                                &Ideal::new(
+                                    frame.local().ring().clone(),
+                                    vec![cover.candidates()[i].differential.clone()],
+                                    b,
+                                )?,
+                                b,
+                            )?;
+                            if unit.contains(
+                                &frame.local().ring().one(),
+                                frame.local().unit_relations(),
+                                b,
+                            )? {
+                                chosen = Some(i);
+                                break;
+                            }
+                        }
+                        let Some(index) = chosen else {
+                            self.pending = None;
+                            self.outcome =
+                                RecursiveOutcome::MultipleContactOpensRequired { source: cover };
+                            return Ok(());
+                        };
+                        let depth = self.stack.len();
+                        let fresh = [
+                            symbol!(format!("{}::d{depth}_z", self.namespace)),
+                            symbol!(format!("{}::d{depth}_inv", self.namespace)),
+                        ];
+                        let q = match construct_contact_quotient(cover.clone(), index, fresh, b)? {
+                            ContactProduction::Constructed(q) => Arc::new(*q),
+                            ContactProduction::Incomplete { reason, .. } => {
+                                return Err(Error::ResourceIncomplete(reason));
+                            }
+                            ContactProduction::EmptyContactOpen { .. } => {
+                                return Err(Error::Invalid(
+                                    "global unit contact unexpectedly empty",
+                                ));
+                            }
+                        };
+                        if q.contact().free_axes().len().checked_add(1)
+                            != Some(frame.free_axes().len())
+                        {
+                            return Err(Error::Invalid("recursive contact dimension did not drop"));
+                        }
+                        let m = i64::try_from(cover.algebraic_maximum_order())
+                            .map_err(|_| Error::ResourceIncomplete("recursive order conversion"))?;
+                        let d = i64::try_from(source.mark())
+                            .map_err(|_| Error::ResourceIncomplete("recursive mark conversion"))?;
+                        let ratio = Rational::from(m) / Rational::from(d);
+                        let next = Pending::Descend {
+                            frame: q.contact().clone(),
+                            source: Arc::new(q.differential_coefficient().clone()),
+                        };
+                        b.reserve_slots(
+                            self.stack
+                                .len()
+                                .checked_add(1)
+                                .ok_or(Error::ResourceIncomplete("recursive stack count"))?,
+                        )?;
+                        self.stack.push(Arc::new(RecursiveLevel {
+                            frame,
+                            source,
+                            contact: q,
+                            normalization,
+                            ratio,
+                        }));
+                        self.pending = Some(next);
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    fn empty(&mut self, frame: Arc<EtaleFrame>, source: Arc<MarkedIdeal>) -> Result<()> {
+        if !self.stack.is_empty() {
+            return Err(Error::Invalid(
+                "recursive coefficient unexpectedly lost nonempty maximum",
+            ));
+        }
+        self.pending = None;
+        self.outcome = RecursiveOutcome::EmptyMarkedCosupport { frame, source };
+        Ok(())
+    }
+}

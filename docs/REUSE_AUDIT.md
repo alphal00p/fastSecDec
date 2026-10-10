@@ -1,5 +1,15 @@
 # Ecosystem reuse evidence
 
+## Recursive first-center construction (2026-10-10)
+
+The [BM driver review](reviews/no-deformation-bm-driver.md) now includes the
+registered fixed-parameter, empty-boundary first-center recursion. It reuses
+native maximum order, quotient normalization, full differential coefficient
+ideals, guard clearing, ideal membership and checked controlled transforms.
+Independent review and native cusp/nonprincipal/resource controls establish
+this local slice only. Boundary history cycles, general center adaptation,
+global gluing and the real integration atlas remain required.
+
 ## Quasi-ordinary discriminant prerequisite (2026-10-10)
 
 The [discriminant review](reviews/no-deformation-quasiordinary.md) records
