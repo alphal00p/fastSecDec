@@ -1,5 +1,6 @@
 use super::*;
 use crate::{kernel::indexed::ProgramRecipe, parametric::FactorSemantics};
+use symbolica::atom::AtomCore;
 
 fn dynamic_source() -> ParametricIntegrand {
     ParametricIntegrand::new(
@@ -120,7 +121,28 @@ fn dynamic_helpers_restore_before_chart_atoms_in_a_fresh_worker() {
             )
             .unwrap()
         } else {
-            dynamic_source()
+            let x = symbol!("dynamic_staged_projective::x");
+            let y = symbol!("dynamic_staged_projective::y");
+            ParametricIntegrand::new(
+                vec![x, y],
+                symbol!("dynamic_staged_projective::eps"),
+                ParametricDomain::ProjectiveSimplex,
+                vec![ParametricTerm::new(
+                    Atom::one(),
+                    vec![Atom::Zero, Atom::Zero],
+                    vec![
+                        PolynomialFactor::new(
+                            2 * Atom::var(x).pow(2)
+                                + Atom::var(x) * Atom::var(y)
+                                + 3 * Atom::var(y).pow(2),
+                            Atom::num(-1),
+                            FactorRole::Singularity,
+                        )
+                        .with_semantics(FactorSemantics::Causal),
+                    ],
+                )],
+            )
+            .unwrap()
         };
         for (mode, contour_jacobian) in [
             (
@@ -130,6 +152,10 @@ fn dynamic_helpers_restore_before_chart_atoms_in_a_fresh_worker() {
             (
                 GenerationMode::NumericalDual,
                 crate::contour::ContourJacobian::Symbolic,
+            ),
+            (
+                GenerationMode::Symbolic,
+                crate::contour::ContourJacobian::Dual,
             ),
             (
                 GenerationMode::NumericalDual,
@@ -148,28 +174,33 @@ fn dynamic_helpers_restore_before_chart_atoms_in_a_fresh_worker() {
                 &[],
                 &[],
             );
-            std::fs::write(
-                directory.path().join("job.json"),
-                serde_json::to_vec(&generated.sectors[0]).unwrap(),
-            )
-            .unwrap();
-            let output = std::process::Command::new(std::env::current_exe().unwrap())
-                .args([
-                    "--exact",
-                    "generation::streaming::tests::program::dynamic_staged_worker",
-                    "--nocapture",
-                ])
-                .env("FASTSECDEC_DYNAMIC_STAGED_WORKER", directory.path())
-                .output()
+            if recipe == ProgramRecipe::DynamicPolynomialV1 {
+                assert!(generated.sectors.iter().any(|job| job.index > 0));
+            }
+            for job in &generated.sectors {
+                std::fs::write(
+                    directory.path().join("job.json"),
+                    serde_json::to_vec(job).unwrap(),
+                )
                 .unwrap();
-            assert!(
-                output.status.success(),
-                "{}\n{}",
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert!(directory.path().join("restored.ok").is_file());
-            std::fs::remove_file(directory.path().join("restored.ok")).unwrap();
+                let output = std::process::Command::new(std::env::current_exe().unwrap())
+                    .args([
+                        "--exact",
+                        "generation::streaming::tests::program::dynamic_staged_worker",
+                        "--nocapture",
+                    ])
+                    .env("FASTSECDEC_DYNAMIC_STAGED_WORKER", directory.path())
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "{}\n{}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                assert!(directory.path().join("restored.ok").is_file());
+                std::fs::remove_file(directory.path().join("restored.ok")).unwrap();
+            }
         }
     }
 }

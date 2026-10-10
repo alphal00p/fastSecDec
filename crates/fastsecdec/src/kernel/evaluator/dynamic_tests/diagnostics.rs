@@ -14,6 +14,7 @@ fn aggregate_retains_discarded_matrix_and_native_rescue_work() {
         let mut kernels = KernelSet::from_programs_for_load(
             vec![-1, 0],
             vec![SectorProgram {
+                symbolic_endpoint_contour_partials: None,
                 parameters: vec![x],
                 runtime_parameters: vec![],
                 exact,

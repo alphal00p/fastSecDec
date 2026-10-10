@@ -1,5 +1,7 @@
 //! Computational construction of the same mathematical deformation Jacobian.
+mod program;
 use crate::generation::GenerationError;
+pub(crate) use program::image_partials;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     id::{Pattern, Replacement},
@@ -12,8 +14,8 @@ pub enum ContourJacobian {
     /// Construct the native symbolic Jacobian before evaluator lowering.
     #[default]
     Symbolic,
-    /// Compose native image derivatives and determinant instructions before
-    /// the complete smooth density receives its subtraction jets.
+    /// Evaluate contour-image first derivatives through native dual arithmetic.
+    /// Endpoint reduction follows the independently selected generation mode.
     Dual,
 }
 
@@ -24,12 +26,21 @@ impl ContourJacobian {
 }
 
 /// Native semantic source retained until composition produces ordinary IR.
-/// The complete function Atom is an evaluator input, never a numeric callback.
+/// NumericalDual endpoints bind the complete function Atom; Symbolic endpoints
+/// bind surviving image partials only. Neither route adds a Jacobian callback.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ContourJacobianPlan {
     pub parameters: Vec<Symbol>,
     pub images: Vec<Atom>,
     pub jacobian: Atom,
+}
+
+/// Final symbolic coefficients retain the original images and actual endpoint
+/// faces. Endpoint derivatives have already been taken by the native CAS.
+#[derive(Clone, Debug)]
+pub(crate) struct SymbolicContourJacobian {
+    pub plan: std::sync::Arc<ContourJacobianPlan>,
+    pub faces: Vec<Vec<(usize, u8)>>,
 }
 
 #[derive(Clone, Debug)]

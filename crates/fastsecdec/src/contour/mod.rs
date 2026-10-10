@@ -14,7 +14,9 @@ pub use diagnostics::{
     ContourDiagnosticRange, ContourDiagnosticsMode, ContourRuntimeReport, ContourRuntimeWork,
 };
 pub use jacobian::ContourJacobian;
-pub(crate) use jacobian::{ContourJacobianPlan, JacobianTemplate};
+pub(crate) use jacobian::{
+    ContourJacobianPlan, JacobianTemplate, SymbolicContourJacobian, image_partials,
+};
 pub use map::FixedContourMap;
 pub(crate) use map::{SmoothContourMap, continued_power};
 pub use metadata::ContourMetadata;

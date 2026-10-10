@@ -201,8 +201,13 @@ pub(in crate::generation) fn instantiate(
                 "dual contour requires exactly one retained Jacobian source".into(),
             ));
         };
+        let [(definition_source, _)] = program.definitions.as_slice() else {
+            return Err(GenerationError::Invariant(
+                "dual contour requires exactly one retained definition source".into(),
+            ));
+        };
         if program.contour_jacobian != context.options.contour_jacobian
-            || *source != index
+            || source != definition_source
             || plan.parameters != context.parameters
             || plan.images != metadata.images()
             || plan.jacobian != *metadata.jacobian()
@@ -311,6 +316,7 @@ pub(in crate::generation) fn instantiate(
     };
     let orders = coefficients.keys().copied().collect();
     let sector = GeneratedSector {
+        symbolic_jacobian: None,
         contour_jacobian: context.options.contour_jacobian,
         contour_definitions: program.contour_definitions()?,
         program_descriptor: program.descriptor,

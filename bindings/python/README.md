@@ -315,21 +315,37 @@ Generation accepts `contour_jacobian="symbolic"` (the default) or `"dual"` on
 ```python
 work = integral.generation_family_session(
     ["fixed", "polynomial", "sign_aware"],
-    mode="numerical_dual", contour_jacobian="dual",
+    mode="symbolic", contour_jacobian="dual",
     compilation_settings=CompilationSettings(backend="eager"),
 )
 assert work.contour_jacobian == "dual"
+assert work.mode == "symbolic"
 ```
 
-Dual construction uses native image derivatives and determinant composition;
-it currently requires numerical-dual generation and at most six contour
-coordinates. Unsupported requests raise an error without switching modes.
+Endpoint reduction and Jacobian construction are independent choices. With
+`mode="symbolic"`, endpoint subtraction and integration by parts remain
+symbolic for either Jacobian choice. Dual construction uses native first
+derivatives of the contour images and determinant composition, currently for
+at most six contour coordinates. Symbolic endpoint derivatives may request
+higher derivatives of the local contour strength through its native hooks;
+they do not introduce numerical-dual endpoint jets for the complete density.
+The separate `mode="numerical_dual"` path remains available. Unsupported
+requests raise an error without switching modes.
+For symbolic endpoints, Dual-J currently requires a straight-line native body
+after unused inputs are pruned. A retained conditional or sub-evaluator using a
+private Jacobian entry is rejected explicitly; select Symbolic-J for that case.
+Exact-only contributions keep native symbolic materialization.
+On a newly compiled owner, each sector's
+`symbolic_endpoint_contour_partials` statistic counts the surviving image-partial
+inputs supplied by this route. Zero is a known cancellation; `None` means the
+observation is unavailable, including after restoration. This statistic does
+not change the saved mathematical identity or perform an evaluation.
 Construction does no generation or compilation until the caller steps the owner.
 Synchronous `generate` and `sector_decompose` remain explicit generation actions.
 
 The generated owner retains this choice. Default compilation settings adopt it,
 and `kernels.compilation_settings.contour_jacobian` reports the saved value.
 Setting `CompilationSettings(contour_jacobian="dual")` cannot retrofit a
-symbolic generated owner; select Dual during generation. Strengths, caps and
+Symbolic-J generated owner; select Dual-J during generation. Strengths, caps and
 validation are still bound separately at runtime. This is a computational choice,
 not an accuracy or speed guarantee.

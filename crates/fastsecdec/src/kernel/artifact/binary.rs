@@ -1001,6 +1001,7 @@ pub(super) fn load_with_progress(
             cancellation = cancellation.with_endpoint_profiles(profiles)?;
         }
         programs.push(SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters: sector.parameters,
             runtime_parameters: payload.runtime_parameters.clone(),
             exact_zero: native::literal_zero::outputs(&program),

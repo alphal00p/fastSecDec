@@ -101,7 +101,7 @@ enum Action {
         /// Generate one native recipe, such as dynamic-sign-aware-v1.
         #[arg(long, value_parser = parse_program_recipe, conflicts_with = "contour")]
         recipe: Option<fastsecdec::kernel::ProgramRecipe>,
-        /// Determinant construction; dual requires numerical_dual generation.
+        /// Contour determinant construction, independent of endpoint generation mode.
         #[arg(long, value_parser = parse_contour_jacobian)]
         contour_jacobian: Option<fastsecdec::contour::ContourJacobian>,
         /// Artifact basename, such as output/integral.fsd, without .json or .dat.

@@ -206,3 +206,44 @@ recorded in
 and `parity-fixed-polynomial.json`. Matched native sampling-cost measurements
 have been handed to the runtime owner; no runtime advantage or amortization
 threshold is inferred from the smaller saved programs alone.
+
+## Historical source-zero runtime costs: NumericalDual endpoints
+
+These completed measurements use **NumericalDual endpoint reduction in both
+columns**. They do not satisfy the subsequent request for symbolic endpoint
+reduction with an independent choice of Jacobian construction, and they do not
+select the revised benchmark's construction.
+
+The four saved source-zero owners above were restored with the verified
+candidate3 release graph, Symbolica/Numerica `74225696`, and native SymJIT O2.
+The predeclared matched allocation was native Kuo 4096 points × two shifts,
+Korobov3, seed `202610100903`, one CPU, and batches of 256. All four actual
+coordinate/weight digests agree. Each owner first passed the maintained native
+Pilot16 protocol with seed `202610100904`. Fixed strength was 1e-6; polynomial
+used S=0.8, L=1e-6, R=1. All 8192 rows per arm completed, with no arbitrary-
+precision rescue or optional production causal checks.
+
+| Recipe | Symbolic-J mean µs/point | Dual-J mean µs/point | DD rescues in each arm |
+|---|---:|---:|---:|
+| Fixed | 29.289 | 37.679 | 27 |
+| Polynomial | 57.241 | 70.675 | 28 |
+
+The timer encloses native weighted full-vector evaluation, including precision
+rescues and lazy evaluation setup. Artifact loading, binding, causal pilot,
+context construction and coordinate hashing have separate timers. Exact offsets
+are retained as provenance but excluded from this stochastic cost. Since this
+is one source sector, its mean is not an all-sector average, a worst individual
+sample, a variance estimate or a full-integral result. Host workloads overlapped;
+these bounded single allocations do not establish a universal performance ratio.
+The prior 32 × two-shift cold-context feasibility is preserved separately.
+
+The larger run closed in 6.781 seconds with 97,767,424 bytes peak process-group
+RSS, within its 120-second/100-GB bound. Raw native summaries, all precision
+counts, coordinates and stage timings are under
+`target/contour-d05-1000-runtime/cost/candidate3-dual-source-matched_4096x2/`.
+The native summary SHA-256 is
+`ec045a549d6fcc5f4f2afe6e28631a30f45f02ec51245719c7a062d7d09e7949`;
+the frozen plan SHA-256 is
+`480977c5b08cc88d23b85804e861dea151bc2b2efd4bb313977f328fa521d031`.
+No later final launch used these measurements after the endpoint-mode
+clarification.

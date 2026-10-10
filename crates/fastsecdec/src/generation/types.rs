@@ -255,6 +255,7 @@ pub struct EndpointProfileRow {
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
+    pub(crate) symbolic_jacobian: Option<crate::contour::SymbolicContourJacobian>,
     pub(crate) contour_jacobian: crate::contour::ContourJacobian,
     pub(crate) contour_definitions: std::sync::Arc<crate::contour::ContourDefinitions>,
     pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,

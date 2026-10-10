@@ -50,6 +50,25 @@ impl Assembly {
         output: coefficients::Output,
         program: ProgramData,
     ) -> Result<(), GenerationError> {
+        let needs_plan = program.contour_jacobian == crate::contour::ContourJacobian::Dual
+            && !parameters.is_empty()
+            && program.descriptor.as_ref().is_some_and(|owner| {
+                owner.recipe() != crate::kernel::indexed::ProgramRecipe::UndeformedV1
+            });
+        if needs_plan || !program.jacobians.is_empty() {
+            let [(_, plan)] = program.jacobians.as_slice() else {
+                return Err(GenerationError::Invariant(
+                    "symbolic sector requires one local contour Jacobian plan".into(),
+                ));
+            };
+            if plan.parameters != parameters
+                || program.contour_jacobian != crate::contour::ContourJacobian::Dual
+            {
+                return Err(GenerationError::Invariant(
+                    "symbolic contour Jacobian source/context mismatch".into(),
+                ));
+            }
+        }
         self.program.merge(&program)?;
         let definitions = program.contour_definitions()?;
         let coefficients = output
@@ -122,8 +141,24 @@ impl Assembly {
         let sectors = self
             .pending
             .into_iter()
+            .enumerate()
             .map(
-                |(map, parameters, coefficients, conditioning, program)| GeneratedSector {
+                |(index, (map, parameters, coefficients, conditioning, program))| GeneratedSector {
+                    symbolic_jacobian: program.jacobians.first().map(|(_, plan)| {
+                        let faces = charts
+                            .iter()
+                            .find(|chart| {
+                                chart.kernel_sector == Some(index)
+                                    && chart.source_index == chart.representative
+                            })
+                            .and_then(|chart| chart.contour.as_ref())
+                            .map(|contour| contour.validation_faces().to_vec())
+                            .unwrap_or_default();
+                        crate::contour::SymbolicContourJacobian {
+                            plan: plan.clone(),
+                            faces,
+                        }
+                    }),
                     contour_jacobian: program.contour_jacobian,
                     contour_definitions: program
                         .contour_definitions()

@@ -1,5 +1,6 @@
 //! Native symbolic-to-numeric boundary. One exact program owns every numeric path.
 mod callbacks;
+mod contour_jacobian;
 pub(in crate::kernel) use callbacks::{Callback, callbacks};
 #[cfg(test)]
 mod captured;
@@ -17,6 +18,7 @@ use symbolica::{
 pub(super) type ExactProgram = ExpressionEvaluator<Complex<Rational>>;
 
 pub(super) struct SectorProgram {
+    pub symbolic_endpoint_contour_partials: Option<usize>,
     pub parameters: Vec<Symbol>,
     pub runtime_parameters: Vec<Symbol>,
     pub exact: ExactProgram,
@@ -72,6 +74,7 @@ pub(super) fn build_sector_with_lowering(
             native::build(deferred, runtime_parameters, settings)?
         };
         Ok(SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters: sector.parameters().to_vec(),
             runtime_parameters: runtime_parameters.to_vec(),
             exact,
@@ -94,6 +97,7 @@ pub(super) fn build_sector_with_lowering(
             settings,
             lookup,
             sector.contour_definitions(),
+            sector.symbolic_jacobian.as_ref(),
         )
     }
 }
@@ -141,9 +145,11 @@ pub(super) fn build_with_settings(
         settings,
         None,
         &crate::contour::ContourDefinitions::default(),
+        None,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_with_lowering(
     parameters: Vec<Symbol>,
     runtime_parameters: &[Symbol],
@@ -152,6 +158,7 @@ fn build_with_lowering(
     settings: CompilationSettings,
     lookup: Option<&crate::contour::functions::dynamic::requests::Lookup>,
     definitions: &crate::contour::ContourDefinitions,
+    symbolic_jacobian: Option<&crate::contour::SymbolicContourJacobian>,
 ) -> Result<SectorProgram, KernelError> {
     settings.validate()?;
     let mut seen = std::collections::HashSet::new();
@@ -205,49 +212,68 @@ fn build_with_lowering(
         .chain(runtime_parameters)
         .map(|p| Atom::var(*p))
         .collect::<Vec<_>>();
-    let functions = definitions
-        .function_map(
-            roots
+    let mut ordered_aliases = aliases
+        .into_iter()
+        .flat_map(|aliases| aliases.iter())
+        .map(|(handle, body)| {
+            let body = match lookup {
+                Some(lookup) => lookup
+                    .lower(
+                        body,
+                        crate::contour::functions::dynamic::requested::symbol(),
+                    )
+                    .map_err(KernelError::Compilation)?,
+                None => body.clone(),
+            };
+            Ok((handle.clone(), body))
+        })
+        .collect::<Result<Vec<_>, KernelError>>()?;
+    ordered_aliases.sort_by(|a, b| a.0.cmp(&b.0));
+    let (exact, symbolic_endpoint_contour_partials) = if let Some(plan) = symbolic_jacobian {
+        if plan.plan.parameters != parameters {
+            return Err(KernelError::Compilation(
+                "symbolic contour image coordinate mismatch".into(),
+            ));
+        }
+        let (program, partials) = contour_jacobian::build(
+            &roots.iter().map(|root| (*root).clone()).collect::<Vec<_>>(),
+            &ordered_aliases,
+            &parameters
                 .iter()
+                .chain(runtime_parameters)
                 .copied()
-                .chain(aliases.into_iter().flat_map(|aliases| aliases.values())),
+                .collect::<Vec<_>>(),
+            definitions,
+            plan,
+            lookup,
+            settings,
         )
         .map_err(KernelError::Compilation)?;
-    let mut builder = Atom::evaluator_multiple(&roots, &variables)
-        .function_map(functions)
-        .optimization_settings(settings.native());
-    if let Some(aliases) = aliases {
-        // Register a shared map once; native AliasedAtom::evaluator_multiple
-        // would register identical definitions again for each coefficient.
-        let mut ordered = aliases.iter().collect::<Vec<_>>();
-        ordered.sort_by(|a, b| a.0.cmp(b.0));
-        let definitions = ordered
-            .into_iter()
-            .map(|(handle, body)| {
-                let body = match lookup {
-                    Some(lookup) => lookup
-                        .lower(
-                            body,
-                            crate::contour::functions::dynamic::requested::symbol(),
-                        )
-                        .map_err(KernelError::Compilation)?,
-                    None => body.clone(),
-                };
-                Ok((handle.clone(), body))
-            })
-            .collect::<Result<Vec<_>, KernelError>>()?;
-        builder = builder
-            .add_aliases(definitions)
+        (program, Some(partials))
+    } else {
+        let functions = definitions
+            .function_map(
+                roots
+                    .iter()
+                    .copied()
+                    .chain(ordered_aliases.iter().map(|(_, body)| body)),
+            )
+            .map_err(KernelError::Compilation)?;
+        let program = Atom::evaluator_multiple(&roots, &variables)
+            .function_map(functions)
+            .optimization_settings(settings.native())
+            .add_aliases(ordered_aliases)
+            .map_err(|error| KernelError::Compilation(error.to_string()))?
+            .build()
             .map_err(|error| KernelError::Compilation(error.to_string()))?;
-    }
-    let exact = builder
-        .build()
-        .map_err(|error| KernelError::Compilation(error.to_string()))?;
+        (program, None)
+    };
     let real_coefficients = coefficients
         .iter()
         .map(|coefficient| is_real_with_parameters(coefficient, &parameters, runtime_parameters))
         .collect();
     Ok(SectorProgram {
+        symbolic_endpoint_contour_partials,
         parameters,
         runtime_parameters: runtime_parameters.to_vec(),
         exact,

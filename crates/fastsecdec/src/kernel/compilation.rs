@@ -412,6 +412,7 @@ impl SectorKernel {
         encoded: Option<std::sync::Arc<[u8]>>,
     ) -> Result<Self, KernelError> {
         let program::SectorProgram {
+            symbolic_endpoint_contour_partials,
             parameters,
             runtime_parameters,
             exact,
@@ -479,6 +480,7 @@ impl SectorKernel {
             Backend::Complex(kernel) => kernel.symjit_ir_bytes(),
         };
         let statistics = super::EvaluatorStatistics {
+            symbolic_endpoint_contour_partials,
             version: 1,
             backend: if symjit_ir_bytes.is_some() {
                 "symjit_o2"

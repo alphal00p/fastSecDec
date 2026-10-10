@@ -26,13 +26,6 @@ pub(super) fn check_options(
     input: &ParametricIntegrand,
     options: &super::GenerationOptions,
 ) -> Result<DomainAssessment, GenerationError> {
-    if options.contour_jacobian == crate::contour::ContourJacobian::Dual
-        && options.mode != super::GenerationMode::NumericalDual
-    {
-        return Err(GenerationError::Contour(
-            "dual contour Jacobians require numerical_dual generation".into(),
-        ));
-    }
     let mut assessment = check(input, options.assume_no_threshold)?;
     if !options.contour_enabled() {
         return Ok(assessment);

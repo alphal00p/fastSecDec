@@ -23,6 +23,7 @@ fn unsupported_conditioning_preserves_ordinary_values_and_rejects_unsupported_re
         .unwrap();
     let mut kernel = SectorKernel::from_program(
         SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters: vec![x],
             runtime_parameters: Vec::new(),
             exact,
@@ -70,6 +71,7 @@ fn conditioning_is_lazy_and_keeps_worker_owned_native_values() {
         .unwrap();
     let mut kernel = SectorKernel::from_program(
         SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters: vec![x],
             runtime_parameters: vec![],
             exact,
@@ -170,6 +172,7 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
         );
         let mut kernel = SectorKernel::from_program(
             SectorProgram {
+                symbolic_endpoint_contour_partials: None,
                 parameters: vec![x],
                 runtime_parameters: Vec::new(),
                 exact,

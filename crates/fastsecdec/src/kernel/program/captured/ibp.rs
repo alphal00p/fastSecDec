@@ -242,6 +242,7 @@ fn compile_existing_ibp_complete_vector() {
         SectorKernel::from_program(program, &PrecisionPolicy::default(), false).unwrap();
     let mut decoded = SectorKernel::from_program(
         SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters,
             runtime_parameters: Vec::new(),
             exact: exact.clone(),

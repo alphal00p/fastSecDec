@@ -267,6 +267,7 @@ pub(super) fn load(
             ));
         }
         programs.push(SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters,
             runtime_parameters: Vec::new(),
             // Recover only facts proved by the decoded native instruction owner;

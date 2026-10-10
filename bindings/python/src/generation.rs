@@ -118,13 +118,6 @@ pub(crate) fn options(
         },
         ..Default::default()
     };
-    if options.contour_jacobian == fastsecdec::contour::ContourJacobian::Dual
-        && options.mode != GenerationMode::NumericalDual
-    {
-        return Err(pyo3::exceptions::PyValueError::new_err(
-            "dual contour Jacobian requires numerical_dual generation",
-        ));
-    }
     options.coefficient_expansion.method = method;
     Ok(options)
 }

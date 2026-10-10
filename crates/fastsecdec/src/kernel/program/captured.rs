@@ -190,6 +190,7 @@ fn production_alias_representative_matches_complete_oracles() {
         SectorKernel::from_program(program, &PrecisionPolicy::default(), false).unwrap();
     let mut cold = SectorKernel::from_program(
         SectorProgram {
+            symbolic_endpoint_contour_partials: None,
             parameters,
             runtime_parameters: Vec::new(),
             exact: exact.clone(),

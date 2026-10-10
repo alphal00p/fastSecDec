@@ -1,5 +1,48 @@
 # Ecosystem reuse evidence
 
+## Symbolic endpoints with contour-only dual derivatives (2026-10-10)
+
+The [independent endpoint audit](reviews/contour-symbolic-endpoints.md) applies
+the user's clarified separation: native symbolic IBP/Taylor/Laurent operations
+differentiate the complete deformed density, including the Jacobian and local
+strength. The optional Dual Jacobian uses Symbolica's existing degree-one image
+`Dualizer`, `EvaluatorComposer` and function maps only at final compilation.
+It never passes the endpoint-subtracted density to a Dualizer. Higher local
+strength derivatives requested by symbolic differentiation retain the existing
+native implicit-radius hooks.
+
+A source/API check and executable probe established that arbitrary sum/product
+Atoms are not evaluator input indeterminates. The compiler therefore uses native
+exact-subtree replacement with collision-checked private scalar symbols, followed
+by native composition. Native body pruning determines which private inputs
+survive; the small input-use scan reads exported native instruction operands.
+No separate CAS, AD rules, alias dependency engine or optimizer is introduced.
+Unused aliases/cancelled bodies do not construct contour prefixes. Live contour
+inputs in conditional or retained sub-evaluator bodies are explicitly unsupported
+for this opt-in path, preserving lazy callback execution. The Symbolic Jacobian
+remains available.
+
+Faces are applied after degree-one image differentiation. Existing diagnostic
+context unions, exact coefficient materialization, caller-owned compilation,
+saved native evaluator codecs and HEPKit input ownership are reused. Private
+inputs disappear before runtime. An optional build-only statistics field reports
+the surviving contour partial count; restored programs report it as unavailable.
+The multi-source staged test also corrected a local/global owner-index mismatch
+without weakening native plan/image/Jacobian or streamed source identity checks.
+
+The complete workspace passes 925 tests with 33 explicit ignores. One additive
+public implicit-root test also passes, giving 926 distinct native passes; the
+four public policy/analytic tests pass on the portable host, whose strict lint
+also passes. The isolated Python binding check/strict lint passes. Sixteen earlier focused native controls overlap
+the workspace count: they include actual symbolic third-order endpoint
+subtraction, implicit-strength derivatives, exact offsets, callback liveness,
+private-name collision, both backends and fresh-worker staged restoration.
+Final strict workspace/all-target Clippy, the focused test borrow correction,
+formatting and diff checks pass; evidence is recorded in the linked audit.
+Physical generation and timing
+qualification remain separate. Earlier outer-subtraction-dual measurements below
+are historical and do not answer the clarified comparison.
+
 ## Native evaluator CSE correction (2026-10-10)
 
 The [CSE investigation](reviews/contour-native-cse.md) checks the public
@@ -15,6 +58,10 @@ Full consumer acceptance and the physical performance measurements are recorded
 separately; the diagnostic reproduction alone does not establish a D05 gain.
 
 ## Native dual Jacobian and prefix reuse (2026-10-10)
+
+**Historical NumericalDual endpoint scope.** This entry describes the earlier
+full-density endpoint-jet route. It is not acceptance of Symbolic endpoints plus
+contour-only Dual Jacobians; see the newer entry above.
 
 The [Jacobian construction audit](reviews/contour-dual-jacobian.md) records the
 public API, native source and executable probes for `Dualizer`,
@@ -71,6 +118,9 @@ jets. Fixed and implicit dynamic controls agree at 192-bit precision through
 mixed third derivatives and regulator order one, including faces. This proves
 an existing native route for the proposed dual-Jacobian option; its production
 implementation, fresh-process artifacts and physical performance remain pending.
+This higher-jet probe is historical NumericalDual endpoint evidence. It must not
+be used as a timing or construction result for the clarified Symbolic endpoint
+comparison.
 
 ## Phase B delivery boundary audit (2026-10-10)
 

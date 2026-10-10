@@ -258,23 +258,32 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
 #[test]
 fn contour_jacobian_choice_resolves_before_input_preparation() {
     use fastsecdec::contour::ContourJacobian;
+    use fastsecdec::generation::GenerationMode;
     let mut historical = GenerationInput::default();
     historical.resolve_jacobian().unwrap();
     assert_eq!(
         historical.evaluator.contour_jacobian,
         ContourJacobian::Symbolic
     );
-    let mut dual: GenerationInput =
-        toml::from_str("mode='numerical_dual'\ncontour_jacobian='dual'").unwrap();
-    dual.resolve_jacobian().unwrap();
-    assert_eq!(dual.evaluator.contour_jacobian, ContourJacobian::Dual);
-    let mut unsupported: GenerationInput = toml::from_str("contour_jacobian='dual'").unwrap();
-    assert!(
-        unsupported
-            .resolve_jacobian()
-            .unwrap_err()
-            .to_string()
-            .contains("numerical_dual")
+    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+        for choice in [ContourJacobian::Symbolic, ContourJacobian::Dual] {
+            let mut options = GenerationInput {
+                mode,
+                contour_jacobian: choice,
+                ..Default::default()
+            };
+            options.resolve_jacobian().unwrap();
+            assert_eq!(options.mode, mode);
+            assert_eq!(options.evaluator.contour_jacobian, choice);
+        }
+    }
+    let mut symbolic_endpoints: GenerationInput =
+        toml::from_str("contour_jacobian='dual'").unwrap();
+    symbolic_endpoints.resolve_jacobian().unwrap();
+    assert_eq!(symbolic_endpoints.mode, GenerationMode::Symbolic);
+    assert_eq!(
+        symbolic_endpoints.evaluator.contour_jacobian,
+        ContourJacobian::Dual
     );
     let mut contradictory: GenerationInput =
         toml::from_str("[evaluator]\ncontour_jacobian='dual'").unwrap();

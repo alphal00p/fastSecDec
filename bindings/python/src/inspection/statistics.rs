@@ -53,6 +53,12 @@ impl PyEvaluatorStatistics {
     fn symjit_ir_bytes(&self) -> Option<usize> {
         self.inner.symjit_ir_bytes
     }
+    /// Surviving image-partial inputs from Symbolic-endpoint Dual-J construction.
+    /// None means unavailable (including restored owners); zero is a known count.
+    #[getter]
+    fn symbolic_endpoint_contour_partials(&self) -> Option<usize> {
+        self.inner.symbolic_endpoint_contour_partials
+    }
 }
 
 /// Native shared evaluator counts; these are not optimized machine-operation counts.

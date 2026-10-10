@@ -179,3 +179,54 @@ fn explicit_zero_prefactor_does_not_admit_an_identically_singular_denominator() 
         check_exact(generated, recipe, 0.);
     }
 }
+
+#[test]
+fn symbolic_endpoint_cancelled_exact_offsets_keep_both_jacobian_choices() {
+    let input = ParametricIntegrand::new(
+        vec![],
+        symbol!("cancelled_exact_contour::eps"),
+        ParametricDomain::UnitCube,
+        [(3, -1), (-6, -2)]
+            .into_iter()
+            .map(|(prefactor, power)| {
+                ParametricTerm::new(
+                    Atom::num(prefactor),
+                    vec![],
+                    vec![
+                        PolynomialFactor::new(
+                            Atom::num(2),
+                            Atom::num(power),
+                            FactorRole::Singularity,
+                        )
+                        .with_semantics(FactorSemantics::Causal),
+                    ],
+                )
+            })
+            .collect(),
+    )
+    .unwrap();
+    assert_eq!(input.terms().len(), 2);
+    for recipe in [
+        ProgramRecipe::DynamicPolynomialV1,
+        ProgramRecipe::DynamicSignAwareV1,
+    ] {
+        for contour_jacobian in [
+            crate::contour::ContourJacobian::Symbolic,
+            crate::contour::ContourJacobian::Dual,
+        ] {
+            let generated = generate(
+                &input,
+                &GenerationOptions {
+                    mode: GenerationMode::Symbolic,
+                    program_recipe: recipe,
+                    contour_jacobian,
+                    ..Default::default()
+                },
+                |_| ControlFlow::Continue(()),
+            )
+            .unwrap();
+            assert!(generated.sectors().is_empty());
+            check_exact(generated, recipe, 0.);
+        }
+    }
+}

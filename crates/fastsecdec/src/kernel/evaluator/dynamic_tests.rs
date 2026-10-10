@@ -109,6 +109,7 @@ fn masked_dynamic_batch_failure_recovers_whole_vectors_in_native_precision() {
             let mut kernels = KernelSet::from_programs_for_load(
                 vec![-1, 0],
                 vec![SectorProgram {
+                    symbolic_endpoint_contour_partials: None,
                     parameters: vec![x],
                     runtime_parameters: vec![],
                     exact,

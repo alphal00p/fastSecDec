@@ -212,6 +212,11 @@ fn observe(
 #[pymethods]
 impl PyRecipeFamilySession {
     #[getter]
+    fn mode(&self) -> &'static str {
+        self.options.mode.name()
+    }
+
+    #[getter]
     fn contour_jacobian(&self) -> &'static str {
         crate::settings::jacobian_name(self.options.contour_jacobian)
     }

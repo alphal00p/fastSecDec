@@ -167,11 +167,6 @@ pub struct GenerationInput {
 impl GenerationInput {
     /// Resolve computational settings before reading models or preparing geometry.
     pub(crate) fn resolve_jacobian(&mut self) -> crate::CliResult<()> {
-        if self.contour_jacobian == fastsecdec::contour::ContourJacobian::Dual
-            && self.mode != fastsecdec::generation::GenerationMode::NumericalDual
-        {
-            return Err("dual contour Jacobian requires numerical_dual generation".into());
-        }
         self.evaluator = self
             .evaluator
             .resolve_contour_jacobian(self.contour_jacobian)?;

@@ -24,6 +24,12 @@ impl From<symbolica::evaluate::OperationCount> for EvaluatorOperations {
 /// before SymJIT real/complex lowering and optimization, not machine operations.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EvaluatorStatistics {
+    /// Surviving first-image-partial inputs supplied by contour-only dual
+    /// arithmetic after symbolic endpoint reduction. Known only at build:
+    /// Some(0) is native cancellation; None is unknown/restored or inapplicable.
+    /// This observation is not part of the saved executable or its identity.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbolic_endpoint_contour_partials: Option<usize>,
     pub version: u32,
     pub backend: String,
     pub arithmetic: String,

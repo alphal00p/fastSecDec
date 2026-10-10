@@ -324,6 +324,35 @@ impl Lookup {
         self.lower_with(expression, callback, &rules, Some(face))
     }
 
+    /// Symbolic endpoint algebra may merge equal restricted roots. Use that
+    /// same union of contexts while the image's first derivative still sees
+    /// unrestricted mathematical arguments and nonzero coordinate seeds.
+    pub(crate) fn lower_image_on_symbolic_face(
+        &self,
+        expression: &Atom,
+        callback: Symbol,
+        parameters: &[Symbol],
+        face: &[(usize, u8)],
+    ) -> Result<Atom, String> {
+        if face
+            .iter()
+            .any(|(axis, value)| *axis >= parameters.len() || *value > 1)
+            || face.windows(2).any(|pair| pair[0].0 >= pair[1].0)
+        {
+            return Err("invalid symbolic contour image face".into());
+        }
+        let rules = face
+            .iter()
+            .map(|(axis, value)| {
+                Replacement::new(
+                    Pattern::Literal(Atom::var(parameters[*axis])),
+                    Pattern::Literal(Atom::num(*value)),
+                )
+            })
+            .collect::<Vec<_>>();
+        self.lower_with(expression, callback, &rules, None)
+    }
+
     fn lower_with(
         &self,
         expression: &Atom,
@@ -420,6 +449,17 @@ mod tests {
         assert_eq!(symbolic.len(), 1);
         assert_eq!(symbolic.first().unwrap().0.len(), 2);
         for endpoint in [0, 1] {
+            let image = lookup
+                .lower_image_on_symbolic_face(
+                    &original,
+                    requested::symbol(),
+                    &[x],
+                    &[(0, endpoint)],
+                )
+                .unwrap();
+            assert_eq!(referenced_bundles([&image]).unwrap(), symbolic);
+            assert!(image.contains_symbol(x));
+
             let lowered = lookup
                 .lower_on_face(&original, requested::symbol(), &[x], &[(0, endpoint)])
                 .unwrap();

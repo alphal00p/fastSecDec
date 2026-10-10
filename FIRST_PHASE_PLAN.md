@@ -18,6 +18,14 @@ The same checkpoint includes the requested Typst source and compiled PDF report,
 a 100 GB campaign RSS cap, and investigation of a native dual-evaluated Jacobian
 option with measured generation and sampling tradeoffs.
 
+The later 2026-10-10 clarification requires **symbolic endpoint reduction and
+subtraction in both Jacobian comparison arms**. Contour-only dual evaluation
+must be selectable independently of `GenerationMode::NumericalDual`. Preserve
+deform-before-subtraction ordering and every determinant/local-strength
+derivative. Earlier numerical-dual endpoint measurements are historical
+diagnostics, not the requested comparison; see the verbatim clarification in
+the contour plan and the [independent audit](docs/reviews/contour-symbolic-endpoints.md).
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`

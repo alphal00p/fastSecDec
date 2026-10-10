@@ -81,6 +81,34 @@ fastsecdec integrate output/gghh_double_box.fsd --full-integral \
   --parameters examples/gghh_double_box/point.toml --workers 8
 ```
 
+Endpoint reduction and contour Jacobian construction are independent generation
+choices. For symbolic endpoint subtraction and integration by parts with a
+dual-evaluated contour Jacobian, set:
+
+```toml
+[generation]
+mode = "symbolic"
+subtraction = "integrate_by_parts"
+contour = true
+contour_jacobian = "dual"
+```
+
+`--contour-jacobian symbolic|dual` overrides the last field during generation.
+The default is `symbolic`. Dual construction uses native first derivatives of
+the contour images and determinant composition, currently up to six contour
+coordinates. Endpoint derivatives remain symbolic in `mode="symbolic"`,
+including the native local-strength derivatives required by integration by
+parts. Selecting Dual does not change endpoint mode or add numerical-dual jets
+of the complete endpoint density. The separate `mode="numerical_dual"` route
+remains available. The artifact retains both choices; a runtime integration
+command cannot change them.
+
+Symbolic-endpoint Dual-J currently requires a straight-line native body after
+unused inputs are pruned. A retained conditional or sub-evaluator that uses a
+private Jacobian entry is rejected explicitly; select Symbolic-J for that case.
+Exact-only contributions retain native symbolic materialization. Unsupported
+requests never switch endpoint mode or Jacobian construction silently.
+
 Integration uses evaluator batches of 256 points by default. Set
 `--evaluation-batch-size N` (alias `--batch-size`), or `evaluation_batch_size = N`
 in runtime integration settings, to change this operational chunk size. It is

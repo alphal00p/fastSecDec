@@ -104,18 +104,15 @@ def test_dual_jacobian_is_an_explicit_inert_generation_choice(prepared):
     settings = sd.CompilationSettings(contour_jacobian="dual")
     assert settings.contour_jacobian == "dual"
     assert json.loads(settings.to_json())["contour_jacobian"] == "dual"
-    events = []
-    with pytest.raises(ValueError, match="numerical_dual"):
-        prepared[1].generate(contour_jacobian="dual", observer=events.append, progress=None)
-    assert events == []
     for make in (
-        lambda **kw: prepared[1].generation_session(**kw),
+        lambda **kw: prepared[1].generation_session(contour=True, **kw),
         lambda **kw: prepared[1].generation_family_session(["off", "fixed"], **kw),
     ):
-        with pytest.raises(ValueError, match="numerical_dual"):
-            make(contour_jacobian="dual")
         with pytest.raises(sd.FastSecDecError, match="selected during generation"):
             make(compilation_settings=settings)
-        owner = make(mode="numerical_dual", contour_jacobian="dual")
-        assert owner.contour_jacobian == "dual"
-        assert not owner.complete and owner.failed is None
+        for mode in ("symbolic", "numerical_dual"):
+            owner = make(mode=mode, contour_jacobian="dual")
+            assert owner.mode == mode and owner.contour_jacobian == "dual"
+            assert not owner.complete and owner.failed is None
+        default = make(contour_jacobian="dual")
+        assert default.mode == "symbolic" and not default.complete

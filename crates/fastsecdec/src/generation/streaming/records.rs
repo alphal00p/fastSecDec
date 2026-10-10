@@ -570,9 +570,9 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
             ));
         };
         let metadata = contour.as_ref().unwrap();
-        if *index != chart.index
-            || plan.images != metadata.images()
-            || plan.jacobian != *metadata.jacobian()
+        // Saved single-chart program owners are record-local, while chart.index
+        // retains the original source index used by the streaming job.
+        if *index != 0 || plan.images != metadata.images() || plan.jacobian != *metadata.jacobian()
         {
             return Err(invalid(
                 "dual Jacobian plan differs from its native contour chart",
