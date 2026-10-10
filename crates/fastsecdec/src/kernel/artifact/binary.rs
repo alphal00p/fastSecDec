@@ -522,7 +522,7 @@ fn semantic_id_v12(base_identity: &str) -> String {
     hash.finalize().to_hex().to_string()
 }
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
-    encode_with_requests(
+    let (id, bytes) = encode_with_requests(
         Payload {
             codec: CODEC.into(),
             compiler_policy: native::compiler_policy_with_settings(kernels.compilation_settings),
@@ -564,7 +564,14 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
             .map(SavedDescriptor::from_native)
             .transpose()?,
         kernels.exact_requests.clone(),
-    )
+    )?;
+    let primaries = kernels
+        .sectors
+        .iter()
+        .map(|sector| sector.saved_primary())
+        .collect::<Result<Vec<_>, _>>()?;
+    let bytes = super::cached::wrap(&id, bytes, primaries)?;
+    Ok((id, bytes))
 }
 
 /// One independent archive record. The native evaluator codec is unchanged;
@@ -700,6 +707,11 @@ pub(super) fn partition(
             .transpose()?,
         exact_requests,
     )?;
+    let primaries = sector
+        .into_iter()
+        .map(|sector| sector.saved_primary())
+        .collect::<Result<Vec<_>, _>>()?;
+    let bytes = super::cached::wrap(&id, bytes, primaries)?;
     Ok((id, bytes, source_indices))
 }
 pub(super) fn generated(
@@ -770,14 +782,23 @@ pub(super) fn generated(
 }
 #[cfg(test)]
 fn load(bytes: &[u8]) -> Result<KernelSet, KernelError> {
-    load_with_progress(bytes, KernelLoadOptions::default(), &mut |_| {
-        std::ops::ControlFlow::Continue(())
-    })
+    KernelSet::from_bytes(bytes)
 }
 
 pub(super) fn load_with_progress(
     bytes: &[u8],
     options: KernelLoadOptions,
+    progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
+) -> Result<KernelSet, KernelError> {
+    load_with_primary(bytes, options, None, None, true, progress)
+}
+
+pub(super) fn load_with_primary(
+    bytes: &[u8],
+    options: KernelLoadOptions,
+    primary_caches: Option<Vec<Option<crate::kernel::evaluator::SavedPrimary>>>,
+    cache_content_id: Option<&str>,
+    retain: bool,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
     let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V12) {
@@ -805,6 +826,11 @@ pub(super) fn load_with_progress(
         return Err(failure("trailing envelope bytes"));
     }
     super::validate_content_id(envelope.content_id)?;
+    if cache_content_id.is_some_and(|id| id != envelope.content_id) {
+        return Err(failure(
+            "native primary cache belongs to a different mathematical record",
+        ));
+    }
     if options.validate
         && digest(magic, envelope.state, envelope.payload).as_bytes() != &envelope.digest
     {
@@ -1051,6 +1077,8 @@ pub(super) fn load_with_progress(
         payload.runtime_parameters,
         settings.expect("compiler policy validated"),
         Some(encoded_programs),
+        primary_caches,
+        options.validate,
         progress,
     )?;
     kernels.runtime_mass_constraints = payload
@@ -1067,6 +1095,8 @@ pub(super) fn load_with_progress(
         merge_exact_requests(&kernels.exact_expressions, exact_requests).map_err(failure)?;
     kernels.validate_runtime_mass_constraints()?;
     kernels.content_id = envelope.content_id.to_owned();
-    kernels.portable_artifact = Some(bytes.to_vec());
+    if retain {
+        kernels.portable_artifact = Some(bytes.to_vec().into());
+    }
     Ok(kernels)
 }

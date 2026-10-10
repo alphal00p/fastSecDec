@@ -59,13 +59,21 @@ impl SectorKernel {
             Backend::Complex(kernel) => kernel.execution_backend(),
         };
         let requirements = MappingRequirements::new(exact).map_err(KernelError::Compilation)?;
+        // Reconstruct native callback owners under the new factory scope from
+        // the existing primary application. This avoids translating exact IR
+        // back into a JIT application at every policy change. Numeric stacks,
+        // observers and precision workspaces are still freshly constructed.
+        let primary = match &self.backend {
+            Backend::Real(kernel) => kernel.evaluator.saved_primary()?,
+            Backend::Complex(kernel) => kernel.saved_primary()?,
+        };
         match &self.backend {
             Backend::Real(_) => Ok(Remapping::Real(
-                evaluator::real(exact, execution)?,
+                evaluator::real_prepared(exact, execution, &requirements, primary.as_deref())?,
                 requirements,
             )),
             Backend::Complex(_) => Ok(Remapping::Complex(
-                evaluator::complex(exact, execution)?,
+                evaluator::complex_prepared(exact, execution, &requirements, primary.as_deref())?,
                 requirements,
             )),
         }

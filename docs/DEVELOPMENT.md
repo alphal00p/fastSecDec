@@ -103,12 +103,28 @@ The loader does not certify arbitrary native instruction streams. The
 experimental structural-decoder patch is no longer a build requirement. No
 faulty IR from the native generator was observed.
 
-Supported artifact loading restores saved optimized programs and prepares their
-eager or SymJIT execution backend without rebuilding expressions or running
-Horner/CPE. The pinned SymJIT application codec restores intermediate code and
-compiles executable code even on the same architecture; see the
-[native cache audit](reviews/symjit-cache-loading.md). Expression-only v1/v2
-kernel formats are rejected; regenerate those
+Newly compiled native kernel records retain Symbolica's native primary JIT
+payload alongside the authoritative exact IR in a v13 wrapper. Loading a
+compatible payload restores it inside the current callback factory scope,
+without translating the exact IR into SymJIT again. The native application
+codec still compiles executable code on restore; these are not saved machine
+code pages. Missing or incompatible primary caches use the admitted exact
+program; malformed applicable payloads return an error. No restoration path
+rebuilds expressions or runs Horner/CPE. The CLI's load-completion counts and
+`SectorKernel::primary_evaluator_restoration()` describe initial restoration,
+separately from later binding, causal pilots and callback-policy remapping.
+
+`GeneratedIntegral::to_kernel_bytes` deliberately remains an exact-program
+export without compiling a primary evaluator, and portable production remains
+exact-only. Loading an existing artifact and calling `KernelSet::to_bytes`
+preserves its original bytes. Native `IndexedReader::write_with_native_cache`
+and `ProgramArchiveReader::write_with_native_cache` explicitly refresh existing
+indexed records one at a time; mathematical identities stay unchanged while
+transport sizes and digests change. The caller owns atomic publication. See
+the [primary-cache audit](reviews/symjit-primary-cache.md) for callback ownership,
+optional integrity checks and the trusted-producer shape boundary, and the
+[application-codec audit](reviews/symjit-cache-loading.md) for native compilation
+on restore. Expression-only v1/v2 kernel formats are rejected; regenerate those
 artifacts. Saved exact-offset Atoms are evaluated directly through Symbolica at
 parameter binding, with native precision escalation, rather than compiled into
 another evaluator. Mass constraints use native indeterminate discovery on load

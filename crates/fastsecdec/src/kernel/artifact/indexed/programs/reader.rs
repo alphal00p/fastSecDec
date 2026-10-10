@@ -18,6 +18,70 @@ pub struct ProgramArchiveReader<R> {
     options: KernelLoadOptions,
 }
 impl<R: Read + Seek> ProgramArchiveReader<R> {
+    /// Refresh optional primary JIT payloads for this explicitly opened family.
+    /// Only one record's native owners are resident; all recipe and catalogue
+    /// mathematical IDs are preserved. The caller owns durable publication.
+    /// Legacy version-one archives use `IndexedReader::write_with_native_cache`.
+    #[cfg(feature = "native")]
+    pub fn write_with_native_cache<W: std::io::Write + Seek>(
+        &mut self,
+        writer: W,
+        mut progress: impl FnMut(&crate::kernel::CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<(W, ProgramArchiveCatalogue), KernelError> {
+        let source = self.catalogue.source_identity.clone().ok_or_else(|| {
+            failure("legacy archive refresh requires IndexedReader::write_with_native_cache")
+        })?;
+        let started = std::time::Instant::now();
+        let total = self
+            .catalogue
+            .recipes
+            .iter()
+            .map(|recipe| recipe.records.len())
+            .sum();
+        let mut writer = super::ProgramArchiveWriter::new(
+            writer,
+            source,
+            self.catalogue.recipes.iter().map(|recipe| recipe.recipe),
+        )?;
+        let mut completed = 0;
+        for recipe in &self.catalogue.recipes {
+            for record in &recipe.records {
+                if progress(&crate::kernel::CompilationProgress {
+                    completed,
+                    total,
+                    elapsed_seconds: started.elapsed().as_secs_f64(),
+                })
+                .is_break()
+                {
+                    return Err(KernelError::Cancelled);
+                }
+                let kernels = record_reader::read_record(&mut self.reader, record, self.options)?;
+                let bytes = super::super::super::cached::refresh(&kernels)?;
+                let mut receipt = record.receipt.clone();
+                receipt.length = bytes.len() as u64;
+                receipt.digest = blake3::hash(&bytes).to_hex().to_string();
+                writer.append_record(recipe.recipe, &mut bytes.as_slice(), receipt)?;
+                completed += 1;
+            }
+        }
+        let (writer, catalogue) = writer.finish()?;
+        if catalogue.content_id != self.catalogue.content_id {
+            return Err(failure(
+                "native cache refresh changed mathematical family identity",
+            ));
+        }
+        if progress(&crate::kernel::CompilationProgress {
+            completed,
+            total,
+            elapsed_seconds: started.elapsed().as_secs_f64(),
+        })
+        .is_break()
+        {
+            return Err(KernelError::Cancelled);
+        }
+        Ok((writer, catalogue))
+    }
+
     pub fn from_reader(mut reader: R, options: KernelLoadOptions) -> Result<Self, KernelError> {
         reader.seek(SeekFrom::Start(0)).map_err(failure)?;
         let mut header = vec![0; super::MAGIC.len()];
@@ -107,7 +171,7 @@ impl<R: Read + Seek> SelectedProgramReader<'_, R> {
         // Resident owners already retain portable programs. Keep only this
         // recipe's original records, so a later to_bytes cannot silently drop
         // its mathematical/source identity by writing a version-one archive.
-        kernels.portable_artifact = Some(self.selected_bytes()?);
+        kernels.portable_artifact = Some(self.selected_bytes()?.into());
         Ok(kernels)
     }
     /// Compact exact aggregation. Validate each selected exact record's contour

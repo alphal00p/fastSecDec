@@ -19,7 +19,7 @@ pub(super) struct ComplexKernel {
     double_cache: super::precision_cache::PrecisionCache<Complex<DoubleFloat>>,
     f64_timing: super::EvaluatorTiming,
     conditioning_timing: super::EvaluatorTiming,
-    exact: ExpressionEvaluator<Complex<Rational>>,
+    exact: std::sync::Arc<ExpressionEvaluator<Complex<Rational>>>,
     evaluator: evaluator::ComplexEvaluator,
     conditioning: evaluator::Conditioning<Complex<ErrorPropagatingFloat<f64>>>,
     input: Vec<Complex<f64>>,
@@ -155,6 +155,9 @@ impl ComplexKernel {
     pub(super) fn symjit_ir_bytes(&self) -> Option<usize> {
         self.evaluator.symjit_ir_bytes()
     }
+    pub(super) fn saved_primary(&self) -> Result<Option<Vec<u8>>, KernelError> {
+        self.evaluator.saved_primary()
+    }
     #[cfg(test)]
     pub(super) fn new(
         parameters: &[symbolica::atom::Symbol],
@@ -183,6 +186,7 @@ impl ComplexKernel {
         )
     }
 
+    #[cfg(test)]
     pub(super) fn from_program(
         exact: super::program::ExactProgram,
         integration_dimension: usize,
@@ -192,19 +196,42 @@ impl ComplexKernel {
         real_coefficients: Vec<bool>,
         backend: super::EvaluatorBackend,
     ) -> Result<Self, KernelError> {
+        Self::from_program_with_primary(
+            exact,
+            integration_dimension,
+            cancellation,
+            precision,
+            exact_zero,
+            real_coefficients,
+            backend,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn from_program_with_primary(
+        exact: super::program::ExactProgram,
+        integration_dimension: usize,
+        cancellation: Cancellation,
+        precision: PrecisionPolicy,
+        exact_zero: Vec<bool>,
+        real_coefficients: Vec<bool>,
+        backend: super::EvaluatorBackend,
+        primary: Option<&[u8]>,
+    ) -> Result<Self, KernelError> {
         precision.validate()?;
         let inputs = exact.get_input_len();
         let outputs = exact.get_output_len();
-        let evaluator = evaluator::complex(&exact, backend)?;
         let requirements =
             evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
+        let evaluator = evaluator::complex_prepared(&exact, backend, &requirements, primary)?;
         let conditioning = evaluator::Conditioning::new(requirements.clone());
         Ok(Self {
             double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
             f64_timing: Default::default(),
             conditioning_timing: Default::default(),
             precision_cache: super::precision_cache::PrecisionCache::new(requirements),
-            exact,
+            exact: std::sync::Arc::new(exact),
             evaluator,
             conditioning,
             input: vec![Complex::new(0.0, 0.0); inputs],

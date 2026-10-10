@@ -128,6 +128,19 @@ pub enum KernelLoadProgress {
     Complete,
 }
 
+/// How this owner's primary evaluator was initially prepared. Later callback
+/// policy changes may remap it. This is restoration evidence,
+/// independent of numerical precision, causal admission and sampling work.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PrimaryEvaluatorRestoration {
+    Generated,
+    CacheRestored,
+    CacheMissing,
+    CacheIncompatible,
+    Eager,
+}
+
 pub struct SectorKernel {
     contour_validation: Option<contour::SectorValidation>,
     dynamic_history: (usize, u32),
@@ -145,6 +158,7 @@ pub struct SectorKernel {
     exact_zero: Vec<bool>,
     program_bytes: std::sync::Arc<[u8]>,
     statistics: EvaluatorStatistics,
+    primary_restoration: PrimaryEvaluatorRestoration,
     backend: Backend,
 }
 
@@ -163,13 +177,34 @@ struct RealKernel {
     f64_timing: EvaluatorTiming,
     conditioning_timing: EvaluatorTiming,
     evaluator: evaluator::RealEvaluator,
-    exact_evaluator: ExpressionEvaluator<Complex<Rational>>,
+    exact_evaluator: std::sync::Arc<ExpressionEvaluator<Complex<Rational>>>,
     conditioning: evaluator::Conditioning<ErrorPropagatingFloat<f64>>,
     check_input: Vec<ErrorPropagatingFloat<f64>>,
     check_output: Vec<ErrorPropagatingFloat<f64>>,
 }
 
 impl SectorKernel {
+    pub fn primary_evaluator_restoration(&self) -> PrimaryEvaluatorRestoration {
+        self.primary_restoration
+    }
+
+    pub(in crate::kernel) fn saved_primary(
+        &self,
+    ) -> Result<Option<evaluator::SavedPrimary>, KernelError> {
+        let (bytes, complex) = match &self.backend {
+            Backend::Real(kernel) => (kernel.evaluator.saved_primary()?, false),
+            Backend::Complex(kernel) => (kernel.saved_primary()?, true),
+        };
+        Ok(bytes.map(|bytes| {
+            evaluator::SavedPrimary::new(
+                bytes,
+                &self.program_bytes,
+                complex,
+                self.parameters.len() + self.runtime_parameters.len(),
+                self.exact_program().get_output_len(),
+            )
+        }))
+    }
     fn clear_dynamic_attempt(&mut self) {
         match &mut self.backend {
             Backend::Real(kernel) => {
@@ -491,6 +526,7 @@ impl SectorKernel {
             exact_zero: self.exact_zero.clone(),
             program_bytes: self.program_bytes.clone(),
             statistics: self.statistics.clone(),
+            primary_restoration: self.primary_restoration,
             backend: match &self.backend {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
@@ -521,7 +557,7 @@ pub struct KernelSet {
     runtime_parameters: Vec<Symbol>,
     runtime_mass_constraints: Vec<RuntimeMassConstraint>,
     template_content_id: Option<String>,
-    portable_artifact: Option<Vec<u8>>,
+    portable_artifact: Option<std::sync::Arc<Vec<u8>>>,
     metadata: Option<crate::generation::GenerationMetadata>,
     coefficient_orders: Vec<i32>,
     components: Vec<crate::status::CoefficientComponent>,

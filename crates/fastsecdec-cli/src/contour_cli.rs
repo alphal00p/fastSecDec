@@ -86,6 +86,7 @@ impl ContourArgs {
                     completed: Some(pilot.completed),
                     total: Some(pilot.total),
                     elapsed_seconds: started.elapsed().as_secs_f64(),
+                    primary_evaluators: None,
                 })?;
                 if dashboard.cancelled() {
                     return Err("contour preflight cancelled".into());

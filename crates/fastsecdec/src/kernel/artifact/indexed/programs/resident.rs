@@ -82,7 +82,7 @@ impl ProgramResidentAssembly {
                 ));
             }
         }
-        kernels.portable_artifact = Some(portable.into_inner());
+        kernels.portable_artifact = Some(portable.into_inner().into());
         Ok(kernels)
     }
 }

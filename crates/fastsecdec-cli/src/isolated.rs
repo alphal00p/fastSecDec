@@ -156,6 +156,7 @@ fn run(request: Request, dashboard: &mut Dashboard) -> CliResult<()> {
                                     completed: Some(snapshot.completed),
                                     total: Some(snapshot.total),
                                     elapsed_seconds,
+                                    primary_evaluators: None,
                                 })?;
                             }
                         }

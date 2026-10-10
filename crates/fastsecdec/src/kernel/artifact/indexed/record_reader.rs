@@ -23,6 +23,15 @@ pub(super) fn read_record(
     descriptor: &RecordDescriptor,
     options: KernelLoadOptions,
 ) -> Result<KernelSet, KernelError> {
+    read_record_with_retention(reader, descriptor, options, true)
+}
+
+fn read_record_with_retention(
+    reader: &mut (impl Read + Seek),
+    descriptor: &RecordDescriptor,
+    options: KernelLoadOptions,
+    retain: bool,
+) -> Result<KernelSet, KernelError> {
     let count = usize::try_from(descriptor.receipt.length).map_err(failure)?;
     let mut bytes = Vec::new();
     bytes.try_reserve_exact(count).map_err(failure)?;
@@ -37,7 +46,7 @@ pub(super) fn read_record(
     if !bytes.starts_with(super::super::binary::PREFIX) {
         return Err(failure("nested archive or unsupported record codec"));
     }
-    let kernels = KernelSet::from_bytes_with_options(&bytes, options)?;
+    let kernels = super::super::owned_record(bytes, options, retain)?;
     check_record(descriptor, &kernels)?;
     Ok(kernels)
 }
@@ -112,7 +121,7 @@ pub(super) fn load_selected(
             return Err(KernelError::Cancelled);
         }
         let record = &selection.records[index];
-        let local = read_record(reader, record, options)?;
+        let local = read_record_with_retention(reader, record, options, false)?;
         completed += usize::from(!local.sectors.is_empty());
         assembly.push(local, &record.receipt.source_indices, exact_only)?;
     }

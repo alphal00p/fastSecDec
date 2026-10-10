@@ -94,6 +94,6 @@ pub(crate) fn from_bytes(
 ) -> Result<KernelSet, KernelError> {
     let mut reader = IndexedReader::from_reader(Cursor::new(bytes), options)?;
     let mut kernels = reader.load_all_with_progress(progress)?;
-    kernels.portable_artifact = Some(bytes.to_vec());
+    kernels.portable_artifact = Some(bytes.to_vec().into());
     Ok(kernels)
 }

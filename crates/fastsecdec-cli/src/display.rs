@@ -276,7 +276,9 @@ impl Dashboard {
     pub(crate) fn loading(&mut self, snapshot: &crate::loading::Snapshot) -> CliResult<()> {
         let cancelled = self.interrupt.flag.load(Ordering::Relaxed);
         let force = self.cached_loading.as_ref().is_none_or(|cached| {
-            cached.snapshot.phase != snapshot.phase || cached.cancelled != cancelled
+            cached.snapshot.phase != snapshot.phase
+                || cached.snapshot.primary_evaluators != snapshot.primary_evaluators
+                || cached.cancelled != cancelled
         });
         if !self
             .loading_cadence

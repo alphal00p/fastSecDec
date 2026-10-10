@@ -1,6 +1,7 @@
 //! Strict versioned envelopes around native symbolic/evaluator serialization.
 //! Symbolica owns decoding of native programs from trusted cache producers.
 mod binary;
+mod cached;
 pub(crate) mod indexed;
 #[cfg(test)]
 mod load_tests;
@@ -72,6 +73,27 @@ fn parameter_names(parameters: &[Symbol]) -> Vec<String> {
         .collect()
 }
 
+/// Indexed readers already own exactly one record buffer. Transfer it only
+/// when the returned standalone owner needs byte-identical later saving;
+/// resident assembly intentionally discards it after moving the native owners.
+fn owned_record(
+    bytes: Vec<u8>,
+    options: KernelLoadOptions,
+    retain: bool,
+) -> Result<KernelSet, KernelError> {
+    let progress =
+        &mut |_: &crate::kernel::CompilationProgress| std::ops::ControlFlow::Continue(());
+    let mut kernels = if bytes.starts_with(cached::MAGIC) {
+        cached::load_with_retention(&bytes, options, false, progress)?
+    } else {
+        binary::load_with_primary(&bytes, options, None, None, false, progress)?
+    };
+    if retain {
+        kernels.portable_artifact = Some(bytes.into());
+    }
+    Ok(kernels)
+}
+
 impl crate::generation::GeneratedIntegral {
     /// Build and save portable native exact evaluator programs without JIT.
     /// This performs native expression-to-IR translation; it does not materialize
@@ -95,14 +117,15 @@ impl KernelSet {
         self.prepare_contour_checks()?;
         let (id, bytes) = binary::compiled(self)?;
         self.content_id = id;
-        self.portable_artifact = Some(bytes);
+        self.portable_artifact = Some(bytes.into());
         Ok(())
     }
 
     /// Save immutable portable programs, metadata and numerical policy. Runtime
     /// parameter values are excluded: these bytes identify `template_content_id()`.
     /// Legacy loaded artifacts retain their original bytes and identities.
-    /// Executable code and mutable evaluator work stacks are excluded.
+    /// Native records may retain the owner's saved JIT application alongside
+    /// exact IR. Mutable evaluator stacks, bindings and pilot state are excluded.
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
         match self.portable_artifact.as_deref() {
             Some(bytes) => Ok(bytes.to_vec()),
@@ -115,6 +138,7 @@ impl KernelSet {
     pub fn artifact_bytes(&self) -> Result<&[u8], KernelError> {
         self.portable_artifact
             .as_deref()
+            .map(Vec::as_slice)
             .ok_or_else(|| KernelError::Artifact("kernel artifact was not initialized".into()))
     }
 
@@ -169,6 +193,8 @@ impl KernelSet {
             indexed::programs::from_bytes(bytes, options, &mut progress)
         } else if bytes.starts_with(indexed::MAGIC) {
             indexed::from_bytes(bytes, options, &mut progress)
+        } else if bytes.starts_with(cached::MAGIC) {
+            cached::load(bytes, options, &mut restoring)
         } else if bytes.starts_with(binary::PREFIX) {
             binary::load_with_progress(bytes, options, &mut restoring)
         } else {

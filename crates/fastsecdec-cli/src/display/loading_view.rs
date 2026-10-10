@@ -46,7 +46,18 @@ fn progress(snapshot: &crate::loading::Snapshot) -> String {
         (Phase::ContourValidation, Some(done), Some(total)) => {
             format!("{done} / {total} pilot points")
         }
-        (Phase::Complete, _, _) => "Complete".into(),
+        (Phase::Complete, _, _) => snapshot.primary_evaluators.as_ref().map_or_else(
+            || "Complete".into(),
+            |primary| {
+                format!(
+                    "JIT cache restored {}; rebuilt {} missing / {} incompatible; eager {}",
+                    primary.cache_restored,
+                    primary.rebuilt_missing_cache,
+                    primary.rebuilt_incompatible_cache,
+                    primary.eager,
+                )
+            },
+        ),
         _ => "Working · progress unavailable".into(),
     }
 }
@@ -186,6 +197,7 @@ mod tests {
                 completed: done,
                 total,
                 elapsed_seconds: 90.0,
+                primary_evaluators: None,
             },
             memory: memory::Snapshot::default(),
             observed_at: Instant::now(),

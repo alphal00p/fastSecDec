@@ -311,9 +311,11 @@ pub(super) fn load(
         Vec::new(),
         settings.expect("compiler policy validated"),
         Some(encoded_programs),
+        None,
+        options.validate,
         progress,
     )?;
     kernels.content_id = artifact.content_id;
-    kernels.portable_artifact = Some(bytes.to_vec());
+    kernels.portable_artifact = Some(bytes.to_vec().into());
     Ok(kernels)
 }

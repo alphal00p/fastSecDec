@@ -34,6 +34,7 @@ pub(crate) fn integrate(
         completed: None,
         total: None,
         elapsed_seconds: 0.,
+        primary_evaluators: None,
     })?;
     // Native state imports may retain Symbolica polynomial-variable tables.
     // A disposable child binds the offsets and returns only this compact vector.
@@ -57,6 +58,7 @@ pub(crate) fn integrate(
         completed: None,
         total: None,
         elapsed_seconds: loading_seconds,
+        primary_evaluators: None,
     })?;
     dashboard.begin_integration();
     dashboard.set_scope(settings.scope.clone());

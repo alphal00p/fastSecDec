@@ -29,6 +29,31 @@ pub(crate) struct Snapshot {
     pub completed: Option<usize>,
     pub total: Option<usize>,
     pub elapsed_seconds: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub primary_evaluators: Option<PrimaryEvaluators>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
+pub(crate) struct PrimaryEvaluators {
+    pub cache_restored: usize,
+    pub rebuilt_missing_cache: usize,
+    pub rebuilt_incompatible_cache: usize,
+    pub eager: usize,
+}
+impl PrimaryEvaluators {
+    fn from_kernels(kernels: &KernelSet) -> Self {
+        use fastsecdec::kernel::PrimaryEvaluatorRestoration::*;
+        let mut result = Self::default();
+        for sector in kernels.sectors() {
+            match sector.primary_evaluator_restoration() {
+                CacheRestored => result.cache_restored += 1,
+                CacheMissing | Generated => result.rebuilt_missing_cache += 1,
+                CacheIncompatible => result.rebuilt_incompatible_cache += 1,
+                Eager => result.eager += 1,
+            }
+        }
+        result
+    }
 }
 impl Snapshot {
     fn event(event: &ArtifactLoadProgress) -> Self {
@@ -54,6 +79,7 @@ impl Snapshot {
             completed,
             total,
             elapsed_seconds: 0.0,
+            primary_evaluators: None,
         }
     }
 }
@@ -110,8 +136,16 @@ pub(crate) fn load(
     {
         return Err("artifact loading cancelled".into());
     }
-    result
+    let loaded = result
         .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?
         .pop()
-        .ok_or_else(|| "artifact loader produced no result".into())
+        .ok_or("artifact loader produced no result")?;
+    dashboard.loading(&Snapshot {
+        phase: Phase::Complete,
+        completed: None,
+        total: None,
+        elapsed_seconds: started.elapsed().as_secs_f64(),
+        primary_evaluators: Some(PrimaryEvaluators::from_kernels(&loaded.1)),
+    })?;
+    Ok(loaded)
 }

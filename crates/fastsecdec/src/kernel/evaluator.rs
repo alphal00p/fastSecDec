@@ -6,9 +6,11 @@ mod checked;
 mod conditioning;
 mod mapping;
 mod observed;
+mod saved;
 use crate::contour::functions::dynamic::diagnostics::{Accumulator, Configuration, Phase};
 pub(super) use conditioning::Conditioning;
 pub(super) use mapping::MappingRequirements;
+pub(in crate::kernel) use saved::SavedPrimary;
 
 macro_rules! evaluator {
     ($name:ident, $scalar:ty, $invalid:expr, $physical:expr) => {
@@ -24,6 +26,24 @@ macro_rules! evaluator {
             Observed(Box<observed::Observed<Self>>),
         }
         impl $name {
+            pub(in crate::kernel) fn saved_primary(&self) -> Result<Option<Vec<u8>>, KernelError> {
+                match self {
+                    #[cfg(feature = "native")]
+                    Self::Symjit(evaluator) => {
+                        bincode::encode_to_vec(evaluator, bincode::config::standard())
+                            .map(Some)
+                            .map_err(|error| {
+                                KernelError::Artifact(format!(
+                                    "native primary evaluator encoding: {error}"
+                                ))
+                            })
+                    }
+                    Self::Eager(_) => Ok(None),
+                    Self::Dynamic(evaluator, _) => evaluator.saved_primary(),
+                    Self::Checked(owner) => owner.evaluator.saved_primary(),
+                    Self::Observed(owner) => owner.evaluator.saved_primary(),
+                }
+            }
             pub(super) fn evaluate(&mut self, input: &[$scalar], output: &mut [$scalar]) {
                 match self {
                     Self::Observed(owner) => {
@@ -220,16 +240,35 @@ evaluator!(
     |value: &Complex<f64>| if value.im == 0. { value.re } else { f64::NAN }
 );
 
+#[cfg(test)]
 pub(super) fn real(
     exact: &ExactProgram,
     backend: EvaluatorBackend,
 ) -> Result<RealEvaluator, KernelError> {
     let requirements = MappingRequirements::new(exact).map_err(KernelError::Compilation)?;
+    real_prepared(exact, backend, &requirements, None)
+}
+
+pub(super) fn real_prepared(
+    exact: &ExactProgram,
+    backend: EvaluatorBackend,
+    requirements: &MappingRequirements,
+    saved: Option<&[u8]>,
+) -> Result<RealEvaluator, KernelError> {
+    #[cfg(feature = "native")]
+    if let Some(saved) = saved {
+        return requirements
+            .prepare(|| SavedPrimary::restore(saved))
+            .map(|evaluator| RealEvaluator::Symjit(evaluator).with_dynamic_fence(requirements))
+            .map_err(KernelError::Artifact);
+    }
+    #[cfg(feature = "portable")]
+    let _ = saved;
     #[cfg(feature = "native")]
     if !backend.is_eager() {
         return requirements
             .prepare(|| exact.jit_compile::<f64>(settings()))
-            .map(|evaluator| RealEvaluator::Symjit(evaluator).with_dynamic_fence(&requirements))
+            .map(|evaluator| RealEvaluator::Symjit(evaluator).with_dynamic_fence(requirements))
             .map_err(KernelError::Compilation);
     }
     #[cfg(feature = "portable")]
@@ -240,20 +279,39 @@ pub(super) fn real(
     }
     requirements
         .map(exact, |value| value.re.to_f64(), 53)
-        .map(|evaluator| RealEvaluator::Eager(evaluator).with_dynamic_fence(&requirements))
+        .map(|evaluator| RealEvaluator::Eager(evaluator).with_dynamic_fence(requirements))
         .map_err(KernelError::Compilation)
 }
 
+#[cfg(test)]
 pub(super) fn complex(
     exact: &ExactProgram,
     backend: EvaluatorBackend,
 ) -> Result<ComplexEvaluator, KernelError> {
     let requirements = MappingRequirements::new(exact).map_err(KernelError::Compilation)?;
+    complex_prepared(exact, backend, &requirements, None)
+}
+
+pub(super) fn complex_prepared(
+    exact: &ExactProgram,
+    backend: EvaluatorBackend,
+    requirements: &MappingRequirements,
+    saved: Option<&[u8]>,
+) -> Result<ComplexEvaluator, KernelError> {
+    #[cfg(feature = "native")]
+    if let Some(saved) = saved {
+        return requirements
+            .prepare(|| SavedPrimary::restore(saved))
+            .map(|evaluator| ComplexEvaluator::Symjit(evaluator).with_dynamic_fence(requirements))
+            .map_err(KernelError::Artifact);
+    }
+    #[cfg(feature = "portable")]
+    let _ = saved;
     #[cfg(feature = "native")]
     if !backend.is_eager() {
         return requirements
             .prepare(|| exact.jit_compile::<Complex<f64>>(settings()))
-            .map(|evaluator| ComplexEvaluator::Symjit(evaluator).with_dynamic_fence(&requirements))
+            .map(|evaluator| ComplexEvaluator::Symjit(evaluator).with_dynamic_fence(requirements))
             .map_err(KernelError::Compilation);
     }
     #[cfg(feature = "portable")]
@@ -268,7 +326,7 @@ pub(super) fn complex(
             |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
             53,
         )
-        .map(|evaluator| ComplexEvaluator::Eager(evaluator).with_dynamic_fence(&requirements))
+        .map(|evaluator| ComplexEvaluator::Eager(evaluator).with_dynamic_fence(requirements))
         .map_err(KernelError::Compilation)
 }
 

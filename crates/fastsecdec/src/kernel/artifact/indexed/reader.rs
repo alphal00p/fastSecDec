@@ -16,6 +16,54 @@ pub struct IndexedReader<R> {
     options: KernelLoadOptions,
 }
 impl<R: Read + Seek> IndexedReader<R> {
+    /// Refresh optional native JIT payloads one record at a time. Mathematical
+    /// identities and source/output mappings remain unchanged. This does not
+    /// generate expressions, bind parameters or evaluate samples. The caller
+    /// owns staging and atomic publication; cancellation leaves partial output.
+    #[cfg(feature = "native")]
+    pub fn write_with_native_cache<W: std::io::Write + Seek>(
+        &mut self,
+        writer: W,
+        mut progress: impl FnMut(&crate::kernel::CompilationProgress) -> ControlFlow<()>,
+    ) -> Result<(W, KernelCatalogue), KernelError> {
+        let started = std::time::Instant::now();
+        let total = self.catalogue.records.len();
+        let mut writer = super::IndexedWriter::new(writer)?;
+        for (index, record) in self.catalogue.records.iter().enumerate() {
+            if progress(&crate::kernel::CompilationProgress {
+                completed: index,
+                total,
+                elapsed_seconds: started.elapsed().as_secs_f64(),
+            })
+            .is_break()
+            {
+                return Err(KernelError::Cancelled);
+            }
+            let kernels = record_reader::read_record(&mut self.reader, record, self.options)?;
+            let bytes = super::super::cached::refresh(&kernels)?;
+            let mut receipt = record.receipt.clone();
+            receipt.length = bytes.len() as u64;
+            receipt.digest = blake3::hash(&bytes).to_hex().to_string();
+            writer.append_record(&mut bytes.as_slice(), receipt)?;
+        }
+        let (writer, catalogue) = writer.finish()?;
+        if catalogue.content_id != self.catalogue.content_id {
+            return Err(failure(
+                "native cache refresh changed mathematical catalogue identity",
+            ));
+        }
+        if progress(&crate::kernel::CompilationProgress {
+            completed: total,
+            total,
+            elapsed_seconds: started.elapsed().as_secs_f64(),
+        })
+        .is_break()
+        {
+            return Err(KernelError::Cancelled);
+        }
+        Ok((writer, catalogue))
+    }
+
     pub fn new(
         mut reader: R,
         catalogue: KernelCatalogue,

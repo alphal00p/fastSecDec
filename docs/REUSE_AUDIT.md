@@ -1,5 +1,36 @@
 # Ecosystem reuse evidence
 
+## Native primary JIT restoration and immutable loader ownership (2026-10-10)
+
+The [primary-cache audit](reviews/symjit-primary-cache.md) checks the current
+Symbolica native bincode API with real/complex and fresh-process contour
+callbacks. The v13 record adds that existing native payload alongside unchanged
+authoritative exact IR. It preserves mathematical identities, existing owner
+and portable admission, optional integrity verification, independent callback
+and precision workspaces, and original loaded-byte roundtrips. Explicit native
+archive refresh is bounded to one record at a time. No alternate evaluator
+codec, callback engine or machine-code format is introduced.
+
+Native factory scopes also restore the current primary during validation-policy
+changes. Immutable exact templates and retained byte buffers are shared, while
+mutable numerical state remains independent. Matched optimized source-zero
+loads were 20.3% and 21.8% shorter for the two measured records, at approximately
+13.3% additional record bytes. Separate binding/remap and clone measurements,
+trusted-producer shape limitations and final acceptance are recorded in the
+audit; these figures are not extrapolated to whole archives.
+
+The full native workspace passes 935 tests with 34 explicit ignores; strict
+workspace/all-target lint, formatting, and the isolated binding check/lint pass.
+The portable host suite passes 83 tests. Overlapping focused subsets are not
+added to these counts, and no new installed-wheel or WASM result is claimed.
+
+The separate [definition-registration audit](reviews/contour-definition-registration.md)
+removes unused argument copies from an existing native visitor/FunctionMap path;
+it adds no CAS helper and passes sixteen focused controls. The independent
+[registered-derivative owner correction](reviews/symbolica-registered-derivative-inlining.md)
+is published but is not adopted into FastSecDec's dependency graph or inlining
+policy.
+
 ## Caller-selected initial native Series width (2026-10-10)
 
 The [independent width audit](reviews/contour-initial-series-width.md) checks

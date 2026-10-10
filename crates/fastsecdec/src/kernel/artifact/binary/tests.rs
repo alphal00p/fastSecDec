@@ -10,6 +10,10 @@ use symbolica::{parse, symbol};
 mod v11;
 mod v12;
 
+fn base_native(bytes: &[u8]) -> &[u8] {
+    super::super::cached::base(bytes)
+}
+
 fn kernel(prefactor: Atom) -> KernelSet {
     let input = ParametricIntegrand::new(
         vec![symbol!("binary_checks::x")],
@@ -26,7 +30,7 @@ fn kernel(prefactor: Atom) -> KernelSet {
     .unwrap()
 }
 fn payload(kernels: &KernelSet) -> Payload {
-    let bytes = kernels.artifact_bytes().unwrap();
+    let bytes = base_native(kernels.artifact_bytes().unwrap());
     let (envelope, used): (Envelope, usize) = bincode::decode_from_slice(
         bytes.strip_prefix(MAGIC).unwrap(),
         bincode::config::standard(),
@@ -60,13 +64,13 @@ fn explicit_native_v10_static_recipe_preserves_program_and_legacy_identity() {
     let mut kernels = kernel(Atom::one());
     let legacy_id = kernels.content_id().to_owned();
     let legacy_bytes = kernels.artifact_bytes().unwrap().to_vec();
-    assert!(legacy_bytes.starts_with(MAGIC));
+    assert!(base_native(&legacy_bytes).starts_with(MAGIC));
     kernels
         .declare_program_recipe(crate::kernel::ProgramRecipe::UndeformedV1)
         .unwrap();
     let current_id = kernels.content_id().to_owned();
     assert_ne!(current_id, legacy_id);
-    let bytes = kernels.artifact_bytes().unwrap();
+    let bytes = base_native(kernels.artifact_bytes().unwrap());
     assert!(bytes.starts_with(MAGIC_V10));
     for validate in [false, true] {
         let restored =
@@ -108,7 +112,7 @@ fn explicit_native_v10_rejects_schema_disagreement_without_digest_validation() {
 #[test]
 fn borrowed_envelope_preserves_wire_and_borrows_large_buffers() {
     let kernels = super::super::load_tests::template();
-    let bytes = kernels.artifact_bytes().unwrap();
+    let bytes = base_native(kernels.artifact_bytes().unwrap());
     let wire = bytes.strip_prefix(MAGIC).unwrap();
     let (borrowed, used): (EnvelopeRef<'_>, _) =
         bincode::borrow_decode_from_slice(wire, bincode::config::standard()).unwrap();
@@ -128,7 +132,7 @@ fn borrowed_envelope_preserves_wire_and_borrows_large_buffers() {
 #[test]
 fn binary_content_checks_are_explicit_and_format_checks_are_unconditional() {
     let kernels = super::super::load_tests::template();
-    let original = kernels.artifact_bytes().unwrap();
+    let original = base_native(kernels.artifact_bytes().unwrap());
     for change_digest in [false, true] {
         let (mut envelope, _): (Envelope, _) = bincode::decode_from_slice(
             original.strip_prefix(MAGIC).unwrap(),

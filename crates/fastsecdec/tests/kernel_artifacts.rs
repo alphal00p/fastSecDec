@@ -77,32 +77,56 @@ fn native_program_is_saved_without_materialization_and_stays_immutable_after_wor
         .to_kernel_bytes(PrecisionPolicy::default())
         .unwrap();
     let mut compiled = generated.compile().unwrap();
+    let compiled_bytes = compiled.to_bytes().unwrap();
     let retained_address = compiled.artifact_bytes().unwrap().as_ptr();
-    assert_eq!(compiled.artifact_bytes().unwrap(), before_compile);
-    assert_eq!(compiled.to_bytes().unwrap(), before_compile);
+    assert_eq!(compiled.artifact_bytes().unwrap(), compiled_bytes);
+    let eager = compiled.sectors()[0].primary_evaluator_restoration()
+        == fastsecdec::kernel::PrimaryEvaluatorRestoration::Eager;
+    if eager {
+        assert_eq!(compiled_bytes, before_compile);
+    } else {
+        assert!(compiled_bytes.starts_with(b"FastSecDec\0binserde\x0d"));
+    }
     assert!(before_compile.starts_with(b"FastSecDec\0binserde\x09"));
     assert!(serde_json::from_slice::<serde_json::Value>(&before_compile).is_err());
     assert!(compiled.sectors()[0].statistics().exact_program_bytes > 0);
     let mut restored = KernelSet::from_bytes(&before_compile).unwrap();
+    let mut cached = KernelSet::from_bytes(&compiled_bytes).unwrap();
+    assert_eq!(cached.to_bytes().unwrap(), compiled_bytes);
+    assert_eq!(
+        cached.sectors()[0].primary_evaluator_restoration(),
+        if eager {
+            fastsecdec::kernel::PrimaryEvaluatorRestoration::Eager
+        } else {
+            fastsecdec::kernel::PrimaryEvaluatorRestoration::CacheRestored
+        }
+    );
     assert_eq!(restored.orders(), [0, 0, 1, 1, 2, 2]);
     assert_eq!(compiled.content_id(), restored.content_id());
+    assert_eq!(compiled.content_id(), cached.content_id());
     for point in [0.25, 1e-8] {
         let mut old = vec![0.0; 6];
         let mut new = vec![0.0; 6];
+        let mut cache_values = vec![0.0; 6];
         compiled.sectors_mut()[0]
             .evaluate(&[point], &mut old)
             .unwrap();
         restored.sectors_mut()[0]
             .evaluate(&[point], &mut new)
             .unwrap();
+        cached.sectors_mut()[0]
+            .evaluate(&[point], &mut cache_values)
+            .unwrap();
         assert!((new[0] - 2.0 / (1.0 + point)).abs() < 1e-12);
         assert!((new[1] - 3.0 / (1.0 + point)).abs() < 1e-12);
-        for (old, new) in old.into_iter().zip(new) {
+        for ((old, new), cached) in old.into_iter().zip(new).zip(cache_values) {
             assert!((old - new).abs() < 1e-11);
+            assert!((old - cached).abs() < 1e-11);
         }
     }
     assert_eq!(restored.to_bytes().unwrap(), before_compile);
-    assert_eq!(compiled.to_bytes().unwrap(), before_compile);
+    assert_eq!(compiled.to_bytes().unwrap(), compiled_bytes);
+    assert_eq!(cached.to_bytes().unwrap(), compiled_bytes);
     assert_eq!(
         compiled.artifact_bytes().unwrap().as_ptr(),
         retained_address

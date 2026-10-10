@@ -39,7 +39,7 @@ impl crate::kernel::KernelSet {
             ));
         }
         self.content_id = selected.content_id.clone();
-        self.portable_artifact = Some(writer.into_inner());
+        self.portable_artifact = Some(writer.into_inner().into());
         Ok(catalogue)
     }
 }

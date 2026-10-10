@@ -401,7 +401,15 @@ impl SectorKernel {
         use_complex: bool,
         execution: super::EvaluatorBackend,
     ) -> Result<Self, KernelError> {
-        Self::from_program_with_bytes(program, precision, use_complex, execution, None)
+        Self::from_program_with_bytes(
+            program,
+            precision,
+            use_complex,
+            execution,
+            None,
+            None,
+            false,
+        )
     }
 
     fn from_program_with_bytes(
@@ -410,6 +418,8 @@ impl SectorKernel {
         use_complex: bool,
         execution: super::EvaluatorBackend,
         encoded: Option<std::sync::Arc<[u8]>>,
+        saved_primary: Option<evaluator::SavedPrimary>,
+        validate_primary: bool,
     ) -> Result<Self, KernelError> {
         let program::SectorProgram {
             symbolic_endpoint_contour_partials,
@@ -443,13 +453,41 @@ impl SectorKernel {
         // A loader already owns the untouched native program bytes. Retain them
         // directly instead of serializing the entire decoded program again.
         // Generation encodes before any numeric mapping mutates a workspace.
+        let loaded = encoded.is_some();
         let program_bytes = match encoded {
             Some(bytes) => bytes,
             None => program::encode(&exact)?.into(),
         };
+        let admitted_primary = saved_primary
+            .as_ref()
+            .map(|saved| {
+                saved.admit(
+                    &program_bytes,
+                    use_complex,
+                    inputs,
+                    outputs,
+                    execution,
+                    validate_primary,
+                )
+            })
+            .transpose()?;
+        let primary = saved_primary
+            .as_ref()
+            .filter(|_| admitted_primary == Some(true));
+        let primary = primary.map(evaluator::SavedPrimary::bytes);
+        let primary_restoration = if execution.is_eager() {
+            super::PrimaryEvaluatorRestoration::Eager
+        } else {
+            match admitted_primary {
+                Some(true) => super::PrimaryEvaluatorRestoration::CacheRestored,
+                Some(false) => super::PrimaryEvaluatorRestoration::CacheIncompatible,
+                None if loaded => super::PrimaryEvaluatorRestoration::CacheMissing,
+                None => super::PrimaryEvaluatorRestoration::Generated,
+            }
+        };
         let operations = exact.count_operations().into();
         let backend = if use_complex {
-            Backend::Complex(complex::ComplexKernel::from_program(
+            Backend::Complex(complex::ComplexKernel::from_program_with_primary(
                 exact,
                 parameters.len(),
                 cancellation.clone(),
@@ -457,18 +495,19 @@ impl SectorKernel {
                 exact_zero.clone(),
                 real_coefficients,
                 execution,
+                primary,
             )?)
         } else {
-            let evaluator = evaluator::real(&exact, execution)?;
             let requirements =
                 evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
+            let evaluator = evaluator::real_prepared(&exact, execution, &requirements, primary)?;
             let conditioning = evaluator::Conditioning::new(requirements.clone());
             Backend::Real(RealKernel {
                 double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
                 f64_timing: Default::default(),
                 conditioning_timing: Default::default(),
                 precision_cache: super::precision_cache::PrecisionCache::new(requirements),
-                exact_evaluator: exact,
+                exact_evaluator: std::sync::Arc::new(exact),
                 evaluator,
                 conditioning,
                 check_input: vec![ErrorPropagatingFloat::new(0.0, 15.0); inputs],
@@ -516,6 +555,7 @@ impl SectorKernel {
             exact_zero,
             program_bytes,
             statistics,
+            primary_restoration,
             backend,
         })
     }
@@ -546,6 +586,8 @@ impl KernelSet {
             runtime_parameters,
             settings,
             None,
+            None,
+            false,
             &mut |_| ControlFlow::Continue(()),
         )
     }
@@ -561,11 +603,22 @@ impl KernelSet {
         runtime_parameters: Vec<Symbol>,
         settings: CompilationSettings,
         encoded_programs: Option<Vec<std::sync::Arc<[u8]>>>,
+        primary_caches: Option<Vec<Option<evaluator::SavedPrimary>>>,
+        validate_primary: bool,
         progress: &mut impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<Self, KernelError> {
         precision.validate()?;
         let started = Instant::now();
         let total = programs.len();
+        if primary_caches
+            .as_ref()
+            .is_some_and(|caches| caches.len() != total)
+        {
+            return Err(KernelError::Artifact(
+                "native primary cache count differs from sector count".into(),
+            ));
+        }
+        let mut primary_caches = primary_caches.map(Vec::into_iter);
         if encoded_programs
             .as_ref()
             .is_some_and(|bytes| bytes.len() != total)
@@ -597,6 +650,8 @@ impl KernelSet {
                 use_complex,
                 settings.backend,
                 encoded_programs.as_mut().and_then(Iterator::next),
+                primary_caches.as_mut().and_then(Iterator::next).flatten(),
+                validate_primary,
             )?);
             if progress(&CompilationProgress {
                 completed: sectors.len(),

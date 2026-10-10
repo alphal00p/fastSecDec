@@ -27,6 +27,7 @@ fn compact_kernel() -> KernelSet {
 }
 
 fn decode(bytes: &[u8]) -> (Envelope, PayloadV12) {
+    let bytes = base_native(bytes);
     let (envelope, used): (Envelope, _) = bincode::decode_from_slice(
         bytes.strip_prefix(MAGIC_V12).unwrap(),
         bincode::config::standard(),
@@ -62,7 +63,7 @@ fn compact_metadata_roundtrips_without_rebuilding_numerical_programs() {
     ))
     .unwrap();
     let (identity, bytes) = compiled(&kernels).unwrap();
-    assert!(bytes.starts_with(MAGIC_V12));
+    assert!(base_native(&bytes).starts_with(MAGIC_V12));
     for validate in [false, true] {
         let restored =
             KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate }).unwrap();
@@ -285,7 +286,7 @@ fn generated_compact_dynamic_vectors_restore_with_checked_native_requests() {
                 .to_kernel_bytes_with_settings(PrecisionPolicy::default(), settings)
                 .unwrap();
             assert!(
-                bytes.starts_with(MAGIC_V12),
+                base_native(&bytes).starts_with(MAGIC_V12),
                 "fixture must exercise retained definitions"
             );
             assert!(

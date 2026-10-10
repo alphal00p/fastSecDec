@@ -2,6 +2,7 @@
 use super::*;
 
 fn decode_v11(bytes: &[u8]) -> PayloadV11 {
+    let bytes = base_native(bytes);
     // Current generation may retain compact inspection definitions in v12;
     // the certificate and exact-association sub-layout is still native v11.
     if bytes.starts_with(MAGIC_V12) {
@@ -204,7 +205,7 @@ fn explicit_empty_v11_certificates_preserve_legacy_readers_and_native_programs()
     .unwrap();
     kernels.program_descriptor = Some(owner);
     let (identity, bytes) = compiled(&kernels).unwrap();
-    assert!(bytes.starts_with(MAGIC_V11));
+    assert!(base_native(&bytes).starts_with(MAGIC_V11));
     for validate in [false, true] {
         let restored =
             KernelSet::from_bytes_with_options(&bytes, KernelLoadOptions { validate }).unwrap();
