@@ -314,10 +314,53 @@ An explicitly authorized four-worker `--resume` began at
 binary, mathematical settings and journal. It reused the saved mapping and
 completed units. The new 7,200-second allocation retains the 100 GB guard and
 reserves 20 GB for concurrent runtime/build work; that reservation is not a
-measured RSS observation. Final accounting will include both attempts' elapsed
-times and observed peaks. No receipts are imported from the discarded Symbolic-J
-campaign. The resume is still active; full polynomial publication and all-chart
-physical admission are pending.
+measured RSS observation. No receipts are imported from the discarded Symbolic-J
+campaign.
+
+The resume completed with exit zero, an empty owned process group and no
+resource-limit event. The final native catalogue contains 30 six-dimensional
+stochastic records and 30 exact records, covering sources 0 through 29. Every
+source chart retains Symbolic endpoint mode, and the manifest's actual
+compilation settings retain Dual J. The compiler observed 4–11 surviving
+first-image partial input slots per stochastic sector, summing to 227 across
+the 30 sectors; these are build observations, not callback or sample counts.
+
+| Complete polynomial generation observation | Result |
+| --- | ---: |
+| Initial two-worker attempt, deliberately cancelled | 1,116.343 s |
+| Four-worker resume through publication and closure | 5,292.193 s |
+| Accumulated measured attempt time | 6,408.536 s |
+| Calendar span, including the scheduling gap | 6,434.657 s |
+| Maximum sampled owned-group RSS across attempts | 60,935,819,264 B |
+| Maximum measured combined RSS across attempts | 66,926,145,536 B |
+| Whole indexed archive | 51,342,619 B |
+| Sum of stochastic exact evaluator IR | 11,334,278 B |
+| Sum of stochastic SymJIT IR | 15,976,372 B |
+
+The accumulated time includes the intentionally interrupted attempt and any
+work it had not yet persisted. The two-to-four-worker schedule is not a
+constant-worker scaling measurement. The independent process monitor polls
+with a 50 ms sleep plus `/proc` scanning time; its 60.936 GB observed peak is
+higher than the native status sampler's 59.409 GB observation. The table uses
+the monitor result and excludes the 20 GB reservation from measured memory.
+The serial status timing groups coefficient construction and evaluator
+compilation together, so its zero standalone compilation counter is not a
+claim that compilation cost was zero.
+
+The archive SHA256 is
+`1cda48e44eabbb43a46309aee2da58b346c0c5d69a5c8f620c4b12407b12bf37`;
+the manifest SHA256 is
+`29060e5a3dfb8839b5367ba0746bad5287112829d5aa7a92b2853e0bc6603bb4`.
+The catalogue content identity is
+`53c7b35d45d580d3edc43030b944e8843c89e1f155caaf503ec82b5a486ab1f3`.
+Publication checks pin both attempts, the intentional stop, settings and
+source identity, and verify the native indexed header, whole-file digest and
+contiguous receipt spans. Raw records and `handoff.json` remain under
+`target/contour-gghh-double-box-1000-symbolic-endpoints-full-polynomial-dual-c7/`.
+The closed artifact has been handed to the separately reviewed all-cap native
+readiness gate. Complete publication establishes generation feasibility;
+full physical admission, dynamic parameter selection and final integrations
+are separate subsequent gates.
 
 ## Definition registration follow-up
 
@@ -329,4 +372,4 @@ establish a physical compilation speedup. Sixteen focused native controls and
 independent source/test review passed. The API, source, probe and verification
 record is [the definition registration audit](contour-definition-registration.md).
 This change is separate from the immutable binaries used in the measurements
-and continuing generation campaigns above.
+and complete generation campaigns above.

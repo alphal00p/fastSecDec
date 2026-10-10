@@ -1,5 +1,5 @@
 {
-  "status": "in progress; dynamic generation and final integrations pending",
+  "status": "in progress; dynamic_qmc, dynamic_discrete_mc pending",
   "date": "2026-10-10",
   "scope": "Individual D05 double box, incoming ++, sqrt(s)=1000 GeV, cos(theta)=4/5, mH=125 GeV, mt=ymt=172.5 GeV; unnormalized delta_ab; prod_l d^Dk_l/(i*pi^(D/2)), D=4-2*eps, multiplier 1. Not a full amplitude.",
   "reference": "No independent numerical reference at this point. Native estimator uncertainty is not a demonstrated physical error.",
@@ -35,6 +35,70 @@
       },
       "summed_exact_program_bytes": 3195841,
       "summed_jit_ir_bytes": 4662929
+    },
+    "dynamic": {
+      "seconds": 6408.536017363891,
+      "peak_aggregate_rss_bytes": 60935819264,
+      "worker_sequence": [
+        2,
+        4
+      ],
+      "serial": true,
+      "attempt_seconds": [
+        1116.3433293411508,
+        5292.19268802274
+      ],
+      "calendar_seconds": 6434.656967,
+      "resume_scope": "Authorized scheduling-only2-to4 resume after2 durable units; first cancellation retained, no external receipts imported",
+      "stochastic_sectors": 30,
+      "records": 60,
+      "artifact_bytes": 51342619,
+      "artifact_sha256": "1cda48e44eabbb43a46309aee2da58b346c0c5d69a5c8f620c4b12407b12bf37",
+      "manifest_sha256": "29060e5a3dfb8839b5367ba0746bad5287112829d5aa7a92b2853e0bc6603bb4",
+      "binary_sha256": "7b4563df8392e884267a9aed2a85fa9a37d04a4ede0142b31641af9ffdda9243",
+      "handoff_sha256": "85863824b3dbe4438126b0cc47d4461d31b016e37d60f04b8390762c7c3b1cc9",
+      "jacobian": "dual",
+      "endpoint_reduction": "symbolic IBP",
+      "initial_relative_series_width": 2,
+      "contour_first_partial_slots": [
+        11,
+        9,
+        10,
+        6,
+        9,
+        9,
+        9,
+        8,
+        8,
+        4,
+        7,
+        6,
+        11,
+        5,
+        6,
+        6,
+        5,
+        6,
+        5,
+        7,
+        5,
+        8,
+        7,
+        6,
+        10,
+        8,
+        11,
+        10,
+        8,
+        7
+      ],
+      "optimization": {
+        "horner_iterations": 0,
+        "cpe_rounds": 1000,
+        "backend": "SymJIT O2"
+      },
+      "summed_exact_program_bytes": 11334278,
+      "summed_jit_ir_bytes": 15976372
     }
   },
   "runs": [
@@ -600,7 +664,6 @@
     }
   ],
   "pending": [
-    "dynamic polynomial generation",
     "dynamic_qmc",
     "dynamic_discrete_mc"
   ],

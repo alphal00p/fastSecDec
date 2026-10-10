@@ -210,31 +210,22 @@ unnormalized $delta_(a b)$; the measure is
 $product_l d^D k_l/(i pi^(D/2))$, $D=4-2epsilon$, with multiplier one.
 This is not a complete diagram sum or a spin/colour averaged matrix element.
 
-#note[*Corrected scope.* Both Jacobian choices now use symbolic endpoint IBP.
-The measurements below cover one complete six-dimensional source sector,
-including its pole and finite components. Full fixed generation is complete;
-both fixed integral estimates are available. Dynamic generation is in progress.]
+#note[Both prescriptions use symbolic endpoint IBP. Fixed mode uses the symbolic
+Jacobian; dynamic mode uses contour-only dual evaluation. Both complete
+artifacts contain 30 sampled sectors and 30 exact records.]
 
-== Generation and resident programs
-#table(columns: (1.3fr, 1fr, 1fr, .85fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
-  table.header([*Contour / Jacobian*], [*Time / peak RSS*], [*Exact / JIT IR*], [*Mean sample*]),
-  [Fixed / symbolic], [559.9 s / 12.01 GB], [108.3 / 156.2 kB], [14.64 µs],
-  [Fixed / dual], [566.9 s / 12.01 GB], [136.8 / 202.8 kB], [19.20 µs],
-  [Dynamic / symbolic], [1511.6 s / 28.44 GB], [294.0 / 524.6 kB], [37.71 µs],
-  [Dynamic / dual], [794.9 s / 16.73 GB], [372.0 / 520.0 kB], [29.99 µs],
+== Complete generation
+#table(columns: (1fr, .65fr, .85fr, .9fr, 1fr, 1.1fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
+  table.header([*Contour*], [*Workers*], [*Minutes*], [*Peak GB*], [*Saved MB*], [*Exact / JIT MB*]),
+  [Fixed], [6], [43.57], [54.09], [70.41], [3.20 / 4.66],
+  [Dynamic], [2 → 4], [106.81], [60.94], [51.34], [11.33 / 15.98],
 )
-Times include generation, compilation, saving and pointwise checks in separate
-processes; sizes describe evaluator IR, not the complete saved owner. Settings
-are SymJIT O2, Horner zero and common-pair cap 1000. Each matched pair uses
-8,192 identical points: fixed $lambda=10^(-6)$ and dynamic $S=.8$, $L=10^(-6)$,
-$R=1$. Both fixed arms rescue 27 points in double-double; both dynamic arms
-rescue 28. Fresh-process restoration and complete-vector parity pass.
-This sector favors symbolic J for fixed mode and dual J for dynamic mode;
-the full runs use those choices with serial workers under a *100 GB* cap.
-Full fixed generation produced 30 sampled sectors and 30 exact records in
-2614.4 s with six workers, peaking at 54.09 GB aggregate owned RSS. Its saved
-artifact is 70.41 MB. A separate all-sector cost probe measured 10.44 µs mean
-and 14.06 µs maximum sector mean, including precision rescues.
+Both use serial generation, SymJIT O2, Horner zero and common-pair cap 1000.
+Dynamic time includes the initial two-worker attempt and its four-worker
+continuation; the 26.1-second restart gap is excluded. Initial native series
+widths are one and two, respectively. These are complete-campaign observations,
+with different worker counts; the matched Jacobian comparison is in section 3.
+GB and MB are decimal; RSS includes the owned parent and child processes.
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -244,25 +235,32 @@ and 14.06 µs maximum sector mean, including precision rescues.
   [Discrete MC], [Fixed], [$69.07+24.93 i$], [0.256372], [0.690%],
   [Discrete MC], [Dynamic], pending, pending, pending,
 )
-For the finite complex estimate $hat I_0$, let $Sigma_0$ be its real–imaginary
-covariance matrix. The reported joint estimator variance is
+For the finite complex estimate $hat I_0$, the joint estimator variance is
 $V=tr Sigma_0$ and relative joint standard error is $sqrt(V)/abs(hat I_0)$.
-This is not pointwise integrand variance. Retain both diagonal entries and
-the off-diagonal covariance in the accompanying reproducibility record.
-Fixed production uses $lambda=10^(-6)$, chosen with separate tuning seeds.
-Actual native times are 302.32 s (QMC) and 303.53 s (MC), including completion
-of dispatched work after cancellation; peak RSS is 1.94 and 4.13 GB.
+This is not pointwise integrand variance. The reproducibility JSON retains
+both diagonal covariance entries and the off-diagonal entry, all Laurent
+components, exact offsets, work counts and precision-rescue diagnostics.
 
-The 300-second budget uses native integration elapsed time, including worker
-context setup and Havana adaptation. Artifact restoration, runtime binding and
-the separate causal pilot are reported outside that clock. Record actual
-elapsed time, cancellation drain, accepted replicas/batches, incomplete work,
-sample count, per-sector mean/maximum sample costs and peak RSS. Use independent
-production streams, a frozen 50-core affinity and separate tuning seeds.
-Fixed and dynamic settings are chosen in bounded preliminary runs and remain
-unchanged during production. No independent numerical reference exists for
-this point: finite error bars alone do not establish physical accuracy. These
-frozen campaign executables precede the loader-cache update in section 3.
+#table(columns: (1.05fr, .9fr, .85fr, .9fr, 1.3fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
+  table.header([*Method*], [*Contour*], [*Seconds*], [*Peak GB*], [*Sample µs avg / max*]),
+  [QMC], [Fixed], [302.32], [1.94], [3.73 / 4.02],
+  [QMC], [Dynamic], pending, pending, pending,
+  [Discrete MC], [Fixed], [303.53], [4.13], [23.99 / 43.54],
+  [Discrete MC], [Dynamic], pending, pending, pending,
+)
+Sample costs are the average and maximum of per-sector mean integrand costs,
+including precision rescue and amortized setup/adaptation work; they are not
+maximum single-point latency. A separate fixed all-sector probe measured
+10.44 µs average and 14.06 µs maximum sector mean on a smaller fixed point set.
+
+Fixed production uses $lambda=10^(-6)$, chosen with separate tuning seeds.
+The 300-second native integration budget includes worker setup and Havana
+adaptation. Loading, binding and causal Pilot16 precede that clock; optional
+production causal checks are disabled. Complete accepted work is drained after
+cancellation, explaining the modest overshoot. All rows retain full covariance
+and independently reserved production streams; incomplete work is not added.
+No independent numerical reference exists for this point. These frozen
+campaign executables precede the loader-cache update in section 3.
 
 #pagebreak()
 = Implementation and performance
@@ -313,14 +311,30 @@ fixed and both dynamic prescriptions, saved programs, unused callbacks and
 private-input collisions. Public Symbolic IBP controls also pass with both
 implicit-radius prescriptions, complete complex Laurent vectors and restored
 programs. Conditional bodies requiring hoisted image inputs are explicitly
-unsupported by this opt-in route. The matched source-sector comparison above
+unsupported by this opt-in route. The matched source-sector comparison below
 includes generation, RSS, program sizes and sampling cost. Full-integral
-generation and convergence measurements remain in progress.
+generation has completed; dynamic integration measurements are pending.
 No mathematical reordering, alternative CAS or AD implementation is introduced.
 An optional initial native Series width avoids a known discarded attempt; the
 strict absolute Laurent-remainder coverage check and checked retries remain
 unchanged. It defaults to one. Twenty-three focused controls and independent
 native-reuse reviews pass; production savings are still being measured.
+
+== Matched Jacobian measurements on one source sector
+#table(columns: (1.3fr, 1fr, 1fr, .85fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
+  table.header([*Contour / Jacobian*], [*Time / peak RSS*], [*Exact / JIT IR*], [*Mean sample*]),
+  [Fixed / symbolic], [559.9 s / 12.01 GB], [108.3 / 156.2 kB], [14.64 µs],
+  [Fixed / dual], [566.9 s / 12.01 GB], [136.8 / 202.8 kB], [19.20 µs],
+  [Dynamic / symbolic], [1511.6 s / 28.44 GB], [294.0 / 524.6 kB], [37.71 µs],
+  [Dynamic / dual], [794.9 s / 16.73 GB], [372.0 / 520.0 kB], [29.99 µs],
+)
+Times include generation, compilation, saving and pointwise checks in separate
+processes; sizes describe evaluator IR, not the complete saved owner. Settings
+are SymJIT O2, Horner zero and common-pair cap 1000. Each matched pair uses
+8,192 identical points: fixed $lambda=10^(-6)$ and dynamic $S=.8$, $L=10^(-6)$,
+$R=1$. Both fixed arms rescue 27 points in double-double; both dynamic arms
+rescue 28. Fresh-process restoration and complete-vector parity pass.
+This sector favors symbolic J for fixed mode and dual J for dynamic mode.
 
 == Residency, callback ownership and statistical work
 Universal indexed artifacts let serial generation publish one completed
