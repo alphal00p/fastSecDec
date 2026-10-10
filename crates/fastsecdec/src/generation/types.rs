@@ -171,7 +171,7 @@ impl Default for GenerationOptions {
 impl GenerationOptions {
     /// Whether this selected recipe deforms the smooth sector density.
     pub fn contour_enabled(&self) -> bool {
-        self.program_recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1
+        self.program_recipe.is_contour()
     }
 }
 
@@ -409,7 +409,7 @@ impl GeneratedIntegral {
         self.contour_jacobian = jacobian;
         if self.metadata.charts().is_empty()
             && self.program_descriptor.is_none()
-            && recipe != ProgramRecipe::UndeformedV1
+            && recipe.is_contour()
         {
             let descriptor = if recipe.is_dynamic() {
                 // An empty source has neither a radius nor a certificate to

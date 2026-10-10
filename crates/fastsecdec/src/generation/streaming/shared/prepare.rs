@@ -98,9 +98,7 @@ fn prepare_recipes(
         },
     )?;
     let started = Instant::now();
-    let contour = selected
-        .iter()
-        .any(|recipe| *recipe != ProgramRecipe::UndeformedV1);
+    let contour = selected.iter().any(|recipe| recipe.is_contour());
     let mut cache = SupportCache::new(input.parameters());
     let mut supports = Vec::new();
     for factor in input.terms().iter().flat_map(|term| term.factors()) {

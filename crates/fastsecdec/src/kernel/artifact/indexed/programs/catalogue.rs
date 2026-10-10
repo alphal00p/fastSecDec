@@ -40,6 +40,14 @@ impl ProgramRecipe {
     pub fn is_dynamic(self) -> bool {
         matches!(self, Self::DynamicPolynomialV1 | Self::DynamicSignAwareV1)
     }
+    /// Whether this recipe uses a complex contour map. Other regularization
+    /// strategies must not acquire contour parameters or checks implicitly.
+    pub fn is_contour(self) -> bool {
+        matches!(
+            self,
+            Self::FixedV1 | Self::DynamicPolynomialV1 | Self::DynamicSignAwareV1
+        )
+    }
     pub(crate) fn validate_runtime_schema(self, parameters: &[String]) -> Result<(), KernelError> {
         let expected = self.recipe_parameters();
         if expected

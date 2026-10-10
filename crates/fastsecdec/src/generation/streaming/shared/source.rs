@@ -69,9 +69,7 @@ pub fn prepare_chart_source(
     let started = Instant::now();
     let coordinates = mapping::coordinates(&context.input, &map, &context.targets);
     let mut supports = SupportCache::new(context.input.parameters());
-    let retains_declarations = selected
-        .iter()
-        .any(|recipe| *recipe != ProgramRecipe::UndeformedV1);
+    let retains_declarations = selected.iter().any(|recipe| recipe.is_contour());
     let terms = if first.mode == GenerationMode::Symbolic || retains_declarations {
         Some(mapping::prepare_terms(
             &context.input,

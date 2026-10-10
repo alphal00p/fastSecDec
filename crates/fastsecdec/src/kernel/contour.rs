@@ -45,7 +45,7 @@ impl KernelSet {
     /// Capability is retained in the native evaluator schema, including exact
     /// records without stochastic sectors, and survives selective loading.
     pub fn contour_capable(&self) -> bool {
-        self.program_recipe() != super::ProgramRecipe::UndeformedV1
+        self.program_recipe().is_contour()
     }
 
     /// Atomically bind the physical point and a requested contour prescription.

@@ -7,6 +7,9 @@ description = "Native Rust Feynman-parameter generation and numerical sector int
 
 [features]
 default = ["native"]
+# Exact threshold geometry is native-only; portable consumers retain their
+# existing dependency graph. Generation admission is separate from this API.
+threshold-decomposition = ["native", "dep:symgcad"]
 native = [
     "symbolica/integer-gmp", "symbolica/float-mpfr", "symbolica/native_code_generation",
     "numerica/integer-gmp", "numerica/float-mpfr", "dep:symjit", "fastsecdec-sectors/native",
@@ -24,6 +27,7 @@ fastsecdec-qmc = { workspace = true, features = ["serde"] }
 symbolica.workspace = true
 numerica.workspace = true
 symjit = { workspace = true, optional = true }
+symgcad = { workspace = true, optional = true }
 feynkit-graph.workspace = true
 feynkit-model.workspace = true
 feynkit-kinematics.workspace = true

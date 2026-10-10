@@ -21,6 +21,8 @@ pub mod parametric;
 pub mod reference;
 pub mod results;
 pub mod status;
+#[cfg(feature = "threshold-decomposition")]
+pub mod threshold;
 
 pub use error::{Error, Result};
 pub use feynkit_graph::{EdgeId, FeynmanDiagram, IntegralFamily};

@@ -17,6 +17,23 @@ physical factors when constructing causal phases. A `CompleteGeneric` result
 still requires independent verification and later closed-face endpoint and
 analytic-continuation certificates before integral publication.
 
+The [dependency review](reviews/no-deformation-dependencies.md) records public
+symGCAD packaging, shared Symbolica type identity and the owner Puiseux defect
+found by an executable probe. The [independent proof review](reviews/no-deformation-resolver-proof-audit.md)
+accepts the stated conditional ownership and regulator arguments while retaining
+the open effective-atlas and general certificate-production obligations. These
+are prerequisites, not a completed general resolver.
+
+The [native geometry audit](reviews/no-deformation-gcad-audit.md) reviews the
+first caller-driven adapter. Eight integrated controls pass for signed factor
+association, exact IEEE bindings, parameter order, request identity, independent
+verification and invalid/incomplete evidence. Twenty-nine existing contour and
+artifact controls and sixteen streamed-generation controls pass for the
+explicit contour-capability predicate. The optional native feature shares one
+Symbolica identity and is absent from the portable/Python dependency graphs.
+Projective preparation, endpoint certificates and threshold integration remain
+separate implementation work.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)

@@ -78,7 +78,7 @@ pub(super) fn map_terms_with_contour(
         map,
         coordinates,
         source_supports,
-        recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1,
+        recipe.is_contour(),
     )?;
     apply_prepared(
         coordinates.target_parameters(),
@@ -273,7 +273,7 @@ pub(super) fn apply_prepared(
     let mut witness = None;
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     let mut separate = Vec::new();
-    let contour_metadata = if recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1 {
+    let contour_metadata = if recipe.is_contour() {
         let (terms, metadata, source_witness) =
             contour::deform_with(parameters, terms, recipe, |parameters, f, positive| {
                 let (map, owner) =

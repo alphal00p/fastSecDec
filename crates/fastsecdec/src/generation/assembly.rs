@@ -52,9 +52,10 @@ impl Assembly {
     ) -> Result<(), GenerationError> {
         let needs_plan = program.contour_jacobian == crate::contour::ContourJacobian::Dual
             && !parameters.is_empty()
-            && program.descriptor.as_ref().is_some_and(|owner| {
-                owner.recipe() != crate::kernel::indexed::ProgramRecipe::UndeformedV1
-            });
+            && program
+                .descriptor
+                .as_ref()
+                .is_some_and(|owner| owner.recipe().is_contour());
         if needs_plan || !program.jacobians.is_empty() {
             let [(_, plan)] = program.jacobians.as_slice() else {
                 return Err(GenerationError::Invariant(

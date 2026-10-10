@@ -45,6 +45,7 @@ must not be carried into ordinary-source checks.
 | Symbolica | Public `community`-based fork revision `74225696cd445247fa81c499c5110decd19257ed`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation and scoped callback reuse, with independent callback environments for JIT clones and single-pass elimination of dependent duplicate instructions; [upstream contour PRs](reviews/contour-upstream-prs.md) |
 | FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
 | Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
+| symGCAD | Optional native geometry dependency, public revision `a1132d4f4545c7784b3ec61239a05485e544b403` from [PR #1](https://github.com/alphal00p/symGCAD/pull/1); shares the consuming workspace's Symbolica identity |
 | Graphica | Registry 3.0.1 |
 | SymJIT | Compatible minimum `2.27.0`; public Git revision `d74993ffd76a6fc322a7bcf3963fa786783a38a8` supplies the complex callback fix, existing Rust API entrypoint and compatible long-label codec pending upstream release |
 | OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
@@ -56,6 +57,16 @@ for normal builds. Developers deliberately selecting local path dependencies
 must supply matching source roots for their source-state fingerprints.
 
 ## Portable and Python consumers
+
+The native `fastsecdec/threshold-decomposition` feature currently exposes the
+verified geometry API in `fastsecdec::threshold::gcad`. It does not yet enable a
+complete threshold generation recipe. Its direct solver call is synchronous;
+the caller owns scheduling and hard resource limits. No setup script or private
+checkout is required. The feature is excluded from portable consumers:
+
+```sh
+cargo test -p fastsecdec --features threshold-decomposition --locked --lib threshold::gcad -- --test-threads=1
+```
 
 Select exactly one arithmetic backend: `native` provides GMP/MPFR and supports
 either SymJIT O2 or Symbolica's eager evaluator; `portable` uses the eager

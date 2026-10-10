@@ -38,7 +38,7 @@ pub enum FactorSemantics {
     Causal,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PolynomialFactor {
     polynomial: Atom,
     exponent: Atom,
@@ -81,7 +81,7 @@ impl PolynomialFactor {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParametricTerm {
     prefactor: Atom,
     monomial_powers: Vec<Atom>,
@@ -119,7 +119,7 @@ impl ParametricTerm {
 /// The measure is `delta(1-sum(x)) prod(dx)` for a projective simplex and
 /// `prod(dx)` for a cube or positive orthant. Every projective term is verified
 /// to have degree minus the number of parameters before any gauge fixing.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParametricIntegrand {
     parameters: Vec<Symbol>,
     regulator: Symbol,
