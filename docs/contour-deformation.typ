@@ -210,25 +210,26 @@ unnormalized $delta_(a b)$; the measure is
 $product_l d^D k_l/(i pi^(D/2))$, $D=4-2epsilon$, with multiplier one.
 This is not a complete diagram sum or a spin/colour averaged matrix element.
 
-#note[*Scope correction: symbolic endpoint comparison pending.* The generation
-measurements below use numerical-dual endpoint reduction. They are historical
-diagnostics. The requested comparison will use symbolic endpoint reduction
-with either symbolic or contour-only dual Jacobians; old high-order endpoint
-jet costs do not establish limitations of Jacobian-only dualization.]
+#note[*Corrected scope.* Both Jacobian choices now use symbolic endpoint IBP.
+The measurements below cover one complete six-dimensional source sector,
+including its pole and finite components. Full-artifact generation and the
+four integral estimates remain in progress.]
 
 == Generation and resident programs
-#table(columns: (1.4fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
-  table.header([*Implementation*], [*Generation / peak RSS*], [*Sampling tradeoff*]),
-  [Fixed, symbolic determinant], [84.2 s / 14.17 GB], pending,
-  [Dynamic, symbolic determinant], [1104.4 s / 59.64 GB], pending,
-  [Native dual determinant option], [Source-sector test only], [See section 3],
+#table(columns: (1.3fr, 1fr, 1fr, .85fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
+  table.header([*Contour / Jacobian*], [*Time / peak RSS*], [*Exact / JIT IR*], [*Mean sample*]),
+  [Fixed / symbolic], [559.9 s / 12.01 GB], [108.3 / 156.2 kB], [14.64 µs],
+  [Fixed / dual], [566.9 s / 12.01 GB], [136.8 / 202.8 kB], [19.20 µs],
+  [Dynamic / symbolic], [1511.6 s / 28.44 GB], [294.0 / 524.6 kB], pending,
+  [Dynamic / dual], pending, pending, pending,
 )
-Both runs use sector-at-a-time serial generation, numerical-dual IBP, Horner
-iterations zero, common-pair rounds 1000 and SymJIT O2. Fixed uses eight workers;
-dynamic uses four. The 30 stochastic sectors plus 30 exact records occupy
-79.04 MB and 175.08 MB respectively. Times include publication. The dynamic
-coordinator remains approximately 11 MB; completed mapped expressions stay on
-disk. The aggregate parent-and-child RSS cap is *100 GB* (decimal).
+Times include generation, compilation, saving and pointwise checks in separate
+processes; sizes describe evaluator IR, not the complete saved owner. Settings
+are SymJIT O2, Horner zero and common-pair cap 1000. Fixed costs use the same
+8,192 points at $lambda=10^(-6)$: both rescue 27 points in double-double.
+Fresh-process restoration and complete-vector parity pass. This fixed-sector
+test shows no dual-Jacobian speed advantage. Full fixed and dynamic generation
+use sector-at-a-time serial workers under a combined *100 GB* cap.
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -284,14 +285,10 @@ timings or a convergence result.
 The symbolic route constructs a native determinant and optimizes it together
 with the density. It offers common-expression elimination across outputs but
 may make generation expensive when a large body is repeatedly substituted.
-*Historical implementation.* The first optional dual route composed native
-first-order image duals with a determinant program and then applied outer
-numerical-dual subtraction to the whole density. It preserved derivatives but
-coupled the two choices, contrary to the clarified requirement. Its source-zero
-dynamic program occupies 2.16 MB versus 5.74 MB, while compilation takes
-190.55 s versus 91.30 s; fixed programs occupy 1.14 MB versus 2.64 MB.
-These measurements include high-order endpoint jets and cannot establish the
-cost or limits of contour-only Jacobian dualization.
+The first optional dual route also applied numerical-dual subtraction to the
+whole density. It coupled the two choices, contrary to the clarified requirement.
+Its historical measurements include high-order endpoint jets and cannot establish
+the cost or limits of the corrected contour-only construction.
 
 *Independent contour-only construction.* Endpoint reduction and subtraction
 remain symbolic in both variants. Native differentiation retains every bulk,
@@ -310,6 +307,10 @@ programs. Conditional bodies requiring hoisted image inputs are explicitly
 unsupported by this opt-in route. The matched physical generation/RSS/program-size/
 sampling-cost comparison remains in progress.
 No mathematical reordering, alternative CAS or AD implementation is introduced.
+An optional initial native Series width avoids a known discarded attempt; the
+strict absolute Laurent-remainder coverage check and checked retries remain
+unchanged. It defaults to one. Twenty-three focused controls and independent
+native-reuse reviews pass; production savings are still being measured.
 
 == Residency, callback ownership and statistical work
 Universal indexed artifacts let serial generation publish one completed

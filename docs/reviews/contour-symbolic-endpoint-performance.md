@@ -89,7 +89,7 @@ Both monitors closed with exit zero, empty owned groups and no resource limit.
 
 ## Matched candidate6 qualification
 
-The matched comparison is prepared against one corrected release, candidate6,
+The matched comparison uses one corrected release, candidate6,
 source archive
 `2c80fc91e863cbfed38e06ccdefc6b25e7c04d2e2015d0d41c724ffeb08f39ed`.
 Its release probe SHA256 is
@@ -122,8 +122,105 @@ higher derivatives remain native symbolic arithmetic. Opt-in Dual-J compilation
 rejects active control-flow placement rather than eagerly executing conditional
 image callbacks.
 
-At this checkpoint, matched candidate6 physical results and runtime costs are
-pending. No relative generation speed, sampling speed or amortization is claimed.
-The full fixed/dynamic generation choice will follow these representative
-measurements; full physical admission and the four final integration runs remain
-separate gates.
+## Fixed source0 result and runtime cost
+
+Both fixed arms completed with exit zero, empty process groups and no resource
+limit. Each produced one six-dimensional residual with ordered coordinates
+`t0` through `t5`, Symbolic endpoint mode, and complete pole/finite real/imaginary
+components. The native exact owner was included once in the pointwise comparison.
+
+| Observation | Symbolic J | Contour-only Dual J |
+| --- | ---: | ---: |
+| Generation through symbolic coefficient expansion | 378.423 s | 368.668 s |
+| Compilation | 180.839 s | 197.559 s |
+| Native generation, save and checked values | 559.597 s | 566.549 s |
+| Monitor elapsed | 559.897 s | 566.864 s |
+| Sampled owned RSS peak | 12,010,889,216 B | 12,014,661,632 B |
+| Mapped source record | 365,538,755 B | 368,942,496 B |
+| Whole saved owner | 2,348,670 B | 745,241 B |
+| Exact evaluator IR | 108,301 B | 136,831 B |
+| SymJIT IR | 156,211 B | 202,835 B |
+| Surviving first-image partial input slots | Inapplicable | 6 |
+
+The smaller Dual whole-owner file does not mean a smaller compiled evaluator:
+both evaluator representations are larger in that arm. These are single
+concurrent generation observations, with no established generation speedup or
+amortization benefit.
+
+Both arms admitted fixed strength `1e-6` and refused `1e-5` with the same certified
+positive-imaginary-F diagnosis. Separate fresh processes restored each saved
+owner after generation exited. All eight scalar values matched their own
+generated owner exactly. Across Jacobian choices the maximum absolute difference
+was `5.684341886080802e-14`, and maximum scaled difference was
+`3.4312339600082543e-15`, below the unchanged `2e-10` comparison tolerance.
+Native layouts, coordinate schemas, points and admitted/refused cap sets matched.
+Restored build observations are unknown, as intended. The hash-pinned records
+are `parity-fixed.json` and `cost-handoff-fixed.json` in the candidate6 directory.
+
+The subsequent native Kuo `4096 × 2` cost comparison used the same 8,192 actual
+coordinates and weights, verified by their digests, at fixed strength `1e-6`.
+Both owners completed Pilot16/readiness, including the actual source's exact
+obligations. Each accepted 8,165 points in f64 and rescued 27 in double-double;
+neither used arbitrary precision or optional production causal checks.
+
+| Native weighted evaluation cost | Symbolic J | Contour-only Dual J |
+| --- | ---: | ---: |
+| Evaluation elapsed, including precision retries | 0.119918 s | 0.157260 s |
+| Mean per assigned sample | 14.638426 µs | 19.196787 µs |
+
+The observed Dual/Symbolic cost ratio is `1.311397`. This mean includes first-use
+work inside evaluation and all precision attempts; it excludes restore, binding,
+pilot, context construction and coordinate hashing. It is a source0 measurement,
+not an integral estimate, all-sector cost or 50-worker result. The preceding
+`32 × 2` run is retained as cold feasibility only. The larger cost monitor closed
+in 3.396 s with 39,952,384 B sampled peak. Its complete native metrics and hashes
+are in
+`target/contour-d05-1000-runtime/symbolic-endpoints/cost-fixed-matched_4096x2/cost-120s/matched-cost-review.json`.
+
+## Full fixed generation in progress
+
+The source0 evidence supports choosing Symbolic J for the complete fixed
+artifact. A fresh native serial journal began at
+`2026-10-10T10:53:11.886830Z`, using six workers, a 7,200-second allocation and a
+100,000,000,000-byte combined memory guard. The coordinator is PID/PGID 1514885;
+the immutable candidate6 CLI SHA256 is
+`e167fc2d3807ea16e9a83e2e439dd12e23862b8dde4c68fe120d69ea89191544`.
+Settings remain Symbolic endpoint IBP, Symbolic J, coefficient series starting
+at the existing width-one default, SymJIT O2, Horner zero and CPE cap 1000.
+Source0 receipts were not grafted into the fresh journal.
+
+The monitor accounts for the concurrently active, PID/start-time-pinned
+polynomial source0 probe and its monitors, but can terminate only this full
+generation's owned group. Own-group and combined RSS are recorded separately.
+The native geometry still contains 30 source charts; eventual residual counts
+and dimensions will come from the generated catalogue. Raw plans, authorization,
+status and resource evidence remain under
+`target/contour-gghh-double-box-1000-symbolic-endpoints-full-fixed-c6/`.
+Full publication, physical admission and the four final integration runs remain
+pending.
+
+## Polynomial source0 qualification
+
+The same candidate6 Symbolic-endpoint/Symbolic-J probe completed its polynomial
+dynamic source0 unit in 1,511.568 monitored seconds, with a sampled peak of
+28,441,194,496 B, exit zero and an empty process group. Generation through
+symbolic coefficients took 1,004.993 s; compilation took 504.993 s. The first
+relative-width attempt was discarded before width two satisfied coverage.
+The result contains one six-dimensional residual, with exact offsets accounted
+for once and the same complete four-component Laurent layout.
+
+The saved whole owner is 5,330,684 B; its exact evaluator IR is 294,022 B and
+SymJIT IR is 524,646 B. Both tested dynamic caps, `1e-6` and `1e-5`, passed native
+validation at `S=0.8`, `R=1`. A separate restore process completed in 1.179 s
+with 61,837,312 B peak; all 16 scalar values matched the generated owner exactly.
+`polynomial-symbolic-restore-review.json` pins these source0 reports and saved
+bytes. This is pointwise qualification, not complete-chart admission or an
+integral estimate.
+
+The matched polynomial contour-only Dual-J source0 began at
+`2026-10-10T10:59:43.008343Z`, native PID/PGID 1748578, with a 3,600-second
+allocation. It keeps candidate6, Symbolic endpoints and the same width-one
+starting policy. Its separate combined-memory guard includes the running full
+fixed generation and the earlier polynomial baseline, while its termination
+authority covers only the new Dual process group. This comparison remains in
+progress; no polynomial Dual generation or runtime benefit is yet claimed.

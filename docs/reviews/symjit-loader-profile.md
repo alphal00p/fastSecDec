@@ -126,3 +126,21 @@ contains feature-gated `write_obj`/`write_obj_for` and relocatable ELF/Mach-O
 output with a header. That API was not built or benchmarked here, and no `.so`
 loading or startup benefit is claimed. These historical 2.26.4 measurements do
 not contradict or validate the implementation/performance of current 2.27/2.28.
+
+## Separate validation-enabled bounded result
+
+The validation-enabled extraction reached its 120-second wall limit and was
+killed; the owned process group was empty at closure after 121.534 seconds.
+The native high-water RSS was 8.050 GB (sampled process-group peak 8.063 GB),
+well below its 20 GB cap. Before the unfinished semantic identity stage, it
+recorded file read 13.535 s, envelope/digest validation 1.199 s, State import
+0.00135 s and payload decoding 10.956 s. Native semantic identity recomputation
+was still executing at the cap; no exact sector evaluator or JIT was built.
+This is a **failed bounded validation diagnostic**, not a successful full load
+or a measured duration for semantic validation. The native implementation hashes
+a serde JSON representation of the semantic payload, including program byte
+arrays. Optional validation can therefore be material independently of JIT
+restoration. This observation does not change the default-disabled policy.
+Raw output and closure are retained under `runs/extract-validated/`; the earlier
+successful unvalidated extraction and all three successful sector probes remain
+unchanged. No further loader run is required for the scoped conclusion above.
