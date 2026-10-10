@@ -177,6 +177,7 @@ impl WorkerMeter {
 pub(super) struct Operations {
     workers: Vec<WorkerMeter>,
     coordinator: Arc<Mutex<(f64, f64)>>,
+    preparation_diagnostics: Arc<Mutex<EvaluationDiagnostics>>,
 }
 pub(super) struct CoordinatorSpan {
     start: Instant,
@@ -217,7 +218,15 @@ impl Operations {
                 .map(|_| WorkerMeter::new(orders, publication_interval))
                 .collect(),
             coordinator: Default::default(),
+            preparation_diagnostics: Default::default(),
         }
+    }
+    pub(super) fn record_preparation(&self, report: &EvaluationDiagnostics) -> CliResult<()> {
+        self.preparation_diagnostics
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .merge(report)?;
+        Ok(())
     }
     pub(super) fn coordinator(&self, preparation: bool) -> CoordinatorSpan {
         CoordinatorSpan {
@@ -230,7 +239,14 @@ impl Operations {
         self.workers[id].clone()
     }
     pub(super) fn snapshot(&self) -> CliResult<OperationalMetrics> {
-        let mut result = OperationalMetrics::default();
+        let mut result = OperationalMetrics {
+            diagnostics: self
+                .preparation_diagnostics
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clone(),
+            ..Default::default()
+        };
         (
             result.coordinator_integrand_seconds,
             result.coordinator_integrator_seconds,

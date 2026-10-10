@@ -12,11 +12,15 @@ assert(wheelDir && runtimeDir && communityRoot, "Pass wheel and community checko
 const wheels = (await readdir(wheelDir)).filter(name => name.endsWith("-pyemscripten_2026_0_wasm32.whl"));
 assert.equal(wheels.length, 1, "Expected exactly one PyEmscripten wheel");
 const bytes = await readFile(join(wheelDir, wheels[0]));
-const root = fileURLToPath(new URL("../../../", import.meta.url));
+// An immutable source snapshot may accompany the exact wheel under test.
+const root = process.env.FASTSECDEC_TEST_ROOT || fileURLToPath(new URL("../../../", import.meta.url));
 const { loadPyodide } = await import(pathToFileURL(join(runtimeDir, "pyodide.mjs")));
 const pyodide = await loadPyodide({
   indexURL: runtimeDir,
-  env: { SYMBOLICA_LICENSE_KEY: process.env.SYMBOLICA_LICENSE_KEY || "" },
+  env: {
+    SYMBOLICA_LICENSE_KEY: process.env.SYMBOLICA_LICENSE_KEY || process.env.SYMBOLICA_LICENSE || "",
+    SYMBOLICA_HIDE_BANNER: "1",
+  },
 });
 await pyodide.loadPackage("micropip");
 pyodide.FS.writeFile(`/${wheels[0]}`, bytes);
@@ -29,11 +33,15 @@ const tests = [
   "bindings/python/tests/test_citations.py",
   "bindings/python/tests/test_inspection.py",
   "bindings/python/tests/test_mc.py",
+  "bindings/python/tests/test_contour.py",
+  "bindings/python/tests/test_contour_family.py",
+  "bindings/python/tests/test_contour_family_input.py",
   "examples/hepkit/tests/test_inputs.py",
 ];
 const fixtures = (await readdir(join(root, "examples/hepkit/fixtures/fastsecdec"))).sort();
 const paths = [
   ...tests,
+  "bindings/python/tests/_fixtures.py",
   "examples/hepkit/showcase/__init__.py",
   "examples/hepkit/showcase/inputs.py",
   ...fixtures.map(name => `examples/hepkit/fixtures/fastsecdec/${name}`),
@@ -102,6 +110,7 @@ json.dumps({"exit_code": int(code), "collected": report.collected,
 const report = JSON.parse(result);
 report.wheel = wheels[0];
 report.wheel_sha256 = createHash("sha256").update(bytes).digest("hex");
+report.test_source_root = root;
 console.log(JSON.stringify(report, null, 2));
 assert.equal(report.exit_code, 0, "Installed Pyodide bridge gates failed");
 assert.deepEqual(report.files, [...tests.map(path => basename(path)), "test_hep_wavefunctions.py"].sort());

@@ -55,6 +55,8 @@ pub(crate) enum Progress {
 pub(crate) struct ExactSetup {
     pub manifest: KernelResultManifest,
     pub contour_pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
+    #[serde(default)]
+    pub diagnostics: fastsecdec::status::EvaluationDiagnostics,
 }
 
 pub(crate) fn exact(
@@ -220,6 +222,7 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                     .ok_or("missing selected recipe")?,
             )?;
             let mut contour_pilots = Vec::new();
+            let mut diagnostics = fastsecdec::status::EvaluationDiagnostics::default();
             // Validate exact-only chart records independently, then release
             // their maps/check programs before restoring the compact offset.
             // The aggregate intentionally carries no heavyweight chart data.
@@ -264,6 +267,15 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                             &report,
                         ));
                     }
+                    if settings.contour_diagnostics
+                        == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+                        && let Some(report) = record.take_contour_runtime_report()?
+                    {
+                        diagnostics.record_contour_runtime(
+                            fastsecdec::status::IntegrationStage::Pilot,
+                            &report,
+                        )?;
+                    }
                 }
             }
             let mut exact = reader.load_exact()?;
@@ -271,6 +283,13 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
             aggregate_settings.contour.validation.policy =
                 fastsecdec::contour::ContourValidation::Off;
             crate::bind_parameters(&mut exact, &aggregate_settings)?;
+            if settings.contour_diagnostics
+                == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+                && let Some(report) = exact.take_contour_runtime_report()?
+            {
+                diagnostics
+                    .record_contour_runtime(fastsecdec::status::IntegrationStage::Pilot, &report)?;
+            }
             let manifest = KernelResultManifest {
                 kernel_content_id: exact.content_id().into(),
                 orders: catalogue.orders.clone(),
@@ -296,6 +315,7 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                 &serde_json::to_vec(&ExactSetup {
                     manifest,
                     contour_pilots,
+                    diagnostics,
                 })?,
             )?;
             Ok(())

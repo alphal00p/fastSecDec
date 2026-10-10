@@ -42,6 +42,15 @@ pub(crate) fn evaluate_batch(
             .record_contour(stage, &report)
             .map_err(|e| e.to_string())?;
     }
+    if context.contour_diagnostics_mode() == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+        && let Some(report) = context
+            .take_contour_runtime_report()
+            .map_err(|e| e.to_string())?
+    {
+        local
+            .record_contour_runtime(stage, &report)
+            .map_err(|e| e.to_string())?;
+    }
     for report in reports {
         local.record_replay(*report).map_err(|e| e.to_string())?;
     }

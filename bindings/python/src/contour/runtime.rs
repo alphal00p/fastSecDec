@@ -169,6 +169,41 @@ impl PyContourRuntimeReport {
     }
 }
 
+/// Native integration phases, each retaining its operational work categories.
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
+#[pyclass(
+    name = "ContourRuntimeDiagnostics",
+    module = "symbolica.community.hepkit.sector_decomposition",
+    frozen,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+pub(crate) struct PyContourRuntimeDiagnostics {
+    pub(crate) inner: fastsecdec::status::ContourRuntimeDiagnostics,
+}
+
+#[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
+#[pymethods]
+impl PyContourRuntimeDiagnostics {
+    #[getter]
+    fn adaptation(&self) -> PyContourRuntimeReport {
+        PyContourRuntimeReport {
+            inner: self.inner.adaptation.clone(),
+        }
+    }
+    #[getter]
+    fn production(&self) -> PyContourRuntimeReport {
+        PyContourRuntimeReport {
+            inner: self.inner.production.clone(),
+        }
+    }
+    /// Actual work, including retries and discarded batches. These counters
+    /// do not measure statistically accepted samples or certify causality.
+    fn to_json(&self) -> String {
+        serde_json::to_string(&self.inner).expect("native finite integration diagnostics")
+    }
+}
+
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyKernels {
@@ -215,5 +250,6 @@ impl PyKernels {
 pub(super) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyContourDiagnosticRange>()?;
     module.add_class::<PyContourRuntimeWork>()?;
-    module.add_class::<PyContourRuntimeReport>()
+    module.add_class::<PyContourRuntimeReport>()?;
+    module.add_class::<PyContourRuntimeDiagnostics>()
 }

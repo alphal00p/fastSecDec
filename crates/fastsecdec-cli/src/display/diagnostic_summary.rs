@@ -133,5 +133,55 @@ pub(super) fn diagnostic_summary_with_duration(
             number::compact_count(m.diagnostics.unclassified_points()),
         ]);
     }
+    if let Some(runtime) = &m.diagnostics.contour_runtime {
+        for (phase, report) in [
+            ("Adaptation", &runtime.adaptation),
+            ("Production", &runtime.production),
+        ] {
+            let work = &report.evaluation;
+            rows.push([
+                format!("Contour {phase} calls"),
+                format!(
+                    "{} callbacks; {} solves; {} closed forms; {} conditioning calls",
+                    work.callback_calls,
+                    work.solver_calls,
+                    work.closed_form_calls,
+                    report.conditioning.callback_calls
+                ),
+            ]);
+            rows.push([
+                format!("Contour {phase} solve work"),
+                format!(
+                    "{} iterations; {} function evaluations; {} failures",
+                    work.solver_iterations, work.solver_evaluations, work.solver_failures
+                ),
+            ]);
+            rows.push([
+                format!("Contour {phase} setup calls"),
+                format!(
+                    "{} preparation; {} exact; {} independent pilot",
+                    report.preparation.callback_calls,
+                    report.exact.callback_calls,
+                    report.pilot.callback_calls
+                ),
+            ]);
+            for (name, range) in [
+                ("strength", &work.strength),
+                ("normalized displacement", &work.normalized_displacement),
+                ("physical displacement", &work.physical_displacement),
+            ] {
+                rows.push([
+                    format!("{phase} {name} centres"),
+                    match (range.minimum, range.maximum) {
+                        (Some(low), Some(high)) => format!(
+                            "{low:.4e} .. {high:.4e} ({} unavailable)",
+                            range.unavailable
+                        ),
+                        _ => "unavailable".into(),
+                    },
+                ]);
+            }
+        }
+    }
     rows
 }

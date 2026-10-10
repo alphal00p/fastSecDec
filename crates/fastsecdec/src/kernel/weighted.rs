@@ -128,6 +128,11 @@ pub struct WeightedEvaluationContext {
 }
 
 impl WeightedEvaluationContext {
+    /// Current observation mode, independent of sampling and validation.
+    pub fn contour_diagnostics_mode(&self) -> crate::contour::ContourDiagnosticsMode {
+        self.kernel.contour_diagnostics_mode()
+    }
+
     /// Optional callback work from this worker, independent of validation and replay state.
     pub fn contour_runtime_report(
         &self,

@@ -79,7 +79,7 @@ impl PyRecipeFamilySession {
         crate::citations::mark_generation();
         self.status.generation.stage = GenerationStage::Parametrization;
         self.status.generation.detail =
-            "Parametrizing the native diagram once for all recipes".into();
+            "Parametrizing the native integral once for all recipes".into();
         let started = Instant::now();
         let (integrand, runtime) = self
             .input

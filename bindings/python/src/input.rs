@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use fastsecdec::{
-    Atom, EdgeId, Symbol,
-    input::{GraphIntegral, RuntimeModelBindings},
+    Atom, EdgeId, IntegralFamily, Kinematics, Symbol,
+    input::{GraphIntegral, RuntimeModelBindings, prepare_family_input},
     kernel::RuntimeMassConstraint,
     parametric::ParametricIntegrand,
 };
-use feynkit_py::{PyFeynmanDiagram, PyKinematics};
+use feynkit_py::{PyFeynmanDiagram, PyIntegralFamily, PyKinematics};
 use pyo3::{prelude::*, types::PyDict};
 use symbolica::{api::python::PythonExpression, atom::AtomView};
 
@@ -44,7 +44,25 @@ pub(crate) fn with_diagram_expressions(
     Ok(copied.into())
 }
 
-/// Native diagram, assumptions and explicit normalized loop measure.
+#[derive(Clone)]
+enum IntegralInput {
+    Graph(Arc<GraphIntegral>),
+    Family(Arc<FamilyInput>),
+}
+
+/// Retained native data only. Specialization, projection and numerator algebra
+/// are deferred until the caller explicitly starts generation.
+struct FamilyInput {
+    family: IntegralFamily,
+    powers: Vec<i32>,
+    numerator: Atom,
+    measure_multiplier: Atom,
+    kinematics: Option<Kinematics>,
+    scalar_values: BTreeMap<Symbol, Atom>,
+    auxiliary_momenta: Vec<Atom>,
+}
+
+/// Native diagram or integral family, assumptions and explicit loop measure.
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "Integral",
@@ -54,7 +72,7 @@ pub(crate) fn with_diagram_expressions(
 )]
 #[derive(Clone)]
 pub(crate) struct PyIntegral {
-    pub(crate) graph: GraphIntegral,
+    input: IntegralInput,
     pub(crate) regulator: Symbol,
     pub(crate) dimension: Atom,
     pub(crate) runtime_parameters: Vec<Symbol>,
@@ -73,15 +91,38 @@ impl PyIntegral {
         &self,
         py: Python<'_>,
     ) -> PyResult<(ParametricIntegrand, RuntimeInputs)> {
-        let parameters = (0..self.graph.powers().len())
-            .map(|i| symbolica::symbol!(format!("fastsecdec::hepkit::x{i}")))
-            .collect();
-        let input = ParametricIntegrand::from_graph(
-            &self.graph,
-            parameters,
-            self.regulator,
-            self.dimension.clone(),
-        )
+        let parameters = |count| {
+            (0..count)
+                .map(|i| symbolica::symbol!(format!("fastsecdec::hepkit::x{i}")))
+                .collect()
+        };
+        let input = match &self.input {
+            IntegralInput::Graph(graph) => ParametricIntegrand::from_graph(
+                graph,
+                parameters(graph.powers().len()),
+                self.regulator,
+                self.dimension.clone(),
+            ),
+            IntegralInput::Family(source) => {
+                let (family, powers, numerator) = prepare_family_input(
+                    &source.family,
+                    &source.powers,
+                    &source.numerator * &source.measure_multiplier,
+                    source.kinematics.as_ref(),
+                    &source.scalar_values,
+                    &source.auxiliary_momenta,
+                )
+                .map_err(|e| error::native(py, "input", e))?;
+                ParametricIntegrand::from_family(
+                    &family,
+                    &powers,
+                    numerator,
+                    parameters(powers.len()),
+                    self.regulator,
+                    self.dimension.clone(),
+                )
+            }
+        }
         .map_err(|e| error::native(py, "parametrization", e))?;
         let mut runtime = RuntimeInputs {
             parameters: self.runtime_parameters.clone(),
@@ -202,7 +243,7 @@ impl PyIntegral {
             .map_err(|e| error::native(py, "input", e))?
             .with_measure_multiplier(measure_multiplier.map_or_else(Atom::one, |v| v.expr.clone()));
         Ok(Self {
-            graph,
+            input: IntegralInput::Graph(Arc::new(graph)),
             regulator,
             dimension: dimension.map_or_else(
                 || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
@@ -211,6 +252,65 @@ impl PyIntegral {
             runtime_parameters,
             runtime_model,
         })
+    }
+
+    /// Retain an existing native IntegralFamily with explicitly weighted physics.
+    ///
+    /// Powers follow its zero-based denominator order. Positive powers select
+    /// propagators, zero powers omit them, and negative powers multiply the
+    /// numerator. No graph/projector weight is inferred. Native specialization,
+    /// projection and parametrization occur only when generation is requested.
+    #[staticmethod]
+    #[pyo3(signature=(family, *, regulator, powers, numerator, kinematics=None, dimension=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None))]
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_family(
+        py: Python<'_>,
+        family: &PyIntegralFamily,
+        regulator: &PythonExpression,
+        powers: Vec<i32>,
+        numerator: &PythonExpression,
+        kinematics: Option<&PyKinematics>,
+        dimension: Option<&PythonExpression>,
+        scalar_values: Option<&Bound<'_, PyDict>>,
+        auxiliary_momenta: Option<Vec<PythonExpression>>,
+        measure_multiplier: Option<&PythonExpression>,
+        runtime_parameters: Option<Vec<PythonExpression>>,
+    ) -> PyResult<Self> {
+        let regulator = symbol(py, regulator, "regulator")?;
+        Ok(Self {
+            input: IntegralInput::Family(Arc::new(FamilyInput {
+                family: family.as_family().clone(),
+                powers,
+                numerator: numerator.expr.clone(),
+                measure_multiplier: measure_multiplier.map_or_else(Atom::one, |v| v.expr.clone()),
+                kinematics: kinematics.map(|v| v.as_kinematics().clone()),
+                scalar_values: scalar_bindings(py, scalar_values)?,
+                auxiliary_momenta: auxiliary_momenta
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|v| v.expr)
+                    .collect(),
+            })),
+            regulator,
+            dimension: dimension.map_or_else(
+                || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
+                |v| v.expr.clone(),
+            ),
+            runtime_parameters: runtime_parameters
+                .unwrap_or_default()
+                .iter()
+                .map(|p| symbol(py, p, "runtime parameter"))
+                .collect::<PyResult<_>>()?,
+            runtime_model: None,
+        })
+    }
+
+    #[getter]
+    fn input_kind(&self) -> &'static str {
+        match &self.input {
+            IntegralInput::Graph(_) => "graph",
+            IntegralInput::Family(_) => "family",
+        }
     }
 
     #[getter]
@@ -226,12 +326,22 @@ impl PyIntegral {
         }
     }
     #[getter]
-    fn powers(&self) -> Vec<(usize, u32)> {
-        self.graph
-            .propagator_edges()
-            .iter()
-            .zip(self.graph.powers())
-            .map(|(e, p)| (e.0, *p))
-            .collect()
+    /// Graph powers use stable edge IDs; family powers use zero-based native
+    /// denominator indices and retain signed powers, including omitted slots.
+    fn powers(&self) -> Vec<(usize, i64)> {
+        match &self.input {
+            IntegralInput::Graph(graph) => graph
+                .propagator_edges()
+                .iter()
+                .zip(graph.powers())
+                .map(|(e, p)| (e.0, i64::from(*p)))
+                .collect(),
+            IntegralInput::Family(source) => source
+                .powers
+                .iter()
+                .enumerate()
+                .map(|(i, p)| (i, i64::from(*p)))
+                .collect(),
+        }
     }
 }

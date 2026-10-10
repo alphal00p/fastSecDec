@@ -433,7 +433,7 @@ impl IntegrationArgs {
         if settings.evaluation_batch_size == 0 {
             return Err("evaluation_batch_size must be greater than zero".into());
         }
-        self.contour.apply(&mut settings.contour)?;
+        self.contour.apply_integration(settings)?;
         settings.validate_execution()
     }
 }
@@ -451,6 +451,7 @@ fn bind_parameters(
         .iter()
         .map(|(name, value)| Ok((input::symbol(name)?, *value)))
         .collect::<CliResult<std::collections::BTreeMap<_, _>>>()?;
+    kernels.set_contour_diagnostics(settings.contour_diagnostics)?;
     kernels.bind_parameters_with_contour(&values, &settings.contour)?;
     kernels.set_stability_settings(&settings.stability)?;
     Ok(())
@@ -920,6 +921,13 @@ fn integrate_artifact(
         if let Some(reference) = &reference {
             reference.validate_identity(kernels.content_id())?;
         }
+        let mut initial_diagnostics = fastsecdec::status::EvaluationDiagnostics::default();
+        if settings.contour_diagnostics == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+            && let Some(report) = kernels.take_contour_runtime_report()?
+        {
+            initial_diagnostics
+                .record_contour_runtime(fastsecdec::status::IntegrationStage::Pilot, &report)?;
+        }
         let result = driver::integrate_with_pilot(
             &artifact,
             &kernels,
@@ -930,6 +938,7 @@ fn integrate_artifact(
             pilot
                 .as_ref()
                 .map(|report| contour_pilot::provenance(&kernels, settings.seed, report)),
+            initial_diagnostics,
         )?;
         (result, manifest)
     };

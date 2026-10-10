@@ -4,13 +4,17 @@ use crate::kernel::{EvaluatorTiming, PrecisionClass, PrecisionReport, ReplayRepo
 
 /// Caller-aggregated numerical kernel diagnostics. Evaluations include failed
 /// attempts; conditioning checks and rescues count successful reports.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct EvaluationDiagnostics {
     /// Present when worker contour diagnostics were recorded. Historical
     /// records without this field retain unknown rather than inferred counts.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contour: Option<super::ContourEvaluationDiagnostics>,
+    /// Optional operational work, separate from causal checks and accepted
+    /// samples. Boxing preserves the small disabled/default diagnostics path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contour_runtime: Option<Box<super::ContourRuntimeDiagnostics>>,
     pub evaluations: u64,
     pub conditioning_checks: u64,
     pub rescues: u64,
@@ -49,6 +53,18 @@ impl std::fmt::Display for EvaluationDiagnostics {
 }
 
 impl EvaluationDiagnostics {
+    /// Incorporate one drained native worker delta without changing sampling.
+    pub fn record_contour_runtime(
+        &mut self,
+        stage: super::IntegrationStage,
+        report: &crate::contour::ContourRuntimeReport,
+    ) -> Result<(), DiagnosticsOverflow> {
+        let mut next = self.contour_runtime.clone().unwrap_or_default();
+        next.record(stage, report)?;
+        self.contour_runtime = Some(next);
+        Ok(())
+    }
+
     /// Incorporate one drained worker report, preserving sampling phase.
     pub fn record_contour(
         &mut self,
@@ -153,6 +169,14 @@ impl EvaluationDiagnostics {
         };
         let combined = Self {
             contour,
+            contour_runtime: match (&self.contour_runtime, &other.contour_runtime) {
+                (Some(a), Some(b)) => {
+                    let mut next = a.clone();
+                    next.merge(b)?;
+                    Some(next)
+                }
+                (a, b) => a.as_ref().or(b.as_ref()).cloned(),
+            },
             evaluations: sum(self.evaluations, other.evaluations)?,
             conditioning_checks: sum(self.conditioning_checks, other.conditioning_checks)?,
             rescues: sum(self.rescues, other.rescues)?,

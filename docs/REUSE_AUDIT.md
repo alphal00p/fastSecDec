@@ -15,14 +15,22 @@ cubic harness confirms bitwise-identical means/covariance/coordinates with
 observations enabled. The measured observation overhead remains explicit.
 
 The [installed HEPKit gate](reviews/contour-python.md) validates native recipe
-family ownership through thin Rust/PyO3 views, with 223 binding/demo cases and
-14 Community wavefunction controls on the private full-default `184803d`
-wheel. Selection copies existing native records; differing physical record
+family ownership through thin Rust/PyO3 views. The published `a3d97cf` snapshot
+passes 238 native tests and 127 selected actual-Pyodide tests. The subsequent
+retained-family/status snapshot passes 249 native and 138 actual-Pyodide tests,
+with no skips in either host. Selection copies existing native records; differing physical record
 order is not a changed mathematical identity. A corrected lifetime test checks
 immutable per-owner bytes and restored numerical equivalence. Heavy work and
 the artifact owner remain in FastSecDec, with registration/reexports in
-Community. New Python observation views are native DTO mirrors; their leaf
-stub-feature compilation passes, while installed execution awaits a later wheel.
+Community. New Python observation views are immutable native DTO mirrors.
+`Integral.from_family` retains HEPKit's existing family/kinematics owners and
+uses the same native preparation as the synchronous API; it adds no graph or
+algebra substitute. The [family audit](reviews/contour-family-input.md) covers
+signed powers, runtime rebinding and explicit numerator/measure ownership.
+The [transport review](reviews/contour-operational-transport-audit.md) verifies
+native checked merges, actual owner drains, phase-labelled work and
+mode-independent sampling/checkpoint identities. No Python estimator,
+sampling stream, root solve or worker pool is introduced.
 
 The nonlinear sampling controls reuse Symbolica primitives and exact ray
 series, native complete-vector QMC/Havana estimators and native OneLOop's

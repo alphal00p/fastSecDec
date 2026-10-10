@@ -54,6 +54,8 @@ struct Job {
     validation_seed: u64,
     #[serde(default)]
     contour: fastsecdec::contour::ContourSettings,
+    #[serde(default)]
+    contour_diagnostics: fastsecdec::contour::ContourDiagnosticsMode,
     task: SerialTask,
     data_path: PathBuf,
     catalogue_id: String,

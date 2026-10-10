@@ -6,7 +6,22 @@ pub(super) fn parse_construction(value: &str) -> Result<DynamicConstruction, Str
         .map_err(|_| "construction must be polynomial or sign_aware".into())
 }
 
+pub(super) fn parse_diagnostics(
+    value: &str,
+) -> Result<fastsecdec::contour::ContourDiagnosticsMode, String> {
+    serde_json::from_value(serde_json::Value::String(value.into()))
+        .map_err(|_| "contour diagnostics must be disabled or aggregate".into())
+}
+
 impl ContourArgs {
+    pub(crate) fn apply_integration(&self, settings: &mut IntegrationInput) -> CliResult<()> {
+        self.apply(&mut settings.contour)?;
+        if let Some(mode) = self.contour_diagnostics {
+            settings.contour_diagnostics = mode;
+        }
+        Ok(())
+    }
+
     pub(crate) fn apply(&self, settings: &mut ContourSettings) -> CliResult<()> {
         if let Some(mode) = self.contour.as_deref() {
             settings.deformation = match mode {

@@ -17,7 +17,7 @@ fn precise_sum(values: impl Iterator<Item = f64>) -> f64 {
         .to_f64()
 }
 
-fn independent_sum(estimates: &[&VectorEstimate]) -> Result<VectorEstimate> {
+pub(crate) fn independent_sum(estimates: &[&VectorEstimate]) -> Result<VectorEstimate> {
     let layout = estimates
         .iter()
         .flat_map(|e| e.orders.iter().copied().zip(e.components.iter().copied()))
@@ -71,7 +71,7 @@ fn independent_sum(estimates: &[&VectorEstimate]) -> Result<VectorEstimate> {
     Ok(combined)
 }
 
-fn scaled(estimate: &VectorEstimate, multiplier: f64) -> VectorEstimate {
+pub(crate) fn scaled(estimate: &VectorEstimate, multiplier: f64) -> VectorEstimate {
     VectorEstimate {
         mean: estimate.mean.iter().map(|v| v * multiplier).collect(),
         standard_error: estimate

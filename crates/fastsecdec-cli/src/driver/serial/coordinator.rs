@@ -203,6 +203,7 @@ pub(crate) fn integrate(
     resume: bool,
     load_options: KernelLoadOptions,
     initial_contour_pilots: Vec<fastsecdec::status::ContourPilotProvenance>,
+    initial_diagnostics: EvaluationDiagnostics,
     mut observe: impl FnMut(&SerialRunSnapshot) -> CliResult<bool>,
 ) -> CliResult<SerialOutcome> {
     let catalogue=artifact.catalogue().ok_or("serial integration requires a sector-addressable artifact; regenerate this legacy artifact")?;
@@ -257,6 +258,8 @@ pub(crate) fn integrate(
             BTreeMap::new(),
         )
     };
+    diagnostics.merge(&initial_diagnostics)?;
+    operational.diagnostics.merge(&initial_diagnostics)?;
     let started = Instant::now();
     let mut last_checkpoint = Instant::now();
     let mut saved = resume.then(Instant::now);
@@ -530,6 +533,7 @@ pub(crate) fn integrate(
             let job = Job {
                 validation_seed: settings.seed,
                 contour: settings.contour.clone(),
+                contour_diagnostics: settings.contour_diagnostics,
                 task: task.clone(),
                 data_path: data_path.clone(),
                 catalogue_id: catalogue.content_id.clone(),
@@ -576,6 +580,13 @@ pub(crate) fn integrate(
         if !slot.accepted
             && let Some(metrics) = slot.live_metrics.take()
         {
+            // Preserve actual callback work even though this reservation adds
+            // no accepted statistical points. Other historical counters keep
+            // their existing completed-return convention.
+            diagnostics.merge(&EvaluationDiagnostics {
+                contour_runtime: metrics.diagnostics.contour_runtime.clone(),
+                ..Default::default()
+            })?;
             accept_metrics(&mut operational, slot.sector, &metrics)?;
         }
         if let Some(task) = &slot.task

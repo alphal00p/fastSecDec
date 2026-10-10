@@ -48,6 +48,7 @@ fn execute(
     ))?);
     let identity = job.task.identity().clone();
     let mut load_seconds = 0.;
+    let mut diagnostics = EvaluationDiagnostics::default();
     if active.is_none() {
         let started = Instant::now();
         let mut archive = ProgramArchiveReader::from_reader(
@@ -75,6 +76,7 @@ fn execute(
                 parameters.insert(symbol, *value);
             }
         }
+        kernels.set_contour_diagnostics(job.contour_diagnostics)?;
         kernels.bind_parameters_with_contour(&parameters, &job.contour)?;
         let pilot = crate::contour_pilot::run(
             &mut kernels,
@@ -94,6 +96,12 @@ fn execute(
                 identity: identity.clone(),
                 report: crate::contour_pilot::provenance(&kernels, job.validation_seed, &report),
             })?;
+        }
+        if job.contour_diagnostics == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+            && let Some(report) = kernels.take_contour_runtime_report()?
+        {
+            diagnostics
+                .record_contour_runtime(fastsecdec::status::IntegrationStage::Pilot, &report)?;
         }
         kernels.set_stability_settings(&job.stability)?;
         let context = if let Some(replay) = &job.replay {
@@ -143,7 +151,6 @@ fn execute(
         active.context.merge_state(replay)?;
         active.context.set_reference_state(replay)?;
     }
-    let mut diagnostics = EvaluationDiagnostics::default();
     let mut completed = 0u64;
     let mut publication = Instant::now();
     let mut local = Vec::new();
@@ -165,6 +172,18 @@ fn execute(
             let evaluated = active
                 .context
                 .evaluate_weighted_batch(points, weights, &mut local);
+            if job.contour_diagnostics == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+                && let Some(delta) = active.context.take_contour_runtime_report()?
+            {
+                diagnostics.record_contour_runtime(
+                    if identity.pilot {
+                        fastsecdec::status::IntegrationStage::Pilot
+                    } else {
+                        fastsecdec::status::IntegrationStage::Production
+                    },
+                    &delta,
+                )?;
+            }
             if let Some(delta) = active.context.take_contour_validation_report() {
                 diagnostics.record_contour(
                     if identity.pilot {

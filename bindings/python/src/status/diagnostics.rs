@@ -17,6 +17,16 @@ pub(crate) struct PyEvaluationDiagnostics {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyEvaluationDiagnostics {
+    /// Optional native work observations, separate from causal validation.
+    /// None means observations were not recorded, not zero work.
+    #[getter]
+    fn contour_runtime(&self) -> Option<crate::contour::PyContourRuntimeDiagnostics> {
+        self.inner.contour_runtime.as_deref().map(|inner| {
+            crate::contour::PyContourRuntimeDiagnostics {
+                inner: inner.clone(),
+            }
+        })
+    }
     #[getter]
     fn contour(&self) -> Option<crate::contour::PyContourEvaluationDiagnostics> {
         self.inner

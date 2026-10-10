@@ -1,4 +1,6 @@
 #[cfg(test)]
+mod contour_runtime_tests;
+#[cfg(test)]
 mod contour_tests;
 mod discrete_mc;
 mod mc;
@@ -164,6 +166,17 @@ fn evaluate_batch_observed(
         Err(failure) => &failure.completed,
     };
     let mut local = EvaluationDiagnostics::default();
+    // Mode is immutable for this worker invocation. Failed/discarded batches
+    // still performed work; drain before any adaptation/production transition.
+    if kernel.contour_diagnostics_mode() == fastsecdec::contour::ContourDiagnosticsMode::Aggregate
+        && let Some(report) = kernel
+            .take_contour_runtime_report()
+            .map_err(|e| e.to_string())?
+    {
+        local
+            .record_contour_runtime(stage, &report)
+            .map_err(|e| e.to_string())?;
+    }
     if let Some(report) = kernel.take_contour_validation_report() {
         local
             .record_contour(stage, &report)
@@ -245,12 +258,20 @@ pub fn integrate(
     dashboard: &mut Dashboard,
 ) -> CliResult<IntegrationReport> {
     integrate_with_pilot(
-        artifact, kernels, settings, checkpoint, resume, dashboard, None,
+        artifact,
+        kernels,
+        settings,
+        checkpoint,
+        resume,
+        dashboard,
+        None,
+        EvaluationDiagnostics::default(),
     )
 }
 
 /// The pilot remains separate from production statistics and RNG state. Earlier
 /// checkpoint evidence is retained even when this invocation disables checking.
+#[allow(clippy::too_many_arguments)]
 pub fn integrate_with_pilot(
     artifact: &Artifact,
     kernels: &KernelSet,
@@ -259,6 +280,7 @@ pub fn integrate_with_pilot(
     resume: bool,
     dashboard: &mut Dashboard,
     pilot: Option<ContourPilotProvenance>,
+    initial_diagnostics: EvaluationDiagnostics,
 ) -> CliResult<IntegrationReport> {
     settings.validate_execution()?;
     let problem = problem(artifact, kernels, &settings.scope)?;
@@ -278,6 +300,7 @@ pub fn integrate_with_pilot(
         &problem.orders,
         dashboard.integration_interval(),
     );
+    operations.record_preparation(&initial_diagnostics)?;
     let setup = operations.coordinator(false);
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(settings.workers)
@@ -288,10 +311,11 @@ pub fn integrate_with_pilot(
     } else {
         None
     };
-    let diagnostics = restored
+    let mut diagnostics = restored
         .as_ref()
         .map(|checkpoint| checkpoint.diagnostics.clone())
         .unwrap_or_default();
+    diagnostics.merge(&initial_diagnostics)?;
     let contour_provenance =
         (settings.contour.deformation != fastsecdec::contour::ContourMode::Off).then(|| {
             ContourCheckpointProvenance::update(

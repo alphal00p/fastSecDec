@@ -1,9 +1,10 @@
 # Public contour interface and ecosystem audit
 
 2026-10-10. Independent source review of the current family/diagnostics increment.
-This is distinct from the root agent's installed private HEPKit wheel at
-184803d, its later stub/wheel refresh, and the still-pending full Pyodide wheel.
-No production source was changed by this review.
+The initial findings below describe the source reviewed before the retained
+family-input follow-up. The final section records their resolution and the
+exact refreshed native/Pyodide execution gate. No production source was changed
+by this review itself.
 
 ## Existing paths and native ownership
 
@@ -98,3 +99,28 @@ multiloop performance. See the separate
 [sampling](contour-dynamic-sampling.md),
 [portable family](contour-portable-family.md) and
 [physical](contour-dynamic-physical-readiness.md) reviews for evidence and limits.
+
+## Follow-up implementation, 2026-10-10
+
+After milestone `a3d97cf`, the retained native family constructor and complete
+dynamic settings card were implemented in the isolated binding crate. The
+legacy family route delegates to the same native owner and retains its existing
+return type and fixed singleton boolean meaning. See
+[retained-family review](contour-family-input.md) for the exact interface,
+native reuse and tests. Leaf all-target/stubgen check and strict Clippy passed.
+Installed candidate-1 source content SHA256
+`9950910602b5c5fe040f30aa2a3d388ef8c28f63a4f6b7d11f02d0eec6d77c12`
+then passed the full native Python suite **249/249 in 78.45 s** and actual
+Pyodide suite **138/138 in 16.32 s**. All eight new family-input cases passed on
+both hosts. Findings 1 and 3 are therefore closed for this source matrix,
+including signed powers, retained runtime parameters, real dynamic pilots and
+integration through the shared native family session.
+
+Finding 2 has an independently reviewed thin implementation: native
+`EvaluationDiagnostics` carries optional phase-labelled runtime reports; Python
+exposes frozen report copies and drains each context after attempted evaluation.
+Havana adaptation history survives its production transition separately from
+accepted production statistics. The same native DTO is transported by ordinary
+and serial CLI workers. The same candidate host gates also passed the three
+new status/diagnostics controls on both hosts. Detailed review and limitations are recorded in
+[operational transport review](contour-operational-transport-audit.md).

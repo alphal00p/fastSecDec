@@ -64,7 +64,7 @@ impl PyIntegral {
             options(max_order, coefficient_expansion, mode, subtraction, contour)?,
             observer.as_ref(),
             progress.as_ref(),
-            "Parametrizing the native diagram",
+            "Parametrizing the native integral",
             || self.parametrize(py),
         )
     }

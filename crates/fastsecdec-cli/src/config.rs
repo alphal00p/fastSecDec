@@ -242,6 +242,9 @@ pub struct IntegrationInput {
     /// The mathematical contour and its independently selectable validation policy.
     #[serde(skip_serializing_if = "is_default_contour")]
     pub contour: fastsecdec::contour::ContourSettings,
+    /// Optional callback work; excluded from mathematical/checkpoint identity.
+    #[serde(skip_serializing_if = "is_disabled_contour_diagnostics")]
+    pub contour_diagnostics: fastsecdec::contour::ContourDiagnosticsMode,
     /// Explicit steering for the global discrete-sector Havana lane only.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub discrete_mc: Option<DiscreteMcInput>,
@@ -298,6 +301,7 @@ impl Default for IntegrationInput {
             replay: Default::default(),
             stability: Default::default(),
             contour: Default::default(),
+            contour_diagnostics: Default::default(),
             discrete_mc: None,
         }
     }
@@ -309,6 +313,10 @@ fn is_legacy_lattice(value: &str) -> bool {
 
 fn is_default_contour(value: &fastsecdec::contour::ContourSettings) -> bool {
     value == &fastsecdec::contour::ContourSettings::default()
+}
+
+fn is_disabled_contour_diagnostics(value: &fastsecdec::contour::ContourDiagnosticsMode) -> bool {
+    *value == fastsecdec::contour::ContourDiagnosticsMode::Disabled
 }
 
 impl IntegrationInput {

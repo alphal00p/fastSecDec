@@ -36,6 +36,9 @@ pub(crate) struct ContourArgs {
     /// Number of independently assigned pilot points per sector.
     #[arg(long)]
     contour_pilot_points: Option<std::num::NonZeroUsize>,
+    /// Optional runtime work observations: disabled (default) or aggregate.
+    #[arg(long, value_parser = settings::parse_diagnostics)]
+    contour_diagnostics: Option<fastsecdec::contour::ContourDiagnosticsMode>,
 }
 
 impl ContourArgs {
@@ -69,7 +72,7 @@ impl ContourArgs {
     ) -> CliResult<Option<DiagnosticContour>> {
         let mut settings: IntegrationInput =
             serde_json::from_value(artifact.provenance.integration.clone())?;
-        self.apply(&mut settings.contour)?;
+        self.apply_integration(&mut settings)?;
         crate::bind_parameters(kernels, &settings)?;
         if kernels.contour_capable() && settings.contour.validation.policy != ContourValidation::Off
         {

@@ -282,3 +282,76 @@ def test_optional_runtime_observations_preserve_native_identity_and_pilot(integr
     assert estimate(plain) == estimate(observed) == estimate(disabled)
     # A report is a detached snapshot; later work cannot mutate its values.
     assert json.loads(report.to_json()) == payload
+
+
+@pytest.fixture(scope="module")
+def runtime_kernels(integral):
+    family = integral.generation_family_session(
+        ["polynomial"], default_recipe="polynomial", compilation_settings=settings())
+    template = finish(family).select("polynomial")
+    return template.with_parameters({}, contour=sd.ContourSettings.dynamical(
+        0.8, lambda_cap=0.25, construction="polynomial", validation="off"))
+
+
+@pytest.mark.parametrize("method", ["qmc", "mc"])
+def test_streamed_runtime_work_and_resume_preserve_full_statistics(runtime_kernels, method):
+    plain = runtime_kernels.with_contour_diagnostics("disabled")
+    observed = runtime_kernels.with_contour_diagnostics("aggregate")
+    if method == "qmc":
+        design = sd.QmcSettings(points=32, shifts=4, rule="hkkn_alpha3", package_points=16)
+        create = lambda kernels: kernels.session(design)
+        restore = lambda kernels, checkpoint: kernels.restore(checkpoint)
+    else:
+        design = sd.HavanaDiscreteSettings(points_per_batch=32, batches=4, seed=739)
+        create = lambda kernels: kernels.mc_session(design)
+        restore = lambda kernels, checkpoint: kernels.restore_mc(checkpoint)
+    baseline, sampled = create(plain), create(observed)
+    assert sampled.snapshot().evaluation_diagnostics.contour_runtime is None
+    sampled.step()
+    first = sampled.snapshot().evaluation_diagnostics.contour_runtime
+    assert first is not None and first.production.evaluation.callback_calls > 0
+    assert first.production.evaluation.callback_failures == 0
+    assert first.production.evaluation.strength.count > 0
+    assert first.adaptation.evaluation.callback_calls == 0
+    payload = json.loads(first.to_json())
+    # Presentation snapshots do not advance work or expose a mutable native owner.
+    assert json.loads(sampled.observation().snapshot.evaluation_diagnostics.contour_runtime.to_json()) == payload
+    with pytest.raises(AttributeError):
+        first.production.evaluation.callback_calls = 0
+    resumed = restore(plain, sampled.checkpoint())
+    for session in (baseline, sampled, resumed):
+        while not session.complete:
+            session.step(16)
+    left, right, changed = (session.snapshot() for session in (baseline, sampled, resumed))
+    assert left.estimate.mean == right.estimate.mean == changed.estimate.mean
+    assert left.estimate.covariance_of_mean == right.estimate.covariance_of_mean == changed.estimate.covariance_of_mean
+    assert left.evaluation_diagnostics.contour_runtime is None
+    # Disabling observations on resume retains earlier observed work without
+    # fabricating counters for the unobserved continuation.
+    assert json.loads(changed.evaluation_diagnostics.contour_runtime.to_json()) == payload
+    assert right.evaluation_diagnostics.contour_runtime.production.evaluation.callback_calls > first.production.evaluation.callback_calls
+    assert json.loads(first.to_json()) == payload
+
+
+def test_runtime_work_keeps_havana_adaptation_separate(runtime_kernels):
+    observed = runtime_kernels.with_contour_diagnostics("aggregate")
+    design = sd.HavanaDiscreteSettings(points_per_batch=32, batches=2, seed=193)
+    session = observed.mc_session(design, pilot=True)
+    while not session.complete:
+        session.step(8)
+    pilot = session.snapshot().evaluation_diagnostics.contour_runtime
+    assert pilot.adaptation.evaluation.callback_calls > 0
+    assert pilot.production.evaluation.callback_calls == 0
+    saved_adaptation = pilot.adaptation.to_json()
+    ready = session.freeze_production(points_per_batch=32, batches=4)
+    assert ready.estimate is None and ready.completed_points == 0
+    assert ready.evaluation_diagnostics.evaluations == 0
+    assert ready.evaluation_diagnostics.contour_runtime.adaptation.to_json() == saved_adaptation
+    while not session.complete:
+        session.step(8)
+    completed = session.snapshot()
+    assert completed.estimate.production_complete
+    report = completed.evaluation_diagnostics.contour_runtime
+    assert report.adaptation.to_json() == saved_adaptation
+    assert report.production.evaluation.callback_calls > 0
+    assert pilot.production.evaluation.callback_calls == 0

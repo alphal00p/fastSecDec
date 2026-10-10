@@ -114,11 +114,11 @@ macro_rules! facts_view {
     };
 }
 
-facts_view!(crate::input::PyIntegral,"Native integral",["Spacetime dimension"=>"dimension","Regulator"=>"regulator","Explicit edge powers"=>"powers"]);
+facts_view!(crate::input::PyIntegral,"Native integral",["Input owner"=>"input_kind","Spacetime dimension"=>"dimension","Regulator"=>"regulator","Explicit propagator powers"=>"powers"]);
 facts_view!(crate::generation::PyGeneratedIntegral,"Generated integral",["Generation mode"=>"mode","Subtraction"=>"subtraction","Numerical sectors"=>"sector_count","Laurent orders"=>"orders","Runtime inputs"=>"#runtime_parameters","Exact contribution"=>"exact_coefficients"]);
 facts_view!(crate::generation_session::PyGenerationSession,"Retained generation",["Generation mode"=>"mode","Subtraction"=>"subtraction","Complete"=>"complete","Failure"=>"failed"]);
 facts_view!(crate::kernels::PyKernels,"Native evaluators",["Backend"=>"backend","Sectors"=>"sector_count","Laurent orders"=>"orders","Components"=>"components","Runtime inputs"=>"runtime_parameters","Point bound"=>"parameters_bound","Compiler settings"=>"compilation_settings"]);
-facts_view!(crate::contour::PyContourSettings,"Contour prescription",["Mode"=>"mode","Strength λ"=>"lambda_value","Validation"=>"validation","Pilot points per chart"=>"pilot_points"]);
+facts_view!(crate::contour::PyContourSettings,"Contour prescription",["Mode"=>"mode","Strength λ"=>"lambda_value","Dynamic construction"=>"construction","Safety fraction S"=>"safety_fraction","Strength cap L"=>"lambda_cap","Displacement cap R"=>"displacement_cap","Validation"=>"validation","Pilot points per chart"=>"pilot_points"]);
 facts_view!(crate::contour::PyContourValidationChart,"Contour validation chart",["Chart"=>"chart_index","Kernel sector"=>"kernel_sector","Coordinates"=>"dimension"]);
 facts_view!(crate::contour::PyContourCheckReport,"Contour point check",["Chart"=>"chart_index","Certified map arguments"=>"checked_arguments","Maximum precision (bits)"=>"maximum_bits"]);
 facts_view!(crate::contour::PyContourValidationReport,"Contour validation evidence",["Policy"=>"policy","Pilot complete"=>"pilot_complete","Required charts"=>"required_charts","Validated charts"=>"validated_charts","Accepted pilot points"=>"accepted_pilot_points","Certified pilot arguments"=>"checked_arguments","Pilot precision (bits)"=>"maximum_bits","Checked evaluation arguments"=>"production_checked_arguments","Evaluation precision (bits)"=>"production_maximum_bits"]);

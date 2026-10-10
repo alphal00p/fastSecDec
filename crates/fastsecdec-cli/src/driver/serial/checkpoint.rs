@@ -81,7 +81,7 @@ pub(super) fn restore(
     }
     let checkpoint = envelope.checkpoint;
     if checkpoint.version != 1 || checkpoint.settings != identity(settings)? {
-        return Err("serial checkpoint settings differ; only worker count, residence time, evaluation batch size and contour validation policy may change".into());
+        return Err("serial checkpoint settings differ; only worker count, residence time, evaluation batch size, contour validation policy and contour diagnostics may change".into());
     }
     if checkpoint
         .replay
@@ -133,6 +133,7 @@ mod tests {
         changed.workers = 3;
         changed.evaluation_batch_size = 19;
         changed.serial_seconds = Some(3.);
+        changed.contour_diagnostics = fastsecdec::contour::ContourDiagnosticsMode::Aggregate;
         assert!(restore(&path, &changed, &problem).is_ok());
         changed.double_points = false;
         assert!(restore(&path, &changed, &problem).is_err());

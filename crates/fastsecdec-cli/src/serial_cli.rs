@@ -74,6 +74,7 @@ pub(crate) fn integrate(
         resume,
         options,
         contour_pilots,
+        setup.diagnostics,
         |snapshot| {
             dashboard.worker_processes(
                 &snapshot

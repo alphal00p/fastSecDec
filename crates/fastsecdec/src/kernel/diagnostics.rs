@@ -24,6 +24,11 @@ pub(super) fn configuration(
     }
 }
 impl SectorKernel {
+    /// Current observation mode; earlier work may remain after a mode change.
+    pub fn contour_diagnostics_mode(&self) -> ContourDiagnosticsMode {
+        self.runtime_configuration().mode
+    }
+
     pub(super) fn runtime_configuration(&self) -> Configuration {
         match &self.backend {
             Backend::Real(kernel) => kernel.evaluator.diagnostics_configuration(),

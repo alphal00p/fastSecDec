@@ -2,20 +2,15 @@
 
 use std::collections::BTreeMap;
 
-use fastsecdec::{Atom, input::prepare_family_input, parametric::ParametricIntegrand};
 use feynkit_py::{PyFeynmanDiagram, PyIntegralFamily, PyKinematics};
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     types::{PyDict, PyString},
 };
-use symbolica::{api::python::PythonExpression, symbol};
+use symbolica::api::python::PythonExpression;
 
-use super::{
-    error,
-    generation::{PyGeneratedIntegral, generate_native},
-    input::{PyIntegral, scalar_bindings, symbol as expression_symbol},
-};
+use super::{generation::PyGeneratedIntegral, input::PyIntegral};
 
 /// Generate Laurent integrands from a native FeynmanDiagram or IntegralFamily.
 ///
@@ -164,62 +159,28 @@ pub(crate) fn sector_decompose(
                 "an IntegralFamily requires an explicitly weighted scalar numerator",
             )
         })?;
-        let regulator = expression_symbol(py, regulator, "regulator")?;
-        let dimension = dimension.map_or_else(
-            || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
-            |value| value.expr.clone(),
-        );
-        let bindings = scalar_bindings(py, scalar_values)?;
-        let momenta: Vec<_> = auxiliary_momenta
-            .unwrap_or_default()
-            .into_iter()
-            .map(|value| value.expr)
-            .collect();
-        let weighted_numerator =
-            &numerator.expr * measure_multiplier.map_or_else(Atom::one, |value| value.expr.clone());
-        return generate_native(
+        return PyIntegral::from_family(
             py,
-            crate::generation::options(
-                max_order,
-                coefficient_expansion,
-                mode,
-                subtraction,
-                contour,
-            )?,
-            observer.as_ref(),
-            progress.as_ref(),
-            "Parametrizing the native integral family",
-            || {
-                let (family, powers, numerator) = prepare_family_input(
-                    family.as_family(),
-                    &powers,
-                    weighted_numerator,
-                    kinematics.map(PyKinematics::as_kinematics),
-                    &bindings,
-                    &momenta,
-                )
-                .map_err(|e| error::native(py, "input", e))?;
-                let parameters = (0..powers.len())
-                    .map(|i| symbol!(format!("fastsecdec::hepkit::x{i}")))
-                    .collect();
-                ParametricIntegrand::from_family(
-                    &family, &powers, numerator, parameters, regulator, dimension,
-                )
-                .map_err(|e| error::native(py, "parametrization", e))
-                .and_then(|input| {
-                    Ok((
-                        input,
-                        crate::input::RuntimeInputs {
-                            parameters: runtime_parameters
-                                .unwrap_or_default()
-                                .iter()
-                                .map(|p| expression_symbol(py, p, "runtime parameter"))
-                                .collect::<PyResult<_>>()?,
-                            ..Default::default()
-                        },
-                    ))
-                })
-            },
+            &family,
+            regulator,
+            powers,
+            numerator,
+            kinematics,
+            dimension,
+            scalar_values,
+            auxiliary_momenta,
+            measure_multiplier,
+            runtime_parameters,
+        )?
+        .generate(
+            py,
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            contour,
+            observer,
+            progress,
         );
     }
     Err(PyTypeError::new_err(

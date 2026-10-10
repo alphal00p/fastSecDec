@@ -166,7 +166,7 @@ impl PyGenerationSession {
                 if let Some(input) = &self.input {
                     crate::citations::mark_generation();
                     self.status.stage = GenerationStage::Parametrization;
-                    self.status.detail = "Parametrizing the native diagram".into();
+                    self.status.detail = "Parametrizing the native integral".into();
                     let timer = Instant::now();
                     let (input, runtime) = match input.parametrize(py) {
                         Ok(value) => value,

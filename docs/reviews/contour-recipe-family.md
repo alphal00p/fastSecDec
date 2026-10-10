@@ -208,3 +208,5 @@ sampling counts above. Together with CLI this is 800 distinct passes and 30
 ignores across 72 executables. Strict workspace all-target Clippy and formatting
 checks pass. The only lint correction removes a redundant clone of a copyable
 presentation snapshot; it does not change numerical behavior.
+The final source rerun of both actual family/cancellation controls passes in
+13.43 seconds after that correction.

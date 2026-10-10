@@ -86,8 +86,12 @@ impl PyHavanaDiscreteSession {
 
     fn begin_phase(&mut self) {
         self.discard_contexts();
+        let contour_runtime = self.diagnostics.contour_runtime.take();
         // Accepted precision knowledge survives adaptation; phase statistics do not.
         self.diagnostics = EvaluationDiagnostics::default();
+        // Optional operational observations retain their explicit phase labels;
+        // adaptation work never enters production sampling statistics.
+        self.diagnostics.contour_runtime = contour_runtime;
         self.stop_reason = None;
         self.live_batches.clear();
         self.live_source = fastsecdec::integration::LiveSource::CurrentIteration;
