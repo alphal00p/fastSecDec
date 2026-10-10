@@ -3435,3 +3435,16 @@ review passed for these owner and data boundaries.
 Standalone v15 does not yet provide indexed/serial threshold publication or
 global proof replay. Those requests fail explicitly. The new Python recipe
 label is for inspection; native HEPKit generation remains a separate gate.
+
+## Represented numerical coefficients (2026-10-10)
+
+The [represented-input review](reviews/no-deformation-represented-input.md)
+records native multiprecision-to-rational conversion, complete source/density
+provenance and reconstruction on staging restore. This is an explicit native
+threshold route. It reuses Symbolica/Numerica coefficient, expression and codec
+facilities; it adds no rational decoder or function-class implementation.
+
+The factory and root independently reviewed original versus exact identities,
+projective preparation ordering and restoration under caller caps. Numerical
+equivalence does not erase source precision or uncertainty semantics. Native
+normalization's transient memory remains outside postchecked output limits.

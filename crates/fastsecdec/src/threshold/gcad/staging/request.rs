@@ -58,6 +58,27 @@ struct StoredRequest {
     runtime_parameters: Vec<usize>,
     parameter_positive: Vec<usize>,
     problem: Problem,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    represented: Option<StoredRepresentation>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredLiteral {
+    location: crate::threshold::represented::Location,
+    original: usize,
+    exact: usize,
+    precision_bits: [u32; 2],
+    binary_exponents: [Option<i32>; 2],
+}
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredRepresentation {
+    version: u32,
+    meaning: crate::threshold::represented::NumericalMeaning,
+    limits: crate::threshold::represented::Limits,
+    exact_input: Input,
+    literals: Vec<StoredLiteral>,
 }
 
 fn origin(origin: FactorOrigin) -> (u8, usize) {
@@ -79,6 +100,9 @@ fn witness(request: &GcadRequest, source_identity: &str) -> Result<String> {
         Ok(())
     }
     item(&mut hash, &source_identity)?;
+    if let Some(r) = request.represented_input() {
+        item(&mut hash, &r.limits())?;
+    }
     item(&mut hash, &Origin::from(request.domain().origin()))?;
     item(
         &mut hash,
@@ -201,11 +225,7 @@ fn witness(request: &GcadRequest, source_identity: &str) -> Result<String> {
 }
 
 pub(super) fn write(root: &Path, request: &GcadRequest) -> Result<RequestRecord> {
-    let source_identity = crate::generation::source_identity(
-        request.input(),
-        &request.kinematics().runtime_parameters,
-        &[],
-    )?;
+    let source_identity = request.source_identity()?;
     let mut atoms = Atoms::default();
     let input = Input::encode(request.input(), &mut atoms);
     let mut symbols = request
@@ -220,10 +240,28 @@ pub(super) fn write(root: &Path, request: &GcadRequest) -> Result<RequestRecord>
         symbols.push(symbol);
         index
     };
+    let represented = request.represented_input().map(|r| StoredRepresentation {
+        version: 1,
+        meaning: r.meaning(),
+        limits: r.limits(),
+        exact_input: Input::encode(r.exact(), &mut atoms),
+        literals: r
+            .conversions()
+            .iter()
+            .map(|c| StoredLiteral {
+                location: c.location.clone(),
+                original: atoms.push(&c.original),
+                exact: atoms.push(&c.exact),
+                precision_bits: c.precision_bits,
+                binary_exponents: c.binary_exponents,
+            })
+            .collect(),
+    });
     let stored = StoredRequest {
         source_identity: source_identity.clone(),
         witness: witness(request, &source_identity)?,
         input,
+        represented,
         origin: request.domain().origin().into(),
         coordinates: request
             .domain()
@@ -266,7 +304,11 @@ pub(super) fn write(root: &Path, request: &GcadRequest) -> Result<RequestRecord>
     })
 }
 
-pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> {
+pub(super) fn read(
+    root: &Path,
+    receipt: &RequestRecord,
+    conversion_cap: crate::threshold::represented::Limits,
+) -> Result<GcadRequest> {
     let (stored, atoms, symbols): (StoredRequest, _, _) = codec::read(root, &receipt.record, KIND)?;
     let symbol = |i: usize| {
         symbols
@@ -283,6 +325,39 @@ pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> 
         .get(..prefix)
         .ok_or_else(|| invalid("GCAD input symbol layout"))?;
     let input = stored.input.decode(&atoms, input_symbols)?;
+    let represented = if let Some(r) = stored.represented {
+        if r.version != 1 || !r.limits.is_within(conversion_cap) {
+            return Err(invalid("represented conversion version or caller resource cap").into());
+        }
+        let rebuilt = crate::threshold::represented::ExactRepresentedInput::prepare(
+            std::sync::Arc::new(input.clone()),
+            r.meaning,
+            r.limits,
+            |_| std::ops::ControlFlow::Continue(()),
+        )
+        .map_err(super::GcadError::from)?;
+        let exact = r.exact_input.decode(&atoms, input_symbols)?;
+        if rebuilt.conversions().is_empty()
+            || rebuilt.exact().as_ref() != &exact
+            || rebuilt.conversions().len() != r.literals.len()
+        {
+            return Err(Error::Association);
+        }
+        for (actual, stored) in rebuilt.conversions().iter().zip(r.literals) {
+            if actual.location != stored.location
+                || actual.original != atoms.take(stored.original)?
+                || actual.exact != atoms.take(stored.exact)?
+                || actual.precision_bits != stored.precision_bits
+                || actual.binary_exponents != stored.binary_exponents
+            {
+                return Err(Error::Association);
+            }
+        }
+        Some(std::sync::Arc::new(rebuilt))
+    } else {
+        None
+    };
+    let geometry_input = represented.as_ref().map_or(&input, |r| r.exact().as_ref());
     let coordinates = stored
         .coordinates
         .into_iter()
@@ -315,14 +390,15 @@ pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> 
     };
     let request = match stored.origin {
         Origin::UnitCube {} => GcadRequest::unit_cube(
-            &input,
+            geometry_input,
             kinematics,
             stored.problem.solver.clone(),
             stored.problem.limits.clone(),
         )?,
         Origin::AffineProjective { eliminated_index } => {
-            let preparation = AffineProjectivePreparation::eliminate(&input, eliminated_index)
-                .map_err(invalid)?;
+            let preparation =
+                AffineProjectivePreparation::eliminate(geometry_input, eliminated_index)
+                    .map_err(invalid)?;
             GcadRequest::projective(
                 preparation,
                 kinematics,
@@ -331,18 +407,19 @@ pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> 
             )?
         }
         Origin::ExplicitPrepared { provenance } => GcadRequest::prepared(
-            &input,
+            geometry_input,
             PreparedDomain::explicit(coordinates.clone(), positive.clone(), provenance)?,
             kinematics,
             stored.problem.solver.clone(),
             stored.problem.limits.clone(),
         )?,
     };
-    let actual_source = crate::generation::source_identity(
-        request.input(),
-        &request.kinematics().runtime_parameters,
-        &[],
-    )?;
+    let request = if let Some(r) = represented {
+        request.retain_represented(r)?
+    } else {
+        request
+    };
+    let actual_source = request.source_identity()?;
     if request.domain().coordinates() != coordinates
         || request.domain().strict_positive() != positive
         || !request.matches_native_problem(&stored.problem)
@@ -380,3 +457,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod represented_tests;

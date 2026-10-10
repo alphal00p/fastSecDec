@@ -214,16 +214,12 @@ impl KernelSet {
 #[cfg(feature = "threshold-decomposition")]
 mod build {
     use super::*;
-    use crate::{
-        generation,
-        threshold::{
-            gcad::DomainOrigin,
-            records::{StagedVector, VectorKind},
-            regularization::BoundContinuation,
-        },
+    use crate::threshold::{
+        gcad::DomainOrigin,
+        records::{StagedVector, VectorKind},
+        regularization::BoundContinuation,
     };
-    use symbolica::atom::AtomCore;
-    use symbolica::atom::{AtomView, FunctionBuilder};
+    use symbolica::atom::{AtomCore, AtomView, FunctionBuilder};
     fn digest(domain: &str, value: &impl serde::Serialize) -> Result<m::Digest, KernelError> {
         let mut h = blake3::Hasher::new();
         h.update(domain.as_bytes());
@@ -338,14 +334,7 @@ mod build {
                     push(chart.positive_measure().clone()),
                 ));
             }
-            let source = m::Digest(
-                generation::source_identity(
-                    request.input(),
-                    &request.kinematics().runtime_parameters,
-                    &[],
-                )
-                .map_err(invalid)?,
-            );
+            let source = m::Digest(request.source_identity().map_err(invalid)?);
             let mut renames = BTreeMap::new();
             renames.insert(
                 bound.coordinates()[0],

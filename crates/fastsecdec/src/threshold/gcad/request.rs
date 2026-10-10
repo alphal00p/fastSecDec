@@ -142,6 +142,7 @@ pub struct SignedFactor {
 pub struct RequestIdentity {
     input: Arc<ParametricIntegrand>,
     preparation: Option<Arc<AffineProjectivePreparation>>,
+    represented: Option<Arc<crate::threshold::represented::ExactRepresentedInput>>,
     domain: PreparedDomain,
     kinematics: GcadKinematics,
     aliases: Vec<SymbolAlias>,
@@ -151,7 +152,8 @@ pub struct RequestIdentity {
 
 impl PartialEq for RequestIdentity {
     fn eq(&self, other: &Self) -> bool {
-        self.preparation == other.preparation
+        self.represented == other.represented
+            && self.preparation == other.preparation
             && self.domain == other.domain
             && self.kinematics == other.kinematics
             && self.aliases == other.aliases
@@ -425,6 +427,7 @@ impl GcadRequest {
         let problem_bytes =
             serde_json::to_vec(&problem).map_err(|e| GcadError::Invalid(e.to_string()))?;
         let identity = RequestIdentity {
+            represented: None,
             input,
             preparation,
             domain,
@@ -434,6 +437,68 @@ impl GcadRequest {
             problem_bytes,
         };
         Ok(Self { identity, problem })
+    }
+
+    /// Prepare the represented exact view while retaining its original native source.
+    pub fn represented_unit_cube(
+        represented: Arc<crate::threshold::represented::ExactRepresentedInput>,
+        kinematics: GcadKinematics,
+        solver: SolverOptions,
+        limits: Limits,
+    ) -> Result<Self> {
+        Self::unit_cube(represented.exact(), kinematics, solver, limits)?
+            .retain_represented(represented)
+    }
+
+    pub fn represented_projective(
+        represented: Arc<crate::threshold::represented::ExactRepresentedInput>,
+        eliminated_index: usize,
+        kinematics: GcadKinematics,
+        solver: SolverOptions,
+        limits: Limits,
+    ) -> Result<Self> {
+        let preparation =
+            AffineProjectivePreparation::eliminate(represented.exact(), eliminated_index)
+                .map_err(|e| GcadError::Invalid(e.to_string()))?;
+        Self::projective(preparation, kinematics, solver, limits)?.retain_represented(represented)
+    }
+
+    pub(crate) fn retain_represented(
+        mut self,
+        represented: Arc<crate::threshold::represented::ExactRepresentedInput>,
+    ) -> Result<Self> {
+        if self.identity.represented.is_some() || self.input() != represented.exact().as_ref() {
+            return Err(GcadError::RequestMismatch);
+        }
+        // No altered source/policy identity for the benign already-exact path.
+        if represented.conversions().is_empty() {
+            return Ok(self);
+        }
+        self.identity.input = represented.original().clone();
+        for factor in &mut self.identity.factors {
+            factor.original_polynomial = match factor.origin {
+                FactorOrigin::OriginalFactor { factor_index } => {
+                    self.identity.input.terms()[factor.term_index].factors()[factor_index]
+                        .polynomial()
+                        .clone()
+                }
+                FactorOrigin::OriginalMonomial { parameter_index } => {
+                    Atom::var(self.identity.input.parameters()[parameter_index])
+                }
+            };
+        }
+        self.identity.represented = Some(represented);
+        Ok(self)
+    }
+
+    pub fn represented_input(
+        &self,
+    ) -> Option<&crate::threshold::represented::ExactRepresentedInput> {
+        self.identity.represented.as_deref()
+    }
+    /// Exact represented density before geometric preparation. `input()` stays original.
+    pub fn exact_input(&self) -> &ParametricIntegrand {
+        self.represented_input().map_or(self.input(), |r| r.exact())
     }
 
     /// Original native density, before any typed projective preparation.
@@ -446,7 +511,7 @@ impl GcadRequest {
     /// Complete factorized density in `domain().coordinates()`, retaining term order.
     pub fn prepared_terms(&self) -> &[ParametricTerm] {
         self.projective_preparation()
-            .map_or(self.input().terms(), |p| p.terms())
+            .map_or(self.exact_input().terms(), |p| p.terms())
     }
     pub fn domain(&self) -> &PreparedDomain {
         &self.identity.domain

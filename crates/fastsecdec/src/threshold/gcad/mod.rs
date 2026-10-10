@@ -5,6 +5,7 @@
 //! or authorization to publish a complete integral.
 
 mod request;
+mod source_identity;
 pub mod staging;
 mod verified;
 
@@ -18,6 +19,8 @@ pub use verified::{NativeDecomposition, VerifiedCell, VerifiedDecomposition};
 /// Errors at the native geometry admission and verification boundary.
 #[derive(Debug, thiserror::Error)]
 pub enum GcadError {
+    #[error(transparent)]
+    Represented(#[from] crate::threshold::represented::Error),
     #[error("invalid GCAD request: {0}")]
     Invalid(String),
     #[error("unsupported GCAD input: {0}")]

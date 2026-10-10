@@ -43,12 +43,9 @@ impl KernelSet {
             ));
         }
         let request = bound.certificate().decomposition().request();
-        let parent = generation::source_identity(
-            request.input(),
-            &request.kinematics().runtime_parameters,
-            &[],
-        )
-        .map_err(|e| KernelError::Artifact(e.to_string()))?;
+        let parent = request
+            .source_identity()
+            .map_err(|e| KernelError::Artifact(e.to_string()))?;
         let records = (0..bound.chart_expressions().len())
             .map(|chart| {
                 record::write(staging, &parent, bound, chart, maximum)

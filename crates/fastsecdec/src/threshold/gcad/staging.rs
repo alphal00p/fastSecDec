@@ -134,10 +134,24 @@ impl StagedRequest {
     }
     /// Reconstruct the native typed request, without solving or importing trust.
     pub fn read(root: &Path, receipt: &RequestRecord, maximum_bytes: u64) -> Result<Self> {
+        Self::read_with_representation_limits(
+            root,
+            receipt,
+            maximum_bytes,
+            crate::threshold::represented::Limits::default(),
+        )
+    }
+    /// Replay saved represented-value conversion under an independent caller cap.
+    pub fn read_with_representation_limits(
+        root: &Path,
+        receipt: &RequestRecord,
+        maximum_bytes: u64,
+        conversion_cap: crate::threshold::represented::Limits,
+    ) -> Result<Self> {
         preflight(root, &[&receipt.record], maximum_bytes)?;
         Ok(Self {
             receipt: receipt.clone(),
-            request: Arc::new(request::read(root, receipt)?),
+            request: Arc::new(request::read(root, receipt, conversion_cap)?),
         })
     }
     pub fn request(&self) -> &GcadRequest {

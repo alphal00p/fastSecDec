@@ -85,6 +85,23 @@ impl ThresholdDecompositionOptions {
         })
     }
 
+    /// Explicit threshold-only numeric preparation. No uncertainty meaning is inferred.
+    pub fn gcad_first_represented_request(
+        &self,
+        input: std::sync::Arc<ParametricIntegrand>,
+        generation: &GenerationOptions,
+        meaning: super::represented::NumericalMeaning,
+        limits: super::represented::Limits,
+        observer: impl FnMut(usize) -> std::ops::ControlFlow<()>,
+    ) -> Result<GcadRequest> {
+        self.effective_strategy(generation)?;
+        let represented = std::sync::Arc::new(super::represented::ExactRepresentedInput::prepare(
+            input, meaning, limits, observer,
+        )?);
+        self.gcad_first_request(represented.exact(), generation)?
+            .retain_represented(represented)
+    }
+
     /// Build only the full-input geometry request. Actual solving, verification,
     /// cell selection and regularization remain caller-owned separate stages.
     /// Source-chart-first requests require the native unsubtracted chart owner
