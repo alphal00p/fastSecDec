@@ -15,8 +15,12 @@ missing native API. Both preserve the same content/layout and native map data.
 The full-map comparison separately verifies the immutable artifact bytes and
 uses native equality for geometry, undeformed maps, designated F, ordered U
 and face ownership. This narrower trusted-artifact check does not claim to
-repeat every optional semantic validation. Pilot and production acceptance
-remain separate. Native exact offsets enter the full-vector estimator once,
+repeat every optional semantic validation. The subsequent full native pilot
+passes all 372 records and the actual aggregate exact owner for each of two
+fixed and two polynomial-dynamic settings: 186 source charts and 2,976 pilot
+points per setting. This establishes finite checked coverage, not integral
+accuracy or a floating-point certificate over the cube. Pilot and production
+acceptance remain separate. Native exact offsets enter the full-vector estimator once,
 and actual coordinate/weight hashes are required for prospective paired runs;
 matching seed integers alone is insufficient evidence.
 

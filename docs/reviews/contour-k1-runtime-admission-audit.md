@@ -241,7 +241,7 @@ summary is retained under `target/contour-ltd-k1-runtime/pilot-cost/`.
 Exactly 185 stochastic sectors remain unpiloted by this experiment. No
 production, full-integral estimate or convergence claim follows from it.
 
-## Full-pilot runner review, execution pending
+## Full-pilot runner review and completed admission
 
 The separate `full-pilot/` runner passed read-only review. It invokes the
 unchanged, hash-pinned native `admission` branch only after complete map and
@@ -257,9 +257,33 @@ progress; a process exit code of zero alone is not scientific admission.
 The one-shot outer monitor bounds the complete runner to 900 seconds and
 3 GiB of owned-process RSS. Concurrent private release compilation and K1*
 generation are explicitly recorded, so timing comparisons are excluded.
-There is no production sampling. Full admission remains pending its actual
-four-arm results; even success certifies the prescribed finite pilots,
-not every point of the integration cube.
+There is no production sampling. Success certifies the prescribed finite
+pilots, not every point of the integration cube.
+
+The full-pilot monitor subsequently closed successfully after 718.760973
+seconds with peak aggregate owned-process RSS 1153024000 bytes. Independent
+read-only verification of all four raw `admission-*.json` reports confirms
+exact record coverage 0 through 371 and stochastic coverage 0 through 185,
+with required and validated chart sets equal for every owner. Each arm
+accepted 2976 points (16 per source), reaching at most 96 certificate bits.
+F001 and F005 each checked 14880 homotopy arguments; P01 and P1 each checked
+2976 dynamic requests. Each separately loaded aggregate-exact owner was
+ready with zero surviving requests. All production check counters remained
+zero, and the monitored process group was independently confirmed empty.
+
+| Arm | All record loads (s) | Binding (s) | Certification (s) |
+| --- | ---: | ---: | ---: |
+| F001 | 18.020559 | 0.129992 | 12.843739 |
+| F005 | 17.929875 | 0.129866 | 12.804176 |
+| P01 | 259.158295 | 0.711026 | 63.115507 |
+| P1 | 258.801046 | 0.722344 | 63.324953 |
+
+These phase observations include the explicitly recorded concurrent build
+and K1* feasibility work. They are not optimized-host timing comparisons.
+The complete finite pilot gate now passes all four arms; full-integral
+production, accuracy, convergence and variance acceptance remain separate.
+Raw report hashes and independently recomputed counts are retained in
+`target/contour-ltd-k1-runtime/full-pilot-independent-audit.json`.
 
 ## Separate sign-aware source-zero evidence
 
@@ -292,3 +316,69 @@ generation, checked point evaluation and saved-owner parity. Two interior
 points do not establish all-face coverage, all 186 charts, a full-integral
 value, or an independent Jacobian oracle. The full polynomial map/admission
 campaign and any later sign-aware integral campaign remain separate gates.
+
+## Private optimized consumer build
+
+A separate native CLI release build completed from exact commit
+`33030058d2cd0587dd718ef3e7dc9c56ba6952f8`. The complete Git archive SHA256 is
+`219524a8cffb8abab3074950b77c810ee39aa4a292e6cfe0108a94fa6de34d40`;
+the original Cargo.lock SHA256 is
+`4b110f43930f058044c5d4743e5b886e014f2189ac097ec262b929174836376d`.
+Post-build verification matched all 1405 extracted source files, the archive
+and lock, and unique pinned owners: Symbolica/Numerica `516beb37`, SymJIT
+`d74993ff`, and Feynkit/Linnet/Spenso/Idenso `8e3a643f`.
+
+The CLI-only command was `cargo build --release --locked --offline -j 2
+-p fastsecdec-cli --bin fastsecdec`, inside the archived `shell.nix`, with
+a unique private `CARGO_TARGET_DIR`. Actual Cargo artifacts show opt-level 3
+for the native numerical owners and FastSecDec. The active CLI invocation
+confirmed opt-level 3 and thin LTO; no extra target-CPU or numerical settings
+were supplied. The compiler was Rust 1.97.1 with LLVM 21.1.8, GCC 15.3.0 and
+GNU ld 2.46. Source and command identities, compiler/linker versions and
+Cargo output are retained under `target/contour-private-release-3303005/`.
+
+The independent 1800-second/12-GiB monitor completed after 919.142867 seconds,
+with peak aggregate owned-process RSS 3531304960 bytes. All owned processes
+exited, and the resulting 69557560-byte private executable has SHA256
+`6cea9df3afd3d9a95663057a32c5313429d6a009ff95d16eeba1d615be4aef50`.
+Its `--help` smoke passed. The user's existing `target/release/fastsecdec`
+retained its original hash, inode, size and modification time; neither shared
+Cargo output nor an installed environment was changed.
+
+The build overlapped the separately monitored K1* generation and full K1
+pilot only after explicit authorization. Its elapsed time is build
+feasibility, not a controlled performance comparison. No physical production
+was performed by this build gate. Exact matching release rlib fingerprints
+and native link directories were supplied to the runtime agent for a
+separate optimized consumer; a numerical release-control gate remains
+required before any optimized-runtime performance claim.
+
+## Separate massive K1* family publication review
+
+Read-only manifest, catalogue receipt and durable-journal checks confirm the
+completed K1* archive contains all four recipes under one physical source
+identity, `740924389a4ae0f3debe607a6924204973692fecb2431b64759a068f35906579`.
+Each recipe has 30 six-dimensional stochastic records covering sources
+0 through 29 exactly once, plus 30 exact records. All 240 published record
+spans are contiguous through the catalogue's `records_end`; 352 journal
+responses are complete, including all 120 recipe-specific sector jobs.
+The selected default remains `undeformed-v1`, with real output, while the
+three contour recipes preserve the complete real/imaginary finite vector.
+`assume_no_threshold` remains false.
+
+The manifest SHA256 matches
+`508005ecd661b7a884a49696d394a917ed206173c201045208606d7ac00b2a20`;
+its referenced data file exists at the recorded 1206110163-byte size. This
+independent audit checks published metadata and receipt structure, not a
+second payload digest pass or evaluator restoration. The generation owner
+records the full data hash and compilation evidence separately.
+
+The eight-worker monitor exited successfully after 894.550629 seconds with
+peak aggregate RSS 7758467072 bytes, inside its 900-second/8-GiB bounds.
+The process group is empty. The concurrent private build and massless K1
+pilot are explicitly recorded, so no controlled timing claim is made.
+These checks establish complete family publication; neither the stored
+undeformed capability nor successful compilation establishes the massive
+integral's physical value, runtime causal admission or convergence.
+The independent metadata audit is retained at
+`target/generation-agent-ltd-massive-family/foundation-publication-audit.json`.

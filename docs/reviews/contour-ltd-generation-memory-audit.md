@@ -466,6 +466,69 @@ production source edit occurs. All three process groups close before the
 runtime owner receives the resource handoff for the complete polynomial map
 gate.
 
+### Complete massive K1* capability family
+
+After the massless map and first-source pilot-cost monitors close, the approved
+fresh K1* campaign uses the existing CLI `--contour` all-four route, eight
+recyclable serial workers and the unchanged compact CLI identified above.
+Its predeclared bound is **900 seconds / 8 GiB aggregate process-group RSS**.
+The original input keeps `assume_no_threshold=false`. The directory default
+`undeformed-v1` is a stored capability only; later physical evaluation must
+explicitly select fixed or one of the two dynamic constructions.
+
+Generation and native publication succeed in **894.551 s**, with no resource
+limit triggered. The independent 50-ms monitor records a peak of
+**7,758,467,072 bytes (7.226 GiB)**; the one-second sampled coordinator peak is
+32,641,024 bytes (31.129 MiB). The final journal is complete and the entire
+owned process group has exited before runtime handoff. This is concurrent
+feasibility evidence: the separately bounded full massless K1 pilot and a
+private two-job release build overlap it. The latter closes successfully in
+919.143 s with its own 3,531,304,960-byte peak, which is not included in the
+generation process-group figure. These timings are not an idle-host benchmark.
+
+One native preparation supplies 30 full-dimensional shared sources. Each
+recipe independently persists 30 stochastic sectors with actual source and
+sector indices 0–29, plus 30 exact records: **240 records total**. No recipe
+merges those sources in this run. The off, polynomial and sign-aware routes
+record 27 actual symmetry jobs each; fixed uses its existing path. The actual
+catalogue, rather than an assumption of equal symmetry across recipes,
+establishes the resulting equal sector counts.
+
+| Recipe | Retained output layout | Sum of native record bytes |
+|---|---|---:|
+| Undeformed | finite real | 212,284 |
+| Fixed | finite real and imaginary | 42,302,441 |
+| Dynamic polynomial | finite real and imaginary | 464,522,276 |
+| Dynamic sign-aware | finite real and imaginary | 698,932,397 |
+
+The single immutable data file is 1,206,110,163 bytes including its native
+directory. The larger sign-aware construction is retained honestly: native
+stage reports attribute 257.177 s to its symmetry work and 270.248 s to its
+complete-sector stage, versus 158.584 s and 154.477 s for polynomial. The
+complete-sector label includes generation, compilation and persistence; it
+does not isolate compiler time. Successful publication establishes neither
+massive checked-pilot admission nor agreement with the nonzero Table 6
+reference; those remain the runtime owner's next scientific gates.
+
+| Identity | Value |
+|---|---|
+| Manifest SHA256 | `508005ecd661b7a884a49696d394a917ed206173c201045208606d7ac00b2a20` |
+| Data SHA256 | `ad9c96bf3cadeb612f2f61e12ef19eceb5862ca4ec592e8d87b2e7017dbcd69f` |
+| Manifest content ID | `df29a3364f2510ea51572c2af8d894916824bdfb2b769f956067b22ac8f70682` |
+| Catalogue content ID | `d409ad365e62e360468ee1d2324f84eed37ef9d54a91784c255b0ecf71ee4921` |
+| Physical source identity | `740924389a4ae0f3debe607a6924204973692fecb2431b64759a068f35906579` |
+| Polynomial recipe content ID | `a4d1b7ceb0fd849152f5d37449cff12557b8d295063fe3afea25e2fb705dc652` |
+| Sign-aware recipe content ID | `7bc9034ac97a5a31cf4e62c379a2b700aa05a62259a69f2c29b291b390f565fc` |
+
+Ignored evidence is under `target/generation-agent-ltd-massive-family/`:
+`plan.json`, `commands.sh`, `summary.json`, `journal-after-generation.json`,
+`all-recipes.fsd.json`, and `runs/all-four-eight-workers/` with raw status,
+execution and RSS records. The data file is
+`all-recipes.fsd.1791611209302970651-3343531-0.dat`. Publication inspection
+checks the expected source identity, all four recipe IDs, threshold policy,
+distinct sector indices and closed process group; it does not evaluate or
+replace any native scientific check.
+
 A separate native parity probe verifies that the failed new run's actual
 prepared-source-0 record has exactly the retained fixed chart's F, U and
 ordered parameters. Its immutable source identity is
