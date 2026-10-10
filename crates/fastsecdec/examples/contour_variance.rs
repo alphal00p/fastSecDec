@@ -6,7 +6,10 @@ use std::{collections::BTreeMap, error::Error, ops::ControlFlow, time::Instant};
 mod comparison;
 
 use fastsecdec::{
-    contour::{ContourMode, ContourSettings, ContourValidation, ContourValidationOptions},
+    contour::{
+        ContourDiagnosticsMode, ContourMode, ContourRuntimeReport, ContourSettings,
+        ContourValidation, ContourValidationOptions,
+    },
     generation::{self, GenerationOptions},
     integration::{
         ContributionReport, QmcDesign, QmcReturn, QmcSession, QmcSettings, RuleSource,
@@ -33,6 +36,7 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 enum Control {
     ThresholdBubble,
     LinearSquare,
+    CubicCube,
 }
 
 impl Control {
@@ -40,6 +44,7 @@ impl Control {
         match self {
             Self::ThresholdBubble => 1,
             Self::LinearSquare => 2,
+            Self::CubicCube => 3,
         }
     }
 
@@ -57,6 +62,27 @@ impl Control {
                 1.5 - (7.0 / 3.0) * 2.0_f64.ln(),
                 11.0 * std::f64::consts::PI / 12.0,
             ),
+            // -integral log((1-2*x)*(1+y)*(1+z)-i0) on the cube.
+            Self::CubicCube => (3.0 - 4.0 * 2.0_f64.ln(), std::f64::consts::PI / 2.0),
+        }
+    }
+
+    fn pilot_points(self) -> usize {
+        match self {
+            Self::ThresholdBubble | Self::LinearSquare => 9,
+            Self::CubicCube => 27,
+        }
+    }
+
+    fn pilot_point(self, index: usize) -> Vec<f64> {
+        match self {
+            Self::ThresholdBubble => vec![index as f64 / 8.0],
+            Self::LinearSquare => vec![(index % 3) as f64 / 2., (index / 3) as f64 / 2.],
+            Self::CubicCube => vec![
+                (index % 3) as f64 / 2.,
+                ((index / 3) % 3) as f64 / 2.,
+                (index / 9) as f64 / 2.,
+            ],
         }
     }
 }
@@ -114,6 +140,8 @@ struct PrescriptionRun {
     content_id: String,
     pilot: ContourValidationReport,
     production_validation: Vec<(u64, Option<ContourProductionReport>)>,
+    preparation_observations: Option<ContourRuntimeReport>,
+    production_observations: Vec<(u64, Option<ContourRuntimeReport>)>,
     design: QmcDesign,
     estimate: VectorEstimate,
     contributions: ContributionReport,
@@ -134,6 +162,13 @@ fn artifact(mode: ContourMode, backend: EvaluatorBackend, control: Control) -> R
         Control::LinearSquare => {
             coordinates.push(symbol!("contour_variance::y"));
             parse!("1-2*contour_variance::x-3*contour_variance::y")
+        }
+        Control::CubicCube => {
+            coordinates.extend([
+                symbol!("contour_variance::y"),
+                symbol!("contour_variance::z"),
+            ]);
+            parse!("(1-2*contour_variance::x)*(1+contour_variance::y)*(1+contour_variance::z)")
         }
     };
     let input = ParametricIntegrand::new(
@@ -178,18 +213,20 @@ fn run(
     deformation: ContourMode,
     policy: ContourValidation,
     control: Control,
+    diagnostics: ContourDiagnosticsMode,
     settings: QmcSettings,
     foreign_return: Option<QmcReturn>,
 ) -> Result<(PrescriptionRun, QmcReturn)> {
     let started = Instant::now();
     let mut kernels = KernelSet::from_bytes(bytes)?;
+    kernels.set_contour_diagnostics(diagnostics)?;
     kernels.bind_parameters_with_contour(
         &BTreeMap::new(),
         &ContourSettings {
             deformation,
             validation: ContourValidationOptions {
                 policy,
-                pilot_points: 9,
+                pilot_points: control.pilot_points(),
             },
         },
     )?;
@@ -200,11 +237,8 @@ fn run(
     {
         // An explicit deterministic preflight for this analytic control;
         // neither these coordinates nor their observations enter production.
-        for index in 0..9 {
-            let point = match control {
-                Control::ThresholdBubble => vec![index as f64 / 8.0],
-                Control::LinearSquare => vec![(index % 3) as f64 / 2., (index / 3) as f64 / 2.],
-            };
+        for index in 0..control.pilot_points() {
+            let point = control.pilot_point(index);
             if point.len() != chart.dimension {
                 return Err("analytic control changed its source-coordinate schema".into());
             }
@@ -218,6 +252,7 @@ fn run(
     } else {
         kernels.finish_contour_pilot()?
     };
+    let preparation_observations = kernels.contour_runtime_report()?;
     let manifest = KernelResultManifest::from_kernels(&kernels);
     let problem = manifest.integration_problem(&ResultScope::FullIntegral, kernels.content_id())?;
     let content_id = problem.content_id.clone();
@@ -298,6 +333,11 @@ fn run(
                 .iter()
                 .map(|(id, context)| (*id, context.contour_validation_report()))
                 .collect(),
+            preparation_observations,
+            production_observations: contexts
+                .iter()
+                .map(|(id, context)| context.contour_runtime_report().map(|report| (*id, report)))
+                .collect::<std::result::Result<Vec<_>, _>>()?,
             design: session.design(),
             estimate,
             contributions: session.contributions()?,

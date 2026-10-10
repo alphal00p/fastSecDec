@@ -124,3 +124,50 @@ probe. No shared host checkout or running notebook was modified.
 This validates the actual runtime filesystem through its Python/POSIX bridge.
 Executing the final Rust family implementation in the published WASM wheel is
 a separate required gate, still pending.
+
+## Caller-dispatched batches (in progress, 2026-10-10)
+
+`step_with_dispatch` extends the same native Work/Stage state machine used by
+`step`; it does not introduce a second generation pipeline. The caller supplies
+existing native geometry dispatch and a family-job dispatcher. Independent
+source, recipe mapping, formula, and fused generation/compilation stages issue
+at most the minimum of the requested width, remaining step units, and available
+stage jobs. Ordered symmetry remains on the coordinator. Job payloads share
+immutable prepared context through `Arc`; they do not clone the full chart list.
+
+The dispatcher returns a bounded completion batch after joining issued work.
+Every completion's private batch owner, recipe, stage and index is admitted
+before any archive mutation. The native coordinator sorts admitted completions
+into canonical order. Failed/incomplete/foreign/duplicate batches terminate the
+session without exposing a completed archive. An observer pause joins and admits
+the current successful batch before returning. Storage failure after a partial
+write remains terminal. Residency is the requested resident recipe plus at most
+one completed batch; nonresident evaluators drop before another batch is issued.
+
+The old `step` path uses width one. Ordinary undeformed/singleton callers retain
+their existing direct generation path. Native preparation exposes only a narrow
+geometry-dispatch hook around its existing implementation and codec. No new
+algebra, graph transformation, numerical evaluator or library-owned pool is added.
+Root and the generation owner independently reviewed this design and its source;
+they found no ownership/reuse blocker. Production and all-target compilation
+checks pass. All 12 native family tests pass (0.65 seconds). They execute actual
+caller threads at widths 1/2/4, reverse completion returns, and compare complete
+archive identities and all four recipe values in both generation modes. Separate
+controls join a paused batch and refuse missing, foreign, or duplicate completion
+IDs before publication. Existing exact-empty, resident lifetime and partial-write
+controls also pass. The actual CLI family and cancellation controls pass 2/2;
+the complete CLI regression passes 169 tests with eight explicit ignores.
+These tests do not establish a performance improvement or browser-thread
+availability.
+
+
+Selected portable archives preserve semantic identity, not a universal byte
+ordering. `ProgramResidentAssembly` appends original per-unit records to its
+selected-only writer; `SelectedProgramReader::selected_bytes` copies records in
+the canonical directory order produced by `finish_layout`. The recipe identity
+uses that logical record order and excludes physical offsets. Thus two retained
+owners can have different immutable transport bytes with the same identity.
+Selection performs no Symbolica re-encoding. The Python lifetime regression now
+checks byte stability within its detached owner, re-restores those bytes, and
+compares actual complete QMC estimates against the resident recipe. A cross-owner
+byte-equality assertion would incorrectly require canonical physical record order.

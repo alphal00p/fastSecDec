@@ -218,3 +218,5 @@ fn masked_constant_callback_failure_is_an_explicit_mapping_error() {
     assert_eq!(output[0], Float::with_val(192, 1.5));
     assert!(dynamic::take_failure().is_none());
 }
+
+mod diagnostics;

@@ -13,8 +13,9 @@ mod context;
 mod domain;
 mod family;
 pub use family::{
-    RecipeFamily, RecipeFamilyError, RecipeFamilyOutput, RecipeFamilySession,
-    RecipeFamilySessionError, RecipeFamilySnapshot,
+    RecipeFamily, RecipeFamilyCompletion, RecipeFamilyDispatch, RecipeFamilyError, RecipeFamilyJob,
+    RecipeFamilyJobId, RecipeFamilyJobProgress, RecipeFamilyJobStage, RecipeFamilyOutput,
+    RecipeFamilySession, RecipeFamilySessionError, RecipeFamilySnapshot,
 };
 mod geometry;
 pub(crate) mod identity;

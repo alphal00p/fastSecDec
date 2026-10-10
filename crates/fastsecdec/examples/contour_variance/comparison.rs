@@ -65,16 +65,19 @@ pub(super) fn execute() -> Result<()> {
     let mut control = Control::ThresholdBubble;
     let mut backend = EvaluatorBackend::Eager;
     let mut validation = ContourValidation::Pilot;
+    let mut diagnostics = ContourDiagnosticsMode::Disabled;
     for argument in std::env::args().skip(1) {
         match argument.as_str() {
             "--dynamic" => dynamic = true,
             "--smoke" => smoke = true,
             "--linear-square" => control = Control::LinearSquare,
+            "--cubic-cube" => control = Control::CubicCube,
             "--symjit" => backend = EvaluatorBackend::Symjit,
+            "--diagnostics" => diagnostics = ContourDiagnosticsMode::Aggregate,
             "--validation=always" => validation = ContourValidation::Always,
             "--validation=pilot" => validation = ContourValidation::Pilot,
             "--validation=off" => validation = ContourValidation::Off,
-            _ => return Err(format!("unknown argument {argument}; use --dynamic, --smoke, --linear-square, --symjit, or --validation=always|pilot|off").into()),
+            _ => return Err(format!("unknown argument {argument}; use --dynamic, --smoke, --linear-square, --cubic-cube, --symjit, --diagnostics, or --validation=always|pilot|off").into()),
         }
     }
     // Retain both original fixed controls: comparing only the weaker strength
@@ -129,6 +132,7 @@ pub(super) fn execute() -> Result<()> {
             rule: RuleSource::Supplied(match control {
                 Control::ThresholdBubble => vec![1],
                 Control::LinearSquare => vec![1, 433],
+                Control::CubicCube => vec![1, 433, 1277],
             }),
             ..Default::default()
         };
@@ -144,6 +148,7 @@ pub(super) fn execute() -> Result<()> {
                 modes[index],
                 validation,
                 control,
+                diagnostics,
                 settings.clone(),
                 foreign.take(),
             )?;
@@ -177,6 +182,7 @@ pub(super) fn execute() -> Result<()> {
                 else if dynamic { "dynamic API smoke probe; too few replicas for a variance improvement claim" }
                 else { "fixed-strength API smoke probe; no dynamic improvement claim" },
             "backend": backend, "validation": validation, "production_workers": 1,
+            "diagnostics": diagnostics,
             "control": control,
             "generation": generation, "pairs": pairs,
         }))?

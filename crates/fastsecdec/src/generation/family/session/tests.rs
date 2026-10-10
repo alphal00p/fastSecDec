@@ -8,6 +8,7 @@ use crate::{
 };
 use std::io::Cursor;
 use symbolica::{atom::Atom, parse, symbol};
+mod dispatch;
 
 fn input() -> ParametricIntegrand {
     ParametricIntegrand::new(

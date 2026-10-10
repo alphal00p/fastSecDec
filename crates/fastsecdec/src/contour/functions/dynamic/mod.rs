@@ -1,5 +1,6 @@
 //! Prepared native radius callbacks. No sampling loop or production RNG lives here.
 mod candidate;
+pub(crate) mod diagnostics;
 pub(crate) use candidate::CandidateNumber;
 pub(crate) mod numeric;
 pub(crate) mod observation;

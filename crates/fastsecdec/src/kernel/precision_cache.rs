@@ -1,6 +1,7 @@
 //! Bounded worker-local native evaluator storage. Cache history affects only
 //! allocation and constant conversion, never the chosen precision or result.
 use super::{KernelError, evaluator::MappingRequirements};
+use crate::contour::functions::dynamic::diagnostics::{Accumulator, Phase};
 use std::sync::Arc;
 use symbolica::{
     domains::{
@@ -25,6 +26,7 @@ pub(super) struct PrecisionCache<T> {
     pub(super) timing: super::EvaluatorTiming,
     pub(super) validation: Option<super::contour::dynamic::validation::Validation>,
     pub(super) last_dynamic_error: Option<String>,
+    pub(super) runtime_diagnostics: Accumulator,
 }
 
 impl<T> PrecisionCache<T> {
@@ -39,6 +41,7 @@ impl<T> PrecisionCache<T> {
             entries: Vec::new(),
             validation: requirements.validation(),
             last_dynamic_error: None,
+            runtime_diagnostics: Default::default(),
             requirements,
             timing: Default::default(),
         }
@@ -63,8 +66,12 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
             self.entries.push(entry);
         } else {
             let evaluator = self
-                .requirements
-                .map(exact, coefficient, bits)
+                .runtime_diagnostics
+                .measure(
+                    self.requirements.diagnostics_configuration(),
+                    Phase::Preparation,
+                    || self.requirements.map(exact, coefficient, bits),
+                )
                 .map_err(KernelError::PrecisionEvaluation)?;
             if self.entries.len() == CAPACITY {
                 self.entries.remove(0);
@@ -82,24 +89,30 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
         }
         let started = std::time::Instant::now();
         self.last_dynamic_error = None;
-        if let Some(validation) = &mut self.validation {
-            if !validation.evaluate(point, || {
-                entry.evaluator.evaluate(&entry.input, &mut entry.output)
-            }) {
-                self.last_dynamic_error = validation.last_error.clone();
-                entry.output.fill(number(f64::NAN));
-            }
-        } else if self.requirements.has_dynamic_callbacks() {
-            let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
-                entry.evaluator.evaluate(&entry.input, &mut entry.output)
-            });
-            self.last_dynamic_error = failure;
-            if self.last_dynamic_error.is_some() {
-                entry.output.fill(number(f64::NAN));
-            }
-        } else {
-            entry.evaluator.evaluate(&entry.input, &mut entry.output);
-        }
+        self.runtime_diagnostics.measure(
+            self.requirements.diagnostics_configuration(),
+            Phase::Evaluation,
+            || {
+                if let Some(validation) = &mut self.validation {
+                    if !validation.evaluate(point, || {
+                        entry.evaluator.evaluate(&entry.input, &mut entry.output)
+                    }) {
+                        self.last_dynamic_error = validation.last_error.clone();
+                        entry.output.fill(number(f64::NAN));
+                    }
+                } else if self.requirements.has_dynamic_callbacks() {
+                    let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
+                        entry.evaluator.evaluate(&entry.input, &mut entry.output)
+                    });
+                    self.last_dynamic_error = failure;
+                    if self.last_dynamic_error.is_some() {
+                        entry.output.fill(number(f64::NAN));
+                    }
+                } else {
+                    entry.evaluator.evaluate(&entry.input, &mut entry.output);
+                }
+            },
+        );
         self.timing.record(started);
         Ok(&entry.output)
     }

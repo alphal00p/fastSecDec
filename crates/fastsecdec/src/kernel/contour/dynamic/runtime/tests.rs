@@ -201,3 +201,5 @@ fn restored_dynamic_binding_pilot_policy_factories_and_atomic_rebind() {
         assert!(!kernels.contour_validation_report().unwrap().pilot_complete);
     }
 }
+
+mod diagnostics;

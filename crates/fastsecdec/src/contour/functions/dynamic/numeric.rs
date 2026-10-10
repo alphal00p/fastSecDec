@@ -123,10 +123,11 @@ where
         })
     }
 
-    fn evaluate(
+    fn evaluate<const OBSERVE: bool>(
         &self,
         count: usize,
         argument: impl Fn(usize) -> Complex<T>,
+        mut event: Option<&mut super::diagnostics::Event>,
     ) -> Result<Complex<T>, String> {
         if self.poisoned {
             return Err("dynamic root workspace poisoned".into());
@@ -185,8 +186,14 @@ where
             // the native operation already used for the initial guess,
             // including its tracked real uncertainty. The native complex
             // correction below still supplies imaginary uncertainty.
+            if let Some(event) = event.as_deref_mut() {
+                event.closed_form = true;
+            }
             options.initial_guess.as_ref().unwrap().clone()
         } else {
+            if let Some(event) = event.as_deref_mut() {
+                event.solver = true;
+            }
             let answer = nsolve_bracketed(zero.clone(), one.clone(), options, |coordinate| {
                 input[0] = Complex::new(coordinate.clone(), coordinate.zero());
                 if evaluator.try_evaluate(input, output).is_err() {
@@ -194,7 +201,7 @@ where
                 }
                 (output[0].re.clone(), output[1].re.clone())
             });
-            answer.map_err(|error| {
+            let answer = answer.map_err(|error| {
                 format!(
                 "dynamic contour radius solver: {error}; domain {}, precision {}, rounded f64 centres: coefficients {:?}, safety {:?}, cap {:?}, initial {:?}, relative tolerance {:?}, iteration limit {}, last point {}, last value/derivative {:?}",
                 std::any::type_name::<T>(),
@@ -208,7 +215,14 @@ where
                 input[0].re.to_f64(),
                 output.iter().map(|value| value.re.to_f64()).collect::<Vec<_>>(),
                 )
-            })?.root
+            })?;
+            if let Some(event) = event.as_deref_mut() {
+                event.solver_success = true;
+                event.iterations = answer.iterations as u64;
+                event.evaluations = answer.evaluations as u64;
+                event.termination = Some(answer.termination);
+            }
+            answer.root
         };
         if !root.is_finite() || root <= zero || root > one {
             return Err(
@@ -219,6 +233,9 @@ where
         // imaginary parts can carry uncertainty. Native complex Newton
         // arithmetic retains that uncertainty without a second AD system.
         input[0] = Complex::new(root.clone(), zero.clone());
+        if let Some(event) = event.as_deref_mut() {
+            event.correction = true;
+        }
         evaluator
             .try_evaluate(input, output)
             .map_err(|error| error.to_string())?;
@@ -226,6 +243,11 @@ where
         let radius = Complex::new(root, -correction.im);
         let scalar = scalar.ok_or("missing dynamic safety fraction")?;
         let cap = cap.ok_or("missing dynamic strength cap")?;
+        let display = if OBSERVE {
+            Some((input[1].re.to_f64(), cap.re.to_f64()))
+        } else {
+            None
+        };
         let strength = (scalar * cap) * radius;
         if !strength.re.is_finite()
             || !strength.im.is_finite()
@@ -237,6 +259,17 @@ where
                     .into(),
             );
         }
+        if let (Some((a2, cap)), Some(event)) = (display, event) {
+            let lambda = strength.re.to_f64();
+            event.strength = Some(lambda);
+            event.normalized_displacement = (a2.is_finite()
+                && a2 > 1.
+                && cap.is_finite()
+                && cap > 0.
+                && lambda.is_finite()
+                && lambda > 0.)
+                .then(|| (lambda / cap) * (a2 - 1.).sqrt());
+        }
         Ok(strength)
     }
 }
@@ -245,27 +278,13 @@ pub(super) fn real<T: Number>(tags: &[AtomView<'_>]) -> EvalFn<T>
 where
     Complex<T>: EvaluationDomain,
 {
-    let bits = T::FIXED_PRECISION.or_else(preparation::precision);
-    let workspace = bits
-        .ok_or_else(|| "dynamic Float callback requires a scoped mapping precision".to_string())
-        .and_then(|bits| Workspace::<T>::new(tags, bits));
-    Box::new(move |arguments: &[T]| match &workspace {
-        Ok(workspace) => workspace
-            .evaluate(arguments.len(), |i| {
-                Complex::new(arguments[i].clone(), arguments[i].zero())
-            })
-            .map(|value| value.re)
-            .unwrap_or_else(|error| {
-                super::failure(error);
-                T::invalid(workspace.bits)
-            }),
-        Err(error) => {
-            super::failure(error.clone());
-            T::invalid(bits.unwrap_or(53))
-        }
-    })
+    if super::diagnostics::Configuration::capture().enabled() {
+        real_factory::<T, true>(tags)
+    } else {
+        real_factory::<T, false>(tags)
+    }
 }
-pub(super) fn complex<T: Number>(tags: &[AtomView<'_>]) -> EvalFn<Complex<T>>
+fn real_factory<T: Number, const OBSERVE: bool>(tags: &[AtomView<'_>]) -> EvalFn<T>
 where
     Complex<T>: EvaluationDomain,
 {
@@ -273,19 +292,72 @@ where
     let workspace = bits
         .ok_or_else(|| "dynamic Float callback requires a scoped mapping precision".to_string())
         .and_then(|bits| Workspace::<T>::new(tags, bits));
-    Box::new(move |arguments: &[Complex<T>]| match &workspace {
-        Ok(workspace) => workspace
-            .evaluate(arguments.len(), |i| arguments[i].clone())
-            .unwrap_or_else(|error| {
-                super::failure(error);
-                Complex::new(T::invalid(workspace.bits), T::invalid(workspace.bits))
-            }),
-        Err(error) => {
-            super::failure(error.clone());
+    Box::new(move |arguments: &[T]| {
+        let mut event = OBSERVE.then(|| super::diagnostics::Event {
+            bits: bits.unwrap_or(53),
+            ..Default::default()
+        });
+        let result = match &workspace {
+            Ok(workspace) => workspace
+                .evaluate::<OBSERVE>(
+                    arguments.len(),
+                    |i| Complex::new(arguments[i].clone(), arguments[i].zero()),
+                    event.as_mut(),
+                )
+                .map(|value| value.re),
+            Err(error) => Err(error.clone()),
+        };
+        if let Some(mut event) = event {
+            event.failed = result.is_err();
+            super::diagnostics::record(event);
+        }
+        result.unwrap_or_else(|error| {
+            super::failure(error);
+            T::invalid(bits.unwrap_or(53))
+        })
+    })
+}
+pub(super) fn complex<T: Number>(tags: &[AtomView<'_>]) -> EvalFn<Complex<T>>
+where
+    Complex<T>: EvaluationDomain,
+{
+    if super::diagnostics::Configuration::capture().enabled() {
+        complex_factory::<T, true>(tags)
+    } else {
+        complex_factory::<T, false>(tags)
+    }
+}
+fn complex_factory<T: Number, const OBSERVE: bool>(tags: &[AtomView<'_>]) -> EvalFn<Complex<T>>
+where
+    Complex<T>: EvaluationDomain,
+{
+    let bits = T::FIXED_PRECISION.or_else(preparation::precision);
+    let workspace = bits
+        .ok_or_else(|| "dynamic Float callback requires a scoped mapping precision".to_string())
+        .and_then(|bits| Workspace::<T>::new(tags, bits));
+    Box::new(move |arguments: &[Complex<T>]| {
+        let mut event = OBSERVE.then(|| super::diagnostics::Event {
+            bits: bits.unwrap_or(53),
+            ..Default::default()
+        });
+        let result = match &workspace {
+            Ok(workspace) => workspace.evaluate::<OBSERVE>(
+                arguments.len(),
+                |i| arguments[i].clone(),
+                event.as_mut(),
+            ),
+            Err(error) => Err(error.clone()),
+        };
+        if let Some(mut event) = event {
+            event.failed = result.is_err();
+            super::diagnostics::record(event);
+        }
+        result.unwrap_or_else(|error| {
+            super::failure(error);
             Complex::new(
                 T::invalid(bits.unwrap_or(53)),
                 T::invalid(bits.unwrap_or(53)),
             )
-        }
+        })
     })
 }

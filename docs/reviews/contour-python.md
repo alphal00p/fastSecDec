@@ -238,6 +238,47 @@ was replaced. A fresh private Python 3.12 environment is prepared for the
 forthcoming installed-wheel gate. This consuming compilation result does not
 replace wheel execution, stub generation or actual browser tests.
 
+### Installed current-host gate at `184803d`
+
+The complete current-host overlay now builds and installs privately against an
+immutable Git archive of FastSecDec `184803dbb1fe6e1c4966cad9bd6db90ecb596c96`.
+The archive SHA256 is
+`023e81e956490cb02fe781d08f8b23a80a348783da863b593e65e394a3680771`.
+The wheel SHA256 is
+`7cc5f50427d6b673e1a477ba558d0771ae443a890e847ca5e902d046f0ba6dc2`.
+It uses the full default Community features, CPython 3.12, Symbolica/Numerica
+`516beb37` and the owner overlay above. Compilation took 10m36s in the
+development profile. It is a Linux validation wheel, not a release-performance
+or distributable PyPI build. Shared installations remain untouched.
+
+The maintained binding/demo suite initially passed 221 tests with two failures,
+both in the same archive-lifetime assertion for the two generation modes. The
+test incorrectly required a selected archive and retained resident archive to
+have identical physical record order. Independent native-owner review confirms
+that selection stream-copies the original records in canonical directory order;
+resident retention may preserve append order, including exact contributions.
+The logical identity and native programs agree; no codec change is required.
+
+The corrected test captures each owner's immutable bytes, deletes the source
+file/archive, restores the retained bytes and checks identical native QMC
+estimates against the resident owner. Both corrected cases pass on the same
+installed wheel. Thus all **223 distinct binding/demo cases pass across those
+two runs**, with no skipped cases. Community's **14/14 wavefunction controls**
+also pass. This includes the new dynamic settings and actual family generation,
+selection, restoration, pilot, integration and checkpoint tests in both
+generation modes. It does not include the later optional-runtime-observation
+Python test, which needs the next wheel.
+
+The immutable source initially sat under the outer workspace's `target`
+directory, where Cargo reported a duplicate path-package collision before
+compilation. Moving the unchanged archive into the excluded private worktree
+area resolves metadata with one owner per crate; no production manifest or
+dependency source was modified for this build-environment correction.
+Ignored `target/contour-current-host-build-plan.json` records manifest, lock,
+source and wheel identities. Matching build, original test, corrected-lifetime
+and wavefunction logs use the `contour-current-host-184803d` prefix. Current
+stub generation and browser/Pyodide execution remain separate pending gates.
+
 ## Dynamic settings mirror after the recipe-family milestone
 
 The next binding increment mirrors native `ContourMode::Dynamical` and

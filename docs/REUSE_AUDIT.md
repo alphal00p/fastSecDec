@@ -1,5 +1,39 @@
 # Ecosystem reuse evidence
 
+## Dynamic observations and installed HEPKit family audit (2026-10-10)
+
+Optional [runtime observations](reviews/contour-dynamic-diagnostics.md) consume
+the existing native root solver's reports and the existing direct-expression
+cache. They introduce no new algebra, root algorithm, derivative system or
+causal-validation work. Disabled factories construct no observation event;
+aggregate factories count executed callbacks and precision retries separately
+from accepted sampling work. Bounded checked reports retain phase ownership,
+missing observations and operational overflow without changing numerical
+acceptance, identities or random streams. Independent implementation review,
+11 native diagnostic controls and a public portable control pass. The paired
+cubic harness confirms bitwise-identical means/covariance/coordinates with
+observations enabled. The measured observation overhead remains explicit.
+
+The [installed HEPKit gate](reviews/contour-python.md) validates native recipe
+family ownership through thin Rust/PyO3 views, with 223 binding/demo cases and
+14 Community wavefunction controls on the private full-default `184803d`
+wheel. Selection copies existing native records; differing physical record
+order is not a changed mathematical identity. A corrected lifetime test checks
+immutable per-owner bytes and restored numerical equivalence. Heavy work and
+the artifact owner remain in FastSecDec, with registration/reexports in
+Community. New Python observation views are native DTO mirrors; their leaf
+stub-feature compilation passes, while installed execution awaits a later wheel.
+
+The nonlinear sampling controls reuse Symbolica primitives and exact ray
+series, native complete-vector QMC/Havana estimators and native OneLOop's
+unequal-mass physical bubble. No alternate integration estimator or analytic
+master implementation is introduced. Maintained four-test sampling admission
+passes without relaxing the declared uncertainty ceilings. The production Kuo
+rule replaces an unsuitable exploratory supplied rule in that gate; the
+non-monotonic exploratory estimates remain recorded. The separate
+[variance comparison](reviews/contour-variance-protocol.md) retains an
+unfavorable nonlinear default-cap result alongside the earlier linear gain.
+
 ## macOS serial-worker socket admission (2026-10-08)
 
 The serial CLI uses native `TcpListener` / `TcpStream` with a dedicated framed

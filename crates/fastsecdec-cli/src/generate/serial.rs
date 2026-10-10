@@ -45,8 +45,7 @@ pub(crate) struct GenerationRun<'a> {
     pub overrides: crate::config::GenerationOverrides,
 }
 
-/// Public switches currently request one recipe. Families remain an internal
-/// capability until every advertised mathematical recipe passes runtime gates.
+/// Resolve public capabilities once and retain them in the durable journal.
 pub(crate) fn generate_with_overrides(
     path: &Path,
     output: &Path,
@@ -58,7 +57,7 @@ pub(crate) fn generate_with_overrides(
 ) -> CliResult<Artifact> {
     let mut card: RunCard = toml::from_str(&fs::read_to_string(path)?)?;
     overrides.apply(&mut card);
-    let recipe = card.generation.program_recipe();
+    let family = card.generation.recipe_family();
     generate_family(
         GenerationRun {
             path,
@@ -68,8 +67,8 @@ pub(crate) fn generate_with_overrides(
             resume,
             overrides,
         },
-        &[recipe],
-        recipe,
+        family.recipes(),
+        family.default_recipe(),
         dashboard,
     )
 }

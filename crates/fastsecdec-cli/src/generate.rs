@@ -1,4 +1,5 @@
 pub(crate) mod dispatch;
+mod family;
 #[cfg(test)]
 mod geometry_dispatch;
 mod progress;
@@ -65,8 +66,7 @@ pub(crate) fn generate_with_overrides(
 }
 
 /// The artifact default and the resident owner used by `run` are separate
-/// choices. Singleton generation currently requires that owner to be present;
-/// the future native family owner can retain it while draining other recipes.
+/// choices. Family generation retains that owner while draining other recipes.
 pub(crate) fn generate_with_resident_recipe(
     path: &Path,
     output: &Path,
@@ -146,6 +146,20 @@ pub(crate) fn generate_with_resident_recipe(
     };
     options.decomposition.max_sectors = loaded.card.generation.max_sectors;
     options.decomposition.max_support_pairs = loaded.card.generation.max_support_pairs;
+    if loaded.card.generation.recipe_family().recipes().len() > 1 {
+        return family::generate(
+            loaded,
+            options,
+            path,
+            output,
+            dashboard,
+            reference,
+            workers,
+            resident_recipe,
+            status,
+            started,
+        );
+    }
     let source_identity = generation::source_identity(
         &loaded.integrand,
         &loaded.runtime_parameters,
@@ -374,29 +388,10 @@ pub(crate) fn generate_with_resident_recipe(
     if let Some(error) = display_error {
         return Err(error.into());
     }
+    let provenance = provenance(&loaded, &options)?;
     let mut kernels = kernels?.with_runtime_mass_constraints(loaded.runtime_mass_constraints)?;
     drop(generated);
     status.timings.compilation_seconds = compilation_started.elapsed().as_secs_f64();
-    let provenance = Provenance {
-        name: loaded.label,
-        sources: loaded.sources,
-        dependencies: dependencies(),
-        domain: format!("{:?}", loaded.integrand.domain()),
-        assume_no_threshold: options.assume_no_threshold,
-        dimension: loaded.card.integral.dimension,
-        regulator: loaded.card.integral.regulator,
-        measure: if loaded.loops.is_some() {
-            "prod_l d^D k_l / (i*pi^(D/2)); propagators q^2-m^2+i0; no implicit scale factors"
-        } else {
-            "user-supplied direct density with the declared domain measure"
-        }
-        .into(),
-        measure_multiplier: loaded.card.integral.measure_multiplier,
-        max_order: options.max_order,
-        integration: serde_json::to_value(loaded.card.integration)?,
-        family_preparation: loaded.family_preparation,
-        model_parameter_defaults: loaded.model_parameter_defaults,
-    };
     dashboard.generation_coordinator();
     status.completed = 0;
     status.total = None;
@@ -473,6 +468,29 @@ pub(crate) fn generate_with_resident_recipe(
     status.detail = format!("Saved {}", crate::artifact::relative_display(output));
     dashboard.generation(&status)?;
     Ok((artifact, kernels))
+}
+
+fn provenance(loaded: &input::LoadedInput, options: &GenerationOptions) -> CliResult<Provenance> {
+    Ok(Provenance {
+        name: loaded.label.clone(),
+        sources: loaded.sources.clone(),
+        dependencies: dependencies(),
+        domain: format!("{:?}", loaded.integrand.domain()),
+        assume_no_threshold: options.assume_no_threshold,
+        dimension: loaded.card.integral.dimension.clone(),
+        regulator: loaded.card.integral.regulator.clone(),
+        measure: if loaded.loops.is_some() {
+            "prod_l d^D k_l / (i*pi^(D/2)); propagators q^2-m^2+i0; no implicit scale factors"
+        } else {
+            "user-supplied direct density with the declared domain measure"
+        }
+        .into(),
+        measure_multiplier: loaded.card.integral.measure_multiplier.clone(),
+        max_order: options.max_order,
+        integration: serde_json::to_value(&loaded.card.integration)?,
+        family_preparation: loaded.family_preparation.clone(),
+        model_parameter_defaults: loaded.model_parameter_defaults.clone(),
+    })
 }
 
 fn source_chart_modes(

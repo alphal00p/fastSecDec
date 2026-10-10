@@ -261,3 +261,56 @@ and zero failures or cutoff zeros. Including generation, all initial runs and
 the rejected 256-point request, the cumulative process time was 116.733 seconds
 and the maximum observed aggregate RSS was 160,108,544 bytes. Neither resource
 limit fired. No additional diagram or full-amplitude execution was performed.
+
+## Saved FK05 map and Jacobian audit
+
+A separate ignored Rust probe, `target/generation-agent-fk05-jacobian/`, reads
+the actual polynomial FK05 archive above through `ProgramArchiveReader`, its
+native retained chart metadata, and its saved recipe descriptors. Public
+`ContourMetadata` accessors expose the images, Jacobian and designated F/U;
+`NativeProgramDescriptor::enter()` remains deliberately crate-private. No
+public preparation API was added solely for this probe.
+
+Every saved chart has dimension three, `coefficient_count=1`,
+`maximum_even_order=2`, and empty higher causal/positive coefficient orders.
+The independent map audit therefore replaces each saved strength function by
+the verified quadratic closed form `S*L/sqrt(a2)`, using native Atom
+replacement. It compares two native symbolic routes: differentiating the saved
+images with their registered implicit derivative hooks before that replacement,
+and differentiating the images after closed-form replacement. The saved
+Jacobian is independently compared with finite differences of those images.
+Symbolica/Numerica supply differentiation, evaluator construction, 192-bit
+`Float` arithmetic, and `Matrix::det`; no separate CAS, AD, root solver or
+matrix determinant was implemented. Native `Matrix::solve` locates the
+quadratic F stationary points, all of which lie outside the cube here.
+
+The 160 checked cases comprise all four charts at `L=1` and `L=1e-5`, with
+`S=0.8, R=1`, the two interior points `(0.17,0.43,0.71)` and `(0.5,0.5,0.5)`,
+and `(d,0.43,0.71)`, `(d,d,d)`, `(1-d,1-d,1-d)` for
+`d=0, 1e-1, 1e-3, 1e-5, 1e-7, 1e-9`. Physical parameter values are the saved
+input's native f64 centers promoted to 192 bits. Central differences use steps
+no larger than one quarter of the distance to the nearest face; exact boundary
+points use inward second-order differences. Base step sizes are
+`1e-4, 1e-6, 1e-8, 1e-10`.
+
+All implicit versus closed-form derivative comparisons agree at working
+precision. The worst final entry/determinant difference, divided by
+`1+abs(reference)`, is `2.312e-9`. At chart 1's `(1,1,1)` corner with `L=1`,
+the determinant error decreases from `0.9995` to `0.1404`, `2.312e-5`, then
+`2.312e-9` as the step is refined; this is resolved curvature rather than an
+unrefined finite-difference discrepancy. Its saved determinant is approximately
+`-9.9333e10 - 3.6169e15 i`, and its largest Jacobian entry has magnitude
+`281908`. At the same point with `L=1e-5`, these become
+`-8.9333 + 2.2707 i` and `2.991`, respectively. Chart 0 similarly has determinant
+magnitude about `1.7144e14` at `(0,0,0)`, but only about `5.07` at `(0.1,0.1,0.1)`.
+Thus extremely concentrated corner structure is directly observed in the
+actual physical map, rather than inferred solely from the scaled toy control.
+
+The probe passes and finds no mathematical derivative/Jacobian discrepancy at
+these points. It audits the saved mathematical map through its exact quadratic
+specialization; it does **not** independently audit numerical callback ownership
+or certify the integrated default-cap answer. The earlier `L=1` FK05 integration
+remains unaccepted. Resolving its sampling error requires adequate integration
+of the observed narrow structure, not merely successful causal checks or this
+local derivative test. Native expressions, probe source, compilation provenance
+and all pointwise results remain in the ignored reproduction directory.

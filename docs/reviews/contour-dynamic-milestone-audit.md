@@ -123,7 +123,8 @@ causal lower lip and policy-invariant values. The original quadrature tolerances
 were retained. Earlier family **8/8** and tagged eager/SymJIT controls establish
 their recorded source slices, not a substitute for the forthcoming broad gate.
 
-The following are acceptance gaps, not newly identified correctness defects:
+The following were acceptance gaps at this audit's initial source boundary,
+not newly identified correctness defects. Later evidence below updates them:
 
 1. Run the prepared public CLI dynamic tests through actual ordinary/serial
    workers and checkpoint resume. They exercise QMC with Korobov3 and all three
@@ -197,3 +198,45 @@ at its initial allocation despite passing causal checks; this new numerical
 finding remains open and must not be hidden by the smaller-cap result. It was
 not a source-audit finding and does not establish a particular implementation
 defect without further analysis. Physical acceptance remains incomplete.
+
+## Subsequent family, sampling and diagnostics review
+
+2026-10-10. The new registered family route uses the existing native
+`RecipeFamilySession` with bounded caller dispatch. Independent source review
+found no blocker: the requested Run resident remains separate from the saved
+default; ordinary dispatch uses the CLI's existing Rayon owner, serial dispatch
+uses its journal and process runner, and neither implements a second generation
+state machine. Completed batches are admitted in canonical order before writing,
+nonresident programs are released, and the archive is published using the
+existing staged publication path. The newly complete `--contour` route requests
+all four recipes with an undeformed default. Its broad public CLI gate is
+separate from this read-only review and is being run by the CLI owner.
+
+The maintained nonlinear sampling target passed **4/4**, covering both dynamic
+constructions, None/Korobov2/Korobov3, native Havana and ordinary discrete MC,
+complete complex covariance, actual pilot/freeze separation, and selected saved
+programs. The separate unequal-mass OneLOop bubble exercises two actual primary
+sectors. Its error ceilings and failed exploratory allocations are retained in
+[the scientific sampling review](contour-dynamic-sampling.md).
+
+Optional diagnostics source review found no scientific or ownership blocker.
+Operational mode changes prepare all new numerical owners from saved IR before
+adoption and preserve mathematical/source identities. Aggregate histories retain
+discarded provisional batch work and precision retries, with independent phase
+ownership for exact work, pilots, preparation, conditioning and production.
+Disabled factories avoid observation TLS and numeric range conversion; no RNG
+state enters the diagnostics. Clone histories begin empty. Overflow is sticky
+and observable without changing numerical values or callback failure state;
+missing observations remain `None`, rather than invented zero counts. The new
+runtime tests cover these boundaries; disabled-overhead performance still needs
+measurement rather than inference from source.
+
+The unchanged public diagnostics test passed on the portable host and actual
+WASM, including both genuine cubic constructions and bitwise Disabled/Aggregate
+vector parity. The native file-backed family test also passed **2/2 in actual
+WASM**, including numerical-dual generation, all four recipes, selected restore,
+pilots and integration after deleting the source staging files. See
+[the portable family review](contour-portable-family.md) for exact filesystem
+scope and the unsupported test-only descriptor-duplication operation replaced
+with direct native ownership transfer. These results do not stand in for the
+separate installed HEPKit/Pyodide wheel or browser-responsiveness gates.

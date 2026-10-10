@@ -7,7 +7,7 @@ use std::{
 
 fn fixture(directory: &Path) -> (Artifact, ProgramArchiveCatalogue) {
     let card = directory.join("fixed.toml");
-    fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='1+x'\nexponent='-1+eps'\nsemantics='causal'\n[generation]\ncontour=true\norder=1\n[generation.evaluator]\nbackend='eager'\n").unwrap();
+    fs::write(&card, "[direct]\ndomain='unit_cube'\nparameters=['x']\n[[direct.terms]]\nmonomial_powers=['0']\n[[direct.terms.factors]]\npolynomial='1+x'\nexponent='-1+eps'\nsemantics='causal'\n[generation]\nrecipe='fixed-v1'\norder=1\n[generation.evaluator]\nbackend='eager'\n").unwrap();
     let (fixed_artifact, fixed) = crate::generate::generate(
         &card,
         &directory.join("fixed.fsd"),

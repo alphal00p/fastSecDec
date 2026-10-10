@@ -288,5 +288,24 @@ fn dynamic_run_forwards_requested_recipe_to_existing_worker_paths() {
             run.args(["--serial", "0.001"]);
         }
         analytic_bubble(&success(run.output().unwrap()), construction, "pilot");
+        let manifest: Value =
+            serde_json::from_slice(&fs::read(input.with_extension("fsd.json")).unwrap()).unwrap();
+        assert_eq!(manifest["programs"]["default_recipe"], "undeformed-v1");
+        assert_eq!(
+            manifest["programs"]["catalogue"]["recipes"]
+                .as_array()
+                .unwrap()
+                .len(),
+            4
+        );
+        // The selected resident served Run without changing the saved default.
+        let inspected = success(
+            cli()
+                .arg("inspect")
+                .arg(input.with_extension("fsd"))
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(inspected["selected_recipe"], "undeformed-v1");
     }
 }

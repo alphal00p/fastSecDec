@@ -1,10 +1,10 @@
 # Universal recipe-family generation
 
-Implementation and independent source reviews pass. Public singleton generation
-now accepts all four native recipe identifiers, and dynamic runtime admission
-passes the native scientific and CLI process controls recorded below. The
-generation `--contour` switch still requests the fixed recipe only; exposing the
-complete capability family remains a separate delivery step.
+Public `generate --contour` now requests all four native recipes with an
+undeformed saved default. Explicit singleton generation and independent runtime
+selection remain available. Native and actual CLI family controls pass; broad
+regression and lint status for the current slice is recorded in the final entry.
+Earlier entries retain the evidence and limitations of their own checkpoints.
 
 ## Shared caller-owned orchestration
 
@@ -159,3 +159,52 @@ tests, and the three public dynamic controls also pass in actual Emscripten/Wasm
 Full `generate --contour` capability generation and ordinary family worker
 dispatch remain pending, with artifact default and requested resident kept
 distinct. Undeformed generation continues to use the direct singleton path.
+
+## Full public capability family (2026-10-10)
+
+The new CLI route maps `generate --contour` to the native checked family of
+undeformed, fixed, polynomial dynamic and sign-aware dynamic recipes. Its saved
+default is undeformed. Explicit `--recipe` remains a singleton and conflicts with
+an explicit contour switch. An explicit CLI family request replaces a card's
+singleton recipe; without that request the card's explicit recipe wins. Runtime
+settings select a resident recipe independently of the artifact default.
+
+Serial generation reuses its existing journal, workers and family orchestration.
+Ordinary generation reuses `RecipeFamilySession::step_with_dispatch` and the
+existing CLI-owned Rayon dispatcher, honoring the requested worker count.
+Native geometry/source preparation is shared; recipe-local symmetry and formulas
+remain isolated. Both paths publish through the existing native archive writer
+and atomic manifest transaction. The requested ordinary resident owner is returned
+without decode/JIT. Optional preview metadata belongs only to that resident recipe;
+per-recipe observations remain outside identities. The undeformed singleton path
+continues to bypass family staging entirely.
+
+New controls exercise real ordinary/serial CLI family production and selection,
+all four recipes, complete complex statistics, independent Run resident selection,
+changed-family resume rejection, opposite-construction checkpoint refusal with
+both capabilities present, and ordinary cancellation preserving an existing
+publication. Native controls cover actual caller threads, widths 1/2/4, reversed
+returns, canonical identity, bounded pause and malformed completion admission.
+The initial core all-target check passes; the first CLI check found a presentation
+snapshot initializer mismatch, corrected without numerical changes. The two new
+family process tests pass (13.22 seconds), and the Run/singleton dynamic process
+tests pass (18.08 seconds). The family matrix initially assumed undeformed output
+was always real; numerical-dual causal templates legitimately retain an imaginary
+slot. It now requires the exact saved native layout and checks every component
+against the analytic value, without changing numerical behavior.
+
+The complete native library passes 379 tests with 18 explicit ignores, including
+12 family tests. The separate sampling target passes all four controls. Generation
+reports now name available recipes, the saved default and the recipe whose sector
+count is reported. The root and generation owner independently reviewed native
+ownership, CLI dispatch, publication and resident selection with no blocker.
+The full CLI all-target regression passes 169 tests with eight explicit ignores
+across 26 executables. Three older artifact controls required their fixture to
+request `fixed-v1` explicitly now that `contour = true` constructs the complete
+family; their corruption/publication assertions are unchanged. The broad native
+`cargo test --locked -p fastsecdec --tests -- --test-threads=1` gate passes 631
+tests with 22 explicit ignores across 46 executables, including the library and
+sampling counts above. Together with CLI this is 800 distinct passes and 30
+ignores across 72 executables. Strict workspace all-target Clippy and formatting
+checks pass. The only lint correction removes a redundant clone of a copyable
+presentation snapshot; it does not change numerical behavior.

@@ -27,7 +27,8 @@ fn dynamic_steering_uses_native_defaults_and_requests_its_actual_recipe() {
         .generation_request(&IntegrationInput::default(), None)
         .unwrap();
     assert_eq!(resident, ProgramRecipe::DynamicSignAwareV1);
-    assert_eq!(overrides.recipe, Some(resident));
+    assert!(overrides.contour);
+    assert_eq!(overrides.recipe, None);
 
     let args = arguments(&[
         "--contour",
@@ -60,7 +61,8 @@ fn dynamic_steering_uses_native_defaults_and_requests_its_actual_recipe() {
         .generation_request(&IntegrationInput::default(), None)
         .unwrap();
     assert_eq!(resident, ProgramRecipe::DynamicPolynomialV1);
-    assert_eq!(overrides.recipe, Some(resident));
+    assert!(overrides.contour);
+    assert_eq!(overrides.recipe, None);
 }
 
 #[test]

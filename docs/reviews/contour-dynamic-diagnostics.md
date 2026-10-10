@@ -126,3 +126,98 @@ zero diagnostic events and Aggregate leaves all values/identities unchanged.
 Use the existing paired variance harness to measure Disabled versus Aggregate
 separately under Off/Pilot/Always, including quadratic and iterative roots.
 Implementation and those timing gates remain pending.
+
+## Implemented native ownership and measured cost (2026-10-10)
+
+The next implementation slice supplies the public `ContourDiagnosticsMode`
+(`Disabled` by default, or `Aggregate`) and `ContourRuntimeReport`, independently
+of validation policy. `KernelSet::set_contour_diagnostics` prepares replacement
+numeric factories from the saved native IR before changing the live owner.
+`KernelSet`, detached `SectorKernel`, and `WeightedEvaluationContext` expose
+snapshot and atomic drain methods. No mathematical ID, saved artifact or replay
+state contains the optional mode. Python/status presentation is a separate
+consumer of these native DTOs.
+
+A separate optional attempt scope carries bounded callback events. Disabled
+factories construct no event and perform no diagnostic TLS access, centre
+conversion, range arithmetic or certificate work. Aggregate factories reuse the
+native successful solver result's iteration/evaluation/termination fields;
+structural quadratic roots count their closed-form operation separately. The
+existing native complex correction is counted once. Failed solver partial work
+remains unknown, while the failed callback and solver invocation are counted.
+The numerical failure fence and candidate certificate scope are unchanged.
+
+The report separates evaluation, conditioning, preparation, exact binding and
+pilot work. A provisional matrix that fails contributes its actual work before
+whole-vector rescue; retries are additional work, not additional accepted
+samples. Native direct-vector exact evaluation remains lazy and shares executed
+function values across coefficients. Clones start fresh observation histories.
+Changing factory modes preserves prior histories, including work before a
+failed atomic numerical rebind. Pilot-only owners transfer observations before
+being released. Sticky checked-counter overflow prevents a report drain, without
+changing the numerical value or failure slot.
+
+Ranges describe successful callback returns before later evaluator/certificate
+acceptance; they are not statistics of accepted integration points. Physical
+displacement is scaled by the bound R when each event is accumulated, so a later
+rebind cannot reinterpret earlier history. A rounded `a2=1`, failed display
+conversion, or nonpositive/overflowed display result contributes `unavailable`,
+never a fabricated zero. Callback failures do not contribute a successful-return
+range observation.
+
+A bounded ignored probe uses the public generation, binding, mode-remapping and
+sector-evaluation APIs on `F=1-2x` and the genuine cubic
+`F=(1-2x)(1+y)(1+z)`, each with the complete `(1/eps) F^(-eps)` vector. It uses
+polynomial construction, S=0.8, L=R=1, validation Off, and exactly the same 32,768
+deterministic interior coordinates for five alternating Disabled/Aggregate
+pairs per backend. Every pair retains identical output bits, content ID and
+saved bytes. Disabled reports no callbacks; Aggregate records exactly 32,768.
+Each cubic run reuses 182,259 native iterations and 280,563 native solver
+evaluations, with no second solve.
+
+These are **development-core measurements**, with dependency optimization at
+level 2 and SymJIT's native generated code; the Rust probe itself uses `-O`.
+They measure optional observation cost in this executable, not release overhead
+or a comparison with a pre-feature binary. Other build work was present.
+
+| Control | Backend | Disabled median seconds | Aggregate median seconds | Median paired ratio | Paired ratio range |
+|---|---|---:|---:|---:|---:|
+| Linear, structural quadratic root | Eager | 0.115701 | 0.159815 | 1.381 | 1.380–1.392 |
+| Linear, structural quadratic root | SymJIT | 0.069888 | 0.113074 | 1.624 | 1.612–1.631 |
+| Cubic, iterative root | Eager | 0.667475 | 0.714472 | 1.070 | 1.068–1.077 |
+| Cubic, iterative root | SymJIT | 0.233846 | 0.276000 | 1.179 | 1.178–1.182 |
+
+The 40-run probe completed in 12.25 seconds with peak RSS 18,432 KiB, under a
+180-second/3-GiB cap. Ignored evidence is
+`target/contour-diagnostics-overhead{.rs,.log,-summary.json,-result.json}`.
+Source SHA-256 is
+`46c9ffe280be64c4dbb745d5b8e9362a28414302a1f29fd116fba3dabb9db071`;
+run-log SHA-256 is
+`ede98bd32ad8cb4d80ce5b79c4eec21e2e2cd9dba220fac9cce5ffed86a1e99e`.
+Native owner revision is `516beb37`, SymJIT `d74993ff`, FastSecDec source is
+`184803d` plus this diagnostics slice. Focused native, portable-host and actual
+WASM regression results follow.
+
+The native focused `diagnostics` gate passed **11/11** in 0.13 seconds (nine new
+controls plus two existing status controls), in
+`target/contour-full-family-diagnostics-tests.log`. It covers real native solver
+termination/work, tracked complex uncertainty, rounded displacement,
+nested/unwound scopes, independently injected counter overflow, Eager/SymJIT
+mode transitions and failed atomic rebinds, clone/drain ownership, actual pilot
+and policy remapping, exact shared-cache/lazy-IF execution and multiprecision
+rescue, and discarded mixed matrix work followed by a healthy batch. The
+portable-specific public cubic control remains a separate acceptance gate.
+
+The standalone portable-host public diagnostics control also passed **1/1**
+(0.44 seconds), with both polynomial and sign-aware cubic recipes. It performs
+actual pilot validation, changes to unchecked production, then compares
+Disabled/Aggregate complete vectors and identities, iterative native work,
+R=2 physical versus normalized displacement, and clone/drain ownership. This
+is recorded in `target/contour-portable-family-diagnostics-tests.log` and is
+separate from actual WASM execution.
+
+The **same unchanged public diagnostics test passed on actual WASM: 1/1 in
+0.38 seconds**, using the existing isolated Emscripten build and runtime. The
+execution log is `target/contour-diagnostics-wasm-tests.log`. This verifies the
+portable callback/report mode on that runtime; it does not establish HEPKit
+browser binding or family storage acceptance.

@@ -17,7 +17,10 @@ pub use prepare::{
     build_formula, compare_symmetry, discover, finish_preparation, prepare, prepare_with_runtime,
 };
 pub use sector::{GeneratedUnit, generate_sector};
-pub use shared::{discover_prepared, prepare_chart_source, prepare_recipes_with_runtime};
+pub use shared::{
+    discover_prepared, prepare_chart_source, prepare_recipes_with_runtime,
+    prepare_recipes_with_runtime_and_dispatch,
+};
 
 use crate::kernel::indexed::ProgramRecipe;
 use serde::{Deserialize, Serialize};

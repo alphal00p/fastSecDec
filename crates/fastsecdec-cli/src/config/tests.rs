@@ -208,7 +208,7 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
         toml::from_str::<GenerationInput>("contour=true")
             .unwrap()
             .program_recipe(),
-        ProgramRecipe::FixedV1
+        ProgramRecipe::UndeformedV1
     );
     for recipe in [
         ProgramRecipe::UndeformedV1,
@@ -224,7 +224,11 @@ fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
             ..Default::default()
         }
         .apply(&mut card);
-        assert_eq!(card.generation.program_recipe(), ProgramRecipe::FixedV1);
+        assert_eq!(
+            card.generation.program_recipe(),
+            ProgramRecipe::UndeformedV1
+        );
+        assert_eq!(card.generation.recipe_family().recipes().len(), 4);
         let overrides = super::GenerationOverrides {
             contour: false,
             recipe: Some(recipe),

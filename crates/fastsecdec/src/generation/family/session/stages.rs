@@ -4,24 +4,49 @@ use crate::generation::{GenerationMode, GenerationProgress};
 impl<W: Write + Seek> Work<W> {
     pub(super) fn advance(
         &mut self,
+        width: usize,
+        geometry_dispatch: Option<&mut fastsecdec_sectors::GeometryDispatch<'_>>,
+        dispatch: Option<&mut RecipeFamilyDispatch<'_>>,
         snapshot: &mut RecipeFamilySnapshot,
         observer: &mut impl FnMut(&RecipeFamilySnapshot) -> ControlFlow<()>,
         pause: &mut bool,
-    ) -> Result<Option<RecipeFamilyOutput<W>>, RecipeFamilySessionError> {
+    ) -> Result<(Option<RecipeFamilyOutput<W>>, usize), RecipeFamilySessionError> {
+        if matches!(
+            self.stage,
+            Stage::Source(_) | Stage::Map(_) | Stage::Formula(_) | Stage::Sector(_)
+        ) {
+            return self
+                .advance_jobs(width, dispatch, snapshot, observer, pause)
+                .map(|count| (None, count));
+        }
         match self.stage {
             Stage::Prepare => {
                 let input = self.input.take().unwrap();
-                let prepared = native::prepare_recipes_with_runtime(
-                    &input.integrand,
-                    &self.options,
-                    self.family.recipes(),
-                    &input.runtime,
-                    &input.constraints,
-                    &self.staging,
-                    |event| {
-                        observe_generation(snapshot, observer, pause, self.options.max_order, event)
-                    },
-                )?;
+                let mut progress = |event: &crate::generation::GenerationProgress| {
+                    observe_generation(snapshot, observer, pause, self.options.max_order, event)
+                };
+                let prepared = if let Some(dispatch) = geometry_dispatch {
+                    native::prepare_recipes_with_runtime_and_dispatch(
+                        &input.integrand,
+                        &self.options,
+                        self.family.recipes(),
+                        &input.runtime,
+                        &input.constraints,
+                        &self.staging,
+                        dispatch,
+                        &mut progress,
+                    )?
+                } else {
+                    native::prepare_recipes_with_runtime(
+                        &input.integrand,
+                        &self.options,
+                        self.family.recipes(),
+                        &input.runtime,
+                        &input.constraints,
+                        &self.staging,
+                        &mut progress,
+                    )?
+                };
                 self.archive = Some(ProgramArchiveWriter::new(
                     self.storage.take().unwrap(),
                     prepared.source_identity.clone(),
@@ -35,30 +60,11 @@ impl<W: Write + Seek> Work<W> {
                 }
                 snapshot.generation.sectors = prepared.recipes[0].charts.len();
                 let empty = prepared.recipes[0].charts.is_empty();
-                self.prepared = Some(prepared);
+                self.prepared = Some(Arc::new(prepared));
                 self.stage = if empty {
                     Stage::BeginRecipe(0)
                 } else {
                     Stage::Source(0)
-                };
-            }
-            Stage::Source(index) => {
-                let prepared = self.prepared.as_ref().unwrap();
-                snapshot.generation.detail = "Preparing shared chart source".into();
-                let source = native::prepare_chart_source(
-                    &self.staging,
-                    prepared,
-                    &prepared.recipes[0].charts[index],
-                    |event| {
-                        observe_generation(snapshot, observer, pause, self.options.max_order, event)
-                    },
-                )?;
-                self.sources.push(source);
-                snapshot.prepared_sources = self.sources.len();
-                self.stage = if index + 1 == prepared.recipes[0].charts.len() {
-                    Stage::BeginRecipe(0)
-                } else {
-                    Stage::Source(index + 1)
                 };
             }
             Stage::BeginRecipe(index) => {
@@ -80,24 +86,6 @@ impl<W: Write + Seek> Work<W> {
                     Stage::Plan
                 } else {
                     Stage::Map(0)
-                };
-            }
-            Stage::Map(index) => {
-                let active = self.active.as_mut().unwrap();
-                let preparation = &self.prepared.as_ref().unwrap().recipes[active.index];
-                let chart = native::discover_prepared(
-                    &self.staging,
-                    preparation,
-                    &self.sources[index],
-                    |event| {
-                        observe_generation(snapshot, observer, pause, self.options.max_order, event)
-                    },
-                )?;
-                active.charts.push(chart);
-                self.stage = if index + 1 == self.sources.len() {
-                    Stage::Symmetry(0)
-                } else {
-                    Stage::Map(index + 1)
                 };
             }
             Stage::Symmetry(index) => {
@@ -168,24 +156,6 @@ impl<W: Write + Seek> Work<W> {
                     self.stage = Stage::Symmetry(index + 1);
                 }
             }
-            Stage::Formula(index) => {
-                let active = self.active.as_mut().unwrap();
-                let preparation = &self.prepared.as_ref().unwrap().recipes[active.index];
-                let formula = native::build_formula(
-                    &self.staging,
-                    preparation,
-                    &active.formula_sources[index],
-                    |event| {
-                        observe_generation(snapshot, observer, pause, self.options.max_order, event)
-                    },
-                )?;
-                active.formulas.push(formula);
-                self.stage = if index + 1 == active.formula_sources.len() {
-                    Stage::Plan
-                } else {
-                    Stage::Formula(index + 1)
-                };
-            }
             Stage::Plan => {
                 let active = self.active.as_mut().unwrap();
                 let preparation = &self.prepared.as_ref().unwrap().recipes[active.index];
@@ -197,46 +167,8 @@ impl<W: Write + Seek> Work<W> {
                 )?;
                 active.formula_sources.clear();
                 snapshot.generation.kernels = plan.sectors.len();
-                active.plan = Some(plan);
+                active.plan = Some(Arc::new(plan));
                 self.stage = Stage::Sector(0);
-            }
-            Stage::Sector(index) => {
-                let active = self.active.as_ref().unwrap();
-                let plan = active.plan.as_ref().unwrap();
-                let unit = native::generate_sector(&self.staging, &plan.sectors[index], |event| {
-                    observe_generation(snapshot, observer, pause, self.options.max_order, event)
-                })?;
-                let kernels = unit
-                    .generated
-                    .compile_with_settings_parameters_and_progress(
-                        self.precision.clone(),
-                        &unit.runtime_parameters,
-                        self.compilation,
-                        |event| {
-                            snapshot.generation.observe_compilation(event);
-                            *pause |= observer(snapshot).is_break();
-                            ControlFlow::Continue(())
-                        },
-                    )?
-                    .with_runtime_mass_constraints(unit.runtime_mass_constraints)?;
-                drop(unit.generated);
-                let archive = self.archive.as_mut().unwrap();
-                if self.resident_recipe == Some(plan.program_recipe) {
-                    self.resident.as_mut().unwrap().append_unit(
-                        archive,
-                        kernels,
-                        &unit.source_indices,
-                    )?;
-                } else {
-                    archive.append_unit(plan.program_recipe, &kernels, &unit.source_indices)?;
-                    drop(kernels);
-                }
-                snapshot.persisted_units += 1;
-                self.stage = if index + 1 == plan.sectors.len() {
-                    Stage::FinishRecipe
-                } else {
-                    Stage::Sector(index + 1)
-                };
             }
             Stage::FinishRecipe => {
                 let index = self.active.take().unwrap().index;
@@ -259,16 +191,24 @@ impl<W: Write + Seek> Work<W> {
                 self.stage = Stage::Complete;
                 snapshot.generation.stage = GenerationStage::Complete;
                 snapshot.generation.detail = "All requested recipes persisted".into();
-                return Ok(Some(RecipeFamilyOutput {
-                    writer,
-                    catalogue,
-                    family: self.family.clone(),
-                    resident,
-                }));
+                return Ok((
+                    Some(RecipeFamilyOutput {
+                        writer,
+                        catalogue,
+                        family: self.family.clone(),
+                        resident,
+                    }),
+                    1,
+                ));
             }
-            Stage::Complete | Stage::Failed => unreachable!("checked by step"),
+            Stage::Source(_)
+            | Stage::Map(_)
+            | Stage::Formula(_)
+            | Stage::Sector(_)
+            | Stage::Complete
+            | Stage::Failed => unreachable!("handled by step or batch"),
         }
-        Ok(None)
+        Ok((None, 1))
     }
 }
 

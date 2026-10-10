@@ -5,6 +5,62 @@ Updated 2026-10-10. This records the variance-monitoring requirement in
 Both dynamic prescriptions pass the native analytic admission gates. Physical
 multiloop comparisons and eight-worker time-to-accuracy remain pending.
 
+## Nonlinear cubic comparison and optional observations
+
+The subsequent `--dynamic --cubic-cube --symjit` control uses
+`F=(1-2*x)*(1+y)*(1+z)` with density `F^(-eps)/eps` on the unit cube.
+Its pole is one and its finite coefficient is `3-4*log(2)+i*pi/2`.
+The maintained nonlinear sampling test verifies the logarithmic primitives and
+harmful cubic ray coefficient with Symbolica. Unlike the earlier linear square,
+this exercises the higher-order causal envelope and iterative native root.
+
+Eight predeclared seed pairs use 1,024 points and 16 independent shifts,
+Korobov3 and the supplied `[1,433,1277]` rule. All four prescriptions retain
+matching actual coordinate/weight/range digests, complete covariance and the
+existing analytic-reference checks. A separate 27-point boundary/interior
+pilot enables unchecked production. The core is a development build, with
+SymJIT O2 programs, one worker, public Symbolica/Numerica `516beb37` and
+SymJIT `d74993f`. The source is `184803d` plus the subsequent diagnostics and
+cubic-harness increment. These are not release or physical benchmark results.
+
+| Prescription | Median finite-coefficient variance | Median production seconds | Median inclusive evaluator µs/point |
+|---|---:|---:|---:|
+| Fixed `lambda=0.05` | `5.70986e-8` | 0.1374 | 0.873 |
+| Fixed `lambda=0.25` | `3.87447e-10` | 0.1381 | 0.909 |
+| Polynomial dynamic, `S=0.8`, `L=R=1` | `5.41690e-8` | 0.2502 | 7.480 |
+| Sign-aware dynamic, same settings | `5.49004e-8` | 0.2774 | 9.106 |
+
+The variance-gain ratio against fixed `0.25` has paired median **0.007236**
+(range 0.006473–0.008128) for polynomial and **0.007139**
+(0.006389–0.008013) for sign-aware. Thus the default dynamic prescriptions
+have about **138–140 times higher variance** on this control. Their median
+elapsed-time-normalized gains are 0.00404 and 0.00357. All eight pairs passed
+the declared reference checks; no seed was discarded or cap silently changed.
+This unfavorable result remains part of the comparison alongside the earlier
+linear-square improvement. Exact causal safety does not ensure reduced variance.
+
+Production timing includes coordinate auditing and caller/session work; native
+evaluator timing includes precision retries. There is one stochastic sector,
+so the average and maximum *sector mean* coincide; no maximum individual-point
+latency was measured. Generation took 0.0506 seconds for the shared fixed
+recipe, 0.1844 for polynomial and 0.2255 for sign-aware, with artifacts of
+4,372, 112,897 and 139,979 bytes respectively. These small timings are affected
+by host load and are not eight-core time-to-accuracy measurements.
+
+Repeating all 32 runs with `--diagnostics` gives **bitwise-identical means,
+covariances, mathematical identities and coordinate/weight digests**. The first
+dynamic pair records 16,515 actual callbacks, including precision retries, for
+16,384 production points. Polynomial reports 94,775 native solver iterations;
+sign-aware reports 94,500. Their observed strength ranges are approximately
+`[0.35785,0.8]`, exceeding both fixed controls. Observations are optional and
+disabled by default, distinct from causal-validation policy. Their values are
+approximate diagnostic centres, not certified enclosures or accepted-sample
+counts.
+
+Raw paired reports and their summary remain ignored under
+`target/contour-variance-cubic-owner516*`. The harness records the complete
+native results; the summary records the executable digest and source boundary.
+
 ## Questions and controlled comparisons
 
 The primary question is whether dynamic strength reduces the uncertainty of the

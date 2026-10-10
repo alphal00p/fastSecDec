@@ -88,7 +88,7 @@ impl ContourArgs {
         Ok((
             crate::config::GenerationOverrides {
                 contour: !matches!(contour.deformation, ContourMode::Off),
-                recipe: Some(contour.deformation.program_recipe()),
+                recipe: None,
             },
             contour.deformation.program_recipe(),
         ))

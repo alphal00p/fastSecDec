@@ -133,11 +133,19 @@ def test_native_archive_save_reload_and_detached_kernel_lifetime(completed, tmp_
     assert loaded.recipes == archive.recipes
     selected = loaded.select("fixed")
     assert selected.content_id == archive.select("fixed").content_id
+    retained = selected.to_bytes()
     data = loaded.to_bytes()
     del loaded
     path.unlink()
     gc.collect()
-    assert selected.to_bytes() == archive.select("fixed").to_bytes()
+    # Selection copies records in canonical directory order; a resident owner
+    # may retain their original physical append order. Bytes are immutable per
+    # owner, while mathematical identity and restored evaluation must agree.
+    assert selected.to_bytes() == retained
+    contour = sd.ContourSettings.fixed(0.01, validation="off")
+    restored_kernel = sd.Kernels.from_bytes(retained).with_parameters({}, contour=contour)
+    resident_kernel = archive.select("fixed").with_parameters({}, contour=contour)
+    assert estimate(restored_kernel) == estimate(resident_kernel)
     restored = sd.RecipeArchive.from_bytes(data, default_recipe="fixed")
     assert restored.default_recipe == "fixed" and restored.resident_recipe is None
     assert restored.select("off").content_id == archive.select("off").content_id
@@ -231,3 +239,46 @@ def test_dynamic_family_restoration_pilot_and_policy_resume(integral, mode):
         with pytest.raises(sd.FastSecDecError):
             changed.restore(sampled.checkpoint())
     assert identities[0] != identities[1]
+
+
+def test_optional_runtime_observations_preserve_native_identity_and_pilot(integral):
+    owner = integral.generation_family_session(
+        ["off", "polynomial"], compilation_settings=settings())
+    template = finish(owner).select("polynomial")
+    assert template.contour_diagnostics_mode == "disabled"
+    assert template.contour_runtime_report() is None
+    with pytest.raises(ValueError, match="diagnostics"):
+        template.with_contour_diagnostics("unknown")
+    observed = template.with_contour_diagnostics()
+    assert observed.contour_diagnostics_mode == "aggregate"
+    assert template.contour_diagnostics_mode == "disabled"
+    contour = sd.ContourSettings.dynamical(
+        0.8, lambda_cap=0.25, construction="polynomial",
+        validation="pilot", pilot_points=2)
+    plain = template.with_parameters({}, contour=contour)
+    observed = observed.with_parameters({}, contour=contour)
+    assert plain.content_id == observed.content_id
+    for kernels in (plain, observed):
+        for chart in kernels.contour_validation_charts:
+            for coordinate in (0.3, 0.6):
+                kernels.validate_contour_point(
+                    chart.chart_index, [coordinate] * chart.dimension)
+        assert kernels.finish_contour_pilot().pilot_complete
+    report = observed.contour_runtime_report()
+    assert report is not None and report.pilot.callback_calls > 0
+    assert report.pilot.strength.count > 0
+    assert 0 < report.pilot.strength.minimum <= report.pilot.strength.maximum <= 0.2
+    assert report.pilot.maximum_bits >= 53
+    assert report.pilot.callback_failures == 0
+    payload = json.loads(report.to_json())
+    assert payload["pilot"] == json.loads(report.pilot.to_json())
+    assert payload["pilot"]["strength"] == json.loads(report.pilot.strength.to_json())
+    with pytest.raises(AttributeError):
+        report.pilot.strength.minimum = 0.0
+    assert plain.contour_runtime_report() is None
+    disabled = observed.with_contour_diagnostics("disabled")
+    assert disabled.content_id == observed.content_id
+    assert disabled.contour_validation_report().pilot_complete
+    assert estimate(plain) == estimate(observed) == estimate(disabled)
+    # A report is a detached snapshot; later work cannot mutate its values.
+    assert json.loads(report.to_json()) == payload

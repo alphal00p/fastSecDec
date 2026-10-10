@@ -21,6 +21,7 @@ mod contour;
 pub use contour::{
     ContourCheckReport, ContourProductionReport, ContourValidationChart, ContourValidationReport,
 };
+mod diagnostics;
 mod distance;
 mod evaluator;
 mod exact;
@@ -130,6 +131,7 @@ pub enum KernelLoadProgress {
 pub struct SectorKernel {
     contour_validation: Option<contour::SectorValidation>,
     dynamic_history: (usize, u32),
+    runtime_diagnostics: crate::contour::functions::dynamic::diagnostics::Accumulator,
     dynamic_failure: Option<std::sync::Arc<contour::dynamic::failure::FailureContext>>,
     projection: Option<projection::OutputProjection>,
     cancellation: cancellation::Cancellation,
@@ -471,6 +473,7 @@ impl SectorKernel {
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
             dynamic_history: (0, 0),
+            runtime_diagnostics: Default::default(),
             dynamic_failure: self.dynamic_failure.clone(),
             contour_validation: self
                 .contour_validation
@@ -511,6 +514,8 @@ pub struct KernelSet {
     contour_checks: Vec<contour::CheckProgram>,
     contour_binding: Option<contour::ContourBinding>,
     dynamic_pilot: contour::dynamic::runtime::PilotOwners,
+    contour_diagnostics: crate::contour::ContourDiagnosticsMode,
+    runtime_diagnostics: crate::contour::functions::dynamic::diagnostics::Accumulator,
     compilation_settings: CompilationSettings,
     stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
@@ -539,6 +544,8 @@ impl KernelSet {
             contour_checks: self.contour_checks.clone(),
             contour_binding: self.contour_binding.clone(),
             dynamic_pilot: Default::default(),
+            contour_diagnostics: self.contour_diagnostics,
+            runtime_diagnostics: Default::default(),
             compilation_settings: self.compilation_settings,
             stability: self.stability.clone(),
             runtime_parameters: self.runtime_parameters.clone(),

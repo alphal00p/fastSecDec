@@ -5,5 +5,5 @@ mod prepare;
 mod source;
 
 pub use discover::discover_prepared;
-pub use prepare::prepare_recipes_with_runtime;
+pub use prepare::{prepare_recipes_with_runtime, prepare_recipes_with_runtime_and_dispatch};
 pub use source::prepare_chart_source;

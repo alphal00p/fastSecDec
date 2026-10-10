@@ -12,6 +12,7 @@ use pyo3::{prelude::*, types::PyModule};
 
 use crate::{error, kernels::PyKernels};
 mod provenance;
+mod runtime;
 pub(crate) use provenance::{PyContourCheckpointProvenance, checkpoint_provenance};
 
 fn policy(value: &str) -> PyResult<ContourValidation> {
@@ -474,6 +475,7 @@ impl PyKernels {
 }
 
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    runtime::register(module)?;
     module.add_class::<PyContourSettings>()?;
     module.add_class::<PyContourValidationChart>()?;
     module.add_class::<PyContourCheckReport>()?;

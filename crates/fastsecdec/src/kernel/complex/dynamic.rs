@@ -9,6 +9,29 @@ use crate::kernel::{
 use std::sync::Arc;
 
 impl ComplexKernel {
+    pub(in crate::kernel) fn diagnostics_configuration(
+        &self,
+    ) -> crate::contour::functions::dynamic::diagnostics::Configuration {
+        self.evaluator.diagnostics_configuration()
+    }
+    pub(in crate::kernel) fn visit_runtime_diagnostics(
+        &self,
+        visit: &mut impl FnMut(&crate::contour::functions::dynamic::diagnostics::Accumulator),
+    ) {
+        if let Some(owner) = self.evaluator.runtime_diagnostics() {
+            visit(owner);
+        }
+        visit(&self.double_cache.runtime_diagnostics);
+        visit(&self.precision_cache.runtime_diagnostics);
+        self.conditioning.visit_runtime_diagnostics(visit);
+    }
+    pub(in crate::kernel) fn clear_runtime_diagnostics(&mut self) {
+        self.evaluator.clear_runtime_diagnostics();
+        self.double_cache.runtime_diagnostics.clear();
+        self.precision_cache.runtime_diagnostics.clear();
+        self.conditioning.clear_runtime_diagnostics();
+    }
+
     pub(in crate::kernel) fn execution_backend(&self) -> crate::kernel::EvaluatorBackend {
         self.evaluator.execution_backend()
     }

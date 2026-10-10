@@ -4,5 +4,7 @@ mod session;
 
 pub use request::{RecipeFamily, RecipeFamilyError};
 pub use session::{
-    RecipeFamilyOutput, RecipeFamilySession, RecipeFamilySessionError, RecipeFamilySnapshot,
+    RecipeFamilyCompletion, RecipeFamilyDispatch, RecipeFamilyJob, RecipeFamilyJobId,
+    RecipeFamilyJobProgress, RecipeFamilyJobStage, RecipeFamilyOutput, RecipeFamilySession,
+    RecipeFamilySessionError, RecipeFamilySnapshot,
 };

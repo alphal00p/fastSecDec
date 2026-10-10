@@ -27,6 +27,18 @@ pub enum RecipeFamilyError {
 }
 
 impl RecipeFamily {
+    /// All native contour capabilities, with deformation opt-in at execution.
+    pub fn contour() -> Self {
+        Self {
+            recipes: vec![
+                ProgramRecipe::UndeformedV1,
+                ProgramRecipe::FixedV1,
+                ProgramRecipe::DynamicPolynomialV1,
+                ProgramRecipe::DynamicSignAwareV1,
+            ],
+            default_recipe: ProgramRecipe::UndeformedV1,
+        }
+    }
     pub fn new(
         recipes: impl IntoIterator<Item = ProgramRecipe>,
         default_recipe: ProgramRecipe,

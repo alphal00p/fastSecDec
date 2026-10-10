@@ -1,5 +1,10 @@
 //! Cooperative, file-backed family generation with caller-owned storage.
+mod jobs;
 mod stages;
+pub use jobs::{
+    RecipeFamilyCompletion, RecipeFamilyDispatch, RecipeFamilyJob, RecipeFamilyJobId,
+    RecipeFamilyJobProgress, RecipeFamilyJobStage,
+};
 #[cfg(test)]
 mod tests;
 use super::{RecipeFamily, RecipeFamilyError};
@@ -20,6 +25,7 @@ use std::{
     io::{Seek, Write},
     ops::ControlFlow,
     path::PathBuf,
+    sync::Arc,
     time::Instant,
 };
 use symbolica::atom::Symbol;
@@ -61,13 +67,14 @@ pub struct RecipeFamilyOutput<W> {
 ///
 /// The caller owns `staging` and must keep it available across steps. Source
 /// geometry and each monomial-extracted chart are prepared once; symmetry and
-/// reusable formulas are local to each recipe. Every completed nonresident
-/// unit is serialized and released before another unit begins. The optional
+/// reusable formulas are local to each recipe. Sequential stepping retains one
+/// transient unit; caller dispatch retains at most its bounded batch of completed
+/// units. Nonresident units are released before the next batch. The optional
 /// resident recipe retains its existing evaluators and only that recipe's
 /// portable bytes, independently of the artifact default.
 ///
 /// A step counts indivisible native units, not milliseconds. Observer `Break`
-/// pauses after the successful current unit. Errors are terminal, and no
+/// pauses after the successful current unit or joined batch. Errors are terminal, and no
 /// partial archive is exposed as a completed output. For ordinary singleton
 /// work the existing `GenerationSession` remains the direct, unstaged route.
 pub struct RecipeFamilySession<W> {
@@ -103,7 +110,7 @@ struct RecipeWork {
     assignments: Vec<native::SymmetryAssignment>,
     formula_sources: Vec<native::DiscoveredSector>,
     formulas: Vec<native::FormulaRecord>,
-    plan: Option<native::PreparedGeneration>,
+    plan: Option<Arc<native::PreparedGeneration>>,
 }
 struct Work<W> {
     stage: Stage,
@@ -117,7 +124,7 @@ struct Work<W> {
     staging: PathBuf,
     storage: Option<W>,
     archive: Option<ProgramArchiveWriter<W>>,
-    prepared: Option<native::PreparedRecipeSet>,
+    prepared: Option<Arc<native::PreparedRecipeSet>>,
     sources: Vec<native::PreparedChartSource>,
     active: Option<RecipeWork>,
 }
@@ -230,11 +237,43 @@ impl<W: Write + Seek> RecipeFamilySession<W> {
     pub fn step(
         &mut self,
         max_units: usize,
+        observer: impl FnMut(&RecipeFamilySnapshot) -> ControlFlow<()>,
+    ) -> Result<GenerationSessionState, RecipeFamilySessionError> {
+        self.step_inner(max_units, 1, None, None, observer)
+    }
+
+    /// Schedule bounded independent native units on the caller's executor.
+    /// Completion order is arbitrary; admission and publication are canonical.
+    /// Observer pause joins the current batch before returning. At most
+    /// `width` completed units coexist with the requested resident owner.
+    pub fn step_with_dispatch(
+        &mut self,
+        max_units: usize,
+        width: usize,
+        geometry_dispatch: &mut fastsecdec_sectors::GeometryDispatch<'_>,
+        dispatch: &mut RecipeFamilyDispatch<'_>,
+        observer: impl FnMut(&RecipeFamilySnapshot) -> ControlFlow<()>,
+    ) -> Result<GenerationSessionState, RecipeFamilySessionError> {
+        self.step_inner(
+            max_units,
+            width,
+            Some(geometry_dispatch),
+            Some(dispatch),
+            observer,
+        )
+    }
+
+    fn step_inner(
+        &mut self,
+        max_units: usize,
+        width: usize,
+        mut geometry_dispatch: Option<&mut fastsecdec_sectors::GeometryDispatch<'_>>,
+        mut dispatch: Option<&mut RecipeFamilyDispatch<'_>>,
         mut observer: impl FnMut(&RecipeFamilySnapshot) -> ControlFlow<()>,
     ) -> Result<GenerationSessionState, RecipeFamilySessionError> {
-        if max_units == 0 {
+        if max_units == 0 || width == 0 {
             return Err(RecipeFamilySessionError::State(
-                "step requires at least one unit".into(),
+                "step requires positive units and dispatch width".into(),
             ));
         }
         if matches!(self.work.stage, Stage::Failed) {
@@ -251,15 +290,23 @@ impl<W: Write + Seek> RecipeFamilySession<W> {
             observer(&visible)
         };
         let mut pause = false;
-        for _ in 0..max_units {
+        let mut units = 0;
+        while units < max_units {
             if self.is_complete() {
                 break;
             }
-            let outcome = self
-                .work
-                .advance(&mut self.snapshot, &mut live_observer, &mut pause);
+            let outcome = self.work.advance(
+                width.min(max_units - units),
+                geometry_dispatch.as_deref_mut(),
+                dispatch.as_deref_mut(),
+                &mut self.snapshot,
+                &mut live_observer,
+                &mut pause,
+            );
             match outcome {
-                Ok(output) => {
+                Ok((output, consumed)) => {
+                    units += consumed;
+                    self.snapshot.completed_units += consumed;
                     if let Some(output) = output {
                         self.result = Some(output);
                     }
@@ -273,7 +320,6 @@ impl<W: Write + Seek> RecipeFamilySession<W> {
                     return Err(error);
                 }
             }
-            self.snapshot.completed_units += 1;
             pause |= live_observer(&self.snapshot).is_break();
             if pause {
                 break;

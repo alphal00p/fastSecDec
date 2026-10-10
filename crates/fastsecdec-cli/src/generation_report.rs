@@ -5,7 +5,7 @@ use std::{collections::BTreeSet, io::IsTerminal, path::Path};
 
 use fastsecdec::{
     Atom, AtomCore,
-    kernel::KernelSet,
+    kernel::{KernelSet, ProgramRecipe},
     status::{CoefficientComponent, FormulaPreparationSnapshot, GenerationTimings},
 };
 use tabled::{
@@ -26,6 +26,9 @@ pub struct Summary<'a> {
     pub artifact: String,
     pub content_id: &'a str,
     pub sectors: usize,
+    pub available_recipes: Vec<ProgramRecipe>,
+    pub default_recipe: Option<ProgramRecipe>,
+    pub selected_recipe: Option<ProgramRecipe>,
     pub workers: Option<usize>,
     pub mode: Option<fastsecdec::generation::GenerationMode>,
     pub subtraction: Option<fastsecdec::generation::SubtractionStrategy>,
@@ -56,6 +59,9 @@ pub fn print(
                 "artifact": relative,
                 "content_id": artifact.content_id,
                 "sectors": kernels.sectors().len(),
+                "selected_recipe": kernels.program_recipe(),
+                "default_recipe": default_recipe(artifact),
+                "available_recipes": available_recipes(artifact),
                 "orders": kernels.orders(),
                 "components": kernels.components(),
                 "generation_timings": artifact.generation_timings,
@@ -77,6 +83,9 @@ pub fn print(
         artifact: relative.to_string_lossy().into_owned(),
         content_id: &artifact.content_id,
         sectors: kernels.sectors().len(),
+        available_recipes: available_recipes(artifact),
+        default_recipe: default_recipe(artifact),
+        selected_recipe: Some(kernels.program_recipe()),
         workers: artifact
             .generation
             .as_ref()
@@ -133,6 +142,9 @@ pub fn print_indexed(output: &Path, artifact: &Artifact, plain: bool, json: bool
             serde_json::to_string_pretty(&serde_json::json!({
                 "artifact":relative, "content_id":artifact.content_id,
                 "sectors":kernels.sectors, "orders":kernels.orders, "components":kernels.components,
+                "selected_recipe": artifact.selected_recipe(),
+                "default_recipe": default_recipe(artifact),
+                "available_recipes": available_recipes(artifact),
                 "generation_timings":artifact.generation_timings,
                 "workers":artifact.generation.as_ref().map(|g|g.workers), "generation":artifact.generation,
             }))?
@@ -149,6 +161,9 @@ pub fn print_indexed(output: &Path, artifact: &Artifact, plain: bool, json: bool
         artifact: relative.to_string_lossy().into_owned(),
         content_id: &artifact.content_id,
         sectors: kernels.sectors,
+        available_recipes: available_recipes(artifact),
+        default_recipe: default_recipe(artifact),
+        selected_recipe: artifact.selected_recipe(),
         workers: artifact.generation.as_ref().map(|g| g.workers),
         mode: artifact.generation.as_ref().and_then(|g| g.mode),
         subtraction: artifact.generation.as_ref().and_then(|g| g.subtraction),
@@ -179,6 +194,28 @@ pub fn print_indexed(output: &Path, artifact: &Artifact, plain: bool, json: bool
         render(&summary, width, ColorPolicy::for_stream(plain, terminal))
     );
     Ok(())
+}
+
+// Directory-only presentation; no unselected recipe is loaded.
+fn available_recipes(artifact: &Artifact) -> Vec<ProgramRecipe> {
+    artifact.programs.as_ref().map_or_else(
+        || artifact.selected_recipe().into_iter().collect(),
+        |programs| {
+            programs
+                .catalogue
+                .recipes
+                .iter()
+                .map(|recipe| recipe.recipe)
+                .collect()
+        },
+    )
+}
+fn default_recipe(artifact: &Artifact) -> Option<ProgramRecipe> {
+    artifact
+        .programs
+        .as_ref()
+        .map(|programs| programs.default_recipe)
+        .or_else(|| artifact.selected_recipe())
 }
 
 /// Saved route selection; historical absence remains explicit in both reports.
@@ -296,7 +333,30 @@ pub fn render(summary: &Summary<'_>, width: usize, colors: ColorPolicy) -> Strin
         ["Artifact".into(), terminal_text(&summary.artifact)],
         ["Files".into(), ".json metadata + .dat evaluators".into()],
         ["ID (short)".into(), short_id(summary.content_id)],
-        ["Sectors".into(), summary.sectors.to_string()],
+        [
+            "Available recipes".into(),
+            summary
+                .available_recipes
+                .iter()
+                .map(|recipe| recipe.name())
+                .collect::<Vec<_>>()
+                .join(", "),
+        ],
+        [
+            "Saved default".into(),
+            summary
+                .default_recipe
+                .map_or("Not recorded", |recipe| recipe.name())
+                .into(),
+        ],
+        [
+            "Reported recipe".into(),
+            summary
+                .selected_recipe
+                .map_or("Not recorded", |recipe| recipe.name())
+                .into(),
+        ],
+        ["Recipe sectors".into(), summary.sectors.to_string()],
         [
             "Workers".into(),
             summary

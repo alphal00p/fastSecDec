@@ -494,6 +494,7 @@ impl SectorKernel {
         Ok(Self {
             contour_validation: None,
             dynamic_history: (0, 0),
+            runtime_diagnostics: Default::default(),
             dynamic_failure: None,
             input: vec![0.0; inputs],
             projection: None,
@@ -650,6 +651,8 @@ impl KernelSet {
             program_descriptor: None,
             contour_binding: None,
             dynamic_pilot: Default::default(),
+            contour_diagnostics: Default::default(),
+            runtime_diagnostics: Default::default(),
             compilation_settings,
             runtime_parameters,
             stability: super::StabilitySettings::default(),

@@ -1,5 +1,6 @@
 //! Worker-owned, lazy native roundoff tracking for the validated policy.
 use super::{ExactProgram, MappingRequirements};
+use crate::contour::functions::dynamic::diagnostics::{Accumulator, Configuration, Phase};
 use std::sync::Arc;
 use symbolica::{
     domains::{float::Complex, rational::Rational},
@@ -11,6 +12,7 @@ pub(in crate::kernel) struct Conditioning<T> {
     // None: not requested; Some(None): the native numeric domain is unsupported.
     evaluator: Option<Option<ConditioningEvaluator<T>>>,
     requirements: Arc<MappingRequirements>,
+    preparation_diagnostics: Accumulator,
 }
 
 #[derive(Clone)]
@@ -19,6 +21,8 @@ pub(in crate::kernel) struct ConditioningEvaluator<T> {
     dynamic: bool,
     validation: Option<crate::kernel::contour::dynamic::validation::Validation>,
     last_error: Option<String>,
+    configuration: Configuration,
+    diagnostics: Accumulator,
 }
 impl<T: symbolica::domains::float::Real> ConditioningEvaluator<T> {
     /// Return whether essential callback evaluation failed, independently of
@@ -30,24 +34,43 @@ impl<T: symbolica::domains::float::Real> ConditioningEvaluator<T> {
         point: &[f64],
     ) -> bool {
         self.last_error = None;
-        if let Some(validation) = &mut self.validation {
-            let valid = validation.evaluate(point, || self.evaluator.evaluate(input, output));
-            self.last_error = validation.last_error.clone();
-            !valid
-        } else if self.dynamic {
-            let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
-                self.evaluator.evaluate(input, output)
-            });
-            self.last_error = failure;
-            self.last_error.is_some()
-        } else {
-            self.evaluator.evaluate(input, output);
-            false
-        }
+        self.diagnostics
+            .measure(self.configuration, Phase::Conditioning, || {
+                if let Some(validation) = &mut self.validation {
+                    let valid =
+                        validation.evaluate(point, || self.evaluator.evaluate(input, output));
+                    self.last_error = validation.last_error.clone();
+                    !valid
+                } else if self.dynamic {
+                    let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
+                        self.evaluator.evaluate(input, output)
+                    });
+                    self.last_error = failure;
+                    self.last_error.is_some()
+                } else {
+                    self.evaluator.evaluate(input, output);
+                    false
+                }
+            })
     }
 }
 
 impl<T> Conditioning<T> {
+    pub(in crate::kernel) fn visit_runtime_diagnostics(
+        &self,
+        visit: &mut impl FnMut(&Accumulator),
+    ) {
+        visit(&self.preparation_diagnostics);
+        if let Some(Some(owner)) = &self.evaluator {
+            visit(&owner.diagnostics);
+        }
+    }
+    pub(in crate::kernel) fn clear_runtime_diagnostics(&mut self) {
+        self.preparation_diagnostics.clear();
+        if let Some(Some(owner)) = &mut self.evaluator {
+            owner.diagnostics.clear();
+        }
+    }
     pub(in crate::kernel) fn clear_dynamic_attempt(&mut self) {
         if let Some(Some(evaluator)) = &mut self.evaluator {
             evaluator.last_error = None;
@@ -73,6 +96,7 @@ impl<T> Conditioning<T> {
         Self {
             evaluator: None,
             requirements,
+            preparation_diagnostics: Default::default(),
         }
     }
 
@@ -90,14 +114,20 @@ impl<T: EvaluationDomain> Conditioning<T> {
     ) -> Option<&mut ConditioningEvaluator<T>> {
         self.evaluator
             .get_or_insert_with(|| {
-                self.requirements
-                    .map(exact, coefficient, 53)
+                self.preparation_diagnostics
+                    .measure(
+                        self.requirements.diagnostics_configuration(),
+                        Phase::Preparation,
+                        || self.requirements.map(exact, coefficient, 53),
+                    )
                     .ok()
                     .map(|evaluator| ConditioningEvaluator {
                         evaluator,
                         dynamic: self.requirements.has_dynamic_callbacks(),
                         validation: self.requirements.validation(),
                         last_error: None,
+                        configuration: self.requirements.diagnostics_configuration(),
+                        diagnostics: Default::default(),
                     })
             })
             .as_mut()

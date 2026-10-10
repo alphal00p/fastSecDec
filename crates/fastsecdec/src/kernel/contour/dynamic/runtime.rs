@@ -1,6 +1,7 @@
 //! Atomic numerical factory remapping of an already saved native program.
 //! Policy changes select callback factories; they never rebuild symbolic IR.
 use super::validation::{Coverage, Specification, Validation};
+use crate::contour::functions::dynamic::diagnostics::{Accumulator, Configuration, Phase};
 use crate::{
     contour::{ContourSettings, functions::dynamic::requested::Mode},
     kernel::{
@@ -16,7 +17,7 @@ mod tests;
 /// sectors, never cloned with a binding and discarded at a work boundary.
 #[derive(Default)]
 pub(in crate::kernel) struct PilotOwners {
-    sectors: BTreeMap<usize, (SectorKernel, Vec<f64>)>,
+    pub(in crate::kernel) sectors: BTreeMap<usize, (SectorKernel, Vec<f64>)>,
     exact: Option<Validation>,
 }
 
@@ -36,14 +37,19 @@ impl SectorKernel {
         &self,
         specification: Option<Arc<Specification>>,
         owners: &NativeProgramDescriptor,
+        configuration: Configuration,
     ) -> Result<Remapping, KernelError> {
         let already_plain = match &self.backend {
             Backend::Real(kernel) => kernel.evaluator.validation().is_none(),
             Backend::Complex(kernel) => kernel.dynamic_validation().is_none(),
         };
-        if specification.is_none() && already_plain {
+        let previous = self.runtime_configuration();
+        let same_diagnostics =
+            (!previous.enabled() && !configuration.enabled()) || previous == configuration;
+        if specification.is_none() && already_plain && same_diagnostics {
             return Ok(Remapping::Unchanged);
         }
+        let _diagnostics = configuration.enter();
         let _owners = owners.enter();
         let _plain = Mode::default().enter();
         let _checking = super::validation::enter_optional(specification);
@@ -68,6 +74,7 @@ impl SectorKernel {
     pub(in crate::kernel) fn apply_dynamic_mapping(&mut self, remapping: Remapping) {
         if !matches!(remapping, Remapping::Unchanged) {
             self.dynamic_history = self.dynamic_statistics();
+            self.runtime_diagnostics = self.aggregate_runtime_diagnostics();
         }
         match (&mut self.backend, remapping) {
             (_, Remapping::Unchanged) => {}
@@ -167,30 +174,40 @@ impl KernelSet {
         let dynamic = binding
             .dynamic()
             .expect("dynamic settings construct a dynamic binding");
-        let replacements = self
-            .sectors
-            .iter()
-            .enumerate()
-            .map(|(index, sector)| {
-                sector.prepare_dynamic_mapping(
-                    dynamic.sector_specification(index, false)?,
-                    dynamic.descriptor(),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let failure_contexts = (0..self.sectors.len())
-            .map(|index| {
-                let (parameters, bundles) = dynamic.sector_requests(index);
-                super::failure::FailureContext::new(
-                    dynamic.descriptor(),
-                    parameters,
-                    bundles,
-                    dynamic.runtime_values(),
-                    self.precision.max_bits,
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let exact = self.dynamic_exact_at(dynamic)?;
+        let configuration =
+            crate::kernel::diagnostics::configuration(self.contour_diagnostics, settings);
+        let mut diagnostics = Accumulator::default();
+        let prepared = (|| {
+            let replacements = diagnostics.measure(configuration, Phase::Preparation, || {
+                self.sectors
+                    .iter()
+                    .enumerate()
+                    .map(|(index, sector)| {
+                        sector.prepare_dynamic_mapping(
+                            dynamic.sector_specification(index, false)?,
+                            dynamic.descriptor(),
+                            configuration,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, KernelError>>()
+            })?;
+            let failure_contexts = (0..self.sectors.len())
+                .map(|index| {
+                    let (parameters, bundles) = dynamic.sector_requests(index);
+                    super::failure::FailureContext::new(
+                        dynamic.descriptor(),
+                        parameters,
+                        bundles,
+                        dynamic.runtime_values(),
+                        self.precision.max_bits,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let exact = self.dynamic_exact_at(dynamic, configuration, &mut diagnostics)?;
+            Ok::<_, KernelError>((replacements, failure_contexts, exact))
+        })();
+        self.runtime_diagnostics.absorb(&diagnostics);
+        let (replacements, failure_contexts, exact) = prepared?;
         // Every fallible operation has completed. Commit the point, numeric
         // factories and readiness together; failed rebinds leave old owners live.
         self.commit_runtime_parameters(&ordered, exact);
@@ -206,6 +223,7 @@ impl KernelSet {
             sector.contour_validation = binding.for_sector(index);
             sector.dynamic_failure = Some(failure_context);
         }
+        self.collect_pilot_runtime_diagnostics();
         self.dynamic_pilot = PilotOwners::default();
         self.contour_binding = Some(binding);
         Ok(())
@@ -214,30 +232,39 @@ impl KernelSet {
     pub(in crate::kernel) fn dynamic_exact_at(
         &self,
         binding: &super::binding::DynamicBinding,
+        configuration: Configuration,
+        diagnostics: &mut Accumulator,
     ) -> Result<Vec<f64>, KernelError> {
-        let _owners = binding.descriptor().enter();
-        let complex = self
-            .components
-            .contains(&crate::status::CoefficientComponent::Imag);
-        let result = if let Some(specification) = binding.exact_specification(false)? {
-            crate::kernel::exact::evaluate_checked(
-                &self.exact_expressions,
-                binding.bound_point(),
-                complex,
-                &self.exact_requests,
-                &mut Validation::new(specification),
-                binding.runtime_values(),
-            )
-        } else {
-            crate::kernel::exact::evaluate(&self.exact_expressions, binding.bound_point(), complex)
-        };
-        result.map_err(|error| match error {
-            KernelError::NonFinite
-            | KernelError::PrecisionExhausted { .. }
-            | KernelError::PrecisionEvaluation(_) => KernelError::Contour(format!(
-                "unresolved deformation in exact contribution: {error}"
-            )),
-            _ => error,
+        diagnostics.measure(configuration, Phase::Exact, || {
+            let _diagnostics = configuration.enter();
+            let _owners = binding.descriptor().enter();
+            let complex = self
+                .components
+                .contains(&crate::status::CoefficientComponent::Imag);
+            let result = if let Some(specification) = binding.exact_specification(false)? {
+                crate::kernel::exact::evaluate_checked(
+                    &self.exact_expressions,
+                    binding.bound_point(),
+                    complex,
+                    &self.exact_requests,
+                    &mut Validation::new(specification),
+                    binding.runtime_values(),
+                )
+            } else {
+                crate::kernel::exact::evaluate(
+                    &self.exact_expressions,
+                    binding.bound_point(),
+                    complex,
+                )
+            };
+            result.map_err(|error| match error {
+                KernelError::NonFinite
+                | KernelError::PrecisionExhausted { .. }
+                | KernelError::PrecisionEvaluation(_) => KernelError::Contour(format!(
+                    "unresolved deformation in exact contribution: {error}"
+                )),
+                _ => error,
+            })
         })
     }
 
@@ -253,6 +280,10 @@ impl KernelSet {
             .as_ref()
             .and_then(|binding| binding.dynamic())
             .ok_or_else(|| KernelError::Contour("no dynamic binding".into()))?;
+        let configuration = crate::kernel::diagnostics::configuration(
+            self.contour_diagnostics,
+            self.contour_binding.as_ref().unwrap().settings(),
+        );
         let plan = binding.plan(chart, point, homotopy)?;
         let mut accepted_exact = None;
         let receipt = plan.execute(|work| match work {
@@ -264,10 +295,17 @@ impl KernelSet {
                         KernelError::Contour("pilot references a nonresident sector".into())
                     })?;
                     let mut sector = original.try_clone()?;
-                    let replacement = sector.prepare_dynamic_mapping(
-                        Some(work.specification.clone()),
-                        binding.descriptor(),
-                    )?;
+                    let mut preparation = Accumulator::default();
+                    let replacement =
+                        preparation.measure(configuration, Phase::Preparation, || {
+                            sector.prepare_dynamic_mapping(
+                                Some(work.specification.clone()),
+                                binding.descriptor(),
+                                configuration,
+                            )
+                        });
+                    self.runtime_diagnostics.absorb_as_pilot(&preparation);
+                    let replacement = replacement?;
                     sector.apply_dynamic_mapping(replacement);
                     sector.reset_dynamic_statistics();
                     // Only this private pilot owner bypasses pilot readiness;
@@ -290,14 +328,21 @@ impl KernelSet {
                     .exact
                     .get_or_insert_with(|| Validation::new(work.specification.clone()));
                 let _owners = binding.descriptor().enter();
-                accepted_exact = Some(crate::kernel::exact::evaluate_checked(
-                    &self.exact_expressions,
-                    &work.point,
-                    self.components
-                        .contains(&crate::status::CoefficientComponent::Imag),
-                    &self.exact_requests,
-                    validation,
-                    binding.runtime_values(),
+                accepted_exact = Some(self.runtime_diagnostics.measure(
+                    configuration,
+                    Phase::Pilot,
+                    || {
+                        let _diagnostics = configuration.enter();
+                        crate::kernel::exact::evaluate_checked(
+                            &self.exact_expressions,
+                            &work.point,
+                            self.components
+                                .contains(&crate::status::CoefficientComponent::Imag),
+                            &self.exact_requests,
+                            validation,
+                            binding.runtime_values(),
+                        )
+                    },
                 )?);
                 validation.coverage().cloned().ok_or_else(|| {
                     KernelError::Contour("exact pilot output lacks candidate coverage".into())
@@ -317,6 +362,7 @@ impl KernelSet {
     }
 
     pub(in crate::kernel) fn release_finished_pilot_owners(&mut self) {
+        self.collect_pilot_runtime_diagnostics();
         let Some(binding) = self
             .contour_binding
             .as_ref()

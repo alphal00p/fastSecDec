@@ -16,9 +16,15 @@ pub(in crate::kernel) struct MappingRequirements(
     crate::contour::functions::dynamic::requested::Mode,
     bool,
     Option<Arc<Specification>>,
+    crate::contour::functions::dynamic::diagnostics::Configuration,
 );
 
 impl MappingRequirements {
+    pub(in crate::kernel) fn diagnostics_configuration(
+        &self,
+    ) -> crate::contour::functions::dynamic::diagnostics::Configuration {
+        self.5
+    }
     /// Recognize the owner's essential callback-failure protocol once while
     /// preparing the evaluator. Ordinary and fixed programs never enter its
     /// thread-local attempt machinery while sampling.
@@ -38,6 +44,7 @@ impl MappingRequirements {
         &self,
         prepare: impl FnOnce() -> Result<T, String>,
     ) -> Result<T, String> {
+        let _diagnostics = self.5.enter();
         let _preparing = self.1.enter();
         let _observing = self.2.enter();
         let _checking = validation::enter_optional(self.4.clone());
@@ -60,6 +67,7 @@ impl MappingRequirements {
             crate::contour::functions::dynamic::requested::Mode::capture(),
             false,
             validation::capture(),
+            crate::contour::functions::dynamic::diagnostics::Configuration::capture(),
         );
         if let Some(specification) = &requirements.4 {
             specification.admit_callbacks(&requirements.0)?;

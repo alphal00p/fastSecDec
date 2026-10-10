@@ -128,6 +128,20 @@ pub struct WeightedEvaluationContext {
 }
 
 impl WeightedEvaluationContext {
+    /// Optional callback work from this worker, independent of validation and replay state.
+    pub fn contour_runtime_report(
+        &self,
+    ) -> Result<Option<crate::contour::ContourRuntimeReport>, crate::status::DiagnosticsOverflow>
+    {
+        self.kernel.contour_runtime_report()
+    }
+    /// Atomically drain operational work without modifying mathematical or sampling state.
+    pub fn take_contour_runtime_report(
+        &mut self,
+    ) -> Result<Option<crate::contour::ContourRuntimeReport>, crate::status::DiagnosticsOverflow>
+    {
+        self.kernel.take_contour_runtime_report()
+    }
     /// Validation work performed by this resident evaluator, suitable for a
     /// caller-owned worker completion/status snapshot.
     pub fn contour_validation_report(&self) -> Option<super::ContourProductionReport> {

@@ -229,24 +229,36 @@ impl KernelSet {
             })?
             .with_policy(self, validation)?;
         if let Some(dynamic) = binding.dynamic() {
-            let replacements = self
-                .sectors
-                .iter()
-                .enumerate()
-                .map(|(index, sector)| {
-                    sector.prepare_dynamic_mapping(
-                        dynamic.sector_specification(index, false)?,
-                        dynamic.descriptor(),
-                    )
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            let exact = if binding.settings().validation.policy
-                == crate::contour::ContourValidation::Always
-            {
-                Some(self.dynamic_exact_at(dynamic)?)
-            } else {
-                None
-            };
+            use crate::contour::functions::dynamic::diagnostics::{Accumulator, Phase};
+            let configuration =
+                super::diagnostics::configuration(self.contour_diagnostics, binding.settings());
+            let mut diagnostics = Accumulator::default();
+            let prepared = (|| {
+                let replacements =
+                    diagnostics.measure(configuration, Phase::Preparation, || {
+                        self.sectors
+                            .iter()
+                            .enumerate()
+                            .map(|(index, sector)| {
+                                sector.prepare_dynamic_mapping(
+                                    dynamic.sector_specification(index, false)?,
+                                    dynamic.descriptor(),
+                                    configuration,
+                                )
+                            })
+                            .collect::<Result<Vec<_>, KernelError>>()
+                    })?;
+                let exact = if binding.settings().validation.policy
+                    == crate::contour::ContourValidation::Always
+                {
+                    Some(self.dynamic_exact_at(dynamic, configuration, &mut diagnostics)?)
+                } else {
+                    None
+                };
+                Ok::<_, KernelError>((replacements, exact))
+            })();
+            self.runtime_diagnostics.absorb(&diagnostics);
+            let (replacements, exact) = prepared?;
             // Preparation and certification must succeed for every owner before
             // replacing any part of the existing usable bound problem.
             for (sector, replacement) in self.sectors.iter_mut().zip(replacements) {
@@ -255,6 +267,7 @@ impl KernelSet {
             if let Some(exact) = exact {
                 self.exact_coefficients = exact;
             }
+            self.collect_pilot_runtime_diagnostics();
             self.dynamic_pilot = Default::default();
         }
         for (index, sector) in self.sectors.iter_mut().enumerate() {

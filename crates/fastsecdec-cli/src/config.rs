@@ -31,11 +31,10 @@ pub(crate) struct GenerationOverrides {
 impl GenerationOverrides {
     pub(crate) fn apply(self, card: &mut RunCard) {
         card.generation.contour |= self.contour;
-        if let Some(recipe) = self.recipe.or_else(|| {
-            self.contour
-                .then_some(fastsecdec::kernel::ProgramRecipe::FixedV1)
-        }) {
+        if let Some(recipe) = self.recipe {
             card.generation.recipe = Some(recipe);
+        } else if self.contour {
+            card.generation.recipe = None;
         }
     }
 }
@@ -141,9 +140,9 @@ impl Default for IntegralInput {
 pub struct GenerationInput {
     /// Complete and persist one sector per recyclable worker process.
     pub serial: bool,
-    /// Retain causal contour maps and runtime strength in generated kernels.
+    /// Generate every contour capability, defaulting to undeformed execution.
     pub contour: bool,
-    /// Explicit singleton recipe; omitted historical cards use `contour`.
+    /// Explicit singleton recipe; otherwise `contour` enables the complete family.
     pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
     pub order: i32,
     pub mode: fastsecdec::generation::GenerationMode,
@@ -160,29 +159,26 @@ pub struct GenerationInput {
 }
 
 impl GenerationInput {
-    /// Select the native program while retaining the existing card interface.
-    pub fn program_recipe(&self) -> fastsecdec::kernel::indexed::ProgramRecipe {
-        use fastsecdec::kernel::indexed::ProgramRecipe;
-        self.recipe.unwrap_or(if self.contour {
-            ProgramRecipe::FixedV1
-        } else {
-            ProgramRecipe::UndeformedV1
-        })
+    pub fn recipe_family(&self) -> fastsecdec::generation::RecipeFamily {
+        use fastsecdec::{generation::RecipeFamily, kernel::ProgramRecipe};
+        match self.recipe {
+            Some(recipe) => RecipeFamily::single(recipe),
+            None if self.contour => RecipeFamily::contour(),
+            None => RecipeFamily::single(ProgramRecipe::UndeformedV1),
+        }
     }
 
-    /// Admission before parametrization. Public generation still requests one
-    /// tested recipe; a runtime selection cannot silently substitute another.
+    /// The saved mathematical default is independent of runtime selection.
+    pub fn program_recipe(&self) -> fastsecdec::kernel::indexed::ProgramRecipe {
+        self.recipe_family().default_recipe()
+    }
+
+    /// Admission before parametrization; a missing recipe is never substituted.
     pub(crate) fn validate_resident_recipe(
         &self,
         requested: fastsecdec::kernel::ProgramRecipe,
     ) -> crate::CliResult<()> {
-        let generated = self.program_recipe();
-        if requested != generated {
-            return Err(format!(
-                "requested resident recipe {} is absent from the configured generation capability {}; no alternative recipe will be substituted",
-                requested.name(), generated.name(),
-            ).into());
-        }
+        self.recipe_family().validate_resident(Some(requested))?;
         Ok(())
     }
 }

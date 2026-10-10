@@ -95,7 +95,7 @@ enum Action {
     /// Generate portable O2 kernels from a native TOML run card.
     Generate {
         input: PathBuf,
-        /// Generate causal contour maps with a runtime deformation strength.
+        /// Generate all contour recipes; the saved default remains undeformed.
         #[arg(long, conflicts_with = "recipe")]
         contour: bool,
         /// Generate one native recipe, such as dynamic-sign-aware-v1.

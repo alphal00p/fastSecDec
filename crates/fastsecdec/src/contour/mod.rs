@@ -1,11 +1,15 @@
 //! Parameter-space contour maps and caller-owned runtime policy.
 mod determinant;
+mod diagnostics;
 pub mod dynamic;
 pub(crate) mod functions;
 mod map;
 mod metadata;
 mod settings;
 
+pub use diagnostics::{
+    ContourDiagnosticRange, ContourDiagnosticsMode, ContourRuntimeReport, ContourRuntimeWork,
+};
 pub use map::FixedContourMap;
 pub(crate) use map::SmoothContourMap;
 pub use metadata::ContourMetadata;

@@ -29,6 +29,53 @@ pub fn prepare_recipes_with_runtime(
     runtime_parameters: &[Symbol],
     runtime_mass_constraints: &[RuntimeMassConstraint],
     root: &Path,
+    progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+) -> Result<PreparedRecipeSet, StreamingError> {
+    prepare_recipes(
+        input,
+        options,
+        recipes,
+        runtime_parameters,
+        runtime_mass_constraints,
+        root,
+        None,
+        progress,
+    )
+}
+
+/// The same shared preparation with native geometry jobs scheduled by the caller.
+#[allow(clippy::too_many_arguments)]
+pub fn prepare_recipes_with_runtime_and_dispatch(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    recipes: &[ProgramRecipe],
+    runtime_parameters: &[Symbol],
+    runtime_mass_constraints: &[RuntimeMassConstraint],
+    root: &Path,
+    dispatch: &mut fastsecdec_sectors::GeometryDispatch<'_>,
+    progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+) -> Result<PreparedRecipeSet, StreamingError> {
+    prepare_recipes(
+        input,
+        options,
+        recipes,
+        runtime_parameters,
+        runtime_mass_constraints,
+        root,
+        Some(dispatch),
+        progress,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn prepare_recipes(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    recipes: &[ProgramRecipe],
+    runtime_parameters: &[Symbol],
+    runtime_mass_constraints: &[RuntimeMassConstraint],
+    root: &Path,
+    dispatch: Option<&mut fastsecdec_sectors::GeometryDispatch<'_>>,
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<PreparedRecipeSet, StreamingError> {
     let selected = recipes.iter().copied().collect::<BTreeSet<_>>();
@@ -70,6 +117,15 @@ pub fn prepare_recipes_with_runtime(
                 .map_err(GenerationError::from)?,
         );
     }
+    let mut geometry_cache = fastsecdec_sectors::GeometryCache::new(0);
+    let source = match dispatch {
+        Some(dispatch) => GeometrySource::Dispatched {
+            cache: &mut geometry_cache,
+            dispatch,
+            cancelled: &|| false,
+        },
+        None => GeometrySource::Uncached,
+    };
     let mut geometry = if input.terms().is_empty() {
         None
     } else {
@@ -77,7 +133,7 @@ pub fn prepare_recipes_with_runtime(
             input.domain(),
             &supports,
             &options.decomposition,
-            GeometrySource::Uncached,
+            source,
             &mut |status| event(&mut progress, status),
         )?)
     };

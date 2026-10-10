@@ -5,6 +5,8 @@ mod batch;
 mod checked;
 mod conditioning;
 mod mapping;
+mod observed;
+use crate::contour::functions::dynamic::diagnostics::{Accumulator, Configuration, Phase};
 pub(super) use conditioning::Conditioning;
 pub(super) use mapping::MappingRequirements;
 
@@ -19,10 +21,18 @@ macro_rules! evaluator {
             /// because later arithmetic or an external consumer masks it.
             Dynamic(Box<Self>, Option<String>),
             Checked(Box<checked::Checked<Self>>),
+            Observed(Box<observed::Observed<Self>>),
         }
         impl $name {
             pub(super) fn evaluate(&mut self, input: &[$scalar], output: &mut [$scalar]) {
                 match self {
+                    Self::Observed(owner) => {
+                        owner
+                            .diagnostics
+                            .measure(owner.configuration, Phase::Evaluation, || {
+                                owner.evaluator.evaluate(input, output)
+                            })
+                    }
                     #[cfg(feature = "native")]
                     Self::Symjit(evaluator) => evaluator.evaluate(input, output),
                     Self::Eager(evaluator) => evaluator.evaluate(input, output),
@@ -57,6 +67,15 @@ macro_rules! evaluator {
                 outputs: usize,
             ) -> Vec<EvaluatorTiming> {
                 match self {
+                    Self::Observed(owner) => {
+                        owner
+                            .diagnostics
+                            .measure(owner.configuration, Phase::Evaluation, || {
+                                owner
+                                    .evaluator
+                                    .evaluate_batch(input, output, rows, inputs, outputs)
+                            })
+                    }
                     #[cfg(feature = "native")]
                     Self::Symjit(evaluator) => {
                         batch::evaluate_jit(evaluator, input, output, rows, inputs, outputs)
@@ -101,17 +120,22 @@ macro_rules! evaluator {
                     Self::Eager(_) => None,
                     Self::Dynamic(evaluator, _) => evaluator.symjit_ir_bytes(),
                     Self::Checked(checked) => checked.evaluator.symjit_ir_bytes(),
+                    Self::Observed(owner) => owner.evaluator.symjit_ir_bytes(),
                 }
             }
             pub(super) fn last_dynamic_error(&self) -> Option<&str> {
                 match self {
                     Self::Dynamic(_, error) => error.as_deref(),
                     Self::Checked(checked) => checked.validation.last_error.as_deref(),
+                    Self::Observed(owner) => owner.evaluator.last_dynamic_error(),
                     _ => None,
                 }
             }
             pub(super) fn has_dynamic_callbacks(&self) -> bool {
-                matches!(self, Self::Dynamic(..) | Self::Checked(..))
+                matches!(
+                    self,
+                    Self::Dynamic(..) | Self::Checked(..) | Self::Observed(..)
+                )
             }
             pub(super) fn execution_backend(&self) -> EvaluatorBackend {
                 match self {
@@ -120,12 +144,14 @@ macro_rules! evaluator {
                     Self::Eager(_) => EvaluatorBackend::Eager,
                     Self::Dynamic(evaluator, _) => evaluator.execution_backend(),
                     Self::Checked(checked) => checked.evaluator.execution_backend(),
+                    Self::Observed(owner) => owner.evaluator.execution_backend(),
                 }
             }
             pub(super) fn clear_dynamic_attempt(&mut self) {
                 match self {
                     Self::Dynamic(_, error) => *error = None,
                     Self::Checked(checked) => checked.validation.clear_attempt(),
+                    Self::Observed(owner) => owner.evaluator.clear_dynamic_attempt(),
                     _ => {}
                 }
             }
@@ -134,6 +160,7 @@ macro_rules! evaluator {
             ) -> Option<&crate::kernel::contour::dynamic::validation::Validation> {
                 match self {
                     Self::Checked(checked) => Some(&checked.validation),
+                    Self::Observed(owner) => owner.evaluator.validation(),
                     _ => None,
                 }
             }
@@ -142,16 +169,44 @@ macro_rules! evaluator {
             ) -> Option<&mut crate::kernel::contour::dynamic::validation::Validation> {
                 match self {
                     Self::Checked(checked) => Some(&mut checked.validation),
+                    Self::Observed(owner) => owner.evaluator.validation_mut(),
                     _ => None,
                 }
             }
+            pub(super) fn diagnostics_configuration(&self) -> Configuration {
+                match self {
+                    Self::Observed(owner) => owner.configuration,
+                    _ => Configuration::default(),
+                }
+            }
+            pub(super) fn runtime_diagnostics(&self) -> Option<&Accumulator> {
+                match self {
+                    Self::Observed(owner) => Some(&owner.diagnostics),
+                    _ => None,
+                }
+            }
+            pub(super) fn clear_runtime_diagnostics(&mut self) {
+                if let Self::Observed(owner) = self {
+                    owner.diagnostics.clear();
+                }
+            }
             fn with_dynamic_fence(self, requirements: &MappingRequirements) -> Self {
-                if let Some(specification) = requirements.specification() {
+                let result = if let Some(specification) = requirements.specification() {
                     Self::Checked(Box::new(checked::Checked::new(self, specification)))
                 } else if requirements.has_dynamic_callbacks() {
                     Self::Dynamic(Box::new(self), None)
                 } else {
                     self
+                };
+                if requirements.has_dynamic_callbacks()
+                    && requirements.diagnostics_configuration().enabled()
+                {
+                    Self::Observed(Box::new(observed::Observed::new(
+                        result,
+                        requirements.diagnostics_configuration(),
+                    )))
+                } else {
+                    result
                 }
             }
         }
