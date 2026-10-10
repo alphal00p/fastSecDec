@@ -165,6 +165,74 @@ fn cancellation_keeps_inflight_checkpoint_unaccepted_and_reissuable() {
 }
 
 #[test]
+fn cancellation_drains_completed_returns_without_repeated_observation() {
+    let (_dir, artifact, kernels, settings) = fixture();
+    let problem = problem(&artifact, &kernels, &settings.scope).unwrap();
+    let mut session =
+        QmcSession::democratic(problem.clone(), settings.qmc_settings().unwrap()).unwrap();
+    let mut replay = AcceptedReplay::new(&kernels, settings.replay.clone()).unwrap();
+    let mut diagnostics = EvaluationDiagnostics::default();
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(8)
+        .build()
+        .unwrap();
+    let completed = AtomicUsize::new(0);
+    let mut cancellation_observed = false;
+    let outcome = Phase {
+        pool: &pool,
+        kernels: &kernels,
+        session: &mut session,
+        workers: 8,
+        diagnostics: &mut diagnostics,
+        replay: &mut replay,
+        operations: &crate::driver::execution::observations::Operations::new(
+            8,
+            kernels.orders(),
+            Duration::from_secs(1),
+        ),
+    }
+    .run_with(
+        |_, _, _, _| {
+            assert!(
+                !cancellation_observed,
+                "draining must not repeat expensive observational polling"
+            );
+            cancellation_observed = completed.load(Ordering::SeqCst) == 8;
+            Ok(Outcome {
+                cancelled: cancellation_observed,
+                failure: None,
+            })
+        },
+        &|slot, task, stop| {
+            // Finish every native package before cancellation, but hold its
+            // return until the coordinator sees the stop. No timed race is used.
+            let value = transport(slot, task, stop);
+            completed.fetch_add(1, Ordering::SeqCst);
+            while !stop.load(Ordering::Relaxed) {
+                std::thread::yield_now();
+            }
+            value
+        },
+    )
+    .unwrap();
+    assert!(outcome.cancelled && outcome.failure.is_none());
+    assert_eq!(completed.load(Ordering::SeqCst), 8);
+    assert!(session.is_complete());
+    assert_eq!(session.snapshot().unwrap().completed_points, 8192);
+    assert_eq!(session.complete_shift_estimates().unwrap().len(), 4);
+    let estimate = session.estimate().unwrap();
+    assert_eq!(estimate.mean[1], 2. * estimate.mean[0]);
+    assert!(estimate.covariance_of_mean[0] > 0.);
+    assert_eq!(
+        estimate.covariance_of_mean[1],
+        2. * estimate.covariance_of_mean[0]
+    );
+    let restored = QmcSession::restore(&session.checkpoint().unwrap(), &problem).unwrap();
+    assert!(restored.is_complete());
+    assert_eq!(restored.estimate().unwrap(), estimate);
+}
+
+#[test]
 fn real_failure_stops_refill_without_accepting_failed_or_cancelled_prefixes() {
     let (_dir, artifact, kernels, settings) = fixture();
     let mut session = QmcSession::democratic(

@@ -168,12 +168,17 @@ impl Phase<'_> {
             let mut in_flight = 0;
             let mut outcome = Outcome::default();
             loop {
-                outcome.merge(poll(
-                    self.session,
-                    self.diagnostics,
-                    self.replay,
-                    outcome.stopped() || self.session.is_complete(),
-                )?);
+                // Once stopped, drain every dispatched return without repeating
+                // full observational reductions or checkpoint writes per return.
+                // The caller writes the final checkpoint/report after this drain.
+                if !outcome.stopped() {
+                    outcome.merge(poll(
+                        self.session,
+                        self.diagnostics,
+                        self.replay,
+                        self.session.is_complete(),
+                    )?);
+                }
                 if outcome.stopped() {
                     stop.store(true, Ordering::Relaxed);
                 } else {

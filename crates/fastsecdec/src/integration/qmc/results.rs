@@ -1,6 +1,8 @@
 mod contributions;
 mod live;
 mod observation;
+#[cfg(test)]
+mod tests;
 
 use super::*;
 use crate::{
@@ -59,7 +61,13 @@ impl QmcSession {
             .filter_map(|first| {
                 means
                     .iter()
-                    .map(|rows| rows.iter().find(|row| row.shift == first.shift).cloned())
+                    // Native shift_estimates enumerates each complete shift
+                    // once in increasing ID order, including when gaps remain.
+                    .map(|rows| {
+                        rows.binary_search_by_key(&first.shift, |row| row.shift)
+                            .ok()
+                            .map(|index| rows[index].clone())
+                    })
                     .collect()
             })
             .collect())
