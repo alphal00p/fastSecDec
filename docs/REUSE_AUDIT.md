@@ -2638,6 +2638,14 @@ rejected formal reviewer assignment.
 
 These accepted dependency fixes do not establish dynamic production readiness.
 The complete higher-jet observer control exposed a distinction between equal
-symbolic radii and separate subtraction-face requests. Its request identities
-are being corrected and independently tested before asserting one root solve
-per distinct coordinate/face request.
+symbolic radii and separate subtraction-face requests. The corrected native
+lowering preserves the actual face without changing any mathematical callback
+argument. Full-vector eager/SymJIT, double-float and 192-bit controls now pass
+for both constructions and Taylor/IBP, retaining strict duplicate-request
+rejection. This was a FastSecDec association error; no owner CSE change is
+justified. Production certificate integration remains separate.
+
+A clean detached test of the published dependency-only commit `1137e73` passes
+all 297 enabled native library tests, with 16 explicit ignored controls. The
+combined development-tree controls above are separate evidence, not additional
+tests attributed to that commit.

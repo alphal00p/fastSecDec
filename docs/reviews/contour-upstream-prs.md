@@ -76,7 +76,17 @@ The consuming native contour filter passes **77 tests** after rebuilding the
 actual public dependency graph. This is a focused dependency acceptance gate,
 not a claim that the entire pending dynamic-runtime increment passes: the
 separate composed higher-jet test identified incorrectly grouped face-request
-identities, whose correction is still under validation.
+identities. That FastSecDec correction subsequently passed complete-vector
+controls for both constructions and subtraction methods in eager, SymJIT,
+double-float and 192-bit execution. No additional owner CSE patch was needed.
+
+The published dependency-only commit `1137e73113d9cb7fc956f09f1ed20747e7082488`
+was also tested in a clean detached worktree, independently of the development
+changes: `cargo test --locked -j 2 -p fastsecdec --lib -- --test-threads=1`
+passes **297 tests**, with 16 explicit ignored controls, in 25.29 seconds of
+test execution. This is the exact published-commit gate; the 77-test filter
+above describes the subsequent combined development source and is not added
+to this total.
 
 ## Serde strict unit-variant settings
 

@@ -1,6 +1,6 @@
 # Phase B acceptance ledger
 
-Updated 2026-10-09. The authoritative requirements are in
+Updated 2026-10-10. The authoritative requirements are in
 [CONTOUR_DEFORMATION_PLAN.md](../../CONTOUR_DEFORMATION_PLAN.md). This phase is
 active; passing the fixed-mode controls does not complete dynamic deformation
 or the required physical multiloop tests.
@@ -12,7 +12,7 @@ or the required physical multiloop tests.
 | Caller-owned execution | Real CLI tests cover ordinary/serial generation and integration, all validation policies, cancellation during preflight, exact offsets and policy-only resume. |
 | Independent physical references | Above-threshold B0, C0 and D0 agree with native HEPKit/OneLOop in both generation modes. Full fixed-mode 400 GeV ggHH agrees with HEPKit and MadLoop at 0.39 standard errors, with relative uncertainty `2.96355e-4`, pole cancellations and Ward checks. Physical double box and required LTD cases remain pending. |
 | Fixed milestone native regression suite | At `f2c2d930`, **730 distinct enabled tests passed; 29 were ignored**: 245 core scientific/integration tests, 252 library tests and 233 CLI/QMC/sector tests. Results for the subsequent dynamic generation increment are recorded separately below. Ignored tests are not acceptance evidence. |
-| Strict lint gate | Final public-matrix `cargo clippy --workspace --all-targets --locked -- -D warnings` passes, including the readiness correction and native/CLI artifact foundations. |
+| Strict lint gate | At `669ebfe`, `cargo clippy --workspace --all-targets --locked -- -D warnings` passed. The current runtime/family increment needs its own final lint gate after integration. |
 | Dynamic algebra | Polynomial and sign-aware recipe generation apply the full local-strength map before subtraction. Analytic complex Laurent controls now execute both symbolic and actual native numerical-dual evaluators, including repeated endpoint poles and Taylor/IBP. Certified dynamic runtime admission remains pending. |
 | Dynamic numerical root | Native callback/implicit-jet and restoration foundations pass. Owner tests cover prepared eager/JIT solves, tracked hypot, certified square roots and portable domains. An independent enclosure probe passed 2,620 cases at 8/24/96/256 bits. Production checker integration remains pending. |
 | Recipe-addressable artifacts | Ordinary and serial generation now publish the same native v2 archive. Internal family orchestration shares source preparation and retains recipe-local symmetry/formulas, with actual-process recovery tests. Public family selection and dynamic admission remain pending; ordinary/serial integration, covariance, selective inspection and checkpoint isolation pass for undeformed/fixed programs. |
@@ -34,12 +34,29 @@ A subsequent focused dependency increment updates SymJIT alone to public
 `d74993ffd76a6fc322a7bcf3963fa786783a38a8`. It fixes a reproduced 256-byte native
 callback-name limit through [upstream PR #16](https://github.com/siravan/symjit/pull/16).
 The owner suite passes 2,151 tests (one ignored), and FastSecDec's rebuilt
-contour filter passes 77 tests. The separate higher-jet observer control
-identified incorrectly grouped subtraction-face requests; its correction and
-complete dynamic runtime admission remain under validation. A settings regression also yielded
+contour filter passes 77 tests on the combined development source. The separate
+higher-jet observer control identified incorrectly grouped subtraction-face
+requests. Its correction now passes complete Laurent-vector tests through
+eager/SymJIT, double-float and 192-bit execution for both constructions and
+Taylor/IBP; the strict duplicate-request guard remains enabled. Complete
+dynamic runtime admission remains under development. A settings regression also yielded
 [Serde PR #3109](https://github.com/serde-rs/serde/pull/3109), without adding a
 Serde fork to FastSecDec. The upstream ledger records exact identities and
 review-request outcomes for both fixes.
+
+The exact published dependency-only commit `1137e73` separately passes its
+whole native library suite in a clean detached checkout: 297 passed, 16 ignored,
+25.29 seconds of test execution. No development-tree changes entered that run.
+
+The following native-family increment has focused passing gates: eight family
+session tests, 43 artifact tests, 15 recipe tests (plus one child-only ignored
+entry), ten generation-program tests, and the actual-face request control.
+The family uses caller-owned storage and shared native preparation, with
+complete-only results, optional retained resident kernels and the same native
+assembly as selective loading. Complex Laurent layouts, empty fixed inputs,
+pause/resume and partial-write failure behavior are covered. The thin HEPKit
+wrapper and dynamic production checker are being integrated; these counts do
+not establish their readiness.
 
 The [upstream PR ledger](contour-upstream-prs.md) records the owner patches,
 their focused tests, authorship and actual review-request outcomes. GitHub
