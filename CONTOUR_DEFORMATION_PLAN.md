@@ -501,3 +501,23 @@ seed identities, timing scopes and ecosystem reuse. This extends the immediate
 stopping checkpoint: publish the physical and scalar results with green local
 checks, then pause the active goal and stop for the user's next decision. The
 broader Phase B goal must not be marked complete on these benchmarks alone.
+
+### Delivered benchmark checkpoint (2026-10-10)
+
+The physical 1000 GeV D05 campaign completed both full generation paths and
+all four five-minute, 50-core fixed/dynamic QMC/discrete-MC runs. The subsequent
+scalar extension completed 24 generation variants, 48 sampling runs and 144
+complete lattice epochs across triangle, box, massless sunrise and mixed-mass
+kite inputs. All 72 symbolic/contour-only-dual Jacobian pairs use identical
+actual coordinates and weights and retain native full-vector covariance.
+
+The maintained Typst source and compiled report include complete generation,
+memory, per-sector sampling and convergence comparisons, with independent
+reference and ecosystem-reuse audits. Common-cap scalar comparisons do not
+claim individually optimized strengths or asymptotic convergence. Separate
+sunrise memory-only probes are distinguished from original timings and samples.
+
+This completes the user's immediate benchmark/reporting checkpoint. Publish
+the validated results, then pause the active goal and stop as instructed. The
+broader Phase B acceptance programme remains unfinished; this checkpoint does
+not authorize marking that goal complete.

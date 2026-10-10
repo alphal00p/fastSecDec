@@ -1,5 +1,5 @@
 // Rebuild: nix-shell -p typst --run 'typst compile docs/contour-deformation.typ docs/contour-deformation.pdf'
-// Final campaign results must replace the explicitly pending rows before delivery.
+// Measurements are accompanied by native full-covariance summaries and audit records.
 #set document(title: "Causal contour deformation in FastSecDec", author: "FastSecDec collaboration")
 #set page(paper: "a4", margin: (x: 19mm, top: 18mm, bottom: 19mm),
   footer: context [#text(size: 8pt, fill: rgb("64748b"))[FastSecDec · contour_deformation] #h(1fr) #counter(page).display()])
@@ -22,7 +22,7 @@
 
 #text(size: 13pt)[FastSecDec · fixed and smooth dynamic strength]
 #v(3mm)
-#text(size: 9pt, fill: rgb("64748b"))[Working report · 10 October 2026 · measurements not yet complete]
+#text(size: 9pt, fill: rgb("64748b"))[Benchmark checkpoint · 10 October 2026]
 
 = Deformation styles and formulae
 == Common geometry and fixed strength
@@ -266,6 +266,9 @@ No independent numerical reference exists for this point. These frozen
 campaign executables precede the loader-cache update in section 3.
 
 #pagebreak()
+#include "contour-scalar-results.typ"
+
+#pagebreak()
 = Implementation and performance
 == Preserve algebraic structure and reuse native facilities
 FastSecDec owns the sector/integration interfaces in Rust. Symbolica supplies
@@ -321,7 +324,8 @@ No mathematical reordering, alternative CAS or AD implementation is introduced.
 An optional initial native Series width avoids a known discarded attempt; the
 strict absolute Laurent-remainder coverage check and checked retries remain
 unchanged. It defaults to one. Twenty-three focused controls and independent
-native-reuse reviews pass; production savings are still being measured.
+native-reuse reviews pass. The measurements above distinguish generation savings
+from the cost of sampling the resulting evaluator.
 
 == Matched Jacobian measurements on one source sector
 #table(columns: (1.3fr, 1fr, 1fr, .85fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -403,4 +407,7 @@ sector cancellations even at a time-budget stop.
 #text(size: 9pt)[*Reproduction and source:* #link("https://github.com/alphal00p/fastSecDec/tree/contour_deformation")[FastSecDec, contour_deformation].
 Native input: `examples/contour/gghh_double_box_1000/`. Mathematical audit:
 `docs/reviews/contour-foundation.md`. Physical campaign provenance and complete covariance are in
-`docs/contour-deformation-results.json`; the scalar extension is in progress.]
+`docs/contour-deformation-results.json`. The scalar protocol, complete vectors,
+covariance, work identities and measurements are in `docs/contour-scalar-results.json`
+and `docs/reviews/contour-scalar-benchmark-audit.md`. The maintained Rust driver
+and reproduction commands are in `examples/contour/scalar_benchmarks/`.]

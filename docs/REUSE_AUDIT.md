@@ -23,8 +23,13 @@ without implementing physics or statistics.
 
 Five native example controls, one existing coordinate-hasher control, strict
 workspace/all-target Clippy and formatting pass. These gates accept the input
-and protocol implementation, not benchmark speed or convergence. Final linked
-plan and raw scalar campaign acceptance remain separately recorded boundaries.
+and protocol implementation, not benchmark speed or convergence. The optimized
+linked plan and immutable input pins also pass independent review. The bounded
+campaign subsequently passes all 144 native complete-epoch checks and 72
+paired-coordinate checks, with full covariance retained. The audit explains
+the actual one-loop dynamic-construction equality and inactive sunrise
+contour; it does not infer asymptotic convergence or count a missed RSS sample
+as zero memory.
 
 ## Native primary JIT restoration and immutable loader ownership (2026-10-10)
 
