@@ -2649,3 +2649,25 @@ A clean detached test of the published dependency-only commit `1137e73` passes
 all 297 enabled native library tests, with 16 explicit ignored controls. The
 combined development-tree controls above are separate evidence, not additional
 tests attributed to that commit.
+
+## Direct exact-vector native cache audit (2026-10-10)
+
+The [API/source/probe audit](reviews/contour-exact-map-audit.md) establishes a
+narrow missing operation: Symbolica's scalar direct evaluator owns a private
+function cache, but previously offered no shared direct-vector call exposing
+the executed function values. Existing function-map overrides retain native
+tracking, but pre-evaluating every syntactic root changes lazy branch behavior.
+Compiling and summing individual exact records also loses removable native
+algebraic cancellations. Neither limitation justifies a private evaluator or
+algebra implementation in FastSecDec.
+
+[Symbolica PR #59](https://github.com/symbolica-dev/symbolica/pull/59) exposes the
+existing direct evaluator and cache through one immutable point/precision call,
+with a borrowed view of executed custom functions. The optional inspection
+does not copy or enumerate the cache when unused. Independent review and the
+focused owner gates pass: eight new tests and fifteen existing evaluation
+tests, with one pre-existing stress test ignored. The same focused gates pass
+on public consumer `1e1cb169bec35ed3b8536050f789321f063a2047`, selected by all
+three maintained manifests/lockfiles. Locked metadata confirms unique native
+owner identities. The complete FastSecDec build and dynamic exact-contribution
+lifecycle remain separate pending gates.

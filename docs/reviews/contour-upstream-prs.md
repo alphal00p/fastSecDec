@@ -147,6 +147,20 @@ this PR introduces no additional consuming dependency fork.
   Formal reviewer assignment was denied;
   [the review invitation](https://github.com/symbolica-dev/symbolica/pull/58#issuecomment-6088599198)
   names `@benruijl`.
+- [Symbolica #59](https://github.com/symbolica-dev/symbolica/pull/59) exposes
+  direct expression-vector evaluation with the owner's existing function cache.
+  Head `7553de426d63628f679ed6e7b4a95acb834c8d76` targets `community` base
+  `f4e787074d45f1dddd0b9646a5ebc85690deb2d1`. The four-file change preserves
+  native lazy branches, explicit function-map precedence, cancellation and
+  numeric tracking; it adds no alternate evaluator or algebra. Eight new tests
+  and 15 existing evaluation tests pass, with one existing stress test ignored,
+  in the direct owner build using cached native dependencies. This is not a
+  claim that the full owner Cargo suite ran. Independent source/API review
+  passed; the [exact-vector audit](contour-exact-map-audit.md) records the
+  public-API, source and focused-probe evidence for the missing operation.
+  GitHub rejected formal `benruijl` assignment with `RequestReviewsByLogin`;
+  the [explicit review invitation](https://github.com/symbolica-dev/symbolica/pull/59#issuecomment-6091614060)
+  requests his review. The PR is attached to the task.
 
 All PRs are authored and published by ValentinHirschi and attached to the task.
 The tracked scalar forwarding candidate was not adopted: enabling ordering
@@ -163,6 +177,16 @@ the still-unmerged PRs 55–58 and the exact
 existing commits of [PR 54](https://github.com/symbolica-dev/symbolica/pull/54),
 which supplies native evaluator composition and output pruning already required
 by FastSecDec.
+
+The current consumer extends that exact revision with only PR 59's four-file
+API change, at `1e1cb169bec35ed3b8536050f789321f063a2047` on
+[`codex/contour-direct-vector-consumer`](https://github.com/ValentinHirschi/symbolica/tree/codex/contour-direct-vector-consumer).
+The combined owner build repeats the eight new and fifteen existing passing
+evaluation tests, with one existing stress test ignored. All three FastSecDec
+manifests/lockfiles select this public revision without a dependency migration.
+Their `cargo metadata --locked` checks pass with one Symbolica/Numerica identity
+per consumer; the portable graph correctly excludes SymJIT. FastSecDec's next
+runtime build remains a separate gate from these owner and resolution checks.
 
 The initial combined revision `eccd039` passed its leaf owner controls but
 failed the actual FastSecDec consumer build: upstream `community` does not yet

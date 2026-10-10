@@ -58,6 +58,28 @@ pause/resume and partial-write failure behavior are covered. The thin HEPKit
 wrapper and dynamic production checker are being integrated; these counts do
 not establish their readiness.
 
+The next owner API increment is published as
+[Symbolica PR #59](https://github.com/symbolica-dev/symbolica/pull/59), authored
+and published by ValentinHirschi. It shares the existing direct function cache
+across exact output vectors, preserving native cancellations, lazy branches
+and numeric tracking. Independent review, eight new tests and fifteen existing
+evaluation tests pass on both the upstream PR base and the combined consumer
+revision `1e1cb169bec35ed3b8536050f789321f063a2047` (one existing stress test
+ignored). The three maintained consumer manifests/lockfiles now select that
+revision and pass locked metadata/unique-owner checks. This records owner and
+dependency-resolution evidence; the new FastSecDec runtime build and checked
+exact-offset integration remain pending.
+
+On the development source before that dependency increment, the saved dynamic
+checker/attempt gate passes eleven tests, the recipe gate passes sixteen plus
+one child-only ignored entry, and the binary gate passes fifteen plus one
+child-only ignored entry. The binary gate includes fresh-process exact-context
+transport. Its test fixture deliberately retains a generated native radius in
+the test-only exact vector so transport coverage is nonvacuous; it does not
+establish scientific end-to-end dynamic integration. The production gate stays
+closed while sparse exact evaluation, pilot coverage and policy remapping are
+completed.
+
 The [upstream PR ledger](contour-upstream-prs.md) records the owner patches,
 their focused tests, authorship and actual review-request outcomes. GitHub
 accepted some formal `benruijl` requests and rejected others because he is not
