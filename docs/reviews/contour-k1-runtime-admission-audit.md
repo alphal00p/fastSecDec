@@ -382,3 +382,46 @@ undeformed capability nor successful compilation establishes the massive
 integral's physical value, runtime causal admission or convergence.
 The independent metadata audit is retained at
 `target/generation-agent-ltd-massive-family/foundation-publication-audit.json`.
+
+## Massive K1* finite-admission evidence review
+
+The later K1* runtime gate closes the finite-admission gap left by the preceding
+publication review. Independent read-only checks of the frozen source,
+authorization, executable and seven primary raw-report hashes agree with the
+[massive runtime report](contour-ltd-massive-runtime.md). The reviewed summary
+has SHA256
+`019805037c99a6d9f7845ed57a805e403fba19bb451c4f4c493bf4a25003f13b`;
+the native driver's SHA256 is
+`543523438f9ee009d8796490f319098798cd271205476f2a21264b0650063f48`.
+It uses the verified release core from `3303005`, without production changes.
+
+The completed native integrity report verifies all 240 receipt digests and the
+pinned catalogue before payload restoration. The 60 map results cover exactly
+sources 0 through 29 for both fixed/polynomial and fixed/sign-aware comparisons.
+Each of the six prescriptions contains every record index 0 through 59 and
+each stochastic source 0 through 29 exactly once. The recorded settings and
+16 actual pilot points match the predeclared plans, including both individual
+faces of each of the six axes. All required native chart readiness reports
+complete: 480 source-point checks per arm, 2,880 total. Each freshly restored
+aggregate exact owner is admitted separately, with zero required roots and
+the exact vector `[0,0]`; its readiness is not counted as invented point work.
+
+The conditional source-zero reports contain all 12 arm/seed runs, each with
+eight contiguous native packages and 8,192 assigned points. The exact recorded
+package ranges, coordinate and weight hashes match across all six arms for
+each seed. All 98,304 points complete without a failed report; native metrics
+retain the 17–18 DoubleFloat retries per arm and zero arbitrary-precision
+calls. Pilot and production remain separate, with zero production causal
+checks. Independent arithmetic on the existing counters reproduces the
+reported source-zero average costs, including retry work. No estimate,
+covariance, reference comparison or full 30-source allocation is emitted.
+
+The raw monitor records exit zero, no limit, and an empty process group after
+114.713877740 seconds with peak aggregate RSS 455,798,784 bytes. The planned
+concurrency label is historical setup: the earlier massless K1 accuracy
+invocation had already rejected its input basename and exited before this
+run began. Neither an observed overlap nor an idle-host comparison follows
+from that label. The independent audit is retained at
+`target/contour-ltd-massive-runtime/foundation-evidence-audit.json`; it performs
+no new numerical evaluation and does not repeat the full data-file digest
+pass. Full-integral accuracy remains an open scientific gate.

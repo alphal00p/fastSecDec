@@ -1,5 +1,54 @@
 # Ecosystem reuse evidence
 
+## Phase B delivery boundary audit (2026-10-10)
+
+The [independent delivery audit](reviews/contour-delivery-gap-audit.md) reviews
+current native, CLI, artifact, status and retained HEPKit interfaces against
+the approved plan. No new ownership or interface blocker was found. The open
+gates are physical multiloop numerical/reference checks, measured performance
+and maintained reproduction of the final comparisons. Native source preparation
+and a complete artifact do not establish those results. The higher-dimensional
+determinant path needs physical-chart feasibility before extending the
+six-dimensional evidence. The native structured-matrix probe and the separate
+owner sign defect are recorded below; neither establishes a higher-dimensional
+physical integral.
+
+## Native multiloop sampling and higher-dimensional matrix audit (2026-10-10)
+
+The [K1 release smoke](reviews/contour-ltd-k1-variance.md) reuses native
+`QmcSession` common-shift vectors and full covariance. Its four prescriptions,
+two seeds and all 186 sectors complete with identical actual same-seed
+coordinates/weights and zero optional production checks after finite pilots.
+Independent reconstruction from native shift vectors agrees with every mean
+and covariance. Polynomial dynamic L=0.1 has substantially lower observed
+variance than the tested fixed strengths, but its approximately 14% joint
+relative errors remain far above the requested 0.1%. This is not convergence
+or an accepted general speedup. No new sampler or statistical helper was needed.
+
+The [massive K1* admission](reviews/contour-ltd-massive-runtime.md) similarly
+uses native saved owners, exact aggregation, map metadata and pilot readiness.
+All 240 record digests, 60 fixed/dynamic map comparisons and six whole-source
+pilots pass. Its 98,304-point source-zero cost probe compares actual native
+coordinate/weight streams; it supplies neither an integral estimate nor a
+variance comparison. Final numerical and performance gates remain open.
+
+The [higher-dimensional audit](reviews/contour-higher-dimension-determinant-audit.md)
+checks native matrix APIs, source and executable probes. A bordered native
+matrix retains the complete dynamic-strength derivative while keeping every
+Bareiss divisor in a proven nonzero principal minor of the real-gradient
+constant-strength block. This permits the existing native determinant to retain
+factored quotients without a private elimination algorithm. Eight-/nine-
+dimensional generic probes pass; actual physical mapping and restoration are
+separate gates. No generic factorial template cache is extended.
+
+The same owner probe independently reproduces an unrelated row-swap sign error
+in `Matrix::det_in_place`, including on current upstream. The narrow owner
+fix is [Symbolica PR #61](https://github.com/symbolica-dev/symbolica/pull/61),
+authored and published by ValentinHirschi, with 195 distinct owner tests passing.
+GitHub denied formal reviewer assignment; `benruijl` was requested by comment.
+FastSecDec uses the unaffected `Matrix::det`, so no dependency pin change is
+required for this issue.
+
 ## Physical multiloop saved-program admission (2026-10-10)
 
 The [independent runtime audit](reviews/contour-k1-runtime-admission-audit.md)

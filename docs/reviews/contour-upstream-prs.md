@@ -343,3 +343,31 @@ host passes 76, and actual Emscripten/Wasm passes the three public dynamic
 controls. Strict workspace all-target Clippy passes. Installed current-host
 Python and physical multiloop acceptance remain separate gates.
 See [the owner reuse review](contour-direct-external-cache.md).
+
+## In-place matrix determinant row-swap sign
+
+[Symbolica PR 61](https://github.com/symbolica-dev/symbolica/pull/61), head
+`74d712d0e50692012c9c45778a06efd72f7c33ef`, fixes Numerica's
+`Matrix::det_in_place` against upstream community
+`f4e787074d45f1dddd0b9646a5ebc85690deb2d1`. The two-row permutation matrix
+`[[0,1],[1,0]]` returned `+1` instead of `-1`: its existing row reducer discarded
+swap parity. A private parity-returning adapter now shares that same reduction
+and applies the sign once for a full-rank determinant. Public reduction, rank
+and solve interfaces remain unchanged.
+
+The freshly compiled baseline fails two odd-swap controls. The patch passes all
+five new odd/even/late/singular/rectangular regressions, 176 existing Numerica
+unit tests and 14 existing API tests: **195 distinct passes, zero ignores**.
+These are direct-rustc owner tests with a coherent cached native GMP/MPFR graph,
+not a claim of complete Symbolica workspace CI. Changed-file formatting,
+whitespace checks and independent root source review pass.
+
+The commit and publication account are `ValentinHirschi`, with author email
+`valentin.hirschi@gmail.com`. The PR is attached to this task; the root's
+successful attachment supersedes the earlier unconfirmed tool attempts.
+GitHub denied a formal `RequestReviewsByLogin` assignment. The explicit
+[`benruijl` review invitation](https://github.com/symbolica-dev/symbolica/pull/61#issuecomment-6094531274)
+records that limitation; no formal assignment or merge is claimed.
+FastSecDec's contour path uses the already-correct `Matrix::det()`, so this
+separate owner defect does not require a consumer revision change. See the
+[higher-dimensional determinant audit](contour-higher-dimension-determinant-audit.md).

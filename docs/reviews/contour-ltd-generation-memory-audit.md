@@ -529,6 +529,78 @@ checks the expected source identity, all four recipe IDs, threshold policy,
 distinct sector indices and closed process group; it does not evaluate or
 replace any native scientific check.
 
+### Six-point source preparation and determinant research boundary
+
+The next approved source-only gate uses the unchanged native importer for
+`2L6P.a.I`, the private release core built from `3303005`, and
+`prepare_recipes_with_runtime` / `prepare_chart_source`. It completes in
+**1.075 s**, with a 50-ms sampled peak of **14,381,056 bytes (13.715 MiB)**,
+inside its declared 60-second / 1-GiB bound. The process group closes cleanly.
+Actual shared preparation produces **372 eight-dimensional maps** for the
+four requested recipes and persists all 372 extracted source records. Their
+sizes are 5658–5999 bytes, totalling 2,175,314 bytes. No contour map,
+determinant, evaluator or numerical estimate is constructed in this gate.
+
+The native importer retains nine propagators, a 20-term U and a 62-term F.
+The existing fixture's F coefficients are all negative; this observation does
+not replace causal branch checks or authorize a threshold/scaleless shortcut.
+The two published real references remain separate: Table 2 pySecDec
+`-86.08 ± 0.09` and the independent momentum-space result `-86.6 ± 0.8`.
+The table supplies no separate imaginary uncertainty. Preparation alone is
+insufficient evidence to choose a complete 372-chart construction campaign;
+actual eight-dimensional map/determinant feasibility is the next question.
+
+The physical source identity is
+`6a873fce99830fee26a89a2c9d0474076a34925c45ebff46ceb7c4bd26487d2d`.
+Actual prepared source 0 has native record BLAKE3
+`619e3b0bea07e2a991664b2bd17c2b5b38c1973bdbca9478904896e0eaeb28ca`
+and length 5946 bytes. Ignored evidence lives under
+`target/generation-agent-ltd-six-point/`: `plan.json`, `summary.json`,
+`probe.rs`, `build-command.json`, `prepared/` and
+`runs/native-source-prepare/`. It links release core
+`fastsecdec-fc72e5af38457b31` and Symbolica `2aba310c037d39ac`, using the
+unchanged importer and fixture records from the verified source archive.
+The wrapper uses `opt-level=3,lto=thin`; an initial setup-only link without
+thin LTO failed on the release bitcode archive and is preserved in `build.log`.
+No dependency defect or rebuild is inferred. Driver SHA256 is
+`1caf1fd4f631b223b08cf2f61d4e84d5ac23ff9fbcab41790266f38f87f7abb9`;
+source SHA256 is
+`2863bcfbf984b3189b224e595fb4618c9eb0992cc0f85d1585b8915e5a3fa25d`.
+
+The following independent structural argument is **research evidence only**,
+pending native API/source and bounded executable probes. For the existing map
+`z=x-i λv`, put `w_i=x_i(1-x_i)`, `W=diag(w)`, `g=∇F`, and
+`D=diag(w'_i g_i)`. Then `v=Wg`, `Dv=D+W Hess(F)`,
+`A=I-i λDv`, and `J=A-i v(∇λ)^T`. On any interior principal subset,
+`W^(-1/2) Dv W^(1/2)=D+W^(1/2) Hess(F) W^(1/2)` is real symmetric.
+Every principal minor of A therefore has modulus at least one for real λ.
+On a face, order the `w_i=0` rows first: their off-diagonal entries vanish,
+leaving a block lower-triangular A with diagonal factors `1-i λw'_i g_i`
+and an interior block of the same form. This proves the same nonvanishing
+principal-minor statement on all faces where the native strength is defined.
+
+Consequently the bordered matrix
+`B=[[A,i v],[(∇λ)^T,1]]` has
+`det(B)=det(A)(1-i(∇λ)^T A^(-1)v)=det(J)`. Its first n leading
+minors are the proven nonzero A minors; **det(J) itself may vanish**.
+Whether the existing native determinant implementation divides only by those
+safe minors, preserves the expression compactly and returns the correct sign
+is the separate owner-source/probe gate. No new elimination algorithm is
+implemented in FastSecDec.
+
+The premises agree with the current source admission: designated F/U and the
+map's F must be real for real inputs; physical binding values are `f64`; the
+dynamic callback rejects nonfinite or nonreal centres and nonpositive strength.
+Complex numerators do not enter v. Tracked complex uncertainty does not turn
+this real-centre proof into a claim about arbitrary complex input points.
+The argument does not repair a singular or undefined native root. For higher
+jets, λ must remain the native differentiable strength, `∇λ` must retain its
+full coefficient/IFT dependence, and all retained definitions must survive.
+Native differentiation must precede face restriction, as in the existing
+subtraction path. Under those premises the identity holds locally with smooth
+native coefficients, so subsequent native derivatives preserve it; replacing
+λ by a frozen value or clipping its face derivatives would not be justified.
+
 A separate native parity probe verifies that the failed new run's actual
 prepared-source-0 record has exactly the retained fixed chart's F, U and
 ordered parameters. Its immutable source identity is
