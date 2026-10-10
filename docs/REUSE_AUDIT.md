@@ -1,5 +1,15 @@
 # Ecosystem reuse evidence
 
+## Generic real-root neighborhoods and closed coverage (2026-10-10)
+
+The [real-atlas review](reviews/no-deformation-real-atlas.md) records native
+polynomial/evaluator, derivative, matrix, ball and exact quotient probes for
+a proposed compact fixed-fiber atlas. No existing parametric interval-IFT owner
+was found after API/source/probe review; certified orchestration over those
+native operations remains to be implemented. Generic CAD open-cell completeness
+does not certify equality sections. The review retains the missing global
+geometry, parameter strata and pushforward requirements explicitly.
+
 ## Native threshold preparation and recovery (2026-10-10)
 
 The [preparation review](reviews/no-deformation-native-preparation.md) records

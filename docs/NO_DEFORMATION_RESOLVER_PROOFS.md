@@ -135,6 +135,13 @@ These are serious additional effective operations, not just data conversion.
 The current native inventory does not contain this preparation algorithm.
 This addendum does not assert that the general endpoint-atlas proof is closed.
 
+The later [independently reviewed weighted-atlas construction](reviews/no-deformation-real-atlas.md)
+provides an alternative final compact-cover step on a supplied proper, regular
+resolved model. Native uniform inverse-box and closed-coverage probes pass,
+including a full quintic equation. Its compact-model, signed-domain,
+ramification, parameter-stratum and implementation obligations remain explicit;
+this conditional construction does not close the general endpoint-atlas gate.
+
 The small first deliverable is nevertheless concrete: a native checker for
 supplied maps, checking their graph identities, real branch selectors, domain
 ownership, determinant sign, rational valuations, unit nonvanishing and

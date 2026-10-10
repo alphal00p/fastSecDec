@@ -516,6 +516,13 @@ accepted. Their narrower certificates do not close the open G0 adapters.
 | G8 | Scalar, literature/LTD-derived, and physical ggHH acceptance, including complex numerator, original-source selection, parametric strata, and exceptional failures. | Rational pole controls and above-threshold bubble match native OneLOop; required higher-dimensional/general algebraic and physical suite pending |
 | G9 | Bounded matched performance and five-minute 50-worker QMC/discrete-MC physical runs; report generation/RSS/full covariance without mandatory per-mille accuracy. | Not run |
 
+The [recursive-driver review](reviews/no-deformation-bm-driver.md) records the
+accepted boundary of the next fixed-parameter recursion slice and the remaining
+global-center, transform and relative-family obligations. The
+[weighted real-atlas review](reviews/no-deformation-real-atlas.md) supplies a
+conditional compact-cover construction with native quintic probes. Neither
+review changes the incomplete status of G0, the full G3 driver, or G5.
+
 The G3–G6 gate family must include arbitrarily parameterized test families that
 exercise nontrivial centers, higher-degree algebraic towers, intersecting
 discriminants, and seam/regulator cancellation. Passing the earlier scalar
