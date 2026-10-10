@@ -269,6 +269,12 @@ campaign executables precede the loader-cache update in section 3.
 #include "contour-scalar-results.typ"
 
 #pagebreak()
+#include "contour-cap-results.typ"
+
+#pagebreak()
+#include "contour-cap-double-box.typ"
+
+#pagebreak()
 = Implementation and performance
 == Preserve algebraic structure and reuse native facilities
 FastSecDec owns the sector/integration interfaces in Rust. Symbolica supplies
@@ -283,6 +289,14 @@ derivatives and explicit radius dependencies. The saved program restores the
 optimized evaluator; binding a strength or cap must not rerun Horner/CPE.
 SymJIT O2 remains the native backend default; portable exact evaluator IR is
 retained separately for eager and high-precision execution.
+
+*Horner defaults.* New generation uses ten Horner iterations in the native,
+CLI and Python settings. The earlier double-box and scalar tables retain their
+explicit historical zero setting. In the pinned Symbolica implementation,
+zero takes the direct linearization path and skips the subsequent Horner and
+common-instruction optimization passes; it does not disable SymJIT O2.
+Contour-only dual composition performs additional native common-expression
+optimization separately. No historical program is relabelled as Horner ten.
 
 An actual D05 source sector contains 236 smooth terms. The initial representation
 copied its large Jacobian into each term. Native structured construction plus
@@ -358,11 +372,13 @@ retained in public consumer revision `74225696`. The same consumer adds
 #link("https://github.com/symbolica-dev/symbolica/pull/63")[Symbolica PR 63]:
 common-subexpression lookup remaps operands before hashing them, avoiding one
 optimizer pass per level of a duplicate dependency chain. Native branch
-ancestry and callback argument order remain unchanged. The current workspace
-passes 935 tests (34 explicit ignores, including a child invoked separately).
-The portable suite passes 83 tests. Strict Clippy, formatting, and thin-binding
-build/lint checks pass. These are native/portable-host gates, not installed
-Python-wheel or browser/WASM execution evidence.
+ancestry and callback argument order remain unchanged. The preceding published
+workspace gate passed 935 tests (34 explicit ignores, including a child invoked
+separately), and its portable suite passed 83 tests. The source-selection
+follow-up passes 426 core tests (20 existing ignores), plus focused artifact,
+CLI process, portable selection and saved-result controls. Strict workspace
+Clippy, formatting and thin-binding checks pass. These are native/portable-host
+gates, not installed Python-wheel or browser/WASM execution evidence.
 
 The physical QMC run also exposed avoidable coordinator work: matching common
 shifts used linear searches within already-sorted native replica records.

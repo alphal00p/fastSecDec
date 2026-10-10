@@ -1,5 +1,82 @@
 # Ecosystem reuse evidence
 
+## Original source-chart selection and native partial-result scope (2026-10-10)
+
+The [independent source-selection review](reviews/source-sector-selection.md)
+accepts selecting existing native geometry charts
+before mapping, symmetry and endpoint reduction. The implementation reuses
+the same direct, cooperative and streamed generation paths; it does not add
+geometry decomposition or algebra. Compact local chart/kernel identities
+remain distinct from the identity-bound original-source selection and its
+record-local lineage. Explicit selection of every original chart canonicalizes
+to the existing default, preserving its bytes and identities.
+
+Subset-only v14 metadata wraps the existing native payload and coexists with
+the optional v13 primary cache. Indexed records retain the same local coverage
+guards; all recipes in a family must name the same original selection. Native
+exact-only loading preserves that declaration even when chart bodies are
+released or exact terms cancel. Saving the exact owner directly avoids
+fabricating an incomplete indexed catalogue. Cache refresh preserves semantic
+identity; optional integrity validation is not misrepresented as an always-on
+digest check.
+
+Native result projection qualifies a generation subset as a partial original
+integral, including its declared exact-offset policy, and prevents an
+unqualified full-integral convergence claim. Independent review found and
+resolved an unsorted public-sector-ID omission; its regression retains all
+caller IDs and their original output order. Six native selection controls,
+five portable counterparts, three scope controls, eleven saved-result checks,
+55 artifact checks (three existing ignores), three CLI process controls and
+the maintained kite/Horner input controls pass. These cover cancellation,
+scope tampering, family consistency, cache refresh and direct/stepped parity.
+Strict workspace Clippy/formatting and the isolated Python stub-generation
+check pass. The complete cached core passes 426 tests with 20 existing ignores
+using the documented single test thread. The linked review preserves an initial
+parallel-test lifetime assertion failure and the exact final-source lint caveat;
+no physical selected-source speedup is claimed.
+
+## Dynamic cap attribution through native chart objects (2026-10-10)
+
+The [cap and ansatz study](reviews/contour-cap-ansatz-study.md) reuses retained
+`ChartRecord`/`ContourMetadata`, `DynamicEnvelope`, Symbolica's evaluator and
+symbolic derivatives, its bracketed solver, and native `Matrix::det`. The
+research helper reports cap/displacement/causal/positive contributions without
+changing the production deformation. Its Horner-ten native probe passes 60
+fixed-coordinate controls on a saved kite chart, including a boundary and
+independent implicit-gradient differences. Full and frozen-strength Jacobians
+are diagnostic outputs; only the full existing Jacobian belongs in the
+integrand. The audit distinguishes base-chart observations from subtraction
+callbacks and finite floating-point checks from certified causal admission.
+
+The new cap sampler's independent source review confirms caller-owned native
+`QmcSession` work, full covariance, actual coordinate/weight matching and
+separate fresh pilot seeds. Different caps remain separate estimates. D05's
+dominant-sector scout explicitly excludes aggregate exact offsets and does
+not claim a whole-integral result; full kite estimates retain native exact
+offsets once. Independent raw review accepts sixteen kite scout/refinement
+arms with identical actual coordinate/weight ranges and all native complete
+replicas, preserving four fixed-strength pilot refusals. The cap-one minimum
+on this exploratory grid does not establish a globally optimal prescription.
+Both matched top-point replays subsequently pass 282 evaluations and 66
+same-arm full-vector checks per construction. Native helper strengths match
+the actual production callback ranges within `1.8e-15`; large determinants
+cannot be attributed solely to the gradient-of-strength term. The review
+retains this local limitation and uses existing R/S controls before proposing
+a new shape. Twenty fresh-seed kite confirmation arms also pass with complete
+native covariance and paired point sequences; the selected dynamic variance
+is lower, while adjusted variance-times-runtime gives no confirmed speedup.
+The D05 selected-sector scout and 198-point replay retain their explicitly
+partial scope and show large-cap saturation. A bounded existing-parameter
+follow-up selects `L=1e-5,S=.4,R=1`, then six fresh full-thirty-sector
+confirmations pass with exact contributions included and all native covariance
+preserved. Selected dynamic variance improves over fixed by 3.486 and 4.509
+times, while adjusted variance-times-time favors different prescriptions in
+the two runs; no uniform time win is claimed. Independent projection review
+checks all 69 maintained D05 evidence pins, complete vectors and 180 sector
+marginals. No new CAS, root algorithm, AD engine, sampler or estimator is
+introduced, and the proposed additional distortion constraint remains
+unimplemented.
+
 ## Scalar reference and caller-owned comparison protocol (2026-10-10)
 
 The [independent scalar audit](reviews/contour-scalar-benchmark-audit.md) checks

@@ -126,3 +126,30 @@ complete Laurent vector and all covariance entries.
 The measured polynomial generation began with two workers and resumed with four
 after two durable units. The fixed two-worker command above reproduces the
 construction and physics, rather than that historical scheduling sequence.
+
+## Runtime cap follow-up
+
+The [cap study](../../../docs/benchmark.pdf) reuses the saved polynomial
+programs without generation. A seven-sector scout scanned `lambda_cap` through
+100 and then varied the safety fraction and displacement cap. Fresh full
+30-sector QMC confirmations favored `L=1e-5, S=.4, R=1`: variance fell by
+3.5–4.5 times relative to fixed `lambda=1e-6`, although evaluation cost prevented
+a consistent time-to-accuracy improvement. These are short matched-work runs,
+not a new 50-core campaign or a per-mille accuracy result. Full vectors and
+covariance are retained in
+[the curated evidence](../../../docs/contour-cap-double-box-results.json).
+
+To try these settings on the saved polynomial artifact, append these runtime
+overrides to an integration command above:
+
+```sh
+--contour dynamical=0.4 --lambda-cap 0.00001 --displacement-cap 1 \
+  --contour-validation pilot
+```
+
+Use a fresh checkpoint for the changed mathematical prescription. The original
+benchmark cards remain unchanged so their historical results are reproducible.
+For small generation experiments, `[generation] source_sectors = [0, 3]`
+selects those original geometry charts before symmetry and subtraction; omit
+the option for the complete integral. Partial results retain their source
+scope and must not be treated as the full diagram.

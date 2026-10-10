@@ -3,3 +3,4 @@ docs/dependency-patches/*.patch -whitespace
 mre/**/*.patch -whitespace
 # Keep the requested compiled report byte-for-byte; its header can look textual.
 docs/contour-deformation.pdf binary
+docs/benchmark.pdf binary
