@@ -7,6 +7,15 @@ multiloop and performance acceptance gates remain open. The independent
 [delivery-gap audit](contour-delivery-gap-audit.md) distinguishes these live
 requirements from superseded historical implementation notes below.
 
+**Current delivery priority (2026-10-10):** the user now requests the physical
+ggHH D05 double box at 1000 GeV, generation/runtime optimization, and fixed versus
+dynamic five-minute comparisons with QMC and discrete MC on 50 workers. Preserve
+passing LTD evidence and stop further refinement solely for large variance.
+After the requested numbers, green local gates and publication, pause the goal
+for the user's next decision. This explicitly supersedes pursuing every open
+multiloop gate before that stopping checkpoint; it does not mark those gates
+passed. See the verbatim addendum in the approved plan.
+
 | Area | Evidence and remaining work |
 | --- | --- |
 | Fixed map and subtraction | Symbolica-derived map, Jacobian, endpoint ratios and factorwise causal logarithms; symbolic and numerical-dual Taylor/IBP controls pass. |

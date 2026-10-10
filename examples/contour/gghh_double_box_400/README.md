@@ -40,6 +40,9 @@ nix-shell --run 'cargo test --locked -p fastsecdec --example gghh_double_box_400
 ```
 
 The first command requires a fresh output directory and never overwrites one.
+The optional `--sqrt-s GEV` argument selects another native point; the default
+remains 400 GeV. The maintained [1000 GeV fixture](../gghh_double_box_1000/README.md)
+uses the same exporter and shared physical input.
 It calls the existing `Point::with_sqrt_s` and native topology/model APIs; it
 does not contract the numerator or generate/integrate sectors. The emitted
 `../../gghh_double_box/` references deliberately target **this maintained

@@ -313,3 +313,55 @@ record any upstream permission restriction rather than claiming the request
 succeeded. Attach every created pull request to the task. Keep independent
 owner changes separately reviewable; retain executable regressions and source
 reuse evidence. This authorizes publishing the previously prepared owner fixes.
+
+## Subsequent user priority and stopping checkpoint (2026-10-10)
+
+The following instruction changes the immediate delivery priority and adds an
+explicit pause after that delivery. It does not retroactively turn unfinished
+multiloop accuracy gates into successful results.
+
+### User instruction, verbatim
+
+Continue as planned, but I want you now to not insist much further on validation on the contour deformation complicated cases (keep the current passing ones as is, but if the issue is only too-large variance then don't insist), and instead focus on applying this new contour deformation strategies to the physical double-box example of gg_hh, but this time for sqrt(s) above threshold (say at 1000 GeV).
+
+We don't have a benchmark there yet, but I would like you to optimize the generation and runtime of both deformation strategy as much as you can and report the resulting generation and runtimes, as well as resulting best-found variance for the final total result in both cases (after 5 minute runs on 50 cores), with both `qmc` and `discrete_mc` strategies and for both the `fixed` and `dynamical` deformation.
+Once you got those numbers and have picked up all low-hanging fruits optimization of both generation and runtime, clean-up and push a version with green-local gate, return these numbers in a table for me, and pause the goal and stop yourself so we can decide together how to proceed.
+
+### Immediate delivery goal
+
+Deliver the native incoming-`++` physical D05 double-box example at
+`sqrt(s)=1000 GeV`, retaining its established model, masses, scattering angle,
+numerator, colour contraction and normalization. Improve generation and
+sampling cost where measured evidence identifies straightforward changes, and
+report fixed/dynamic results for both QMC and discrete MC after five-minute
+integration runs with 50 workers. Preserve the full complex Laurent vector and
+covariance; report the final finite coefficient, its covariance trace, joint
+sampling uncertainty, actual work, generation time, and setup/sampling costs.
+There is no independent numerical benchmark for this point, so do not imply
+validated physical accuracy from agreement of noisy runs alone.
+
+Keep existing passing complex-case evidence. Do not continue costly LTD
+refinement solely to reduce its variance. Preserve the interrupted K1 accuracy
+checkpoint and honest unfinished results; no further eight-dimensional physical
+probe or three-loop campaign is required for this stopping checkpoint.
+
+Use the existing ordinary caller-owned 50-thread pool for both integration
+methods when residency permits; discrete MC cannot use serial sector loading.
+Do not equate independent CLI replicas with a single 50-worker integration.
+Select useful fixed strengths and dynamic construction/caps using bounded
+preliminary checks, freeze the final settings, and identify the selected
+construction explicitly. Keep preliminary and final sampling identities
+separate. Measure the five-minute integration budget from the first native
+integration-status event, including worker/context setup and Havana adaptation;
+report artifact restoration and causal pilot setup separately. Existing status
+events can lag the first worker dispatch while other contexts are prepared, so
+do not claim an exact first-sample clock. Retain only statistically valid
+accepted work at interruption and report any finishing overshoot or unfinished
+allocations.
+
+Delegate input/generation, integration/performance, and independent scientific,
+seed, timing and reuse reviews. Finish appropriate local scientific tests,
+formatting and lint checks for the delivered changes. Commit and push the
+validated result on `contour_deformation`, return the four-way comparison table,
+then **set the active goal to paused and stop** under this explicit user
+authorization. Do not mark the broader Phase B goal complete.

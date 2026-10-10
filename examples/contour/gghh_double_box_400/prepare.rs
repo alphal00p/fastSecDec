@@ -52,6 +52,9 @@ fn scalar<'a>(point: &'a point::Point, left: &str, right: &str) -> Result<&'a st
     Ok(matches[0])
 }
 fn run(root: &Path, output: &Path) -> Result<()> {
+    run_at_energy(root, output, 400)
+}
+fn run_at_energy(root: &Path, output: &Path, sqrt_s_gev: u32) -> Result<()> {
     require(!output.exists(), "use a fresh output directory")?;
     let source = root.join("examples/gghh_double_box");
     let run_text = std::fs::read_to_string(source.join("run.toml"))?;
@@ -95,7 +98,7 @@ fn run(root: &Path, output: &Path) -> Result<()> {
     let model_inputs = RuntimeModelBindings::new(&diagram, Some(&card), &BTreeMap::new())?;
     let defaults = model_inputs.defaults();
     let old_native = point::Point::with_sqrt_s(&diagram, 300)?;
-    let new_native = point::Point::with_sqrt_s(&diagram, 400)?;
+    let new_native = point::Point::with_sqrt_s(&diagram, sqrt_s_gev)?;
     require(
         new_native.polarization_gram_checks_complete,
         "native polarization checks incomplete",
@@ -184,14 +187,16 @@ fn run(root: &Path, output: &Path) -> Result<()> {
             .iter()
             .map(|c| point::expression(c))
             .collect::<Result<Vec<_>>>()?;
-        for (j, component) in components.iter().enumerate() {
-            let expected = reference["physical_momenta_GeV"][i][j]
-                .as_f64()
-                .ok_or("reference momentum")?;
-            require(
-                point::real_value(component)?.to_bits() == expected.to_bits(),
-                "native physical momentum differs from shared 400 GeV point",
-            )?;
+        if sqrt_s_gev == 400 {
+            for (j, component) in components.iter().enumerate() {
+                let expected = reference["physical_momenta_GeV"][i][j]
+                    .as_f64()
+                    .ok_or("reference momentum")?;
+                require(
+                    point::real_value(component)?.to_bits() == expected.to_bits(),
+                    "native physical momentum differs from shared 400 GeV point",
+                )?;
+            }
         }
         let p = FourMomentum::from_args(
             values[0].clone(),
@@ -219,7 +224,7 @@ fn run(root: &Path, output: &Path) -> Result<()> {
         )?;
     }
     require(
-        (vectors[0].dot(&vectors[1]) * Atom::num(2) - Atom::num(400 * 400))
+        (vectors[0].dot(&vectors[1]) * Atom::num(2) - Atom::num(u64::from(sqrt_s_gev).pow(2)))
             .expand()
             .is_zero(),
         "s invariant mismatch",
@@ -256,10 +261,10 @@ fn run(root: &Path, output: &Path) -> Result<()> {
     }
     let report = json!({
         "schema":1,"status":"native input checks passed; generation and numerical integration not run",
-        "sqrt_s_GeV":400,"model_fingerprint":model_fingerprint,"source_blake3":hashes,
+        "sqrt_s_GeV":sqrt_s_gev,"model_fingerprint":model_fingerprint,"source_blake3":hashes,
         "native_topology":topology,"card_model_keys":card_keys,"card_contains_only_model_parameters":true,
         "fixed_gram_products":fixed,"regenerated_runtime_products":regenerated,"inherited_runtime_model_defaults":inherited,
-        "native_300_GeV_values_reproduced_bitwise":true,"matches_shared_400_GeV_momenta_bitwise":true,
+        "native_300_GeV_values_reproduced_bitwise":true,"matches_shared_400_GeV_momenta_bitwise":(sqrt_s_gev == 400).then_some(true),
         "exact_on_shell_and_conservation":true,"native_incoming_plus_plus_wavefunction_checks":true,
         "normalization":{"color_projector":"unnormalized delta_ab","measure_multiplier":"1","loop_measure":"prod_l d^D k_l / (i*pi^(D/2))","dimension":"4-2*eps","individual_diagram":"D05 s-channel","spin_or_color_average":false,"diagram_sum":false},
         "not_run":["tensor contraction","parametric or sector generation","contour admission","numerical integration","independent physical reference"]
@@ -268,14 +273,14 @@ fn run(root: &Path, output: &Path) -> Result<()> {
     std::fs::write(
         output.join("run.toml"),
         format!(
-            "# D05 input with native 400 GeV runtime data; shared assets remain unchanged.\n{}",
+            "# D05 input with native {sqrt_s_gev} GeV runtime data; shared assets remain unchanged.\n{}",
             toml::to_string_pretty(&generated_run)?
         ),
     )?;
     std::fs::write(
         output.join("point.toml"),
         format!(
-            "# Native incoming++ point at sqrt(s)=400 GeV, cos(theta)=4/5.\n{}",
+            "# Native incoming++ point at sqrt(s)={sqrt_s_gev} GeV, cos(theta)=4/5.\n{}",
             toml::to_string_pretty(&toml::Value::Table(
                 [(String::from("parameters"), toml::Value::Table(parameters))]
                     .into_iter()
@@ -300,10 +305,14 @@ fn run(root: &Path, output: &Path) -> Result<()> {
 fn main() -> Result<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     require(
-        args.len() == 2,
-        "usage: prepare REPOSITORY_ROOT FRESH_OUTPUT_DIRECTORY",
+        args.len() == 2 || (args.len() == 4 && args[2] == "--sqrt-s"),
+        "usage: prepare REPOSITORY_ROOT FRESH_OUTPUT_DIRECTORY [--sqrt-s GEV]",
     )?;
-    run(Path::new(&args[0]), Path::new(&args[1]))
+    if args.len() == 2 {
+        run(Path::new(&args[0]), Path::new(&args[1]))
+    } else {
+        run_at_energy(Path::new(&args[0]), Path::new(&args[1]), args[3].parse()?)
+    }
 }
 
 #[cfg(test)]
@@ -333,6 +342,49 @@ mod tests {
             run(&root, &output).is_err(),
             "existing inputs must not be overwritten"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn thousand_gev_preserves_generation_input_and_regenerates_runtime_point() -> Result<()> {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let temporary = tempfile::tempdir()?;
+        let output = temporary.path().join("fixture");
+        run_at_energy(&root, &output, 1000)?;
+        let fixture = root.join("examples/contour/gghh_double_box_1000");
+        for file in [
+            "run.toml",
+            "point.toml",
+            "point-exact.json",
+            "validation.json",
+        ] {
+            assert_eq!(
+                std::fs::read(output.join(file))?,
+                std::fs::read(fixture.join(file))?,
+                "{file}"
+            );
+        }
+        let generated_run: toml::Value =
+            toml::from_str(&std::fs::read_to_string(output.join("run.toml"))?)?;
+        let old_run: toml::Value = toml::from_str(&std::fs::read_to_string(
+            root.join("examples/contour/gghh_double_box_400/run.toml"),
+        )?)?;
+        assert_eq!(generated_run, old_run, "energy is a runtime binding only");
+        let point: toml::Value =
+            toml::from_str(&std::fs::read_to_string(output.join("point.toml"))?)?;
+        assert_eq!(point["parameters"].as_table().unwrap().len(), 19);
+        assert_eq!(point["parameters"]["p0p1"].as_float(), Some(500_000.0));
+        let report: Value =
+            serde_json::from_slice(&std::fs::read(output.join("validation.json"))?)?;
+        assert_eq!(report["sqrt_s_GeV"], 1000);
+        assert!(report["matches_shared_400_GeV_momenta_bitwise"].is_null());
+        assert_eq!(report["exact_on_shell_and_conservation"], true);
+        assert_eq!(
+            report["native_incoming_plus_plus_wavefunction_checks"],
+            true
+        );
+        assert!(run_at_energy(&root, &output, 1000).is_err());
+        assert!(run_at_energy(&root, &temporary.path().join("threshold"), 250).is_err());
         Ok(())
     }
 }

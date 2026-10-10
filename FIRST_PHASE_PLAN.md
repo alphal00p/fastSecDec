@@ -8,6 +8,13 @@ optional runtime validation and physical multiloop acceptance tests. Implement
 this phase on `contour_deformation`, superseding the earlier `main`-only rule.
 Retain the existing native ecosystem, scientific and bounded-memory guarantees.
 
+The 2026-10-10 priority addendum in that plan sets the immediate stopping
+checkpoint: the 1000 GeV physical ggHH double box, optimized fixed/dynamic
+generation and five-minute 50-worker QMC/discrete-MC comparisons. Preserve
+passing LTD evidence without further high-variance refinement. After green
+local checks, publication and the requested results table, pause the active goal
+and stop for the user's next decision; do not declare the broader phase complete.
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`
