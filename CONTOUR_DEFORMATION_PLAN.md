@@ -469,3 +469,35 @@ density, its determinant, local strength and subtraction faces. Restrict any
 native dual evaluation to deformation objects. Review the mathematical ordering,
 public interfaces, saved programs and exact/boundary terms independently before
 accepting the implementation or restarting the final physical campaign.
+
+## Scalar benchmark extension before the stopping checkpoint (2026-10-10)
+
+### User instruction, verbatim
+
+Continue as planned, but once you're done on the physical double-box, carry one with comparison of all the various deformation modes on simpler and different scalar one and two loop topologies (regarding both generation time, sampling time, RAM usage and convergence rate), including them also in the benchmark PDF file.
+
+### Delivery extension
+
+Finish the physical D05 campaign first. Then run a compact, reproducible scalar
+one- and two-loop suite spanning different topologies and physical thresholds.
+Compare fixed strength, polynomial dynamic strength and sign-aware dynamic
+strength. Retain symbolic endpoint reduction throughout, and include both
+symbolic and contour-only dual Jacobians where the native implementation
+supports them. Report unsupported combinations explicitly rather than silently
+changing endpoint reduction or dropping derivatives.
+
+Reuse existing HEPKit/native fixtures and independent analytic or published
+references. Freeze tuning choices before production; retain separate work
+identities, full complex covariance, exact offsets and actual sample counts.
+Measure generation time, evaluator size, aggregate owned peak RAM, sampling
+cost and convergence versus both accepted work and elapsed time. Use bounded
+repeated runs on these simpler cases, without repeating expensive double-box
+generation or chasing high-variance hard cases indefinitely. Record precision
+rescues, causal validation policy and loading/pilot costs separately.
+
+Include the scalar comparisons and their limitations in the same maintained
+Typst source and compiled PDF. Independently review scientific statistics,
+seed identities, timing scopes and ecosystem reuse. This extends the immediate
+stopping checkpoint: publish the physical and scalar results with green local
+checks, then pause the active goal and stop for the user's next decision. The
+broader Phase B goal must not be marked complete on these benchmarks alone.

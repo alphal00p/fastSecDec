@@ -26,6 +26,16 @@ derivative. Earlier numerical-dual endpoint measurements are historical
 diagnostics, not the requested comparison; see the verbatim clarification in
 the contour plan and the [independent audit](docs/reviews/contour-symbolic-endpoints.md).
 
+The latest 2026-10-10 extension postpones that pause until after a compact
+comparison on simpler, different scalar one- and two-loop topologies. Complete
+the physical double-box campaign first, then compare fixed, polynomial-dynamic
+and sign-aware dynamic deformation, retaining symbolic endpoint reduction and
+including both Jacobian constructions where supported. Report generation time,
+sampling time, peak RAM and convergence versus time in the same Typst/PDF.
+Preserve independent tuning/production identities and full complex covariance;
+do not infer a variance advantage from deformation magnitude alone. See the
+verbatim extension at the end of `CONTOUR_DEFORMATION_PLAN.md`.
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`
