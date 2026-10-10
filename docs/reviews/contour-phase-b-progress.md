@@ -7,6 +7,14 @@ multiloop and performance acceptance gates remain open. The independent
 [delivery-gap audit](contour-delivery-gap-audit.md) distinguishes these live
 requirements from superseded historical implementation notes below.
 
+The current native dependency milestone adopts the independently reviewed
+[JIT callback ownership fix](contour-jit-clone-callback-audit.md), published in
+Symbolica PR #62. All three consumer manifests/locks select public `650d9427`.
+Frozen `e029667` plus these dependency overlays passes **406 native library
+tests**, 19 intentionally ignored; 30.55 seconds of tests, 782.901 seconds
+including rebuilding, 6.277 GB aggregate peak RSS. The pending dual-option
+implementation and final D05 runtime measurements are separate acceptance work.
+
 **Current delivery priority (2026-10-10):** the user now requests the physical
 ggHH D05 double box at 1000 GeV, generation/runtime optimization, and fixed versus
 dynamic five-minute comparisons with QMC and discrete MC on 50 workers. Preserve

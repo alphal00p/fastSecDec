@@ -42,7 +42,7 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public `community`-based fork revision `516beb37d31af8e3d6ee321a7070f407a0b1b42d`, retaining native evaluator composition, ball domains and prepared roots, shared direct-vector evaluation and scoped direct-callback reuse; [upstream contour PRs](reviews/contour-upstream-prs.md) |
+| Symbolica | Public `community`-based fork revision `650d9427ae2e20b8f9457b46bdfb02d1fddbb1df`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation and scoped callback reuse, with independent callback environments for JIT clones; [upstream contour PRs](reviews/contour-upstream-prs.md) |
 | FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
 | Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
 | Graphica | Registry 3.0.1 |

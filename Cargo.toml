@@ -35,8 +35,8 @@ blake3 = "1.8"
 bincode = { version = "2.0.1", features = ["serde"] }
 
 [patch.crates-io]
-symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
-numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "650d9427ae2e20b8f9457b46bdfb02d1fddbb1df" }
+numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "650d9427ae2e20b8f9457b46bdfb02d1fddbb1df" }
 symjit = { git = "https://github.com/ValentinHirschi/symjit_changes_for_pyamplicol", rev = "d74993ffd76a6fc322a7bcf3963fa786783a38a8" }
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }

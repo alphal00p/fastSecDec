@@ -41,8 +41,8 @@ tempfile = "3"
 # Consumer-root patches remain authoritative when this crate is a dependency.
 [patch.crates-io]
 # Share one public Symbolica owner across the HEPKit dependency graph.
-symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
-numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "650d9427ae2e20b8f9457b46bdfb02d1fddbb1df" }
+numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "650d9427ae2e20b8f9457b46bdfb02d1fddbb1df" }
 symjit = { git = "https://github.com/ValentinHirschi/symjit_changes_for_pyamplicol", rev = "d74993ffd76a6fc322a7bcf3963fa786783a38a8" }
 typst-library = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
 typst-svg = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }

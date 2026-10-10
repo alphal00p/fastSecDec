@@ -1,5 +1,23 @@
 # Ecosystem reuse evidence
 
+## Independent native JIT callback environments (2026-10-10)
+
+The [callback audit](reviews/contour-jit-clone-callback-audit.md) verifies the
+public clone API, backend source and an executable concurrent-workspace probe.
+Cloned callback tables were bypassed by shared machine code, serializing the
+original mutable workspace. The narrow correction belongs to Symbolica:
+[PR #62](https://github.com/symbolica-dev/symbolica/pull/62) routes shared code
+through a borrowed evaluation scope and retains existing numeric domains,
+threading and standalone conversion. FastSecDec adds no callback dispatcher.
+
+All maintained consuming manifests/locks select public owner `650d9427` with
+unchanged SymJIT. A frozen `e029667` consumer with only those six dependency
+overlays passes **406 native library tests**, with 19 intentional ignored tests.
+The complete build/test process closes normally in 782.901 seconds, at a sampled
+aggregate peak of 6,276,890,624 bytes; tests themselves take 30.55 seconds.
+The evolving dual-option source is excluded from this milestone. Synthetic
+concurrency evidence establishes independent workspaces, not D05 throughput.
+
 ## D05 shared fixed Jacobian and native dual composition (2026-10-10)
 
 The [fixed Jacobian review](reviews/contour-fixed-shared-jacobian.md) reuses

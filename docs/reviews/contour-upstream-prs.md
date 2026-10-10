@@ -4,6 +4,46 @@
 `benruijl` as reviewer. The publishing account was verified as `ValentinHirschi`;
 commits use `ValentinHirschi <valentin.hirschi@gmail.com>`.
 
+## Independent callback environments for cloned JIT evaluators
+
+[symbolica-dev/symbolica#62](https://github.com/symbolica-dev/symbolica/pull/62)
+fixes cloned evaluators dispatching through the original callback environment
+despite cloning their native callback tables. The narrow upstream commit is
+`da82e2ed16aca4b211b1b68cd16d08afa3eebdde`, based on upstream `community`
+`f4e7870`. Shared machine code now dispatches into a borrowed, evaluation-scoped
+table belonging to the calling evaluator. Typed nested scopes restore on exit;
+threaded batches install the scope on existing Rayon workers. Standalone
+converters and graphs without callback bridges retain their original route.
+No new worker pool, per-clone compilation or unbounded callback cache is added.
+
+Fourteen new owner controls cover all four numeric domains, clone ownership,
+concurrent workers, nested calls, threaded batches/tails, native restoration,
+standalone conversion and scope unwinding. The combined public consumer
+`650d9427ae2e20b8f9457b46bdfb02d1fddbb1df` is a clean cherry-pick atop the previous
+`516beb37` owner and passes 36 public regression tests (one existing stress test
+ignored). Its separate seven internal controls also pass. Independent source
+review and strict lint of the new dispatch module pass. Whole-owner Clippy
+encounters an unrelated pre-existing `never_loop` finding in `poly/factor.rs`;
+that finding is recorded rather than changed in this focused patch.
+
+The PR is authored/published by `ValentinHirschi` and attached to this task.
+GitHub denied formal `benruijl` assignment; the authorized
+[review invitation](https://github.com/symbolica-dev/symbolica/pull/62#issuecomment-6095045487)
+is a comment, not a successful formal assignment or a merged fix. The
+[callback ownership audit](contour-jit-clone-callback-audit.md) retains the
+reproduction and scientific/performance limits. Its synthetic mutex probe
+demonstrates independent workspaces; it is not a physical D05 speedup result.
+
+The three FastSecDec consuming manifests and lockfiles now select this one
+public Symbolica/Numerica revision. Locked metadata confirms unique owner
+identities, unchanged SymJIT `d74993f` in native/Python consumers and no SymJIT
+in the portable graph. The frozen `e029667` FastSecDec native-library consumer,
+overlaid with only these six manifest/lock changes, passes **406 tests**, with
+19 intentional ignored controls. Its build and test process closes normally
+in 782.901 seconds at 6,276,890,624 bytes sampled aggregate peak RSS; the tests
+take 30.55 seconds. The new dual-Jacobian implementation is outside this frozen
+dependency acceptance gate.
+
 ## SymJIT complex scalar callback lanes
 
 [siravan/symjit#14](https://github.com/siravan/symjit/pull/14) targets the upstream
