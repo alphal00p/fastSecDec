@@ -39,6 +39,7 @@ rand = "0.9"
 
 [dev-dependencies]
 tempfile.workspace = true
+toml.workspace = true
 feynkit-generator = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 feynkit-tensor.workspace = true
 # Same native scalar-master provider/revision as the HEPKit community bridge.
@@ -48,3 +49,8 @@ one-loop-reduce = { git = "https://github.com/lcnbr/one-loop-reduce", branch = "
 [[example]]
 name = "gghh_double_box"
 path = "examples/gghh_double_box/main.rs"
+
+[[example]]
+name = "gghh_double_box_400"
+path = "../../examples/contour/gghh_double_box_400/prepare.rs"
+required-features = ["native"]

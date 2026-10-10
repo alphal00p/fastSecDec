@@ -1,5 +1,19 @@
 # Ecosystem reuse evidence
 
+## Above-threshold D05 input fixture (2026-10-10)
+
+The [400 GeV double-box fixture](../examples/contour/gghh_double_box_400/README.md)
+reuses the existing native `Point::with_sqrt_s`, HEPKit wavefunctions,
+`RuntimeModelBindings`, Linnet topology selection and original diagram/model
+assets. It regenerates all thirteen runtime Gram values and checks six model
+inputs, exact shells/conservation and incoming helicities. Native Atom equality
+matches vector products; no alternative kinematic, graph or algebra system is
+introduced. Three focused tests, strict example Clippy and independent/root
+reviews pass. This accepts reproducible inputs only, with the original D05
+colour/measure convention; generation, contour admission and numerical
+agreement remain subsequent gates. See the
+[fixture audit](reviews/contour-gghh-double-box-fixture.md).
+
 ## Compact dynamic Jacobian owner audit (2026-10-10)
 
 The [source/API/probe review](reviews/contour-ltd-generation-memory-audit.md)
