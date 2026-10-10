@@ -1,12 +1,14 @@
-//! Local resolution certificates and an ordinary relative contact stage.
+//! Local resolution certificates and constructive contact/monomial stages.
 //!
 //! Native Q-polynomial charts, supplied inverse frames and controlled blowups
 //! are checked alongside affine quotient/etale relative derivations. Inclusive
 //! derivative ideals construct algebraic maximum-order loci and finite contact
-//! opens without inferring a boundary ledger. The complete BM producer,
-//! exceptional-divisor invariant/history, real branch atlas, orientation and
-//! closed-face endpoint certificates remain separate gates.
+//! opens without inferring a boundary ledger. Verified relative boundary
+//! geometry supports all monomial blowup charts and local exceptional histories.
+//! The complete BM invariant/producer, global center gluing, real branch atlas,
+//! orientation and closed-face endpoint certificates remain separate gates.
 mod algebra;
+mod blowup;
 mod chart;
 mod contact;
 mod cover;
@@ -14,9 +16,15 @@ mod etale;
 mod geometry;
 mod localized;
 mod marked;
+mod matrix;
 mod producer;
 mod transform;
 pub use algebra::{Budget, Error, Ideal, Limits, Poly, Ring};
+pub use blowup::{
+    AdaptedCover, AdaptedOpen, AdaptedProduction, AdaptedProgress, BirthContext, BlowupProduction,
+    BlowupProgress, DivisorReceipt, EmptyAdaptedOpen, HistoryChartStep, MonomialBlowup,
+    MonomialBlowupChart, ResolutionHistory, produce_adapted_cover, produce_monomial_blowup,
+};
 pub use chart::{Boundary, Chart, FrameCertificate, Guard, Map, VerifiedFrame};
 pub use contact::{
     ContactJet, ContactProduction, ContactProgress, ContactQuotient, RingExtension, UnitClearing,

@@ -82,6 +82,15 @@ internal memory still requires caller process limits. Independent runtime and
 root source reviews accept this limited constructive stage; a general producer,
 checked exceptional-history transitions and real integration atlas remain open.
 
+The subsequent [monomial-blowup review](reviews/no-deformation-monomial-blowup.md)
+adds checked local history transitions and all standard charts, with a separately
+verified finite open cover and both adapted/original coordinate Jacobians.
+The general invariant, global center gluing and real atlas remain unfinished.
+The [moving-root reuse probe](reviews/no-deformation-moving-root-reuse.md)
+confirms an existing prepared native bracketed solver and symbolic derivative
+vector, while retaining current-fiber branch/bracket certification as a separate
+obligation. No replacement CAS or root solver is introduced.
+
 ### Supplied local resolution certificates
 
 The [local checker review](reviews/no-deformation-resolution-checker.md) records

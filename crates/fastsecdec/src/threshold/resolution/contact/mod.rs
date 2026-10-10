@@ -11,7 +11,7 @@ use super::{
     Budget, Error, EtaleCertificate, EtaleFrame, Guard, Ideal, LocalizedAlgebra, MarkedIdeal, Poly,
     ProducedContactCover,
 };
-use embedding::clear_units;
+pub(crate) use embedding::clear_units;
 pub use embedding::{RingExtension, UnitClearing};
 use std::sync::Arc;
 use symbolica::{
