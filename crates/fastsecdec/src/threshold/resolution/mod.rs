@@ -8,6 +8,7 @@
 //! closed-face endpoint certificates remain separate gates.
 mod algebra;
 mod chart;
+mod contact;
 mod cover;
 mod etale;
 mod localized;
@@ -16,6 +17,10 @@ mod producer;
 mod transform;
 pub use algebra::{Budget, Error, Ideal, Limits, Poly, Ring};
 pub use chart::{Boundary, Chart, FrameCertificate, Guard, Map, VerifiedFrame};
+pub use contact::{
+    ContactJet, ContactProduction, ContactProgress, ContactQuotient, RingExtension, UnitClearing,
+    construct_contact_quotient,
+};
 pub use cover::{OpenCoverCertificate, VerifiedOpenCover};
 pub use etale::{EtaleCertificate, EtaleFrame};
 pub use localized::LocalizedAlgebra;

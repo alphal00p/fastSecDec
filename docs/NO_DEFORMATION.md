@@ -11,6 +11,16 @@ implement no-deformation integration, sector decomposition, an integration
 contour, or a sign/coverage certificate. Existing generation and integration
 commands retain their behavior.
 
+The ongoing native implementation is governed by
+[the approved threshold plan](../NO_DEFORMATION_PLAN.md). Its optional
+`threshold-decomposition` library feature now provides caller-driven native
+solve/verify requests, compact projective preparation, causal cell phases,
+composed linear cell maps and durable proof staging. These are separate from
+the exporter contract documented below. The general endpoint resolver and
+complete threshold artifact/CLI path remain under development; a verified
+GCAD result alone is not an executable integral. See the
+[reuse and acceptance ledger](REUSE_AUDIT.md#no-contour-foundation-and-consolidation-2026-10-10).
+
 ## Native interface
 
 `fastsecdec::input::GraphSymanzik::from_graph(&graph, parameters)` delegates to

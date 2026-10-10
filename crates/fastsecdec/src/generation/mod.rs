@@ -40,7 +40,11 @@ pub(crate) mod profiling;
 pub mod streaming;
 mod subtraction;
 #[cfg(feature = "threshold-decomposition")]
+mod threshold;
+#[cfg(feature = "threshold-decomposition")]
 pub(crate) use subtraction::endpoints::endpoint_power_with_regulators;
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use threshold::subtract as threshold_subtract;
 mod support;
 mod symmetry;
 mod types;

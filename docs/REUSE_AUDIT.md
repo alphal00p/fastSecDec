@@ -123,6 +123,46 @@ required. No library worker pool, alternate algebra/serialization system or new
 statistical accumulator is introduced. Registered validation is recorded in
 the linked review.
 
+### Constructive ordinary contact coefficients
+
+The [contact-quotient review](reviews/no-deformation-contact-coefficients.md)
+records an actual lower-dimensional construction from verified contact opens.
+Native rational normalization clears only certified units; the relative
+Jacobian identity and guarded restriction preserve the source algebra and
+inert parameters. The production coefficient uses the inclusive full
+derivative tower and all mixed ideal powers. Normal-direction coefficients
+remain separate diagnostics, with their marked-equivalence scope stated
+explicitly rather than asserting equality of ordinary ideals.
+
+Independent review corrected an incomplete expected ideal and retained a
+resource-limited recursive presentation as incomplete. No numerical endpoint
+jets, alternative CAS or successful-zero fallback was introduced. Native
+quotient normalization, exceptional-divisor history, globally compatible
+centers and a real closed-face atlas are still required for the general
+resolver. Integrated gates are recorded in the linked review.
+
+### Certified rational interval continuation
+
+The [rational bridge review](reviews/no-deformation-rational-regularization.md)
+covers exact one-dimensional interval coverage, reflected endpoint charts,
+native polynomial valuation and Sturm-certified closed units. A common epsilon
+convergence strip is proved before the partition is analytically continued.
+Subtraction, composed numerator derivatives and Laurent arithmetic reuse the
+existing Symbolica-based engine. A privately constructed bound continuation
+binds both expression roots and native function bodies to the certified fiber.
+
+Root and independent ecosystem review accepted this restricted capability. A
+saved complete Laurent evaluator was sampled through the existing caller-owned
+QMC session and compared with native OneLOop, retaining complex covariance and
+the explicit rGamma order conversion. No replacement one-loop formula, sampling
+loop, variance accumulator or endpoint AD was added. General meromorphic
+prefactors, algebraic branches, uniform parameter certificates and completed
+threshold artifacts remain separate work; the linked review gives exact gate
+and measurement scope. The combined native library gate passes 492 tests with
+20 existing bounded/manual ignores. Strict native library/test Clippy and
+workspace formatting pass; four rational controls were rerun after a test-only
+lint correction, with no production-code change.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)
