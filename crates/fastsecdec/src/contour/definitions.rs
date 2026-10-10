@@ -387,7 +387,7 @@ impl ContourDefinitions {
         for expression in expressions {
             let mut error = None;
             expression.visitor(&mut |term| {
-                match self.call(term) {
+                match self.inspect_call(term, false) {
                     Ok(Some(call)) => {
                         needed.entry(call.key()).or_insert_with(|| {
                             (
@@ -428,6 +428,16 @@ impl ContourDefinitions {
     }
 
     fn call(&self, atom: AtomView<'_>) -> Result<Option<Call<'_>>, String> {
+        self.inspect_call(atom, true)
+    }
+
+    // Registration needs only the native definition and derivative orders.
+    // Keep argument ownership for materialization/simplification, where used.
+    fn inspect_call(
+        &self,
+        atom: AtomView<'_>,
+        include_arguments: bool,
+    ) -> Result<Option<Call<'_>>, String> {
         let Some(function) = atom.as_fun_view() else {
             // Native DERIVATIVE tags contain the function name as a Var.
             // Recursive visitors must leave that static tag untouched.
@@ -455,9 +465,13 @@ impl ContourDefinitions {
                         .map_err(|_| "invalid compact contour derivative order".to_owned())
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let arguments = (arity + 1..function.get_nargs())
-                .map(|i| function.get(i).to_owned())
-                .collect();
+            let arguments = if include_arguments {
+                (arity + 1..function.get_nargs())
+                    .map(|i| function.get(i).to_owned())
+                    .collect()
+            } else {
+                Vec::new()
+            };
             Ok(Some(Call {
                 definition,
                 orders,
@@ -471,7 +485,11 @@ impl ContourDefinitions {
             Ok(Some(Call {
                 definition,
                 orders: vec![0; definition.parameters.len()],
-                arguments: function.iter().map(|a| a.to_owned()).collect(),
+                arguments: if include_arguments {
+                    function.iter().map(|a| a.to_owned()).collect()
+                } else {
+                    Vec::new()
+                },
             }))
         } else {
             Ok(None)

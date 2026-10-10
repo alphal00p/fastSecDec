@@ -284,3 +284,15 @@ completed stochastic unit before cancellation. The new journal imports none
 of its receipts. Both attempts and the continuing full fixed campaign remain
 under their separate ignored directories. Full polynomial publication and
 all-chart physical admission are pending.
+
+## Definition registration follow-up
+
+A bounded compiler profile motivated removing unused owned copies of compact
+function arguments during native FunctionMap registration. Native traversal,
+derivative bodies and error checks remain unchanged. The old/new focused probe
+produced identical exact evaluator bytes; its small timing difference does not
+establish a physical compilation speedup. Sixteen focused native controls and
+independent source/test review passed. The API, source, probe and verification
+record is [the definition registration audit](contour-definition-registration.md).
+This change is separate from the immutable binaries used in the measurements
+and continuing generation campaigns above.

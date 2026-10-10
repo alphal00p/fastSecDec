@@ -153,6 +153,80 @@ fn definition_scope_and_native_signature_are_checked() {
     assert!(one.merge(&corrupted).is_err());
 }
 
+#[test]
+fn registration_preserves_nested_arguments_and_native_mixed_derivatives() {
+    let (x, y) = symbol!("compact_nested::x", "compact_nested::y");
+    let bodies = [
+        (Atom::var(x) + Atom::var(y) + 1).pow(4),
+        (Atom::var(x) * Atom::var(y) + 2).pow(3),
+    ];
+    let (definitions, calls) =
+        ContourDefinitions::with_required_bodies(&[x, y], &bodies, &[0, 1]).unwrap();
+    let nested = calls[0].replace(Atom::var(y)).with(calls[1].clone());
+    let outputs = [
+        nested.clone(),
+        nested.derivative(x),
+        nested.derivative(x).derivative(y),
+        nested.derivative(y).derivative(y).derivative(x),
+    ];
+    let expanded = outputs
+        .iter()
+        .map(|output| definitions.materialize(output).unwrap())
+        .collect::<Vec<_>>();
+    let parameters = [Atom::var(x), Atom::var(y)];
+    let mut compact = Atom::evaluator_multiple(&outputs, &parameters)
+        .function_map(definitions.function_map(&outputs).unwrap())
+        .horner_iterations(0)
+        .build()
+        .unwrap()
+        .map_coeff(&|value| Complex::new(value.re.to_f64(), value.im.to_f64()));
+    let mut materialized = Atom::evaluator_multiple(&expanded, &parameters)
+        .horner_iterations(0)
+        .build()
+        .unwrap()
+        .map_coeff(&|value| Complex::new(value.re.to_f64(), value.im.to_f64()));
+    for point in [[0., 0.], [0.125, 0.25], [0.5, 0.75]] {
+        let point = point.map(|value| Complex::new(value, 0.));
+        let mut actual = [Complex::new(0., 0.); 4];
+        let mut expected = actual;
+        compact.evaluate(&point, &mut actual);
+        materialized.evaluate(&point, &mut expected);
+        compare(&actual, &expected, 1e-12);
+    }
+
+    // Registration still visits nested calls, even though it does not need
+    // owned copies of their actual arguments. Neither a bad arity nor a
+    // missing nested definition may be hidden by an admitted outer function.
+    let inner = calls[1].as_fun_view().unwrap().get_symbol();
+    let bad = calls[0]
+        .replace(Atom::var(y))
+        .with(inner.call_args([Atom::var(x)]));
+    assert!(
+        definitions
+            .function_map([&bad])
+            .unwrap_err()
+            .contains("arity")
+    );
+    let outer = calls[0].as_fun_view().unwrap().get_symbol();
+    let outer_definition = definitions
+        .entries()
+        .iter()
+        .find(|definition| definition.function() == outer)
+        .unwrap();
+    let missing = ContourDefinitions::from_parts(vec![(
+        outer,
+        outer_definition.parameters().to_vec(),
+        outer_definition.body().clone(),
+    )])
+    .unwrap();
+    assert!(
+        missing
+            .function_map([&nested])
+            .unwrap_err()
+            .contains("lacks its native definition")
+    );
+}
+
 fn fixture() -> (
     RootProgram,
     ContourDefinitions,
