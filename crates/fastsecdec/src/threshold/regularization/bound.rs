@@ -7,6 +7,8 @@ pub struct BoundContinuation<'a> {
     chart_expressions: Vec<Atom>,
     profiles: Vec<Vec<crate::generation::EndpointProfileRow>>,
     functions: FunctionMap,
+    definitions: Vec<BoundDefinition>,
+    derivative_order: usize,
     bindings: Vec<(Symbol, Rational)>,
 }
 impl<'a> ContinuedFiber<'a> {
@@ -24,9 +26,10 @@ impl<'a> ContinuedFiber<'a> {
             chart_expressions.push(expression);
         }
         let expression = chart_expressions.iter().cloned().sum();
-        let functions = self
-            .certificate
-            .functions(self.derivative_order, true, &mut observer)?;
+        let definitions =
+            self.certificate
+                .definitions(self.derivative_order, true, &mut observer)?;
+        let functions = register_definitions(&definitions)?;
         let bindings = self
             .certificate
             .owner
@@ -42,6 +45,8 @@ impl<'a> ContinuedFiber<'a> {
             chart_expressions,
             profiles: self.profiles.clone(),
             functions,
+            definitions,
+            derivative_order: self.derivative_order,
             bindings,
         })
     }
@@ -88,5 +93,141 @@ impl BoundContinuation<'_> {
     }
     pub fn regulators(&self) -> [Symbol; 1] {
         [self.certificate.owner.request().input().regulator()]
+    }
+}
+
+impl BoundContinuation<'_> {
+    pub(crate) fn definitions(&self) -> &[BoundDefinition] {
+        &self.definitions
+    }
+
+    /// Materialize ONLY this owner's face-restricted numerator calls in a
+    /// coordinate-independent Laurent coefficient. This is not a numerical
+    /// evaluator, a general FunctionMap expander, or a publication capability.
+    /// A constant n(t) is conservatively left stochastic by the caller.
+    pub fn materialize_exact(&self, expression: &Atom) -> Result<Atom> {
+        use symbolica::atom::AtomView;
+        let certificate = self.certificate;
+        let request = certificate.owner.request();
+        let disallowed = |a: &Atom| {
+            a.contains_symbol(certificate.unit)
+                || a.contains_symbol(request.input().regulator())
+                || request
+                    .input()
+                    .parameters()
+                    .iter()
+                    .any(|s| a.contains_symbol(*s))
+                || request
+                    .domain()
+                    .coordinates()
+                    .iter()
+                    .any(|s| a.contains_symbol(*s))
+        };
+        no_physical_parameters(expression, certificate)?;
+        if disallowed(expression) {
+            return Err(unsupported(
+                "exact coefficient still depends on a coordinate or regulator",
+            ));
+        }
+        let mut error = None;
+        let mut bodies = BTreeMap::<(usize, usize), Atom>::new();
+        let result = expression.replace_map_bottom_up(|node, _, out| {
+            if error.is_some() {
+                return;
+            }
+            let AtomView::Fun(call) = node else {
+                return;
+            };
+            let parsed = (|| -> Result<Option<(usize, usize, Atom)>> {
+                if call.get_symbol() == certificate.numerator {
+                    if call.get_nargs() != 2 {
+                        return Err(invalid("owned numerator call arity"));
+                    }
+                    let tag =
+                        usize::try_from(call.get(0)).map_err(|_| invalid("owned numerator tag"))?;
+                    Ok(Some((tag, 0, call.get(1).to_owned())))
+                } else if call.get_symbol() == Symbol::DERIVATIVE
+                    && call
+                        .iter()
+                        .any(|a| a.contains_symbol(certificate.numerator))
+                {
+                    if call.get_nargs() != 5
+                        || call.get(2) != Atom::var(certificate.numerator).as_view()
+                        || !call.get(0).is_zero()
+                    {
+                        return Err(invalid("owned numerator derivative tags/arity"));
+                    }
+                    let order = usize::try_from(call.get(1))
+                        .map_err(|_| invalid("owned numerator derivative order"))?;
+                    if order == 0 || order > self.derivative_order {
+                        return Err(invalid("owned derivative outside registered orders"));
+                    }
+                    let tag = usize::try_from(call.get(3))
+                        .map_err(|_| invalid("owned numerator derivative term tag"))?;
+                    Ok(Some((tag, order, call.get(4).to_owned())))
+                } else {
+                    Ok(None)
+                }
+            })();
+            let (term, order, argument) = match parsed {
+                Ok(Some(p)) => p,
+                Ok(None) => return,
+                Err(e) => {
+                    error = Some(e);
+                    return;
+                }
+            };
+            if term >= certificate.numerator_bodies.len() {
+                error = Some(invalid("owned numerator term outside source"));
+                return;
+            }
+            let body = bodies.entry((term, order)).or_insert_with(|| {
+                // Definitions came from exactly the same bound registration
+                // loop; no second symbolic derivative engine is constructed.
+                self.definitions()
+                    .iter()
+                    .find(|d| {
+                        d.derivative_order.unwrap_or(0) == order
+                            && if order == 0 {
+                                d.tags[0] == Atom::num(term)
+                            } else {
+                                d.tags[3] == Atom::num(term)
+                            }
+                    })
+                    .expect("private complete bound definition inventory")
+                    .body
+                    .clone()
+            });
+            **out = body
+                .replace(Atom::var(request.domain().coordinates()[0]))
+                .with(argument);
+        });
+        if let Some(error) = error {
+            return Err(error);
+        }
+        no_physical_parameters(&result, certificate)?;
+        if disallowed(&result) || result.contains_symbol(certificate.numerator) {
+            return Err(unsupported(
+                "exact materialization retained a private input or function",
+            ));
+        }
+        let mut free = false;
+        result.visitor(&mut |node| {
+            if let AtomView::Var(v) = node {
+                let s = v.get_symbol();
+                free |= s != Symbol::PI
+                    && s != Symbol::E
+                    && !s
+                        .get_evaluation_info()
+                        .is_some_and(|e| e.has_constant_evaluator());
+            }
+            !free
+        });
+        if free {
+            return Err(unsupported(
+                "exact materialization retained an unbound symbol",
+            ));
+        }
+        Ok(result)
     }
 }

@@ -1,5 +1,25 @@
 # Ecosystem reuse evidence
 
+## Rational-cell meromorphic prefactors (2026-10-10)
+
+The [prefactor review](reviews/no-deformation-meromorphic-prefactors.md) records
+native Q(i)(epsilon)/Gamma admission, a common regular-epsilon witness and
+bounded native conversion. It also reviews exact face-call materialization
+from the same bound definitions used by FunctionMap. A graph-derived bubble
+retains its actual Gamma/rGamma prefactor and agrees with native OneLOop,
+including its finite imaginary part and complete vector covariance. This is
+the rational-fiber path; general auxiliary continuation remains unfinished.
+
+## Local monomial proof iteration (2026-10-10)
+
+The [iteration review](reviews/no-deformation-monomial-iteration.md) records
+native exact carried witnesses, the monomial-stage termination rank and a
+caller-stepped proof frontier. Independent review covers generator association,
+complete child ownership and resource recovery. This introduces orchestration
+over existing native ideal/polynomial operations, not another CAS or worker
+pool. The frontier is in-memory; general resolution and a real integration
+atlas remain open acceptance gates.
+
 ## No-contour foundation and consolidation (2026-10-10)
 
 The [consolidation review](reviews/no-deformation-consolidation.md) records

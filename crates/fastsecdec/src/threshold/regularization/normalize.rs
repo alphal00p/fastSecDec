@@ -9,15 +9,25 @@ use symgcad::algebra::{Algebra, Poly};
 fn polynomial(
     expression: &Atom,
     variable: Symbol,
-    degree: u32,
+    limits: Limits,
 ) -> Result<symbolica::poly::polynomial::MultivariatePolynomial<AtomField, u32>> {
+    let degree = u16::try_from(limits.max_degree)
+        .map_err(|_| Error::ResourceIncomplete("polynomial preflight degree limit"))?;
+    meromorphic::preflight_expression(
+        expression,
+        meromorphic::Limits {
+            degree,
+            ..limits.prefactors
+        },
+    )
+    .map_err(prefactor_error)?;
     let field = AtomField {
         statistical_zero_test: false,
         ..AtomField::new()
     };
     let polynomial =
         expression.to_polynomial_in_vars_with_field::<u32>(&[Atom::var(variable)], &field);
-    if polynomial.degree(0) > degree {
+    if polynomial.degree(0) > limits.max_degree {
         return Err(Error::ResourceIncomplete("rational polynomial degree"));
     }
     if (&polynomial)
@@ -47,34 +57,35 @@ pub(super) fn numerators(
                     f.polynomial().contains_symbol(name) || f.exponent().contains_symbol(name)
                 })
             {
-                return Err(invalid("owned numerator function collides with density symbols"));
+                return Err(invalid(
+                    "owned numerator function collides with density symbols",
+                ));
             }
             let body = term
                 .factors()
                 .iter()
                 .filter(|f| f.role() == FactorRole::Polynomial)
                 .map(|f| {
-                    request.kinematics().specialize_exact(f.polynomial())
+                    request
+                        .kinematics()
+                        .specialize_exact(f.polynomial())
                         .pow(request.kinematics().specialize_exact(f.exponent()))
                 })
                 .product::<Atom>();
             if body.contains_symbol(eps) {
-                return Err(unsupported("initial composed numerator must be epsilon-independent"));
+                return Err(unsupported(
+                    "initial composed numerator must be epsilon-independent",
+                ));
             }
             let witness = substitute(&body, parameters);
-            let p = polynomial(&witness, x, limits.max_degree)?;
-            if (&p).into_iter().any(|t| {
-                Complex::<Rational>::try_from(t.coefficient.as_view()).is_err()
-            }) {
-                return Err(unsupported("numerator needs exact complex-polynomial closure regularity"));
-            }
-            // Coordinate independence alone never certifies an arbitrary Atom.
-            let prefactor = substitute(
-                &request.kinematics().specialize_exact(term.prefactor()),
-                parameters,
-            );
-            if Complex::<Rational>::try_from(prefactor.as_view()).is_err() {
-                return Err(unsupported("initial endpoint bridge requires a constant exact-complex prefactor; general regulator families need a certificate"));
+            let p = polynomial(&witness, x, limits)?;
+            if (&p)
+                .into_iter()
+                .any(|t| Complex::<Rational>::try_from(t.coefficient.as_view()).is_err())
+            {
+                return Err(unsupported(
+                    "numerator needs exact complex-polynomial closure regularity",
+                ));
             }
             Ok(body)
         })
@@ -104,7 +115,7 @@ fn unit(
     // Valuation is symbolic in retained parameter inputs. A special fiber that
     // increases it is rejected by the endpoint unit checks, not silently baked
     // into an expression with an unresolved symbolic 0/0 at the face.
-    let p = polynomial(&mapped, t, limits.max_degree)?;
+    let p = polynomial(&mapped, t, limits)?;
     if p.is_zero() {
         return Err(unsupported("identically zero singular factor"));
     }

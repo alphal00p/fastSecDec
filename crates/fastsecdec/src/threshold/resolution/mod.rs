@@ -14,6 +14,7 @@ mod contact;
 mod cover;
 mod etale;
 mod geometry;
+mod iteration;
 mod localized;
 mod marked;
 mod matrix;
@@ -38,6 +39,11 @@ pub use geometry::{
     ProducedMonomialCenter, QuotientNormalizer, SncProduction, SncProgress,
     VerifiedQuotientNormalization, VerifiedRelativeSnc, produce_monomial_center,
     verify_initial_relative_snc,
+};
+pub use iteration::{
+    CarriedMonomialWitness, CompletedMonomialResolution, IterationAdvance, IterationCompletion,
+    IterationLimits, MonomialFrontier, NodePath, PendingEvidence, ResolutionNode,
+    carry_monomial_witness, exponent_rank,
 };
 pub use localized::LocalizedAlgebra;
 pub use marked::{

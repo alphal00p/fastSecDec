@@ -1,6 +1,7 @@
 //! First certified rational interval bridge, not a general resolver.
 mod atlas;
 mod bound;
+pub mod meromorphic;
 pub use bound::BoundContinuation;
 mod normalize;
 
@@ -87,12 +88,14 @@ impl ConvergenceStrip {
 pub struct Limits {
     pub max_charts: usize,
     pub max_degree: u32,
+    pub prefactors: meromorphic::Limits,
 }
 impl Default for Limits {
     fn default() -> Self {
         Self {
             max_charts: 128,
             max_degree: 256,
+            prefactors: meromorphic::Limits::default(),
         }
     }
 }
@@ -106,6 +109,7 @@ pub enum Progress {
         factor: usize,
     },
     Continue(usize),
+    PrefactorWitness(usize),
 }
 fn poll(progress: Progress, observer: &mut impl FnMut(Progress) -> ControlFlow<()>) -> Result<()> {
     if observer(progress).is_break() {
@@ -202,6 +206,7 @@ pub struct RegularizedFiber {
     numerator_bodies: Vec<Atom>,
     charts: Vec<IntervalChart>,
     strip: ConvergenceStrip,
+    prefactor_witness: meromorphic::MeromorphicWitness,
 }
 impl RegularizedFiber {
     pub fn admit(
@@ -224,6 +229,9 @@ impl RegularizedFiber {
     }
     pub fn convergence_strip(&self) -> &ConvergenceStrip {
         &self.strip
+    }
+    pub fn prefactor_witness(&self) -> &meromorphic::MeromorphicWitness {
+        &self.prefactor_witness
     }
     pub fn continue_symbolically(
         &self,
@@ -275,15 +283,16 @@ impl RegularizedFiber {
             derivative_order: options.max_subtractions_per_axis,
         })
     }
-    fn functions(
+    fn definitions(
         &self,
         degree: usize,
         bind_parameters: bool,
         observer: &mut impl FnMut(Progress) -> ControlFlow<()>,
-    ) -> Result<FunctionMap> {
+    ) -> Result<Vec<BoundDefinition>> {
         let source = self.owner.request().domain().coordinates()[0];
-        let mut functions = FunctionMap::new();
+        let mut definitions = Vec::new();
         for (term, body) in self.numerator_bodies.iter().enumerate() {
+            poll(Progress::Continue(term), observer)?;
             let body = if bind_parameters {
                 let value = substitute(body, &self.parameters);
                 bound::no_physical_parameters(&value, self)?;
@@ -291,37 +300,90 @@ impl RegularizedFiber {
             } else {
                 body.clone()
             };
-            functions
-                .add_tagged_function(
-                    self.numerator,
-                    vec![Atom::num(term)],
-                    vec![source],
-                    body.clone(),
-                )
-                .map_err(|e| invalid(&e.to_string()))?;
-            let mut partial = body.clone();
+            definitions.push(BoundDefinition {
+                head: self.numerator,
+                tags: vec![Atom::num(term)],
+                formals: vec![source],
+                body: body.clone(),
+                derivative_order: None,
+            });
+            let mut partial = body;
             for order in 1..=degree {
                 poll(Progress::Continue(term), observer)?;
                 partial = partial.derivative(source);
-                functions
-                    .add_tagged_function_with_options(
-                        Symbol::DERIVATIVE,
-                        vec![
-                            Atom::Zero,
-                            Atom::num(order),
-                            Atom::var(self.numerator),
-                            Atom::num(term),
-                        ],
-                        vec![source],
-                        partial.clone(),
-                        FunctionRegistrationOptions::new().inlining(InliningPolicy::Always),
-                    )
-                    .map_err(|e| invalid(&e.to_string()))?;
+                definitions.push(BoundDefinition {
+                    head: Symbol::DERIVATIVE,
+                    tags: vec![
+                        Atom::Zero,
+                        Atom::num(order),
+                        Atom::var(self.numerator),
+                        Atom::num(term),
+                    ],
+                    formals: vec![source],
+                    body: partial.clone(),
+                    derivative_order: Some(order),
+                });
             }
         }
-        Ok(functions)
+        Ok(definitions)
+    }
+    fn functions(
+        &self,
+        degree: usize,
+        bind_parameters: bool,
+        observer: &mut impl FnMut(Progress) -> ControlFlow<()>,
+    ) -> Result<FunctionMap> {
+        register_definitions(&self.definitions(degree, bind_parameters, observer)?)
     }
 }
+/// Crate-private native definition view for the existing Atom-table staging
+/// codec. This record alone conveys no continuation or publication authority.
+#[derive(Clone, Debug)]
+pub(crate) struct BoundDefinition {
+    head: Symbol,
+    tags: Vec<Atom>,
+    formals: Vec<Symbol>,
+    body: Atom,
+    derivative_order: Option<usize>,
+}
+impl BoundDefinition {
+    pub(crate) fn head(&self) -> Symbol {
+        self.head
+    }
+    pub(crate) fn tags(&self) -> &[Atom] {
+        &self.tags
+    }
+    pub(crate) fn formals(&self) -> &[Symbol] {
+        &self.formals
+    }
+    pub(crate) fn body(&self) -> &Atom {
+        &self.body
+    }
+    pub(crate) fn derivative_order(&self) -> Option<usize> {
+        self.derivative_order
+    }
+}
+fn register_definitions(definitions: &[BoundDefinition]) -> Result<FunctionMap> {
+    let mut functions = FunctionMap::new();
+    for definition in definitions {
+        let options = if definition.derivative_order().is_some() {
+            FunctionRegistrationOptions::new().inlining(InliningPolicy::Always)
+        } else {
+            FunctionRegistrationOptions::new()
+        };
+        functions
+            .add_tagged_function_with_options(
+                definition.head(),
+                definition.tags().to_vec(),
+                definition.formals().to_vec(),
+                definition.body().clone(),
+                options,
+            )
+            .map_err(|e| invalid(&e.to_string()))?;
+    }
+    Ok(functions)
+}
+
 pub struct ContinuedFiber<'a> {
     certificate: &'a RegularizedFiber,
     expression: Atom,
@@ -354,3 +416,13 @@ impl ContinuedFiber<'_> {
 
 #[cfg(test)]
 mod tests;
+
+fn prefactor_error(error: meromorphic::Error) -> Error {
+    match error {
+        meromorphic::Error::Cancelled => Error::Cancelled,
+        meromorphic::Error::ResourceIncomplete(s) => Error::ResourceIncomplete(s),
+        meromorphic::Error::Unsupported(s) => unsupported(s),
+        meromorphic::Error::Invalid(s) => invalid(s),
+        meromorphic::Error::Native(s) => unsupported(&format!("native prefactor admission: {s}")),
+    }
+}

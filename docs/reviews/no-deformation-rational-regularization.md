@@ -34,6 +34,11 @@ finite-field and other generic numeric Atom classes are not silently admitted.
 Supporting ordinary finite floating-point source coefficients and native
 meromorphic physics prefactors remains subsequent work.
 
+The subsequent [meromorphic-prefactor milestone](no-deformation-meromorphic-prefactors.md)
+extends the prefactor scope to exact rational/Gamma families and tests the
+actual graph normalization. The epsilon-independent exact-polynomial numerator
+and fixed-fiber limitations remain at this checkpoint.
+
 The bridge delegates subtraction to the existing symbolic Taylor/IBP engine.
 It preserves full phases, boundary denominators, endpoint profiles and the
 complete cell sum. Symbolica differentiates composed native numerator calls;

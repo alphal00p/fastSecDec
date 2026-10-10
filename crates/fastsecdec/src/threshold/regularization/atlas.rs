@@ -130,6 +130,30 @@ pub(super) fn admit(
             charts.push(chart);
         }
     }
+    let prefactors = request
+        .prepared_terms()
+        .iter()
+        .map(|term| {
+            let expression = substitute(
+                &request.kinematics().specialize_exact(term.prefactor()),
+                &parameters,
+            );
+            meromorphic::MeromorphicPrefactor::admit(
+                expression,
+                request.input().regulator(),
+                limits.prefactors,
+            )
+            .map_err(prefactor_error)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let prefactor_witness = meromorphic::MeromorphicWitness::construct(
+        prefactors,
+        strip.lower(),
+        strip.upper(),
+        limits.prefactors,
+        |index| observer(Progress::PrefactorWitness(index)),
+    )
+    .map_err(prefactor_error)?;
     Ok(RegularizedFiber {
         owner,
         parameters,
@@ -138,5 +162,6 @@ pub(super) fn admit(
         numerator_bodies: bodies,
         charts,
         strip,
+        prefactor_witness,
     })
 }

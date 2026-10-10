@@ -499,20 +499,21 @@ choice rather than an implemented interface.
 
 ## 13. Implementation milestones and current status
 
-All implementation rows below are pending. Existing native primitives and the
-literature review are inputs to the work, not completed resolver functionality.
+Status after the local monomial-iteration milestone. Independently checked
+local operations may be implemented before the complete general driver is
+accepted. Their narrower certificates do not close the open G0 adapters.
 
 | Step | Deliverable and independent gate | Status |
 |---|---|---|
 | G0 | Freeze precise BM variant, real-atlas algorithm/termination argument, parameter specialization construction, projective common-family/convergence certificate, and regulator-restriction proof interface. Resolve the two open adapters identified above. | Design draft only; not accepted as a complete algorithm |
-| G1 | Execute the native API probe matrix; record actual missing operations and owner boundaries. | API/source inspected; new focused probes pending |
-| G2 | Exact GCAD adapter, signed-factor associations, branch/tower and parameter predicates, persisted descendant lineage. | Planned; adapter work may proceed independently |
-| G3 | Marked-ideal objects, native ideal recipes, coefficient/maximal-contact construction, invariant history, centers, transforms, and gluing. | Not implemented |
+| G1 | Execute the native API probe matrix; record actual missing operations and owner boundaries. | Native ideal, relative derivative, Puiseux, function-map, prepared-root and codec probes recorded in `REUSE_AUDIT.md`; further operations require their own probes |
+| G2 | Exact GCAD adapter, signed-factor associations, branch/tower and parameter predicates, persisted descendant lineage. | Verified caller-owned GCAD, request/solver staging, rational cell maps and structural one-to-many lineage implemented; full executable threshold artifacts and general branch towers pending |
+| G3 | Marked-ideal objects, native ideal recipes, coefficient/maximal-contact construction, invariant history, centers, transforms, and gluing. | Local exact algebra, relative contact/coefficient construction, SNC checks, all-pivot monomial blowups and terminating monomial frontier implemented; automatic general residual extraction, full BM invariant/driver and gluing pending |
 | G4 | AJ algebraic-series lift, ramification, real branch transport, and finite mixed jets with owner-level controls. | Not implemented |
 | G5 | Disjoint real atlas and all-closed-face normal-form certificate; independent checker with adversarial mutations. | Not implemented |
-| G6 | Multi-regulator symbolic endpoint engine, common-family assembly, certified auxiliary removal, and complete epsilon output. | Not implemented |
-| G7 | Native lazy evaluator composition and fresh-process artifact restoration; caller-owned serial/resident execution and resource accounting. | Not implemented |
-| G8 | Scalar, literature/LTD-derived, and physical ggHH acceptance, including complex numerator, original-source selection, parametric strata, and exceptional failures. | Not run for this strategy |
+| G6 | Multi-regulator symbolic endpoint engine, common-family assembly, certified auxiliary removal, and complete epsilon output. | Affine multi-regulator symbolic subtraction primitives and rational-fiber common-epsilon-strip continuation implemented; general auxiliary-family restriction/cancellation pending |
+| G7 | Native lazy evaluator composition and fresh-process artifact restoration; caller-owned serial/resident execution and resource accounting. | Rational composed numerator/evaluator and native codec probes pass; complete threshold artifact/execution path pending |
+| G8 | Scalar, literature/LTD-derived, and physical ggHH acceptance, including complex numerator, original-source selection, parametric strata, and exceptional failures. | Rational pole controls and above-threshold bubble match native OneLOop; required higher-dimensional/general algebraic and physical suite pending |
 | G9 | Bounded matched performance and five-minute 50-worker QMC/discrete-MC physical runs; report generation/RSS/full covariance without mandatory per-mille accuracy. | Not run |
 
 The G3–G6 gate family must include arbitrarily parameterized test families that
@@ -521,8 +522,10 @@ discriminants, and seam/regulator cancellation. Passing the earlier scalar
 fixtures or one massive double box cannot substitute for the general algorithm
 and certificate argument. Conversely, finite resource limits are legitimate
 diagnostics and do not require pretending that every physical input is cheap.
-G2 adapter work may proceed in parallel with G0. Production implementation of
-G3 must wait for independent acceptance of the algorithm-design gate.
+G2 adapter work and individually reviewed local G3 operations proceed in
+parallel with G0. Accepting a general production driver still requires the
+complete algorithm-design gate.
 
-No performance conclusion, completion claim, dependency change, source edit,
-or benchmark launch follows from this draft.
+No overall performance or phase-completion conclusion follows from these
+partial milestones. The per-subsystem reviews record exact capabilities and
+limitations; they do not replace the general acceptance gates above.
