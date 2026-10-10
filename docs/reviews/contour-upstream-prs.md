@@ -4,6 +4,31 @@
 `benruijl` as reviewer. The publishing account was verified as `ValentinHirschi`;
 commits use `ValentinHirschi <valentin.hirschi@gmail.com>`.
 
+## Common-subexpression elimination with renamed operands
+
+[symbolica-dev/symbolica#63](https://github.com/symbolica-dev/symbolica/pull/63)
+fixes repeated optimizer passes on dependent duplicate instruction chains.
+The existing operand rename is applied before constructing the lookup key,
+preserving branch scopes and callback argument order. The public Composer
+reproduction and real D05 generation profile are described in the
+[native CSE review](contour-native-cse.md); no FastSecDec algebra implementation
+is added.
+
+The narrow upstream commit is `d953467dc089d620c4d4602146725ad8ec5a845b`, based
+on upstream `community` `f4e7870`. Its 47 focused evaluation unit tests and
+15 public evaluation tests pass, with one existing stress test ignored. The
+combined consumer `74225696cd445247fa81c499c5110decd19257ed` adds only this fix
+to `650d942` and passes 36 public controls, with that stress test ignored.
+The actual FastSecDec consumer gates and physical campaign are recorded
+separately; the small reproduction is not a physical performance result.
+
+Publication and commits use `ValentinHirschi`; the PR is attached to this task.
+GitHub denied formal reviewer assignment, so the authorized
+[`@benruijl` invitation](https://github.com/symbolica-dev/symbolica/pull/63#issuecomment-6095912476)
+is a comment. All three consuming manifests and lockfiles select this public
+Symbolica/Numerica revision; locked metadata keeps SymJIT and the rest of the
+dependency graph unchanged.
+
 ## Independent callback environments for cloned JIT evaluators
 
 [symbolica-dev/symbolica#62](https://github.com/symbolica-dev/symbolica/pull/62)

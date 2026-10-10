@@ -398,3 +398,31 @@ generation size/time and sampling cost against the shared symbolic determinant
 before choosing a campaign implementation. Document native reuse evidence and
 any unresolved limitation; never substitute a first-derivative-only Jacobian
 for the full jets required by endpoint subtraction.
+
+## Serial residency and concurrent work clarification (2026-10-10)
+
+### User instructions, verbatim
+
+You said earlier:
+"""
+All 30 dynamic sectors have completed mapping and are now compiling. This step uses substantially more memory than fixed mode, so I’m keeping it at four workers and checking the dual-Jacobian option as a possible improvement. A separate short MC check will verify memory use with 50 workers before the timed runs.
+"""
+Remember that the user of the `--serial` option is precisely to alleviate these issues.
+
+(also ignore in the future impact of concurrent activity on timings for this machine, and by that I mean don't let that prevent you from running things in parllel).
+
+### Execution clarification
+
+Use the existing serial generation path for bounded residency. Verify actual
+coordinator and child-process RSS, disk-backed preparation records, and process
+exit before reusing a worker slot. Distinguish the size of an active sector
+from retention of completed sectors; lowering worker count must not conceal
+unbounded retention. Global preparation barriers for exact symmetry and formula
+reuse do not authorize keeping all mapped expressions in memory.
+
+Run independent generation, builds, checks and integration measurements in
+parallel when resources permit. Do not wait for a quiet machine or use
+concurrent activity as a reason to postpone measurements. Preserve each
+integration's 50-core allocation, deterministic sampling identities, memory
+accounting and separate results. Select each prescription using preliminary
+work before its final run; final results must not feed subsequent tuning.

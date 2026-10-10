@@ -2576,7 +2576,7 @@ dependencies = [
 [[package]]
 name = "numerica"
 version = "3.0.1"
-source = "git+https://github.com/ValentinHirschi/symbolica?rev=650d9427ae2e20b8f9457b46bdfb02d1fddbb1df#650d9427ae2e20b8f9457b46bdfb02d1fddbb1df"
+source = "git+https://github.com/ValentinHirschi/symbolica?rev=74225696cd445247fa81c499c5110decd19257ed#74225696cd445247fa81c499c5110decd19257ed"
 dependencies = [
  "ahash 0.8.12",
  "astro-float",
@@ -4006,7 +4006,7 @@ dependencies = [
 [[package]]
 name = "symbolica"
 version = "3.0.1"
-source = "git+https://github.com/ValentinHirschi/symbolica?rev=650d9427ae2e20b8f9457b46bdfb02d1fddbb1df#650d9427ae2e20b8f9457b46bdfb02d1fddbb1df"
+source = "git+https://github.com/ValentinHirschi/symbolica?rev=74225696cd445247fa81c499c5110decd19257ed#74225696cd445247fa81c499c5110decd19257ed"
 dependencies = [
  "ahash 0.8.12",
  "append-only-vec",

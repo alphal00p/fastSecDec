@@ -1,5 +1,19 @@
 # Ecosystem reuse evidence
 
+## Native evaluator CSE correction (2026-10-10)
+
+The [CSE investigation](reviews/contour-native-cse.md) checks the public
+Composer API, optimizer source/tests and an executable public reproduction.
+The existing owner implementation already supplies the required algebra;
+its lookup ordering made dependent duplicate chains require repeated full
+passes. [Symbolica PR #63](https://github.com/symbolica-dev/symbolica/pull/63)
+moves the existing operand remapping before the lookup. FastSecDec introduces
+no replacement optimizer or serialization layer. Independent review and owner
+evaluation/branch controls pass. The three consumer graphs now select public
+owner `74225696`, retaining the prior callback correction and unchanged SymJIT.
+Full consumer acceptance and the physical performance measurements are recorded
+separately; the diagnostic reproduction alone does not establish a D05 gain.
+
 ## Native dual Jacobian and prefix reuse (2026-10-10)
 
 The [Jacobian construction audit](reviews/contour-dual-jacobian.md) records the
