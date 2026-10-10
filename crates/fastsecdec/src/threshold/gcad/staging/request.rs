@@ -26,14 +26,16 @@ const KIND: &str = "threshold-gcad-request-v1";
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Origin {
-    UnitCube,
+    // Pinned Serde ignores unknown fields on internally tagged unit variants.
+    // An empty struct keeps the same wire representation and rejects them.
+    UnitCube {},
     AffineProjective { eliminated_index: usize },
     ExplicitPrepared { provenance: String },
 }
 impl From<&DomainOrigin> for Origin {
     fn from(origin: &DomainOrigin) -> Self {
         match origin {
-            DomainOrigin::NativeUnitCube => Self::UnitCube,
+            DomainOrigin::NativeUnitCube => Self::UnitCube {},
             DomainOrigin::AffineProjective { eliminated_index } => Self::AffineProjective {
                 eliminated_index: *eliminated_index,
             },
@@ -312,7 +314,7 @@ pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> 
             .collect::<std::result::Result<_, _>>()?,
     };
     let request = match stored.origin {
-        Origin::UnitCube => GcadRequest::unit_cube(
+        Origin::UnitCube {} => GcadRequest::unit_cube(
             &input,
             kinematics,
             stored.problem.solver.clone(),
@@ -351,4 +353,30 @@ pub(super) fn read(root: &Path, receipt: &RequestRecord) -> Result<GcadRequest> 
         return Err(Error::Association);
     }
     Ok(request)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Origin;
+
+    #[test]
+    fn request_origin_wire_rejects_unknown_metadata_without_changing_valid_bytes() {
+        assert_eq!(
+            serde_json::to_string(&Origin::UnitCube {}).unwrap(),
+            r#"{"kind":"unit_cube"}"#
+        );
+        assert!(matches!(
+            serde_json::from_str::<Origin>(r#"{"kind":"unit_cube"}"#).unwrap(),
+            Origin::UnitCube {}
+        ));
+        for mut value in [
+            serde_json::json!({"kind": "unit_cube"}),
+            serde_json::json!({"kind": "affine_projective", "eliminated_index": 1}),
+            serde_json::json!({"kind": "explicit_prepared", "provenance": "native"}),
+        ] {
+            assert!(serde_json::from_value::<Origin>(value.clone()).is_ok());
+            value["unrecognized_domain_setting"] = serde_json::json!(17);
+            assert!(serde_json::from_value::<Origin>(value).is_err());
+        }
+    }
 }

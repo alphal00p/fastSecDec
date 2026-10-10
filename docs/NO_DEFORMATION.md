@@ -15,7 +15,9 @@ The ongoing native implementation is governed by
 [the approved threshold plan](../NO_DEFORMATION_PLAN.md). Its optional
 `threshold-decomposition` library feature now provides caller-driven native
 solve/verify requests, compact projective preparation, causal cell phases,
-composed linear cell maps and durable proof staging. These are separate from
+composed linear cell maps and durable proof staging. A restricted, certified
+rational-fiber continuation also reuses symbolic subtraction and has a native
+above-threshold bubble comparison with OneLOop. These are separate from
 the exporter contract documented below. The general endpoint resolver and
 complete threshold artifact/CLI path remain under development; a verified
 GCAD result alone is not an executable integral. See the

@@ -27,6 +27,9 @@ mod evaluator;
 mod exact;
 mod metadata;
 mod model_constraints;
+/// Data-only threshold provenance. Structural admission does not certify the
+/// referenced mathematics or create an executable threshold artifact.
+pub mod threshold_metadata;
 pub use metadata::PortableMetadata;
 pub use model_constraints::RuntimeMassConstraint;
 mod precision;

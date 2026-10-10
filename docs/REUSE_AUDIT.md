@@ -59,6 +59,29 @@ host portable arithmetic backend, not an actual browser. Threshold generation
 and its HEPKit entry are still incomplete; existing consumers continue to work
 without importing symGCAD.
 
+### Threshold lineage metadata
+
+The [lineage review](reviews/no-deformation-threshold-lineage.md) records
+strict native source-selection and contribution-inventory reuse. Original
+physical extent, one-to-many chart descendants and currently resident records
+are separate. An immutable structural-check view prevents bypassing inventory
+checks, while explicitly granting no mathematical authority. The data-only
+schema does not import symGCAD and does not change legacy monomial metadata or
+artifact formats. Root and runtime reviews accept the scoped boundary; the
+native threshold completion factory and selective artifact codec remain open.
+
+### Constructive quotient and boundary geometry
+
+The [boundary-geometry review](reviews/no-deformation-boundary-geometry.md)
+records native Gröbner normalization with independently checked two-way ideal
+membership, exact relative Jacobian-minor covers for all divisor intersections,
+and the published monomial-center ordering. Parameters stay in the native
+polynomial variable ring; they are never promoted to invertible coefficients.
+An immutable localization owner bounds the cached relation basis. Native F4
+internal memory still requires caller process limits. Independent runtime and
+root source reviews accept this limited constructive stage; a general producer,
+checked exceptional-history transitions and real integration atlas remain open.
+
 ### Supplied local resolution certificates
 
 The [local checker review](reviews/no-deformation-resolution-checker.md) records

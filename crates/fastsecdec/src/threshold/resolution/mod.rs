@@ -11,6 +11,7 @@ mod chart;
 mod contact;
 mod cover;
 mod etale;
+mod geometry;
 mod localized;
 mod marked;
 mod producer;
@@ -23,6 +24,13 @@ pub use contact::{
 };
 pub use cover::{OpenCoverCertificate, VerifiedOpenCover};
 pub use etale::{EtaleCertificate, EtaleFrame};
+pub use geometry::{
+    BoundaryId, InitialDivisor, IntersectionCertificate, MonomialCandidate, MonomialProduction,
+    MonomialProgress, MonomialWitness, NormalizationOutcome, NormalizationProgress,
+    ProducedMonomialCenter, QuotientNormalizer, SncProduction, SncProgress,
+    VerifiedQuotientNormalization, VerifiedRelativeSnc, produce_monomial_center,
+    verify_initial_relative_snc,
+};
 pub use localized::LocalizedAlgebra;
 pub use marked::{
     CenterCertificate, CoefficientRestriction, CompanionArithmetic, MarkedIdeal, RecordedInvariant,

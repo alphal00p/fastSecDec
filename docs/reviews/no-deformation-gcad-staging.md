@@ -84,7 +84,12 @@ layout and the request/proof/observation trust boundaries. These small tests mak
 endpoint-resolution, selective-cell-memory or complete-integral claim.
 
 Raw source hashes, compiler/dependency provenance and logs remain ignored under
-`target/no-deformation-gcad-staging/`. The preparation and geometry boundaries
-are described in [the GCAD audit](no-deformation-gcad-audit.md),
+`target/no-deformation-gcad-staging/`. A subsequent wire-admission regression
+uses an empty-struct `UnitCube {}` variant to reject unknown fields with the
+adopted Serde revision. Its valid serialized bytes are unchanged. This reuses
+the existing strict contour DTO pattern and requires no dependency patch.
+
+The preparation and geometry boundaries are described in
+[the GCAD audit](no-deformation-gcad-audit.md),
 [projective preparation](no-deformation-projective.md), and
 [cell maps](no-deformation-cell-maps.md).
