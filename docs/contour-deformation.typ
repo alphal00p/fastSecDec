@@ -129,9 +129,9 @@ $ J_(i j) = delta_(i j)-i(lambda partial_j v_i + v_i partial_j lambda). $
 Implicit differentiation of $H(x,r(x))=1$ gives
 $ partial_j r = -(partial_j H)/(partial_r H), quad partial_j lambda=S partial_j r. $
 Here $partial_j H$ holds $r$ fixed but differentiates all physical coefficient
-dependence, including $v$ and the smooth constraints. Higher subtraction jets
-follow by native differentiation of this identity; solver iteration choices
-are never differentiated. Every face retains the full-sector dimension,
+dependence, including $v$ and the smooth constraints. Symbolic endpoint
+reduction differentiates the complete deformed density, including this identity
+and the determinant. Solver iteration choices are never differentiated. Every face retains the full-sector dimension,
 structural counts and cap parameters. Omitting the rank-one term
 $-i v (grad lambda)^T$ changes the integral.
 
@@ -210,23 +210,25 @@ unnormalized $delta_(a b)$; the measure is
 $product_l d^D k_l/(i pi^(D/2))$, $D=4-2epsilon$, with multiplier one.
 This is not a complete diagram sum or a spin/colour averaged matrix element.
 
-#note[*Campaign status: integration pending.* Fixed generation and its archive
-audit pass. Four production runs and their settings are not yet frozen;
-no numbers below are inferred from the
-earlier 400 GeV example or from different multiloop tests.]
+#note[*Scope correction: symbolic endpoint comparison pending.* The generation
+measurements below use numerical-dual endpoint reduction. They are historical
+diagnostics. The requested comparison will use symbolic endpoint reduction
+with either symbolic or contour-only dual Jacobians; old high-order endpoint
+jet costs do not establish limitations of Jacobian-only dualization.]
 
 == Generation and resident programs
 #table(columns: (1.4fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
   table.header([*Implementation*], [*Generation / peak RSS*], [*Sampling tradeoff*]),
-  [Fixed, symbolic determinant], [141.9 s / 16.06 GB], pending,
-  [Dynamic, symbolic determinant], pending, pending,
-  [Native dual determinant option], [Under investigation], pending,
+  [Fixed, symbolic determinant], [84.2 s / 14.17 GB], pending,
+  [Dynamic, symbolic determinant], [1104.4 s / 59.64 GB], pending,
+  [Native dual determinant option], [Source-sector test only], [See section 3],
 )
-Fixed generation uses eight workers, numerical-dual IBP, Horner iterations zero
-and SymJIT O2. All 30 sectors plus exact contributions occupy 79.04 MB. Its
-141.9 s includes publication; native mapping takes 41.6 s and sector assembly
-90.1 s. Concurrent builds were active: this is a shared-host observation.
-Generation is parametric in energy. The aggregate RSS cap is *100 GB* (decimal).
+Both runs use sector-at-a-time serial generation, numerical-dual IBP, Horner
+iterations zero, common-pair rounds 1000 and SymJIT O2. Fixed uses eight workers;
+dynamic uses four. The 30 stochastic sectors plus 30 exact records occupy
+79.04 MB and 175.08 MB respectively. Times include publication. The dynamic
+coordinator remains approximately 11 MB; completed mapped expressions stay on
+disk. The aggregate parent-and-child RSS cap is *100 GB* (decimal).
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -282,20 +284,24 @@ timings or a convergence result.
 The symbolic route constructs a native determinant and optimizes it together
 with the density. It offers common-expression elimination across outputs but
 may make generation expensive when a large body is repeatedly substituted.
-The optional dual route composes a native first-order dual evaluation of the
-image vector with a generic native determinant program, then applies the
-existing outer subtraction duals to the whole density. It therefore retains
-the *complete* jets, including local-strength derivatives. It adds no numerical
-determinant callback or separate differentiation engine. The initial option
-requires numerical-dual generation and supports one through six coordinates;
-symbolic construction remains the default. First image-derivative expressions
-are still retained for inspection and exact contributions. Native higher-jet,
-face and saved-program tests pass; physical performance acceptance is pending.
+*Historical implementation.* The first optional dual route composed native
+first-order image duals with a determinant program and then applied outer
+numerical-dual subtraction to the whole density. It preserved derivatives but
+coupled the two choices, contrary to the clarified requirement. Its source-zero
+dynamic program occupies 2.16 MB versus 5.74 MB, while compilation takes
+190.55 s versus 91.30 s; fixed programs occupy 1.14 MB versus 2.64 MB.
+These measurements include high-order endpoint jets and cannot establish the
+cost or limits of contour-only Jacobian dualization.
 
-The tradeoff requires measurements of generation time, retained program size,
-setup cost and full integrand cost per sample. Runtime matrix work, callback
-dispatch and higher jets may offset generation savings. A formal determinant
-identity or a smaller source expression alone is not a speedup measurement.
+*Required independent construction.* Keep endpoint reduction and subtraction
+symbolic in both variants. Native differentiation must retain every bulk,
+boundary, determinant and local-strength derivative. The proposed lowering
+uses first-order native image duals only for surviving Jacobian-entry
+expressions; the higher derivatives already generated by symbolic IBP remain
+symbolic. Restrict derivatives to a face only after differentiating the original
+map. No change of mathematical ordering is assumed. The capability probe,
+complete scientific checks and matched generation/RSS/program-size/sampling-cost
+comparison are pending. No alternative CAS or AD implementation is introduced.
 
 == Residency, callback ownership and statistical work
 Universal indexed artifacts let serial generation publish one completed
@@ -308,10 +314,21 @@ Independent probes exposed a native JIT-clone callback issue: cloned evaluator
 tables were not used by machine code, which retained the original callback
 environment and serialized its mutable workspace. The narrow owner correction,
 #link("https://github.com/symbolica-dev/symbolica/pull/62")[Symbolica PR 62], is
-adopted through public consumer revision `650d9427`; 406 frozen native library
-tests pass. Neither synthetic callback concurrency nor debug timing is
-reported as a D05 speed gain; the final owner revision and native production
-costs must be recorded after validation.
+retained in public consumer revision `74225696`. The same consumer adds
+#link("https://github.com/symbolica-dev/symbolica/pull/63")[Symbolica PR 63]:
+common-subexpression lookup remaps operands before hashing them, avoiding one
+optimizer pass per level of a duplicate dependency chain. Native branch
+ancestry and callback argument order remain unchanged. The FastSecDec
+workspace passes 917 tests (33 existing diagnostics ignored), portable tests
+pass 82 controls, and binding checks and strict workspace Clippy pass.
+
+The physical QMC run also exposed avoidable coordinator work: matching common
+shifts used linear searches within already-sorted native replica records.
+Binary search preserves the selected rows and arithmetic order. Cancellation
+now drains dispatched results without repeating expensive observational
+reductions and checkpoint writes for every return; the final native checkpoint
+and report still include accepted returns. Deterministic cancellation and
+reordered, gapped-shift covariance/restoration controls cover these changes.
 
 Stream identities are coordinator-owned. Pilots, production replicas and
 retries keep separate identities; rejected, duplicate or stale work cannot

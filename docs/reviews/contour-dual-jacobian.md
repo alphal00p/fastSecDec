@@ -1,5 +1,14 @@
 # Native dual Jacobian construction
 
+> Scope correction, 2026-10-10: the physical measurements below used
+> `GenerationMode::NumericalDual` for endpoint reduction. They are historical
+> diagnostics and do **not** measure the subsequently requested comparison of
+> symbolic endpoint reduction with symbolic versus contour-only dual Jacobians.
+> High-order endpoint-jet costs do not establish a limitation of first-order
+> Jacobian dualization. The corrected construction and its measurements require
+> separate acceptance; see [the clarification](../../CONTOUR_DEFORMATION_PLAN.md)
+> and [the symbolic-endpoint audit](contour-symbolic-endpoints.md).
+
 The optional `ContourJacobian::Dual` policy constructs the same mathematical
 Jacobian with Symbolica's existing evaluator operations. It initially requires
 `GenerationMode::NumericalDual` and supports contour charts with one through six
@@ -120,9 +129,10 @@ remain confined to their exact key; the cache lifetime is the existing source
 builder's lifetime. The two focused scientific/cache controls passed in 4.05
 seconds, including distinct-body reuse, changed-plan separation and isolated
 body/prefix errors. Four staged restoration controls also passed. A repeated
-physical measurement of this follow-up is pending. Dynamic source-zero
-comparisons and sampling cost remain separate gates; no overall performance
-improvement is claimed.
+physical measurement of this follow-up initially reached its 600-second limit
+for the polynomial recipe without producing an evaluator. The native CSE
+follow-up below subsequently completed that case. Sampling cost remains a
+separate gate; no overall performance improvement is claimed.
 
 ## Complete fixed D05 generation
 
@@ -145,3 +155,54 @@ review confirmed those hashes and the full record/source coverage. Generation
 overlapped independent builds, so its elapsed time is feasibility evidence, not
 an idle-host benchmark. The artifact was handed to the runtime owner for actual
 pilots and sampling; successful generation alone is not a physical estimate.
+
+## Native CSE follow-up: saved SymJIT source-zero comparisons
+
+The separately reviewed native operand-remapping correction is consumed at
+Symbolica/Numerica revision `74225696cd445247fa81c499c5110decd19257ed`.
+The candidate3 source archive is
+`3a430ad45c0df36a1676b1b29769974064416e7afa54fef23a143ddb89248b53`.
+The ignored physical driver links the exact verified release dependency graph,
+uses native SymJIT O2, one optimizer core, Horner zero and CPE maximum 1000,
+and preserves the original source, IBP construction and all 19 physical
+bindings. It introduces no numerical callback or alternative algebra.
+
+Both optional Dual source-zero cases now complete. The fixed case took
+33.193 seconds with 3,244,945,408 bytes peak owned RSS; the polynomial case took
+224.186 seconds with 8,628,269,056 bytes peak. These include preparation,
+construction, compilation, saving and the driver's checked values. Their
+native evaluator compilation intervals were 6.801 and 190.550 seconds.
+The actual polynomial Symbolic source-zero worker reported a 91.296-second
+compilation interval. Thus this evidence does not establish a Dual compilation
+speed advantage. Full-artifact worker walltime and isolated source-zero walltime
+are not interchangeable measures of generation work.
+
+| Recipe | Symbolic saved source-zero bytes | Dual saved source-zero bytes | Maximum scaled vector difference |
+|---|---:|---:|---:|
+| Fixed | 2,642,927 | 1,143,353 | 4.075e-15 |
+| Polynomial | 5,743,519 | 2,162,020 | 3.708e-15 |
+
+These are actual native exact-plus-stochastic records from source zero, with
+the complete real/imaginary pole and finite coefficient layout. Each new Dual
+owner is dropped before restoring its saved bytes, and a separate process
+repeats the checked evaluation. Fresh restoration reproduces the vectors
+exactly. At the two declared interior points, fixed strength 1e-6 is admitted
+and 1e-5 retains the identical certified positive-imaginary-F refusal in both
+representations. Polynomial strength uses S=0.8, R=1 and admits both declared
+caps, 1e-6 and 1e-5. No refused point is treated as a successful value comparison.
+
+The Symbolic reference is selected from newly generated candidate3 native
+records. Successful CLI publication removes its temporary staging directory;
+an initial attempt to read the deleted fixed receipt failed before output.
+The corrected small adapter uses the final native archive catalogue and
+`ProgramArchiveWriter::append_record`, verifying source-zero ownership and the
+adjacent exact/stochastic record pair before extraction. It does not regenerate
+the source or bypass the CLI dependency fence. The adapter and source comparison
+were independently reviewed.
+
+All four source-zero owners, resource closures and exact comparison hashes are
+recorded in
+`target/contour-gghh-double-box-1000-candidate3-dual-probe/cost-handoff.json`
+and `parity-fixed-polynomial.json`. Matched native sampling-cost measurements
+have been handed to the runtime owner; no runtime advantage or amortization
+threshold is inferred from the smaller saved programs alone.

@@ -426,3 +426,46 @@ concurrent activity as a reason to postpone measurements. Preserve each
 integration's 50-core allocation, deterministic sampling identities, memory
 accounting and separate results. Select each prescription using preliminary
 work before its final run; final results must not feed subsequent tuning.
+
+## Symbolic endpoint reduction and contour-only duals (2026-10-10)
+
+### User clarification, verbatim
+
+Continue as planned but:
+"""
+Clarification of my intent: I only want to consider dual numbers for the contour deformation, particularly computing its Jacobian. I do NOT want dual/hyperdual evaluation to perform IBP reduction to logarithmic endpoints.
+
+Use Symbolica’s symbolic capabilities for endpoint reduction and subtraction. Keep this choice independent of how the deformation Jacobian is constructed. In particular, selecting a dual Jacobian must not require GenerationMode::NumericalDual for endpoint reduction.
+
+The comparison I want is:
+1. Symbolic endpoint reduction + symbolic deformation Jacobian.
+2. The same symbolic endpoint reduction + dual-based deformation Jacobian.
+
+Duals may differentiate the deformation map, including the position-dependent strength in dynamic mode. They must not introduce high-order endpoint jets as the mechanism for reducing power singularities to logarithmic endpoints.
+
+Please audit the current implementation against this clarification. The side conversation indicates that the existing dual-Jacobian option is coupled to numerical-dual endpoint generation, which does not match my intention.
+
+Be careful about mathematical ordering: in a deform-then-IBP construction, IBP differentiates the Jacobian and dynamic strength too. Never freeze or omit these derivatives. Determine the correct way to preserve symbolic endpoint reduction while isolating dual evaluation to deformation. If changing the ordering is necessary, first verify the treatment of bulk terms, boundary terms, subtraction faces, and analytic branches. Do not assume that moving IBP before deformation is automatically safe.
+
+Continue to reuse Symbolica’s native differentiation, evaluator, and matrix facilities; do not introduce a separate CAS or AD implementation.
+
+Then assess generation time, peak memory, evaluator size, and sampling cost using a matched comparison of the two constructions above. Distinguish the cost of first-order differentiation for the Jacobian from the cost of high-order endpoint jets. The latter is not a reason to reject the Jacobian-only approach I requested.
+
+This clarification supersedes any earlier interpretation that using duals for the deformation also authorizes using them for endpoint reduction.
+"""
+
+### Execution correction
+
+The previously measured optional dual-Jacobian implementation requires
+`GenerationMode::NumericalDual` and therefore does not establish the requested
+comparison. Retain its measurements as explicitly historical diagnostics.
+Do not infer a limitation of first-order Jacobian dualization from the cost of
+that implementation's high-order endpoint jets.
+
+Audit and separate the endpoint-reduction choice from the deformation-Jacobian
+choice. Both matched constructions use native Symbolica symbolic endpoint
+reduction and subtraction, preserving complete derivatives of the deformed
+density, its determinant, local strength and subtraction faces. Restrict any
+native dual evaluation to deformation objects. Review the mathematical ordering,
+public interfaces, saved programs and exact/boundary terms independently before
+accepting the implementation or restarting the final physical campaign.

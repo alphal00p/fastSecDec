@@ -1,5 +1,14 @@
 # Complete 1000 GeV D05 contour generation
 
+> Scope correction, 2026-10-10: the physical measurements below used
+> `GenerationMode::NumericalDual` for endpoint reduction. They are historical
+> diagnostics and do **not** measure the subsequently requested comparison of
+> symbolic endpoint reduction with symbolic versus contour-only dual Jacobians.
+> High-order endpoint-jet costs do not establish a limitation of first-order
+> Jacobian dualization. The corrected construction and its measurements require
+> separate acceptance; see [the clarification](../../CONTOUR_DEFORMATION_PLAN.md)
+> and [the symbolic-endpoint audit](contour-symbolic-endpoints.md).
+
 2026-10-10. Fresh fixed and polynomial-dynamic artifacts both contain all 30
 six-dimensional sectors of the native incoming-++ D05 double box. Each contains
 60 exact/stochastic records with source indices 0–29 and the complete
@@ -42,7 +51,8 @@ does not alter these generation settings.
 
 ## Completed campaigns
 
-The monitor samples the coordinator and its worker process group every 50 ms.
+The monitor polls the coordinator and its worker process group with a 50 ms
+sleep; actual sample spacing also includes the `/proc` scan time.
 RSS below is the sampled aggregate of those processes, in bytes, excluding
 unrelated jobs and filesystem cache. Both campaigns retain the user's explicit
 100,000,000,000-byte limit and close with exit zero, no live workers and an empty
@@ -127,8 +137,9 @@ structured six-dimensional determinant and shared fixed Jacobian body, including
 the full image-derivative determinant oracle and checked saved-vector parity.
 The [Dual review](contour-dual-jacobian.md) records native image Dualizer →
 determinant Composer → complete density before outer subtraction jets, plus
-the caller-owned shared Jacobian-prefix cache. Neither introduces a callback,
-custom algebra or incomplete first-order-only subtraction.
+the caller-owned shared Jacobian-prefix cache. Neither introduces a new
+Jacobian callback, custom algebra or incomplete first-order-only subtraction;
+the existing native dynamic-strength callback remains.
 
 The [native CSE review](contour-native-cse.md) records the separately tested
 owner correction: remap existing operands before forming existing lookup keys,
