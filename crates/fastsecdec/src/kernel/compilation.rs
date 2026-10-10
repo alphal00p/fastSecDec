@@ -805,5 +805,6 @@ mod threshold_plan;
 #[cfg(feature = "threshold-decomposition")]
 pub use threshold_plan::{
     ThresholdCompilationCompletion, ThresholdCompilationJob, ThresholdCompilationPlan,
-    ThresholdCompilationWork, ThresholdJobKind, ThresholdWorkReceipt,
+    ThresholdCompilationWork, ThresholdJobKind, ThresholdPublicationDescriptor,
+    ThresholdPublicationPlan, ThresholdWorkReceipt,
 };

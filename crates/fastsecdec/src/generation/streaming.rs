@@ -129,3 +129,6 @@ pub struct PreparedGeneration {
     pub source_charts: usize,
     pub unique_formulas: usize,
 }
+
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use records::Options as StoredGenerationOptions;

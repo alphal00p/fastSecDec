@@ -14,7 +14,10 @@ use std::{
 };
 use symbolica::atom::{AliasedAtom, Atom};
 mod worker;
-pub use worker::{ThresholdCompilationWork, ThresholdWorkReceipt};
+pub use worker::{
+    ThresholdCompilationWork, ThresholdPublicationDescriptor, ThresholdPublicationPlan,
+    ThresholdWorkReceipt,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

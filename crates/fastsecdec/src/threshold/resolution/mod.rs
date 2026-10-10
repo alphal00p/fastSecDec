@@ -11,6 +11,7 @@ mod algebra;
 mod blowup;
 mod chart;
 mod companion;
+mod companion_stage;
 mod component_factor;
 mod components;
 mod contact;
@@ -43,6 +44,11 @@ pub use companion::{
     produce_component_residual_order, produce_old_boundary_coefficient,
     produce_restricted_residual_order,
 };
+pub use companion_stage::{
+    CompanionCoefficientChart, CompanionCoefficientProduction, CompanionContactOpen,
+    CompanionOpenProduction, CompanionOpenProgress, construct_companion_coefficient,
+    produce_companion_open,
+};
 pub use component_factor::{
     BoundaryMaximality, CompletedComponentFactors, ComponentFactorCompletion,
     ComponentFactorFrontier, ComponentFactorLimits, FactorAdvance, FactorChild, FactorData,
@@ -72,8 +78,9 @@ pub use iteration::{
     carry_monomial_witness, exponent_rank,
 };
 pub use localization::{
-    LocalizationProduction, LocalizationProgress, LocalizedHistory, VerifiedPrincipalOpen,
-    localize_component_open,
+    CoverLocalizationProduction, LocalizationProduction, LocalizationProgress,
+    LocalizedCoverHistory, LocalizedHistory, VerifiedCoverOpen, VerifiedPrincipalOpen,
+    localize_component_open, localize_verified_cover_open,
 };
 pub use localized::LocalizedAlgebra;
 pub use marked::{

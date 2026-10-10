@@ -6,6 +6,7 @@
 
 pub mod algebraic_branch;
 pub mod gcad;
+pub mod generation;
 pub mod maps;
 pub mod options;
 pub mod phase;

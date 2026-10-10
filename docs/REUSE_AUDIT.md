@@ -1,5 +1,22 @@
 # Ecosystem reuse evidence
 
+## Native threshold preparation and recovery (2026-10-10)
+
+The [preparation review](reviews/no-deformation-native-preparation.md) records
+the native graph-to-artifact adapter for the admitted rational interval path.
+It reuses existing request, State/Atom, regularization, continuation, compilation
+and indexed-publication owners. Recovery re-verifies saved raw geometry;
+historical observations and process receipts do not reconstruct mathematical
+proofs. The root and an independent runtime agent reviewed exact specialization,
+bounded transport, process ownership and reuse of the native OneLOop reference.
+General algebraic endpoints and the full CLI/HEPKit workflow remain pending.
+
+The [companion/contact review](reviews/no-deformation-companion-contact.md)
+records the shared native upper-order-open restriction and its connection to
+existing maximal-contact, coefficient and monomial operations. The source and
+history owner checks were independently reviewed. Algebraic cosupport coverage
+is kept separate from physical integration coverage and global BM authority.
+
 ## Rational-cell meromorphic prefactors (2026-10-10)
 
 The [prefactor review](reviews/no-deformation-meromorphic-prefactors.md) records

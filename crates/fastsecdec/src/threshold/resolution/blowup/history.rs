@@ -159,7 +159,38 @@ impl ResolutionHistory {
         if !std::ptr::eq(self, open.source().as_ref()) {
             return Err(Error::Invalid("localization history source owner"));
         }
-        let ledger = open.ledger();
+        self.restrict_checked(
+            open.ledger(),
+            open.extension(),
+            open.factor(),
+            open.side(),
+            budget,
+        )
+    }
+    pub(crate) fn restricted_cover(
+        &self,
+        open: &super::super::localization::VerifiedCoverOpen,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        if !std::ptr::eq(self, open.source().as_ref()) {
+            return Err(Error::Invalid("cover history source owner"));
+        }
+        self.restrict_checked(
+            open.ledger(),
+            open.extension(),
+            open.factor(),
+            open.index(),
+            budget,
+        )
+    }
+    fn restrict_checked(
+        &self,
+        ledger: &Arc<VerifiedRelativeSnc>,
+        extension: &RingExtension,
+        factor: &Poly,
+        semantic_side: usize,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
         if ledger.divisors().len() != self.ledger.divisors().len() {
             return Err(Error::Invalid("localization changed boundary inventory"));
         }
@@ -167,7 +198,7 @@ impl ResolutionHistory {
             if old.id != target.id {
                 return Err(Error::Invalid("localization changed boundary identity"));
             }
-            let pulled = open.extension().pull(&old.equation, budget)?;
+            let pulled = extension.pull(&old.equation, budget)?;
             if !ledger
                 .frame()
                 .local()
@@ -185,8 +216,8 @@ impl ResolutionHistory {
         let mut path = self.path.clone();
         path.push(HistoryStep::PrincipalOpen {
             source_ring: self.ledger.frame().local().ring().clone(),
-            factor: open.factor().clone(),
-            semantic_side: open.side(),
+            factor: factor.clone(),
+            semantic_side,
         });
         Ok(Arc::new(Self {
             root: self.root.clone(),

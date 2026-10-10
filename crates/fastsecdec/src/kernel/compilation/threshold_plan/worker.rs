@@ -24,6 +24,20 @@ pub struct ThresholdWorkReceipt {
     work: ThresholdCompilationWork,
     record: RecordReceipt,
 }
+/// Compact child response. This is untrusted data, not a serialized proof owner.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ThresholdPublicationDescriptor {
+    pub work_plan: RecordRef,
+    pub source_identity: String,
+    pub prepared_identity: String,
+}
+/// Structural admission for a caller-authenticated native preparer result.
+/// It holds no global proof, native map Atoms, or evaluator programs.
+pub struct ThresholdPublicationPlan {
+    descriptor: ThresholdPublicationDescriptor,
+    summary: crate::kernel::indexed::ThresholdArchiveSummary,
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Plan {
@@ -119,6 +133,21 @@ impl ThresholdWorkReceipt {
     }
 }
 impl ThresholdCompilationPlan {
+    pub fn publication_descriptor(&self) -> Result<ThresholdPublicationDescriptor, KernelError> {
+        let summary = self
+            .prepared
+            .tables
+            .publication(self.prepared.settings, &self.prepared.precision)?;
+        Ok(ThresholdPublicationDescriptor {
+            work_plan: self
+                .prepared
+                .work_record
+                .clone()
+                .ok_or_else(|| failure("unissued plan"))?,
+            source_identity: summary.source_identity,
+            prepared_identity: summary.complete_content_id,
+        })
+    }
     pub fn work(&self, index: usize) -> Result<ThresholdCompilationWork, KernelError> {
         if index >= self.job_count() {
             return Err(failure("job index out of range"));
@@ -172,6 +201,121 @@ impl ThresholdCompilationPlan {
     ) -> Result<(), KernelError> {
         self.validate_work_receipt(&receipt)?;
         // Native archive copying checks the digest of exactly the copied bytes.
+        writer.append_record(
+            crate::kernel::ProgramRecipe::ThresholdV1,
+            reader,
+            receipt.record,
+        )
+    }
+}
+
+impl ThresholdPublicationPlan {
+    /// The caller must authenticate the preparer child/lease and original input
+    /// receipt. This validates transport and closed publication semantics only;
+    /// it never claims to replay geometry/continuation proof in the coordinator.
+    pub fn from_trusted_preparer(
+        root: &Path,
+        descriptor: ThresholdPublicationDescriptor,
+        expected_source: &str,
+        expected_prepared: &str,
+        maximum_bytes: u64,
+    ) -> Result<Self, KernelError> {
+        if descriptor.source_identity != expected_source
+            || descriptor.prepared_identity != expected_prepared
+        {
+            return Err(failure("prepared source or semantic identity mismatch"));
+        }
+        if descriptor.work_plan.bytes > maximum_bytes {
+            return Err(failure("publication transport limit"));
+        }
+        let (plan, atoms, symbols): (Plan, _, _) =
+            codec::read(root, &descriptor.work_plan, KIND).map_err(failure)?;
+        if !atoms.atoms.is_empty() {
+            return Err(failure("publication plan contains global native Atoms"));
+        }
+        plan.precision.validate()?;
+        plan.settings.validate()?;
+        let tables = StagedTables::from_descriptor(plan.tables, symbols)?;
+        let summary = tables.publication(plan.settings, &plan.precision)?;
+        if summary.source_identity != descriptor.source_identity
+            || summary.complete_content_id != descriptor.prepared_identity
+            || summary.expected.len() != plan.specifications.len()
+        {
+            return Err(failure("publication descriptor/native plan association"));
+        }
+        for (index, spec) in plan.specifications.iter().enumerate() {
+            let expected = &summary.expected[index];
+            let matches = match (&spec.kind, &expected.lineage) {
+                (ThresholdJobKind::Setup {}, None) => expected.carrier,
+                (ThresholdJobKind::Exact { contributions }, Some(lineage)) => {
+                    expected.carrier
+                        && *contributions == lineage.contributions
+                        && matches!(lineage.kind, m::RecordKind::Exact)
+                }
+                (ThresholdJobKind::Stochastic { contribution }, Some(lineage)) => {
+                    !expected.carrier
+                        && lineage.contributions == [*contribution]
+                        && matches!(lineage.kind, m::RecordKind::Stochastic { .. })
+                }
+                _ => false,
+            };
+            if !matches {
+                return Err(failure("publication work inventory mismatch"));
+            }
+        }
+        Ok(Self {
+            descriptor,
+            summary,
+        })
+    }
+    pub fn descriptor(&self) -> &ThresholdPublicationDescriptor {
+        &self.descriptor
+    }
+    pub fn job_count(&self) -> usize {
+        self.summary.expected.len()
+    }
+    pub fn work(&self, index: usize) -> Result<ThresholdCompilationWork, KernelError> {
+        if index >= self.job_count() {
+            return Err(failure("publication job out of range"));
+        }
+        Ok(ThresholdCompilationWork {
+            plan: self.descriptor.work_plan.clone(),
+            index,
+        })
+    }
+    pub fn archive_writer<W: Write + Seek>(
+        &self,
+        writer: W,
+    ) -> Result<ProgramArchiveWriter<W>, KernelError> {
+        ProgramArchiveWriter::new_threshold(writer, self.summary.clone())
+    }
+    pub fn validate_work_receipt(&self, receipt: &ThresholdWorkReceipt) -> Result<(), KernelError> {
+        if receipt.work != self.work(receipt.work.index)? {
+            return Err(failure("foreign prepared worker record"));
+        }
+        receipt.record.validate()?;
+        let expected = &self.summary.expected[receipt.work.index];
+        let actual = receipt
+            .record
+            .threshold
+            .as_ref()
+            .ok_or_else(|| failure("missing worker lineage"))?;
+        if actual.parent != self.summary.parent
+            || actual.carrier != expected.carrier
+            || actual.lineage != expected.lineage
+            || receipt.record.native_content_id != expected.native_content_id
+        {
+            return Err(failure("worker differs from prepared publication"));
+        }
+        Ok(())
+    }
+    pub fn append_work_record<W: Write + Seek>(
+        &self,
+        writer: &mut ProgramArchiveWriter<W>,
+        reader: &mut impl Read,
+        receipt: ThresholdWorkReceipt,
+    ) -> Result<(), KernelError> {
+        self.validate_work_receipt(&receipt)?;
         writer.append_record(
             crate::kernel::ProgramRecipe::ThresholdV1,
             reader,

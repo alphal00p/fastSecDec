@@ -784,5 +784,6 @@ fn has_complex_coefficients(expression: &Atom) -> bool {
 #[cfg(feature = "threshold-decomposition")]
 pub use compilation::{
     ThresholdCompilationCompletion, ThresholdCompilationJob, ThresholdCompilationPlan,
-    ThresholdCompilationWork, ThresholdJobKind, ThresholdWorkReceipt,
+    ThresholdCompilationWork, ThresholdJobKind, ThresholdPublicationDescriptor,
+    ThresholdPublicationPlan, ThresholdWorkReceipt,
 };

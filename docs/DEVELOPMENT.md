@@ -64,8 +64,11 @@ native `KernelSet::compile_threshold_fiber` factory compiles the currently
 admitted one-dimensional continuation into standalone v15 kernels. This is
 complemented by detached `ThresholdCompilationPlan` jobs and indexed v3
 archives containing local v16 programs. These retain caller-owned scheduling
-and selective sector loading. They are not yet the complete CLI/HEPKit
-threshold workflow or general algebraic resolver. The direct solver call is synchronous;
+and selective sector loading. `threshold::generation::{prepare,resume,resume_evidence}`
+provides the corresponding native preparation and recovery adapter, with compact
+receipts for caller-owned processes and fresh verification of saved solve output.
+These are not yet the complete CLI/HEPKit threshold workflow or general algebraic
+resolver. The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:
 

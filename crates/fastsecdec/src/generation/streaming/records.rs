@@ -21,7 +21,7 @@ pub(super) use prepared::{PreparedData, read_prepared, write_prepared};
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(super) struct Options {
+pub(crate) struct Options {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_sectors: Option<Vec<usize>>,
     mode: GenerationMode,
