@@ -3436,6 +3436,28 @@ Standalone v15 does not yet provide indexed/serial threshold publication or
 global proof replay. Those requests fail explicitly. The new Python recipe
 label is for inspection; native HEPKit generation remains a separate gate.
 
+## Checked regular-component splitting (2026-10-10)
+
+The [component review](reviews/no-deformation-regular-components.md) records
+native exact elimination on checked regular quotients. Its annihilator and
+idempotent construction preserves the original ideal, inert parameters and
+ambient open-cover identities. Supplied candidates require recomputation from
+that original input; a product identity or caller-supplied basis is insufficient.
+Existing quotient normalization, Cartier division and open-cover checkers are
+reused. No alternative ideal, factorization or differentiation engine is added.
+
+Independent scientific and ecosystem reviews accept this local step. Repeated
+componentwise factor extraction, invariant-selected global resolution and real
+endpoint charts remain separate work. A later localization probe exposed a
+native F4 regression. The [native-basis audit](reviews/no-deformation-native-basis.md)
+records its independently reviewed owner correction and shared verification.
+
+The [principal-open audit](reviews/no-deformation-principal-opens.md) records
+checked frame restriction, old divisor pullbacks and exact local ancestry using
+the existing native étale/SNC constructors. Root's independent review accepts
+the local geometry and parameter boundaries. Neither component splitting nor
+principal-open restriction supplies a disjoint real integration atlas.
+
 ## Represented numerical coefficients (2026-10-10)
 
 The [represented-input review](reviews/no-deformation-represented-input.md)

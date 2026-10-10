@@ -1,6 +1,5 @@
 use super::super::{Budget, Error, Ideal, Poly, RingExtension, VerifiedRelativeSnc};
 use std::sync::Arc;
-use symbolica::poly::groebner::GroebnerBasis;
 use symbolica::symbol;
 type Result<T> = std::result::Result<T, Error>;
 
@@ -142,14 +141,9 @@ pub fn divide_cartier(
         for equation in &equations {
             budget.poly(equation)?;
         }
+        let basis = super::super::native_basis::checked(&equations, budget)?;
         budget.charge(1)?;
-        let basis = GroebnerBasis::new(&equations, false);
-        budget.reserve_slots(basis.system.len())?;
-        for g in &basis.system {
-            budget.poly(g)?;
-        }
-        budget.charge(1)?;
-        let q = t.reduce(&basis.system);
+        let q = t.reduce(&basis);
         budget.poly(&q)?;
         if q.contains(0) || q.contains(1) {
             return Err(Error::Invalid("native principal quotient not eliminated"));

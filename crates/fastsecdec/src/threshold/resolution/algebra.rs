@@ -2,7 +2,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::rational::{Q, RationalField},
-    poly::{PolyVariable, groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
+    poly::{PolyVariable, polynomial::MultivariatePolynomial},
 };
 
 pub type Poly = MultivariatePolynomial<RationalField, u16>;
@@ -22,7 +22,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Preflight limits for checker-owned construction. Native Groebner internals
 /// are not interruptible through this API; callers still own hard process caps.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct Limits {
     pub max_mark: usize,
     pub max_generators: usize,
@@ -356,13 +357,8 @@ impl Ideal {
             self.generators.iter().chain(relations).cloned().collect(),
             budget,
         )?;
+        let basis = super::native_basis::checked(&ideal.generators, budget)?;
         budget.charge(1)?;
-        let basis = GroebnerBasis::new(&ideal.generators, false);
-        budget.count(basis.system.len())?;
-        for q in &basis.system {
-            budget.poly(q)?;
-        }
-        budget.charge(1)?;
-        Ok(p.reduce(&basis.system).is_zero())
+        Ok(p.reduce(&basis).is_zero())
     }
 }

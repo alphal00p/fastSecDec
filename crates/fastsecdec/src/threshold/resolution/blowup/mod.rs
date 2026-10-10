@@ -11,7 +11,7 @@ pub use adapted::{
     AdaptedCover, AdaptedOpen, AdaptedProduction, AdaptedProgress, EmptyAdaptedOpen,
     produce_adapted_cover,
 };
-pub use history::{BirthContext, HistoryChartStep, ResolutionHistory};
+pub use history::{BirthContext, HistoryChartStep, HistoryStep, ResolutionHistory};
 pub use transform::{
     BlowupProduction, BlowupProgress, DivisorReceipt, MonomialBlowup, MonomialBlowupChart,
     produce_monomial_blowup,

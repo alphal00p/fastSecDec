@@ -1,6 +1,5 @@
 use super::super::{Budget, Error, Ideal, LocalizedAlgebra, MarkedIdeal, Poly};
 use std::sync::Arc;
-use symbolica::poly::groebner::GroebnerBasis;
 type Result<T> = std::result::Result<T, Error>;
 
 /// Caller-owned native relation basis for exactly one immutable localization.
@@ -58,18 +57,8 @@ fn basis(ideal: &Ideal, budget: &mut Budget) -> Result<Arc<Ideal>> {
     for f in ideal.generators() {
         budget.poly(f)?;
     }
-    budget.charge(1)?;
-    // Ideal construction filtered native zeros before the current owner F4.
-    let native = GroebnerBasis::new(ideal.generators(), false);
-    budget.reserve_slots(native.system.len())?;
-    for f in &native.system {
-        budget.poly(f)?;
-    }
-    Ok(Arc::new(Ideal::new(
-        ideal.ring().clone(),
-        native.system,
-        budget,
-    )?))
+    let native = super::super::native_basis::checked(ideal.generators(), budget)?;
+    Ok(Arc::new(Ideal::new(ideal.ring().clone(), native, budget)?))
 }
 fn reduces_to_zero(f: &Poly, basis: &Ideal, budget: &mut Budget) -> Result<bool> {
     budget.poly(f)?;

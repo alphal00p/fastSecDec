@@ -9,9 +9,20 @@ pub struct HistoryChartStep {
     pub columns: Vec<usize>,
     pub pivot: Option<BoundaryId>,
 }
+/// Exact local ancestry includes opens as well as blowups; neither identifies
+/// globally glued centers or divisors across unrelated local branches.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum HistoryStep {
+    Blowup(HistoryChartStep),
+    PrincipalOpen {
+        source_ring: Arc<Ring>,
+        factor: Poly,
+        semantic_side: usize,
+    },
+}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BirthContext {
-    pub parent_chart_path: Vec<HistoryChartStep>,
+    pub parent_chart_path: Vec<HistoryStep>,
     pub center: Vec<BoundaryId>,
 }
 #[derive(Clone, Debug)]
@@ -26,7 +37,7 @@ pub struct ResolutionHistory {
     births: BTreeMap<BoundaryId, u64>,
     old_snapshot: Vec<BoundaryId>,
     next_id: BoundaryId,
-    path: Vec<HistoryChartStep>,
+    path: Vec<HistoryStep>,
     birth_contexts: BTreeMap<BoundaryId, BirthContext>,
 }
 impl ResolutionHistory {
@@ -69,7 +80,7 @@ impl ResolutionHistory {
     pub fn same_root(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.root, &other.root)
     }
-    pub fn chart_path(&self) -> &[HistoryChartStep] {
+    pub fn chart_path(&self) -> &[HistoryStep] {
         &self.path
     }
     /// Compare a born identity only together with same_root and this context.
@@ -127,7 +138,7 @@ impl ResolutionHistory {
             },
         );
         let mut path = self.path.clone();
-        path.push(step);
+        path.push(HistoryStep::Blowup(step));
         Ok(Arc::new(Self {
             root: self.root.clone(),
             ledger,
@@ -137,6 +148,55 @@ impl ResolutionHistory {
             next_id,
             path,
             birth_contexts,
+        }))
+    }
+
+    pub(crate) fn restricted(
+        &self,
+        open: &super::super::localization::VerifiedPrincipalOpen,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        if !std::ptr::eq(self, open.source().as_ref()) {
+            return Err(Error::Invalid("localization history source owner"));
+        }
+        let ledger = open.ledger();
+        if ledger.divisors().len() != self.ledger.divisors().len() {
+            return Err(Error::Invalid("localization changed boundary inventory"));
+        }
+        for (old, target) in self.ledger.divisors().iter().zip(ledger.divisors()) {
+            if old.id != target.id {
+                return Err(Error::Invalid("localization changed boundary identity"));
+            }
+            let pulled = open.extension().pull(&old.equation, budget)?;
+            if !ledger
+                .frame()
+                .local()
+                .zero(&(&pulled - &target.equation), budget)?
+            {
+                return Err(Error::Invalid("localization boundary equation pullback"));
+            }
+        }
+        budget.reserve_slots(
+            self.path
+                .len()
+                .checked_add(1)
+                .ok_or(Error::ResourceIncomplete("localization ancestry count"))?,
+        )?;
+        let mut path = self.path.clone();
+        path.push(HistoryStep::PrincipalOpen {
+            source_ring: self.ledger.frame().local().ring().clone(),
+            factor: open.factor().clone(),
+            semantic_side: open.side(),
+        });
+        Ok(Arc::new(Self {
+            root: self.root.clone(),
+            ledger: ledger.clone(),
+            stage: self.stage,
+            births: self.births.clone(),
+            old_snapshot: self.old_snapshot.clone(),
+            next_id: self.next_id,
+            path,
+            birth_contexts: self.birth_contexts.clone(),
         }))
     }
 }

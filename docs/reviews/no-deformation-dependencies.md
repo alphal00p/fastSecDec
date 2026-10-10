@@ -83,6 +83,37 @@ declined formal reviewer assignment; the requested review is recorded by
 tagging `benruijl` in the PR. This optional owner robustness fix is not part of
 FastSecDec's pinned consumer revision.
 
+## Native F4 and signed resultants
+
+The public child `1ac765fd17e9273706d762b2afe450c3c5bd44f0` adds two independently
+reviewed fixes to `c540d3f`: [F4 exact-multiple caching, PR #68](https://github.com/symbolica-dev/symbolica/pull/68)
+and [linear-resultant signs, PR #69](https://github.com/symbolica-dev/symbolica/pull/69).
+All three consumer manifests select this same Symbolica/Numerica identity;
+their lockfile changes contain only those two source identities. The optional
+zero-generator robustness fix remains separate and unrequired.
+
+The [native-basis audit](no-deformation-native-basis.md) records the F4 failure
+mechanism and mandatory generator-membership/Buchberger checks. For resultants,
+the linear specialization returned `Res(linear,f)` instead of `Res(f,linear)`
+when `degree(f)` was odd. An independent multiplicativity counterexample and
+native Sylvester determinants exposed the inconsistency. The narrow correction
+applies the missing odd-degree sign and fixes one existing test expectation.
+Five new groups and nine existing native resultant tests pass; the unchanged
+public baseline passes only the new characteristic-two group. Rational and
+prime-field controls exercise all four public resultant algorithms.
+
+Both new regression suites pass against the exact combined revision (three F4
+groups and five resultant groups). The fixes keep the native CAS algorithms;
+there is no FastSecDec replacement. Both PRs are owned by ValentinHirschi and
+attached to the task. GitHub declined formal reviewer assignment, so the
+authorized review invitations tag `benruijl` in the respective PR discussions.
+
+Consumer validation on the combined revision passes 572 native core tests
+(21 explicit ignores), strict native library/test Clippy, all 88 portable-host
+controls, and the Python binding check. These gates include the regular-component, checked principal-open and
+shared native-basis admission changes. They do not constitute a fresh browser
+WASM run or completion of the general algebraic endpoint resolver.
+
 ## Limits and reproduction evidence
 
 Raw command logs, source hashes and process receipts stay untracked under
