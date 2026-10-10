@@ -51,8 +51,16 @@ Fresh stubs and strict binding Clippy pass; the whole workspace passes 904
 tests (33 ignored, including the library subsets above). In actual one-worker
 K1 generation, all 186 mappings now complete within a 300-second bounded
 campaign at 234.984 MiB sampled aggregate peak, compared with the previous
-3 GiB failure before completing the first mapping. Compilation and full
-publication remain pending; the measurement does not claim their peak memory.
+3 GiB failure before completing the first mapping. Subsequent bounded resumes
+complete all 186 evaluators and publish the native artifact. The final
+eight-worker campaign takes 873.077 seconds, with independently sampled
+aggregate peak 3,094,814,720 bytes (2.882 GiB); the four campaigns total
+1,773.469 seconds. These interrupted, mixed-worker runs establish feasibility,
+not a controlled generation-speed comparison. The coordinator remains compact
+and completed native records are persisted and released. The
+[independent symmetry audit](reviews/contour-k1-symmetry-audit.md) identifies
+avoidable full-record reads but no owner-library defect or missing CAS API.
+Numerical admission, convergence and multiloop variance remain pending.
 
 ## Dynamic observations and installed HEPKit family audit (2026-10-10)
 

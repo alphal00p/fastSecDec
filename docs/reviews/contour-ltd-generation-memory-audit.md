@@ -244,7 +244,15 @@ required pilot; it now executes the actual pilot for every retained chart and
 finishes it before production evaluation. No admission rule was bypassed.
 The final raw log is
 `target/generation-agent-ltd-memory/compact-final-core-lib-tests.log`.
-CLI, lint, installed-consumer and complete K1 generation gates remain separate.
+The subsequent complete workspace gate passes **904 tests, with 33 explicitly
+ignored controls** across 90 result groups: core 653/23, CLI 173/8, QMC 37/0
+and sectors 41/2. The 401 library tests above are included once in that total.
+Strict workspace/all-target Clippy and workspace/leaf formatting pass; the
+final test-only `from_ref` cleanup is followed by all eight definition controls
+passing again. Logs are `target/contour-compact-workspace-tests.log`,
+`target/contour-compact-workspace-clippy-final.log` and
+`target/contour-compact-definitions-final-tests.log`.
+Installed-consumer and complete K1 generation gates remain separate.
 
 The serial coordinator's source audit finds no new all-chart definition or
 Jacobian cache. Source/chart discovery retains indexed record references;
@@ -295,6 +303,82 @@ failed run remains unchanged. A separately authorized **second 300-second /
 receipts. Its raw budget and elapsed time are separate, and cumulative time
 must include the first 300.261 s. At this documentation cut the resume is in
 progress; reaching saved evaluator compilation remains pending.
+
+The second campaign subsequently stops cleanly at its declared wall limit:
+300.060 s, **600.322 s cumulative**, 132 completed symmetry receipts,
+all 186 mapped charts retained, and still zero compiled evaluator receipts.
+Its independently sampled aggregate peak is **252,973,056 bytes
+(241.254 MiB)**. The last active exact comparison is source chart 178;
+this is advancing work rather than an observed stalled job. Raw results are
+under `runs/generation-polynomial-resume-one-worker/`, with
+`second-campaign-summary.json` and `journal-after-second.json` preserving the
+boundary. A third separately authorized 300-second / 3-GiB one-worker resume
+uses the same binary and records. No full-record decoding optimization or
+other source change is made between these campaigns. The third result and
+actual compiled evaluator evidence follow below.
+
+The third campaign reaches native evaluator construction and persists **six
+compiled units** before its unchanged limit: 300.070 s, **900.391 s
+cumulative**, all 186 mapped charts and 139 completed symmetry comparisons.
+No charts merge, so 186 evaluator jobs remain in the complete integral's
+layout. Its independent peak is **509,579,264 bytes (485.973 MiB)**, including
+worker compilation scratch and coordinator. The first sector's genuine
+receipt records SymJIT O2, complex arithmetic, nine inputs, one complex output,
+141,492 bytes of exact native instructions and 248,073 bytes of SymJIT IR;
+the sector record is 16,690,979 bytes. It retains the finite real and imaginary
+Laurent components. This passes the first actual-unit generation/compilation
+feasibility gate; full-artifact loading and numerical integration remain pending.
+
+After recording that boundary, a separately authorized resume uses **eight
+caller-owned workers, 900 seconds and an 8-GiB aggregate limit**. The same
+binary and all completed receipts are reused. Native journal request identity
+normalizes preparation worker counts to zero, and the existing changed-worker
+recovery regression covers this scheduling-only variation. A pre-run filesystem
+check finds about 2.47 TiB available. The observed one-worker peak is not treated
+as a guarantee of the parallel peak; the process-group monitor enforces the new
+bound. `third-campaign-summary.json`, `journal-after-third.json` and the separate
+`runs/generation-polynomial-resume-two-one-worker/` retain the third result;
+`runs/generation-polynomial-resume-eight-workers/` retains the final campaign.
+
+That eight-worker campaign **completes successfully in 873.077 s**, before its
+900-second bound, with **3,094,814,720 bytes (2.882 GiB)** peak aggregate RSS
+in the independent 50-ms monitor. Its sampled coordinator maximum is
+35.813 MiB. It publishes all **186 compiled sectors**, with 186 exact records
+and 186 stochastic records in the native archive, and marks the journal
+complete. The retained receipts cover all 186 shared sources, all 186 mapped
+charts, 139 actual symmetry comparisons and all 186 compiled units. No worker
+or monitor remains alive at handoff.
+
+The four separately declared campaigns consume **1773.469 s cumulatively**;
+the final CLI timing card describes the resumed invocation and must not be
+reported as the complete generation cost. The first three wall-limit exits
+and all prior raw records are preserved. The run used the unchanged copied
+debug CLI above, whose production source became compact milestone `3303005`.
+Concurrent host work excludes an idle-host speed claim. This closes the
+complete-input generation/compilation/publication memory gate; native restored
+map admission, checked pilot and numerical integral acceptance remain distinct
+pending gates at this handoff.
+
+The complete manifest is
+`target/generation-agent-ltd-compact-k1/polynomial.fsd.json`; its data companion
+is `polynomial.fsd.1791609025803720011-2286418-0.dat`, **2,979,049,925 bytes**.
+The published sector and source indices each cover exactly 0 through 185, and
+the canonical physical source identity remains unchanged. Final identities are:
+
+| Identity | Value |
+|---|---|
+| Manifest SHA256 | `dd35724144749a5f27a03a902bd5eb49abf0d0f08f411cc41b3fb0a1637d0f87` |
+| Data SHA256 | `72c4ae498e5c52443b2bb7cc1eb06152a11de94e05f74f6f3c382ace3fc677f9` |
+| Manifest content ID | `2d126498ad5a56cb1e1ef574cd94ad892bbd8bf86e3f3c59e45e0f53ff24e29c` |
+| Native catalogue content ID | `7c50ef96fb1e5ef482de5eb4e24e31229ed230d95511cb32903fd1cb6387adde` |
+| Polynomial recipe content ID | `a2af7c3e231b3b5ec936e6eb01d014d9b7abc7c1efed675a2aaecdacb2d0e46f` |
+
+`fourth-campaign-summary.json` and `journal-after-fourth.json` preserve final
+counts and identities; the campaign's `execution.json`, `rss-samples.json` and
+`stderr.log` preserve its process budget, sampled memory and native progress.
+The runtime owner receives the complete archive only after this measurement
+closes, for the separately bounded map and pilot gates. No further measured
+generation overlaps that admission work.
 
 A separate native parity probe verifies that the failed new run's actual
 prepared-source-0 record has exactly the retained fixed chart's F, U and
