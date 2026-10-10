@@ -59,6 +59,23 @@ host portable arithmetic backend, not an actual browser. Threshold generation
 and its HEPKit entry are still incomplete; existing consumers continue to work
 without importing symGCAD.
 
+### Supplied local resolution certificates
+
+The [local checker review](reviews/no-deformation-resolution-checker.md) records
+six maintained controls and strict native Clippy for supplied polynomial frames,
+principal opens, adapted centers, coefficient/companion arithmetic and controlled
+blowup transforms. Independent source reviews checked exact native identities,
+counterexamples and ownership. Symbolica supplies the polynomial, ideal,
+derivative, division and matrix operations; this module only orchestrates and
+checks the supplied certificates. Parameters remain inert and resource-limited
+work remains caller-owned. The module neither constructs a general resolution
+nor verifies a published termination invariant or real integration atlas.
+
+Further executable probes confirm native relative derivations and finite-open
+coverage for an algebraic quotient chart. Those ignored research probes are not
+registered production functionality. The general producer, real sheet selection,
+closed-face endpoint certificates and auxiliary continuation remain outstanding.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)

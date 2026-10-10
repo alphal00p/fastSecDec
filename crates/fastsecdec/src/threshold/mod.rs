@@ -7,3 +7,4 @@
 pub mod gcad;
 pub mod phase;
 pub mod projective;
+pub mod resolution;
