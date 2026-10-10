@@ -5,6 +5,7 @@
 //! evidence before publishing an integration artifact.
 
 pub mod gcad;
+pub mod maps;
 pub mod phase;
 pub mod projective;
 pub mod resolution;

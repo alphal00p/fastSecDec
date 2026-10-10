@@ -76,6 +76,18 @@ coverage for an algebraic quotient chart. Those ignored research probes are not
 registered production functionality. The general producer, real sheet selection,
 closed-face endpoint certificates and auxiliary continuation remain outstanding.
 
+### Composed cell maps
+
+The [cell-map review](reviews/no-deformation-cell-maps.md) records seven native
+Cargo controls, strict Clippy and independent foundation/root review. Exact
+linear sections use native polynomial coefficients and rational arithmetic;
+Symbolica's evaluator composer connects triangular maps without fully
+substituting the density. A guarded parameter rebind shares the same compiled
+program, and Horner optimization remains enabled in its expression builders.
+The single verified decomposition owner preserves raw selectors and proof
+provenance. Closed-face regularity and nonlinear root programs remain separate;
+sample isolating enclosures never substitute for runtime branch selection.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)
