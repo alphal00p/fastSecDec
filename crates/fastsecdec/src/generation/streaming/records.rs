@@ -1,5 +1,6 @@
 //! Native source/chart/formula record representations. No alternate algebra.
 use super::codec::{self, Atoms, RecordRef, StreamingError, invalid};
+use super::input::{Input, Term};
 use crate::{
     generation::{
         CoefficientExpansionOptions, GenerationMode, GenerationOptions, SubtractionStrategy,
@@ -9,11 +10,9 @@ use crate::{
             subtraction::{Coordinate, Recipe, Request},
         },
     },
-    parametric::{
-        FactorRole, FactorSemantics, ParametricIntegrand, ParametricTerm, PolynomialFactor,
-    },
+    parametric::{FactorSemantics, ParametricIntegrand},
 };
-use fastsecdec_sectors::{DecompositionOptions, ParametricDomain, SectorMap};
+use fastsecdec_sectors::{DecompositionOptions, SectorMap};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path};
 use symbolica::atom::{AliasedAtom, AtomCore, Symbol};
@@ -139,20 +138,6 @@ impl Map {
     }
 }
 #[derive(Serialize, Deserialize)]
-struct Factor {
-    polynomial: usize,
-    exponent: usize,
-    polynomial_role: bool,
-    #[serde(default)]
-    semantics: FactorSemantics,
-}
-#[derive(Serialize, Deserialize)]
-struct Term {
-    prefactor: usize,
-    powers: Vec<usize>,
-    factors: Vec<Factor>,
-}
-#[derive(Serialize, Deserialize)]
 struct Source {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     source_scope: Option<crate::generation::GenerationSourceScope>,
@@ -184,39 +169,22 @@ pub(super) fn write_source(
     constraints: &[crate::kernel::RuntimeMassConstraint],
 ) -> Result<(RecordRef, String), StreamingError> {
     let mut atoms = Atoms::default();
-    let terms = input
-        .terms()
-        .iter()
-        .map(|t| Term {
-            prefactor: atoms.push(t.prefactor()),
-            powers: t.monomial_powers().iter().map(|v| atoms.push(v)).collect(),
-            factors: t
-                .factors()
-                .iter()
-                .map(|f| Factor {
-                    polynomial: atoms.push(f.polynomial()),
-                    exponent: atoms.push(f.exponent()),
-                    polynomial_role: f.role() == FactorRole::Polynomial,
-                    semantics: f.semantics(),
-                })
-                .collect(),
-        })
-        .collect();
+    let Input {
+        parameters,
+        domain,
+        terms,
+    } = Input::encode(input, &mut atoms);
     let source = Source {
         source_scope: source_scope.cloned(),
         source_identity: crate::generation::source_identity(input, runtime, constraints)?,
-        parameters: input.parameters().len(),
+        parameters,
         targets: targets.len(),
         runtime_parameters: runtime.len(),
         runtime_mass_constraints: constraints
             .iter()
             .map(|c| (c.name.clone(), atoms.push(&c.expression)))
             .collect(),
-        domain: match input.domain() {
-            ParametricDomain::ProjectiveSimplex => 0,
-            ParametricDomain::UnitCube => 1,
-            ParametricDomain::PositiveOrthant => 2,
-        },
+        domain,
         terms,
         options: options.into(),
     };
@@ -255,47 +223,12 @@ pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context,
     if symbols.len() != source.parameters + 1 + source.targets + source.runtime_parameters {
         return Err(invalid("source symbol layout mismatch"));
     }
-    let domain = match source.domain {
-        0 => ParametricDomain::ProjectiveSimplex,
-        1 => ParametricDomain::UnitCube,
-        2 => ParametricDomain::PositiveOrthant,
-        _ => return Err(invalid("source domain")),
-    };
-    let terms = source
-        .terms
-        .into_iter()
-        .map(|t| {
-            Ok(ParametricTerm::new(
-                atoms.take(t.prefactor)?,
-                t.powers
-                    .into_iter()
-                    .map(|i| atoms.take(i))
-                    .collect::<Result<_, _>>()?,
-                t.factors
-                    .into_iter()
-                    .map(|f| {
-                        Ok(PolynomialFactor::new(
-                            atoms.take(f.polynomial)?,
-                            atoms.take(f.exponent)?,
-                            if f.polynomial_role {
-                                FactorRole::Polynomial
-                            } else {
-                                FactorRole::Singularity
-                            },
-                        )
-                        .with_semantics(f.semantics))
-                    })
-                    .collect::<Result<_, StreamingError>>()?,
-            ))
-        })
-        .collect::<Result<_, StreamingError>>()?;
-    let input = ParametricIntegrand::new(
-        symbols[..source.parameters].to_vec(),
-        symbols[source.parameters],
-        domain,
-        terms,
-    )
-    .map_err(super::super::GenerationError::from)?;
+    let input = Input {
+        parameters: source.parameters,
+        domain: source.domain,
+        terms: source.terms,
+    }
+    .decode(&atoms, &symbols[..source.parameters + 1])?;
     let runtime_start = source.parameters + 1 + source.targets;
     let runtime_mass_constraints = source
         .runtime_mass_constraints

@@ -4,7 +4,8 @@
 //! mapped expressions and shared endpoint formulas live in independently
 //! verified records. Each scientific call restores at most its active chart
 //! and an exact symmetry candidate, or one final representative sector.
-mod codec;
+pub(crate) mod codec;
+pub(crate) mod input;
 mod prepare;
 mod records;
 mod sector;

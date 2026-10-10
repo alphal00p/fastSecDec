@@ -106,6 +106,23 @@ No integration loop, RNG allocation or statistics implementation changes in
 this milestone; complete threshold execution and its memory/statistics gates
 remain outstanding.
 
+### Native GCAD evidence staging
+
+The [staging review](reviews/no-deformation-gcad-staging.md) reuses the ordinary
+generation-record envelope, atomic publication and Symbolica State/Atom codec.
+One extracted native input representation serves both paths, with a byte-level
+legacy oracle protecting existing source records. Raw proof records retain
+incomplete outcomes and bind the full density, domain, kinematics and solver
+request; historical verification observations never restore verified authority.
+Restoration invokes the current independent verifier without solving again.
+
+Root and foundation reviews accept this global preparation boundary. Its
+explicit transport-byte cap is not a resident-memory bound: verification still
+decodes the complete proof, and independently loadable cell records remain
+required. No library worker pool, alternate algebra/serialization system or new
+statistical accumulator is introduced. Registered validation is recorded in
+the linked review.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)

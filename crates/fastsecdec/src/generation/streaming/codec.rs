@@ -26,7 +26,7 @@ pub enum StreamingError {
     #[error("invalid generation record: {0}")]
     Invalid(String),
 }
-pub(super) fn invalid(error: impl std::fmt::Display) -> StreamingError {
+pub(crate) fn invalid(error: impl std::fmt::Display) -> StreamingError {
     StreamingError::Invalid(error.to_string())
 }
 
@@ -92,7 +92,7 @@ struct Payload {
 /// A native Atom table lets the small surrounding DTO use ordinary serde
 /// without converting expressions to strings or expanding native aliases.
 #[derive(Default)]
-pub(super) struct Atoms {
+pub(crate) struct Atoms {
     pub atoms: Vec<Atom>,
 }
 impl Atoms {
@@ -109,7 +109,7 @@ impl Atoms {
     }
 }
 
-pub(super) fn write<M: Serialize>(
+pub(crate) fn write<M: Serialize>(
     root: &Path,
     name: &str,
     kind: &str,
@@ -230,7 +230,7 @@ pub(super) fn write_with_program<M: Serialize>(
     Ok(reference)
 }
 
-pub(super) fn read<M: DeserializeOwned>(
+pub(crate) fn read<M: DeserializeOwned>(
     root: &Path,
     reference: &RecordRef,
     kind: &str,

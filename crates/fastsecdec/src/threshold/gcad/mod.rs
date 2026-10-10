@@ -5,6 +5,7 @@
 //! or authorization to publish a complete integral.
 
 mod request;
+pub mod staging;
 mod verified;
 
 pub use request::{
