@@ -61,6 +61,21 @@ pub(crate) fn generate_with_overrides(
     workers: usize,
     overrides: crate::config::GenerationOverrides,
 ) -> CliResult<(Artifact, KernelSet)> {
+    generate_with_resident_recipe(path, output, dashboard, reference, workers, overrides, None)
+}
+
+/// The artifact default and the resident owner used by `run` are separate
+/// choices. Singleton generation currently requires that owner to be present;
+/// the future native family owner can retain it while draining other recipes.
+pub(crate) fn generate_with_resident_recipe(
+    path: &Path,
+    output: &Path,
+    dashboard: &mut Dashboard,
+    reference: Option<&crate::reference::PreparedReference>,
+    workers: usize,
+    overrides: crate::config::GenerationOverrides,
+    resident_recipe: Option<fastsecdec::kernel::ProgramRecipe>,
+) -> CliResult<(Artifact, KernelSet)> {
     crate::artifact::paths(output)?;
     if workers == 0 {
         return Err("generation workers must be positive".into());
@@ -81,10 +96,15 @@ pub(crate) fn generate_with_overrides(
     dashboard.generation(&status)?;
     let loaded = input::load_observed_with_overrides(path, overrides, |progress| {
         match progress {
-            input::LoadProgress::Parsed(card) => dashboard.configure_generation(
-                card.generation.mode,
-                card.generation.coefficient_expansion.method,
-            ),
+            input::LoadProgress::Parsed(card) => {
+                if let Some(recipe) = resident_recipe {
+                    card.generation.validate_resident_recipe(recipe)?;
+                }
+                dashboard.configure_generation(
+                    card.generation.mode,
+                    card.generation.coefficient_expansion.method,
+                );
+            }
             input::LoadProgress::Parametrization => {
                 status.stage = GenerationStage::Parametrization;
                 status.completed = 0;

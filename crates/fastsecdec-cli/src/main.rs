@@ -96,8 +96,11 @@ enum Action {
     Generate {
         input: PathBuf,
         /// Generate causal contour maps with a runtime deformation strength.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "recipe")]
         contour: bool,
+        /// Generate one native recipe, such as dynamic-sign-aware-v1.
+        #[arg(long, value_parser = parse_program_recipe, conflicts_with = "contour")]
+        recipe: Option<fastsecdec::kernel::ProgramRecipe>,
         /// Artifact basename, such as output/integral.fsd, without .json or .dat.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -524,6 +527,7 @@ fn run(cli: Cli) -> CliResult<()> {
         Action::Generate {
             input,
             contour,
+            recipe,
             output,
             geometry_workers,
             serial,
@@ -541,7 +545,7 @@ fn run(cli: Cli) -> CliResult<()> {
                     reference.as_ref(),
                     geometry_workers.get(),
                     resume,
-                    config::GenerationOverrides { contour },
+                    config::GenerationOverrides { contour, recipe },
                 )?;
                 drop(dashboard);
                 return generation_report::print_indexed(
@@ -557,7 +561,7 @@ fn run(cli: Cli) -> CliResult<()> {
                 &mut dashboard,
                 reference.as_ref(),
                 geometry_workers.get(),
-                config::GenerationOverrides { contour },
+                config::GenerationOverrides { contour, recipe },
             )?;
             if kernels.runtime_parameters().is_empty()
                 && let Some(reference) = &reference
@@ -579,11 +583,13 @@ fn run(cli: Cli) -> CliResult<()> {
             let resident = if integration.resume {
                 None
             } else {
-                let card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
-                let overrides = integration.contour.generation_overrides(
+                let mut card: config::RunCard = toml::from_str(&std::fs::read_to_string(&input)?)?;
+                let (overrides, requested_recipe) = integration.contour.generation_request(
                     &card.integration,
                     integration.integration_settings.as_deref(),
                 )?;
+                overrides.apply(&mut card);
+                card.generation.validate_resident_recipe(requested_recipe)?;
                 if card.generation.serial || integration.serial_seconds.is_some() {
                     generate::serial::generate_with_overrides(
                         &input,
@@ -610,13 +616,14 @@ fn run(cli: Cli) -> CliResult<()> {
                     )?;
                     None
                 } else {
-                    Some(generate::generate_with_overrides(
+                    Some(generate::generate_with_resident_recipe(
                         &input,
                         &output,
                         &mut dashboard,
                         reference.as_ref(),
                         geometry_workers.get(),
                         overrides,
+                        Some(requested_recipe),
                     )?)
                 }
             };

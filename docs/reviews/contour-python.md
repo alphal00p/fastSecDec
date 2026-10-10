@@ -212,3 +212,71 @@ placeholder; a later accepted snapshot must be selected before the next build.
 Lock resolution, unique-owner verification, full current-host wheel/tests and
 regenerated current stubs are pending. No build has been started for this new
 workspace, and the live Community environment is unchanged.
+
+The next private metadata audit now resolves that full-default `9a65fbb7`
+workspace with Symbolica/Numerica `516beb37`, SymJIT `d74993f` and the reviewed
+FeynKit `917b2075` companion set. It preserves every RustRed companion at
+`9cf14d3a`, current OneLoop/RustFlow/reduction owner bases and both IBP feature
+definitions. Locked metadata confirms exactly one Symbolica, Numerica, SymJIT,
+Linnet, Spenso and FeynKit Python owner. The old host lock needed a targeted
+SymJIT update from 2.26.4 and explicit FeynKit advancement from the earlier
+`fd1b43c6` wheel's selection; no version requirement was made exact.
+
+This remains a dependency-admission gate. The isolated manifest currently
+points at the frozen development bindings and must select an immutable accepted
+snapshot before a validation wheel is installed. No wheel has been built from
+this current host. The new local provenance is
+`target/contour-current-host-516-readiness.json`; the older preparation script
+and plan above describe the preceding overlay and would need updating before
+reuse. No current host capability was removed to make resolution succeed.
+
+The subsequent full-default current-host `cargo check --lib --locked` passes
+in 4m57s on that exact owner graph, including the current native IBP/RustRed,
+positive-epsilon OneLoop, reduction and FastSecDec bindings. It uses a separate
+target directory and the existing Python 3.11 interpreter; no shared extension
+was replaced. A fresh private Python 3.12 environment is prepared for the
+forthcoming installed-wheel gate. This consuming compilation result does not
+replace wheel execution, stub generation or actual browser tests.
+
+## Dynamic settings mirror after the recipe-family milestone
+
+The next binding increment mirrors native `ContourMode::Dynamical` and
+`DynamicConstruction`, with a `ContourSettings.dynamical` convenience constructor
+and read-only safety-fraction, cap and construction properties. Native Rust
+continues to own range checking, recipe selection and the reserved-parameter
+classifier. Python rejects incompatible keyword combinations; JSON decoding
+uses the same native schema. Constructing settings performs no generation,
+root solve, validation pilot or integration.
+
+The standalone native binding check passes on this increment (14.44 seconds).
+Independent CLI-owner source review found no algebra/execution duplication or
+API blocker. Python regression sources parse under Python 3.9 grammar; their
+new runtime cases still require a refreshed installed host. The existing wheel
+described above predates this increment. The later registered callback/checker
+and final schema changes require another consuming build; this intermediate
+compile check is not dynamic production, installed-wheel or WASM acceptance.
+
+The subsequent validation-chart mirror adds read-only `kernel_sectors` and
+`includes_exact` properties alongside the legacy single-sector display field.
+Native Rust owns association discovery and scope decisions. The bridge returns
+a copied list and exposes the native flag; it does not infer exact contributions
+from a missing sector ID. The finite-triangle pilot regression checks this
+metadata and copied-list ownership. Rust formatting and Python 3.9 syntax
+checks pass; compilation/execution of these newest properties awaits the
+completed native lifecycle and refreshed host.
+
+The subsequent complete leaf binding, including dynamic settings, chart
+associations and native recipe-family ownership, passes `cargo check --locked
+--features python_stubgen` on public Symbolica/Numerica `516beb37` and SymJIT
+`d74993f` (2026-10-10, 1m40s). It uses the existing Python 3.11 interpreter and
+the separate binding target. The explicit `PYO3_PYTHON` path is required in this
+shell; the first invocation without it stopped during interpreter discovery,
+before checking the bridge. The same leaf then passes all-target binding-only
+strict Clippy with `--no-deps -- -D warnings` in 5.47 seconds. No shared Python
+installation was changed.
+
+The family tests now also specify actual dynamic selection/restoration,
+native pilots, analytic-triangle integration, policy-only checkpoint resume and
+changed-strength rejection in both generation modes. Python 3.9 syntax checks
+pass. These are pending installed-host tests, not relabeled results from the
+older fixed wheel.

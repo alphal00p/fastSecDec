@@ -34,7 +34,7 @@ impl Default for PrecisionPolicy {
 }
 
 impl PrecisionPolicy {
-    pub(super) fn validate(&self) -> Result<(), KernelError> {
+    pub(crate) fn validate(&self) -> Result<(), KernelError> {
         if !self.boundary_threshold.is_finite()
             || !(0.0..=1.0).contains(&self.boundary_threshold)
             || self.initial_bits < 64

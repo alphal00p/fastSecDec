@@ -2,9 +2,9 @@ use super::super::{
     DualSector,
     subtraction::{Coordinate, Request},
 };
-use super::{ExactProgram, compilation};
+use super::{ExactProgram, Lowering, compilation};
 use crate::kernel::{CompilationSettings, KernelError};
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{dual::HyperDual, float::Complex, rational::Rational},
@@ -41,13 +41,14 @@ impl<'a> Requests<'a> {
         &mut self,
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
+        lower: &mut Option<&mut Lowering<'_>>,
     ) -> Result<Slot, KernelError> {
         let dimension = self.sector.parameters.len();
         if request.coordinates.len() != dimension || request.derivatives.len() != dimension {
             return Err(compilation("numerical-dual request dimension mismatch"));
         }
         if self.sector.mapped_regular.is_some() {
-            return self.append_mapped_regular(request, composer);
+            return self.append_mapped_regular(request, composer, lower);
         }
         let sector = self.sector;
         let term = sector
@@ -189,6 +190,7 @@ impl Requests<'_> {
         &mut self,
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
+        lower: &mut Option<&mut Lowering<'_>>,
     ) -> Result<Slot, KernelError> {
         let desired = std::iter::once(request.epsilon_order)
             .chain(request.derivatives.iter().copied())
@@ -205,6 +207,11 @@ impl Requests<'_> {
             .unwrap()
             .get(request.term)
             .ok_or_else(|| compilation("mapped contour request term out of range"))?;
+        let body = if let Some(lower) = lower.as_deref_mut() {
+            Cow::Owned(lower(body, &request.coordinates)?)
+        } else {
+            Cow::Borrowed(body)
+        };
         let inputs = self
             .sector
             .parameters
@@ -214,7 +221,7 @@ impl Requests<'_> {
             .chain(self.runtime.iter().copied())
             .collect::<Vec<_>>();
         let program = self.sector.programs.jets(
-            body,
+            &body,
             &inputs,
             &shape.components,
             &self.seed_zeros(request, &shape, 0),

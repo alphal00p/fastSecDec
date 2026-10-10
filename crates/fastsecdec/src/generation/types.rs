@@ -1,3 +1,4 @@
+use crate::kernel::indexed::ProgramRecipe;
 use fastsecdec_sectors::{DecompositionOptions, DecompositionProgress, SectorMap};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -340,6 +341,39 @@ pub struct GeneratedIntegral {
 }
 
 impl GeneratedIntegral {
+    /// An empty result has no chart from which compilation can recover its
+    /// requested capability. Preserve that explicit generation choice;
+    /// ordinary nonempty records keep their existing descriptor and codec.
+    pub(super) fn preserve_empty_recipe(
+        mut self,
+        recipe: ProgramRecipe,
+    ) -> Result<Self, GenerationError> {
+        if self.metadata.charts().is_empty()
+            && self.program_descriptor.is_none()
+            && recipe != ProgramRecipe::UndeformedV1
+        {
+            let descriptor = if recipe.is_dynamic() {
+                // An empty source has neither a radius nor a certificate to
+                // construct. This is an explicit exact zero, never a fallback
+                // for unresolved singularities or a scalelessness assumption.
+                if !self.sectors.is_empty()
+                    || self.exact_coefficients.iter().any(|value| !value.is_zero())
+                    || !self.dynamic_check_sources.is_empty()
+                {
+                    return Err(GenerationError::Invariant(
+                        "a chart-free dynamic result must be an explicit exact zero".into(),
+                    ));
+                }
+                crate::kernel::NativeProgramDescriptor::dynamic(recipe, vec![], vec![])
+            } else {
+                crate::kernel::NativeProgramDescriptor::static_recipe(recipe)
+            }
+            .map_err(|error| GenerationError::Contour(error.to_string()))?;
+            self.program_descriptor = Some(std::sync::Arc::new(descriptor));
+        }
+        Ok(self)
+    }
+
     pub(crate) fn program_descriptor(
         &self,
     ) -> Option<&std::sync::Arc<crate::kernel::NativeProgramDescriptor>> {

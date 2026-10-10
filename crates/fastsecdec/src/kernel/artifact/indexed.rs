@@ -1,5 +1,6 @@
 //! Indexed transport around the existing native evaluator codec. Neither this
 //! module nor its readers/writers own threads, processes or a scheduling loop.
+mod assembly;
 mod catalogue;
 mod layout;
 pub(crate) mod programs;
@@ -11,6 +12,7 @@ mod transport;
 mod writer;
 
 pub use catalogue::{KernelCatalogue, RecordDescriptor, RecordReceipt};
+pub(crate) use programs::ProgramResidentAssembly;
 pub use programs::{
     ProgramArchiveCatalogue, ProgramArchiveReader, ProgramArchiveWriter, ProgramRecipe,
     ProgramRecipeCatalogue, SelectedProgramReader,

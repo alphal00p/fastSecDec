@@ -56,6 +56,22 @@ pub fn write_unit(
     kernels: &KernelSet,
     source_indices: Vec<usize>,
 ) -> Result<Vec<RecordReceipt>, KernelError> {
+    let mut receipts = Vec::new();
+    for_each_unit_record(kernels, &source_indices, |bytes, receipt| {
+        writer.write_all(bytes).map_err(failure)?;
+        receipts.push(receipt);
+        Ok(())
+    })?;
+    Ok(receipts)
+}
+
+/// One partition/serialization implementation for worker files, archives and
+/// selected resident retention. The callback borrows at most one record's bytes.
+pub(super) fn for_each_unit_record(
+    kernels: &KernelSet,
+    source_indices: &[usize],
+    mut emit: impl FnMut(&[u8], RecordReceipt) -> Result<(), KernelError>,
+) -> Result<(), KernelError> {
     if kernels.sectors().len() > 1
         || kernels
             .metadata
@@ -67,17 +83,17 @@ pub fn write_unit(
             "generation unit must have at most one sector and complete source-chart mapping",
         ));
     }
-    let mut receipts = Vec::new();
     for sector in std::iter::once(None).chain((0..kernels.sectors().len()).map(Some)) {
         let (bytes, mut receipt) = partition(kernels, sector)?;
         for source in &mut receipt.source_indices {
-            *source = source_indices[*source];
+            *source = *source_indices
+                .get(*source)
+                .ok_or_else(|| failure("invalid generation-unit source index"))?;
         }
         receipt.validate()?;
-        writer.write_all(&bytes).map_err(failure)?;
-        receipts.push(receipt);
+        emit(&bytes, receipt)?;
     }
-    Ok(receipts)
+    Ok(())
 }
 
 fn receipt(

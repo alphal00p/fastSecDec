@@ -1,10 +1,9 @@
 # Fixed versus dynamic contour variance protocol
 
-Status: proposed measurement protocol, 2026-10-09. This records the additional
-variance-monitoring requirement in `CONTOUR_DEFORMATION_PLAN.md`; it contains no
-dynamic-mode implementation or measured claim of improvement. Fixed-mode
-correctness remains an independent milestone. Production comparisons start only
-after both prescriptions pass their scientific acceptance gates.
+Updated 2026-10-10. This records the variance-monitoring requirement in
+`CONTOUR_DEFORMATION_PLAN.md` and the first public analytic measurements below.
+Both dynamic prescriptions pass the native analytic admission gates. Physical
+multiloop comparisons and eight-worker time-to-accuracy remain pending.
 
 ## Questions and controlled comparisons
 
@@ -242,6 +241,12 @@ control and a complex correlated-vector control before trusting its ratios.
 
 ## Read-only readiness review: full one-loop ggHH at 400 GeV
 
+This subsection records the original preparation review. Its fixed-mode work
+has since been completed in
+[`example/gg_hh_one_loop_ME/threshold`](../../example/gg_hh_one_loop_ME/threshold/),
+as recorded in the [acceptance ledger](contour-phase-b-progress.md). The dynamic
+comparison at that point remains pending.
+
 The existing `example/gg_hh_one_loop_ME` is a completed **300 GeV** reproduction,
 including two Higgs-exchange triangles, six top boxes, the coherent finite
 amplitude, pole checks, HEPKit Ward checks and an independent MadLoop reference.
@@ -322,6 +327,102 @@ None of these 400 GeV production commands has been executed in this readiness
 review.
 
 ## Caller-owned comparison harness API
+
+The executable `cargo run -p fastsecdec --example contour_variance --locked`
+retains a small fixed/fixed smoke control. `--dynamic` selects both fixed baselines
+and both native dynamic constructions with eight predefined independent seed
+pairs, 1,024 points and 16 shifts. It uses the public generation, restoration and
+binding path, so it cannot bypass an unfinished dynamic admission gate. Optional
+`--symjit` and `--validation=always|pilot|off` choose the native backend and
+checking policy. These are single-worker analytic controls, not eight-worker
+physical acceptance measurements.
+
+The reporter compares complete native designs, full Laurent layouts and hashes
+of every actual coordinate, weight and sampling range. It alternates execution
+order between seed pairs, rejects returns crossing mathematical identities,
+retains complete covariance and collects validation statistics from the resident
+evaluation contexts. The target is the largest signed epsilon order. Undefined
+variance ratios are null. Production wall time includes coordinate auditing,
+whose elapsed time is reported separately; the reported ratio must not be
+mistaken for uninstrumented sampling performance.
+
+Generation is keyed by native `ProgramRecipe`: changing only the bound fixed
+strength reuses the same saved optimized bytes. The generation report contains
+one entry per recipe, so the fixed/fixed smoke does not charge redundant symbolic
+generation to a second strength. Fixed, polynomial and sign-aware comparisons
+still require their respective mathematical programs.
+
+The 2026-10-10 native eager rerun passes both example regressions and the complete
+fixed/fixed smoke. Its report contains exactly one generation record, two
+independent seed pairs and two complete prescriptions per pair; all actual
+coordinate/weight ranges match. These checks include the current v11 admission
+guards. Raw reports remain in ignored `target/contour-variance-single-artifact-*`
+files. This is still a fixed-mode API control, not measured dynamic improvement.
+
+### First dynamic measurements, 2026-10-10
+
+The public three-test analytic gate now passes both constructions, all eight
+endpoint cases and the threshold bubble. The comparison harness subsequently
+passes three example tests and executes all eight predeclared seed pairs with
+four prescriptions: fixed strengths 0.05 and 0.25, polynomial and sign-aware
+dynamic strength with `S=0.8`, `L=R=1`. Artifacts are generated once per recipe,
+restored and rebound through public APIs. This run uses consumer Symbolica
+`1e1cb169` and SymJIT `d74993f`, before the PR #60 native cache improvement.
+
+The two-dimensional control is
+`(1/eps) integral_[0,1]^2 (1 - 2*x - 3*y - i0)^(-eps) dx dy`.
+Its finite coefficient is `3/2 - (7/3)*log(2) + (11/12)*i*pi`; a native
+Symbolica mixed-derivative check verifies the reference primitive. Production
+uses one worker, 1,024 points, 16 shifts and the fixed supplied rule `[1,433]`.
+All actual coordinate/weight/range hashes match within a seed pair and differ
+between pairs. The complete complex Laurent vectors agree with the reference.
+
+| Prescription | Median finite-coefficient variance of mean | Median production seconds, eager | Median production seconds, SymJIT O2 |
+| --- | ---: | ---: | ---: |
+| Fixed 0.05 | `8.01596e-9` | 0.1483 | 0.1380 |
+| Fixed 0.25 | `1.46173e-16` | 0.1492 | 0.1403 |
+| Dynamic polynomial | `1.04364e-16` | 0.2174 | 0.1991 |
+| Dynamic sign-aware | `1.04364e-16` | 0.2167 | 0.2003 |
+
+The paired variance-gain median against fixed 0.25 is **1.375**, with range
+**1.137–1.656**. The SymJIT elapsed-time-normalized medians are **0.969** for
+polynomial and **0.957** for sign-aware: the modest variance reduction does not
+pay for the additional cost in this control. These are debug Rust driver
+timings with coordinate auditing included, not release or eight-core speed
+claims. The two constructions coincide because this polynomial has no harmful
+higher-order terms; the result does not establish a sign-aware advantage.
+The much larger gain against fixed 0.05 mainly demonstrates sensitivity to the
+fixed strength, which is why both fixed baselines are retained.
+
+Native evaluation counters, including precision rescues and excluding caller
+bookkeeping, give median costs of 1.01 and 1.12 microseconds per accepted point
+for fixed 0.05/0.25, and 4.39/4.43 microseconds for polynomial/sign-aware.
+There is one stochastic sector, so its mean is also the maximum sector mean;
+these are not maximum individual-sample latencies. Median double-float replay
+fractions are 3.3%, 4.9% and 14.4% respectively. The retained per-domain counters
+make this extra cost visible without weakening the shared precision policy.
+
+The same full-budget one-dimensional bubble reaches variances near `1e-33` for
+all prescriptions. Its complete coefficient agrees with the analytic reference,
+but those variance ratios reflect floating-point noise and are not interpreted
+as a performance advantage. The reporter retains the raw native covariance;
+it does not replace small uncertainties with invented values.
+
+A separate two-seed, 64-point/eight-shift SymJIT control measures optional
+validation. Fixed production takes about 0.029 seconds under `always` and
+0.003 seconds under `pilot`/`off`; dynamic production takes about 0.106 seconds
+under `always` and 0.005 seconds under `pilot`/`off`. These short durations
+establish removal of the expensive checker path, not stable throughput ratios.
+Production counters are zero for `pilot`/`off`. Actual coordinates, weights,
+ranges, mathematical identities and all reported means match across policies.
+`pilot` and `off` estimates match bitwise. Dynamic `always` covariance differs
+by at most `2.13e-20` after its additional numerical checks/rescues; it is not
+claimed bitwise identical. Accepted replicas and full covariance remain native.
+
+Raw reports remain ignored under `target/contour-variance-{square,bubble}-four*`
+and `target/contour-variance-square-policy-*`. The next useful measurements are
+physical contours with higher-degree envelopes, with equal pilot-tuning budgets
+and explicit runtime-conditioning diagnostics.
 
 The first implementation should be a Rust example, with a small typed input and
 output layer around existing native sessions. It does not need another
@@ -476,3 +577,45 @@ identity separately. The report retains each native full covariance and sector
 contribution report, rather than reconstructing statistics in the example.
 At a larger lattice the control reaches floating precision, so its zero
 sample covariance must not be used as evidence for an infinite improvement.
+
+### Public dynamic comparison controls
+
+The same example accepts `--dynamic`, `--symjit` and
+`--validation=always|pilot|off`. The full dynamic comparison freezes eight
+listed seed pairs, 1,024 points and sixteen shifts. `--smoke` deliberately
+reduces this to the two-pair 64-point/eight-shift API check, and labels its
+output as insufficient for a variance improvement claim. A recipe is generated
+once per invocation; strength changes reuse its saved optimized program.
+
+The default bubble can approach arithmetic resolution very quickly. Before
+observing any dynamic comparison, a second control is specified with
+`--linear-square`:
+
+```text
+(1/eps) integral_[0,1]^2 (1 - 2*x - 3*y - i0)^(-eps) dx dy
+pole:   1
+finite: 3/2 - (7/3)*log(2) + (11/12)*i*pi
+```
+
+Symbolica independently verifies the mixed primitive
+`h(F)/6`, where `h(t)=t^2*log(t)/2-3*t^2/4`. Its four causal endpoint values
+give the stated reference; the imaginary coefficient also agrees with the
+negative-F area, `11/12`. The comparison retains both original fixed controls
+(`lambda=0.05` and `lambda=0.25`), dynamic `S=0.8`, `L=R=1`, and supplies the
+fixed native rank-one
+generating vector `[1,433]`. Its components are coprime to both declared lattice
+sizes. This is a reproducible untuned rule, not a claimed optimized lattice.
+The nine preflight points form the Cartesian three-point boundary/interior
+grid; they remain separate from production. Both controls use the complete
+native Laurent-vector covariance and matching actual-coordinate digests.
+
+These are analytic runtime controls, not physical multiloop benchmarks. Very
+small nonzero empirical variances near arithmetic resolution must not be
+interpreted as meaningful large convergence gains. Dynamic measurements remain
+pending the full public scientific gate. An initial two-pair bubble smoke run
+has passed the native means, matched-coordinate and zero unchecked-production
+validation-counter checks for both dynamic constructions. Its large raw
+variance ratios relative to `lambda=0.05` are not a general gain claim: the
+earlier `lambda=0.25` control already achieved still smaller variance. The
+four-prescription comparison therefore reports both fixed baselines explicitly,
+rather than choosing a weak static reference.

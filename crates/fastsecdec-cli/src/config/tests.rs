@@ -196,3 +196,56 @@ fn contour_native_settings_roundtrip_with_separate_validation_policy() {
     let generation: GenerationInput = toml::from_str("contour=true").unwrap();
     assert!(generation.contour);
 }
+
+#[test]
+fn explicit_generation_recipes_preserve_legacy_cards_and_override_priority() {
+    use fastsecdec::kernel::ProgramRecipe;
+    assert_eq!(
+        GenerationInput::default().program_recipe(),
+        ProgramRecipe::UndeformedV1
+    );
+    assert_eq!(
+        toml::from_str::<GenerationInput>("contour=true")
+            .unwrap()
+            .program_recipe(),
+        ProgramRecipe::FixedV1
+    );
+    for recipe in [
+        ProgramRecipe::UndeformedV1,
+        ProgramRecipe::FixedV1,
+        ProgramRecipe::DynamicPolynomialV1,
+        ProgramRecipe::DynamicSignAwareV1,
+    ] {
+        let source = format!("[generation]\ncontour=true\nrecipe='{}'", recipe.name());
+        let mut card: super::RunCard = toml::from_str(&source).unwrap();
+        assert_eq!(card.generation.program_recipe(), recipe);
+        super::GenerationOverrides {
+            contour: true,
+            ..Default::default()
+        }
+        .apply(&mut card);
+        assert_eq!(card.generation.program_recipe(), ProgramRecipe::FixedV1);
+        let overrides = super::GenerationOverrides {
+            contour: false,
+            recipe: Some(recipe),
+        };
+        overrides.apply(&mut card);
+        assert_eq!(card.generation.program_recipe(), recipe);
+        assert!(card.generation.validate_resident_recipe(recipe).is_ok());
+        assert_eq!(
+            serde_json::from_value::<super::GenerationOverrides>(
+                serde_json::to_value(overrides).unwrap()
+            )
+            .unwrap(),
+            overrides
+        );
+    }
+    let historical: super::GenerationOverrides =
+        serde_json::from_str(r#"{"contour":true}"#).unwrap();
+    assert_eq!(historical.recipe, None);
+    assert_eq!(
+        serde_json::to_value(historical).unwrap(),
+        serde_json::json!({"contour": true})
+    );
+    assert!(toml::from_str::<GenerationInput>("recipe='dynamic-sign-aware-v2'").is_err());
+}

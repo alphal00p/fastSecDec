@@ -73,6 +73,7 @@ fn detached_compilation_job_retains_its_native_helper_owner() {
     );
     let weak = Arc::downgrade(&descriptor);
     let job = CompilationJob {
+        request_lookup: None,
         owner: Arc::new(()),
         program_descriptor: Some(descriptor),
         index: 0,

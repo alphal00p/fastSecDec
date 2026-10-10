@@ -13,8 +13,10 @@ use symbolica::{
     evaluate::{EvaluatorComposer, ExpressionEvaluator, Slot},
 };
 
+pub(crate) use super::subtraction::Coordinate;
 pub(crate) use cache::SourcePrograms;
 type ExactProgram = ExpressionEvaluator<Complex<Rational>>;
+type Lowering<'a> = dyn FnMut(&Atom, &[Coordinate]) -> Result<Atom, KernelError> + 'a;
 
 fn compilation(error: impl std::fmt::Display) -> KernelError {
     KernelError::Compilation(error.to_string())
@@ -24,6 +26,32 @@ pub(crate) fn build(
     sector: &DualSector,
     runtime: &[Symbol],
     settings: CompilationSettings,
+) -> Result<ExactProgram, KernelError> {
+    build_inner(sector, runtime, settings, None)
+}
+
+/// Lower callback metadata only after the complete mathematical subtraction
+/// recipe exists, before native jets differentiate each selected smooth body.
+///
+/// The lowerer receives the unchanged full-sector coordinate projection. It
+/// must preserve the mathematical expression and return a deterministic body
+/// for that projection; it can be called for multiple derivative requests on
+/// the same face. Native source-program caching includes the returned Atom.
+/// Opaque undeformed source programs do not require this hook.
+pub(crate) fn build_with_lowering(
+    sector: &DualSector,
+    runtime: &[Symbol],
+    settings: CompilationSettings,
+    lower: &mut Lowering<'_>,
+) -> Result<ExactProgram, KernelError> {
+    build_inner(sector, runtime, settings, Some(lower))
+}
+
+fn build_inner(
+    sector: &DualSector,
+    runtime: &[Symbol],
+    settings: CompilationSettings,
+    mut lower: Option<&mut Lowering<'_>>,
 ) -> Result<ExactProgram, KernelError> {
     settings.validate()?;
     let mut inputs = sector
@@ -53,7 +81,7 @@ pub(crate) fn build(
     let mut slots = (0..inputs.len()).map(Slot::Param).collect::<Vec<_>>();
     let mut builder = jets::Requests::new(sector, runtime, settings)?;
     for request in &sector.recipe.requests {
-        let value = builder.append(request, &mut composer)?;
+        let value = builder.append(request, &mut composer, &mut lower)?;
         inputs.push(request.placeholder);
         slots.push(value);
     }

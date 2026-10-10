@@ -35,13 +35,14 @@ pyo3 = { version = "0.28", features = ["multiple-pymethods"] }
 pyo3-stub-gen = { version = "0.17", optional = true, default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip"] }
+tempfile = "3"
 
 # Standalone leaf builds use the same renderer sources as the community host.
 # Consumer-root patches remain authoritative when this crate is a dependency.
 [patch.crates-io]
 # Share one public Symbolica owner across the HEPKit dependency graph.
-symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1e1cb169bec35ed3b8536050f789321f063a2047" }
-numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1e1cb169bec35ed3b8536050f789321f063a2047" }
+symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
+numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "516beb37d31af8e3d6ee321a7070f407a0b1b42d" }
 symjit = { git = "https://github.com/ValentinHirschi/symjit_changes_for_pyamplicol", rev = "d74993ffd76a6fc322a7bcf3963fa786783a38a8" }
 typst-library = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
 typst-svg = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }

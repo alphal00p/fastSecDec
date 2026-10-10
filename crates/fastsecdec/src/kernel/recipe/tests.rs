@@ -38,13 +38,8 @@ fn saved_descriptor_restores_native_helpers_and_full_sector_counts() {
         restored.helpers[0].coefficient_count() * 2,
         restored.charts()[0].maximum_even_order as usize
     );
-    assert!(
-        restored
-            .admit_runtime()
-            .unwrap_err()
-            .to_string()
-            .contains("production admission")
-    );
+    let error = restored.admit_runtime().unwrap_err().to_string();
+    assert!(error.contains("saved v11 certificates") && error.contains("regenerate"));
 }
 
 #[test]

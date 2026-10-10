@@ -1,6 +1,9 @@
-//! Caller-owned matched-coordinate smoke test using two fixed strengths.
-//! Dynamic production is not yet available; this makes no dynamic speed claim.
+//! Caller-owned matched-coordinate variance comparison. The default is a small
+//! fixed/fixed control. `--dynamic` selects fixed/polynomial/sign-aware recipes
+//! through the public admission path; it never bypasses an unfinished gate.
 use std::{collections::BTreeMap, error::Error, ops::ControlFlow, time::Instant};
+#[path = "contour_variance/comparison.rs"]
+mod comparison;
 
 use fastsecdec::{
     contour::{ContourMode, ContourSettings, ContourValidation, ContourValidationOptions},
@@ -10,8 +13,8 @@ use fastsecdec::{
         VectorEstimate,
     },
     kernel::{
-        CompilationSettings, ContourValidationReport, EvaluationTimings, EvaluatorBackend,
-        KernelSet,
+        CompilationSettings, ContourProductionReport, ContourValidationReport, EvaluationTimings,
+        EvaluatorBackend, KernelSet,
     },
     parametric::{
         FactorRole, FactorSemantics, ParametricDomain, ParametricIntegrand, ParametricTerm,
@@ -24,6 +27,39 @@ use serde::Serialize;
 use symbolica::{atom::Atom, parse, symbol};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
+
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum Control {
+    ThresholdBubble,
+    LinearSquare,
+}
+
+impl Control {
+    fn dimension(self) -> usize {
+        match self {
+            Self::ThresholdBubble => 1,
+            Self::LinearSquare => 2,
+        }
+    }
+
+    fn finite(self) -> (f64, f64) {
+        match self {
+            Self::ThresholdBubble => {
+                let beta = 0.2_f64.sqrt();
+                (
+                    2.0 - beta * ((1.0 + beta) / (1.0 - beta)).ln(),
+                    std::f64::consts::PI * beta,
+                )
+            }
+            // -integral log(1-2*x-3*y-i0) dx dy on the unit square.
+            Self::LinearSquare => (
+                1.5 - (7.0 / 3.0) * 2.0_f64.ln(),
+                11.0 * std::f64::consts::PI / 12.0,
+            ),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 struct CoordinateRange {
@@ -74,9 +110,10 @@ impl RangeHasher {
 
 #[derive(Serialize)]
 struct PrescriptionRun {
-    lambda: f64,
+    deformation: ContourMode,
     content_id: String,
-    validation: ContourValidationReport,
+    pilot: ContourValidationReport,
+    production_validation: Vec<(u64, Option<ContourProductionReport>)>,
     design: QmcDesign,
     estimate: VectorEstimate,
     contributions: ContributionReport,
@@ -88,19 +125,27 @@ struct PrescriptionRun {
     coordinates: Vec<CoordinateRange>,
 }
 
-fn artifact() -> Result<Vec<u8>> {
+fn artifact(mode: ContourMode, backend: EvaluatorBackend, control: Control) -> Result<Vec<u8>> {
     // (1/eps) integral_0^1 [1-5*x*(1-x)-i0]^(-eps) dx.
     // The complete finite coefficient has a known complex threshold value.
+    let mut coordinates = vec![symbol!("contour_variance::x")];
+    let causal = match control {
+        Control::ThresholdBubble => parse!("1-5*contour_variance::x*(1-contour_variance::x)"),
+        Control::LinearSquare => {
+            coordinates.push(symbol!("contour_variance::y"));
+            parse!("1-2*contour_variance::x-3*contour_variance::y")
+        }
+    };
     let input = ParametricIntegrand::new(
-        vec![symbol!("contour_variance::x")],
+        coordinates,
         symbol!("contour_variance::eps"),
         ParametricDomain::UnitCube,
         vec![ParametricTerm::new(
             parse!("1/contour_variance::eps"),
-            vec![Atom::Zero],
+            vec![Atom::Zero; control.dimension()],
             vec![
                 PolynomialFactor::new(
-                    parse!("1-5*contour_variance::x*(1-contour_variance::x)"),
+                    causal,
                     parse!("-contour_variance::eps"),
                     FactorRole::Singularity,
                 )
@@ -111,7 +156,7 @@ fn artifact() -> Result<Vec<u8>> {
     let generated = generation::generate(
         &input,
         &GenerationOptions {
-            program_recipe: fastsecdec::kernel::indexed::ProgramRecipe::FixedV1,
+            program_recipe: mode.program_recipe(),
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),
@@ -120,7 +165,7 @@ fn artifact() -> Result<Vec<u8>> {
         Default::default(),
         &[],
         CompilationSettings {
-            backend: EvaluatorBackend::Eager,
+            backend,
             ..Default::default()
         },
         |_| ControlFlow::Continue(()),
@@ -130,7 +175,9 @@ fn artifact() -> Result<Vec<u8>> {
 
 fn run(
     bytes: &[u8],
-    lambda: f64,
+    deformation: ContourMode,
+    policy: ContourValidation,
+    control: Control,
     settings: QmcSettings,
     foreign_return: Option<QmcReturn>,
 ) -> Result<(PrescriptionRun, QmcReturn)> {
@@ -139,21 +186,38 @@ fn run(
     kernels.bind_parameters_with_contour(
         &BTreeMap::new(),
         &ContourSettings {
-            deformation: ContourMode::Fixed { lambda },
+            deformation,
             validation: ContourValidationOptions {
-                policy: ContourValidation::Pilot,
+                policy,
                 pilot_points: 9,
             },
         },
     )?;
-    for chart in kernels.contour_validation_charts() {
-        // An explicit deterministic preflight for this one-dimensional control;
+    for chart in kernels
+        .contour_validation_charts()
+        .into_iter()
+        .filter(|_| policy != ContourValidation::Off)
+    {
+        // An explicit deterministic preflight for this analytic control;
         // neither these coordinates nor their observations enter production.
         for index in 0..9 {
-            kernels.validate_contour_point(chart.chart_index, &[index as f64 / 8.0], true)?;
+            let point = match control {
+                Control::ThresholdBubble => vec![index as f64 / 8.0],
+                Control::LinearSquare => vec![(index % 3) as f64 / 2., (index / 3) as f64 / 2.],
+            };
+            if point.len() != chart.dimension {
+                return Err("analytic control changed its source-coordinate schema".into());
+            }
+            kernels.validate_contour_point(chart.chart_index, &point, true)?;
         }
     }
-    let validation = kernels.finish_contour_pilot()?;
+    let pilot = if policy == ContourValidation::Off {
+        kernels
+            .contour_validation_report()
+            .ok_or("missing unchecked contour report")?
+    } else {
+        kernels.finish_contour_pilot()?
+    };
     let manifest = KernelResultManifest::from_kernels(&kernels);
     let problem = manifest.integration_problem(&ResultScope::FullIntegral, kernels.content_id())?;
     let content_id = problem.content_id.clone();
@@ -227,9 +291,13 @@ fn run(
     estimate.validate()?;
     Ok((
         PrescriptionRun {
-            lambda,
+            deformation,
             content_id,
-            validation,
+            pilot,
+            production_validation: contexts
+                .iter()
+                .map(|(id, context)| (*id, context.contour_validation_report()))
+                .collect(),
             design: session.design(),
             estimate,
             contributions: session.contributions()?,
@@ -247,25 +315,15 @@ fn run(
     ))
 }
 
-fn target_variance(estimate: &VectorEstimate) -> f64 {
-    estimate
-        .orders
-        .iter()
-        .enumerate()
-        .filter(|(_, order)| **order == 0)
-        .map(|(index, _)| estimate.covariance_of_mean[index * estimate.orders.len() + index])
-        .sum()
-}
-
-fn check_reference(estimate: &VectorEstimate) -> Result<()> {
-    let beta = 0.2_f64.sqrt();
+fn check_reference(estimate: &VectorEstimate, control: Control) -> Result<()> {
+    let (real, imaginary) = control.finite();
     for (index, (order, component)) in estimate.orders.iter().zip(&estimate.components).enumerate()
     {
         let expected = match (*order, component) {
             (-1, CoefficientComponent::Real) => 1.0,
             (-1, CoefficientComponent::Imag) => 0.0,
-            (0, CoefficientComponent::Real) => 2.0 - beta * ((1.0 + beta) / (1.0 - beta)).ln(),
-            (0, CoefficientComponent::Imag) => std::f64::consts::PI * beta,
+            (0, CoefficientComponent::Real) => real,
+            (0, CoefficientComponent::Imag) => imaginary,
             _ => return Err("unexpected analytic control coefficient".into()),
         };
         if (estimate.mean[index] - expected).abs()
@@ -278,66 +336,23 @@ fn check_reference(estimate: &VectorEstimate) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let bytes = artifact()?;
-    let mut pairs = Vec::new();
-    let mut previous_coordinate_digest = None;
-    for seed in [34723, 92711] {
-        let settings = QmcSettings {
-            points: 64,
-            shifts: 8,
-            package_points: 19,
-            seed,
-            // In one dimension the native vector [1] visits all lattice points;
-            // published multidimensional catalogues start at larger counts.
-            rule: RuleSource::Supplied(vec![1]),
-            ..Default::default()
-        };
-        let (first, first_return) = run(&bytes, 0.05, settings.clone(), None)?;
-        let (second, _) = run(&bytes, 0.25, settings, Some(first_return))?;
-        check_reference(&first.estimate)?;
-        check_reference(&second.estimate)?;
-        if first.content_id == second.content_id || first.coordinates != second.coordinates {
-            return Err(
-                "distinct mathematical identities did not retain matching actual coordinates"
-                    .into(),
-            );
-        }
-        let first_variance = target_variance(&first.estimate);
-        let second_variance = target_variance(&second.estimate);
-        if first_variance <= 0.0 || second_variance <= 0.0 {
-            return Err("smoke control should resolve nonzero complete-replica covariance".into());
-        }
-        let digest = first
-            .coordinates
-            .first()
-            .ok_or("missing coordinate audit")?
-            .digest
-            .clone();
-        if previous_coordinate_digest.as_ref() == Some(&digest) {
-            return Err("independent seed pair repeated the previous coordinate sequence".into());
-        }
-        previous_coordinate_digest = Some(digest);
-        pairs.push(serde_json::json!({
-            "seed": seed, "actual_coordinates_and_weights_match": true,
-            "first_target_variance": first_variance, "second_target_variance": second_variance,
-            "first_wall_seconds_times_variance": first.production_seconds * first_variance,
-            "second_wall_seconds_times_variance": second.production_seconds * second_variance,
-            "first": first, "second": second,
-        }));
-    }
-    println!(
-        "{}",
-        serde_json::to_string_pretty(&serde_json::json!({
-            "status": "fixed-strength API smoke probe; no dynamic improvement claim",
-            "backend": "eager", "production_workers": 1, "pairs": pairs,
-        }))?
-    );
-    Ok(())
+    comparison::execute()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn linear_square_reference_has_the_native_mixed_primitive() {
+        use symbolica::atom::AtomCore;
+        let x = symbol!("variance_reference::x");
+        let y = symbol!("variance_reference::y");
+        let f = parse!("1-2*variance_reference::x-3*variance_reference::y");
+        let h: Atom = f.pow(2) * f.log() / 2 - Atom::num((3, 4)) * f.pow(2);
+        let difference: Atom = h.derivative(x).derivative(y) - 6 * f.log();
+        assert!(difference.together().cancel().is_zero());
+    }
+
     #[test]
     fn coordinate_digest_observes_coordinates_weights_and_ranges() {
         let digest = |index, point, weight| {

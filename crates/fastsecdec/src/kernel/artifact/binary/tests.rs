@@ -7,6 +7,7 @@ use crate::{
 };
 use std::ops::ControlFlow;
 use symbolica::{parse, symbol};
+mod v11;
 
 fn kernel(prefactor: Atom) -> KernelSet {
     let input = ParametricIntegrand::new(
@@ -92,9 +93,7 @@ fn explicit_native_v10_rejects_schema_disagreement_without_digest_validation() {
     .unwrap();
     let (_, bytes) = encode_with_descriptor(
         payload(&kernels),
-        Some(crate::kernel::recipe::SavedProgramDescriptor::from_native(
-            &descriptor,
-        )),
+        Some(SavedDescriptor::from_native(&descriptor).unwrap()),
     )
     .unwrap();
     for validate in [false, true] {

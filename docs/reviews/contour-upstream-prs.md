@@ -321,3 +321,25 @@ coherent consumer compiles successfully. The draft PR is authored and
 published by ValentinHirschi. GitHub denied formal reviewer assignment; the
 PR explicitly invites `@benruijl` and records that limitation. See the
 [focused source and compilation audit](contour-hyperbolica-citations.md).
+
+## Direct-translation external-expression cache
+
+[Symbolica PR 60](https://github.com/symbolica-dev/symbolica/pull/60), head
+`85a993fd9b8d9e25099261dff476c64afac15f7c`, adds a missing insertion into the
+existing scope-local expression cache. Registered external calls otherwise
+repeat when direct translation bypasses later optimization; numerical values
+were already correct. Six focused real/complex, alias, tag and lazy-branch
+controls pass, along with 15 existing evaluator tests and one existing ignored
+stress test. Independent reviews pass. The commit and publishing account are
+ValentinHirschi. Formal reviewer assignment was denied by GitHub permissions;
+an explicit PR comment invites `@benruijl`. The combined consumer child
+`516beb37d31af8e3d6ee321a7070f407a0b1b42d` is published on
+`codex/contour-external-cache-consumer`; all six new controls, 15 existing
+evaluator controls and eight direct-vector controls pass on that exact head,
+with one existing stress test ignored. The three maintained consumer manifests
+now select that revision. The consuming core/QMC/sectors gate passes 692 tests
+with 24 explicit ignores, the CLI passes 168 with eight ignores, the portable
+host passes 76, and actual Emscripten/Wasm passes the three public dynamic
+controls. Strict workspace all-target Clippy passes. Installed current-host
+Python and physical multiloop acceptance remain separate gates.
+See [the owner reuse review](contour-direct-external-cache.md).

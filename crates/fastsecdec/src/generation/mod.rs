@@ -3,6 +3,7 @@
 //! Symbolica owns all polynomial manipulation, derivatives and series expansions.
 //! This module owns the integral-specific order of these operations.
 mod assembly;
+pub(crate) use assembly::normalize_exact_coefficient;
 mod session;
 pub use session::{GenerationSession, GenerationSessionState};
 mod coefficient_first;
@@ -10,6 +11,11 @@ mod coefficients;
 mod conditioning;
 mod context;
 mod domain;
+mod family;
+pub use family::{
+    RecipeFamily, RecipeFamilyError, RecipeFamilyOutput, RecipeFamilySession,
+    RecipeFamilySessionError, RecipeFamilySnapshot,
+};
 mod geometry;
 pub(crate) mod identity;
 pub use identity::source_identity;
@@ -197,7 +203,8 @@ fn generate_inner(
             &source_supports,
             symbolic_dispatch,
             &mut progress,
-        );
+        )?
+        .preserve_empty_recipe(options.program_recipe);
     }
     let mut maps = maps.into_iter();
     let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
@@ -379,7 +386,9 @@ fn generate_inner(
     }
     #[cfg(test)]
     laurent::profiling::reject_uncaptured_result()?;
-    let result = assembly.finish(domain, charts, options.max_order);
+    let result = assembly
+        .finish(domain, charts, options.max_order)
+        .preserve_empty_recipe(options.program_recipe)?;
     emit(
         &mut progress,
         GenerationProgress::Complete {

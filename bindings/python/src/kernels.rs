@@ -94,7 +94,7 @@ impl PyKernels {
         self.inner
             .runtime_parameters()
             .iter()
-            .filter(|symbol| **symbol != fastsecdec::contour::lambda_symbol())
+            .filter(|symbol| !fastsecdec::contour::is_contour_parameter(**symbol))
             .map(|s| PythonExpression {
                 expr: fastsecdec::Atom::var(*s),
             })

@@ -6,6 +6,7 @@ mod contour;
 mod decompose;
 mod error;
 mod execution;
+mod family;
 mod generation;
 mod generation_session;
 mod input;
@@ -33,6 +34,7 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<settings::PyCompilationSettings>()?;
     module.add_class::<settings::PyStabilitySettings>()?;
     contour::register(&module)?;
+    family::register(&module)?;
     module.add_class::<session::PyQmcSettings>()?;
     module.add_class::<session::PyQmcSession>()?;
     module.add_class::<mc::PyHavanaDiscreteSettings>()?;

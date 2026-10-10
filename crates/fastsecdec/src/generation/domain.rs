@@ -30,11 +30,6 @@ pub(super) fn check_options(
     if !options.contour_enabled() {
         return Ok(assessment);
     }
-    if options.program_recipe.is_dynamic() && input.terms().is_empty() {
-        return Err(GenerationError::Contour(
-            "empty dynamic input requires an explicit empty-recipe descriptor; this admission is pending".into(),
-        ));
-    }
     let reserved = [
         crate::contour::lambda_symbol(),
         crate::contour::dynamic::safety_fraction_symbol(),

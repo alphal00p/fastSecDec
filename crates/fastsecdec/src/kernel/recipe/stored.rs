@@ -27,6 +27,13 @@ impl SavedProgramDescriptor {
     }
 
     pub(crate) fn restore(self) -> Result<NativeProgramDescriptor, KernelError> {
+        self.restore_with_certificates(None)
+    }
+
+    pub(super) fn restore_with_certificates(
+        self,
+        certificates: Option<std::sync::Arc<[DynamicCheckProgram]>>,
+    ) -> Result<NativeProgramDescriptor, KernelError> {
         if self.version != 1 {
             return Err(invalid("unsupported mathematical descriptor version"));
         }
@@ -41,6 +48,7 @@ impl SavedProgramDescriptor {
             charts: self.charts,
             helpers,
             exact_helpers: self.exact_helpers,
+            certificates,
         };
         value.validate()?;
         Ok(value)
@@ -52,6 +60,11 @@ impl NativeProgramDescriptor {
     /// Restoring this owner performs no algebra or evaluator optimization.
     pub(crate) fn to_staging_bytes(&self) -> Result<Vec<u8>, KernelError> {
         self.validate()?;
+        if self.certificates.is_some() {
+            return Err(invalid(
+                "compiled certificate descriptors cannot be downgraded to source staging",
+            ));
+        }
         bincode::serde::encode_to_vec(
             SavedProgramDescriptor::from_native(self),
             bincode::config::standard(),

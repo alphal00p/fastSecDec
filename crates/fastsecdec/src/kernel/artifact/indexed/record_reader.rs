@@ -1,12 +1,8 @@
 //! Shared native decoding and selected-record assembly. No alternative recipe
 //! or evaluator is decoded by these helpers.
-use super::{RecordDescriptor, failure};
+use super::{RecordDescriptor, assembly::ResidentAssembly, failure};
 use crate::{
-    generation::GenerationMetadata,
-    kernel::{
-        CompilationProgress, KernelError, KernelLoadOptions, KernelLoadProgress, KernelSet,
-        projection::OutputProjection,
-    },
+    kernel::{CompilationProgress, KernelError, KernelLoadOptions, KernelLoadProgress, KernelSet},
     status::CoefficientComponent,
 };
 use std::{
@@ -14,7 +10,6 @@ use std::{
     ops::ControlFlow,
     time::Instant,
 };
-use symbolica::atom::Atom;
 
 pub(super) struct RecordSelection<'a> {
     pub content_id: &'a str,
@@ -96,12 +91,7 @@ pub(super) fn load_selected(
     progress: &mut impl FnMut(&KernelLoadProgress) -> ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
     let started = Instant::now();
-    let mut combined: Option<KernelSet> = None;
-    let mut charts = Vec::new();
-    let mut coefficient_orders = selection.orders.to_vec();
-    coefficient_orders.dedup();
-    let mut exact = vec![Atom::Zero; coefficient_orders.len()];
-    let complex = selection.components.contains(&CoefficientComponent::Imag);
+    let mut assembly = ResidentAssembly::default();
     let total = selection
         .records
         .iter()
@@ -121,133 +111,17 @@ pub(super) fn load_selected(
         {
             return Err(KernelError::Cancelled);
         }
-        let mut local = read_record(reader, &selection.records[index], options)?;
         let record = &selection.records[index];
-        for (order, value) in local
-            .coefficient_orders
-            .iter()
-            .zip(&local.exact_expressions)
-        {
-            exact[coefficient_orders
-                .binary_search(order)
-                .expect("validated output map")] += value;
-        }
-        if exact_only {
-            // Exact setup must not retain all analytically integrated chart
-            // expressions while walking the archive. Keep offsets and native
-            // parameter constraints only; rich inspection is record-local.
-            local.metadata = None;
-            local.contour_checks.clear();
-            local.program_descriptor = local
-                .program_descriptor
-                .as_ref()
-                .map(|descriptor| descriptor.for_payload(&[], &local.exact_expressions, None))
-                .transpose()?;
-        } else if let Some(mut metadata) = local.metadata.take() {
-            if let Some(descriptor) = &mut local.program_descriptor {
-                descriptor.remap_charts(&record.receipt.source_indices)?;
-            }
-            for check in &mut local.contour_checks {
-                check.chart_index = *record
-                    .receipt
-                    .source_indices
-                    .get(check.chart_index)
-                    .ok_or_else(|| failure("invalid local contour check index"))?;
-            }
-            for mut chart in metadata.charts.drain(..) {
-                chart.source_index = *record
-                    .receipt
-                    .source_indices
-                    .get(chart.source_index)
-                    .ok_or_else(|| failure("invalid local source chart index"))?;
-                chart.representative = *record
-                    .receipt
-                    .source_indices
-                    .get(chart.representative)
-                    .ok_or_else(|| failure("invalid local representative chart index"))?;
-                chart.kernel_sector = record.sector;
-                charts.push(chart);
-            }
-            local.metadata = Some(GenerationMetadata {
-                domain: metadata.domain,
-                charts: Vec::new(),
-            });
-        }
-        if let Some(sector) = local.sectors.first_mut() {
-            if record.receipt.orders != selection.orders
-                || record.receipt.components != selection.components
-            {
-                sector.projection = Some(OutputProjection::new(
-                    record.output_indices.clone(),
-                    selection.orders.len(),
-                    complex,
-                    &record.receipt.orders,
-                    record.receipt.components.clone(),
-                )?);
-            }
-            completed += 1;
-        }
-        local.portable_artifact = None;
-        if let Some(combined) = &mut combined {
-            if combined.program_recipe() != local.program_recipe() {
-                return Err(failure("inconsistent explicit native recipe"));
-            }
-            match (
-                &mut combined.program_descriptor,
-                local.program_descriptor.take(),
-            ) {
-                (Some(existing), Some(incoming)) => existing.merge(incoming)?,
-                (None, Some(incoming)) => combined.program_descriptor = Some(incoming),
-                _ => {}
-            }
-            if combined.compilation_settings != local.compilation_settings
-                || serde_json::to_value(&combined.precision)?
-                    != serde_json::to_value(&local.precision)?
-                || combined.runtime_parameters != local.runtime_parameters
-                || combined.runtime_mass_constraints.len() != local.runtime_mass_constraints.len()
-                || combined
-                    .runtime_mass_constraints
-                    .iter()
-                    .zip(&local.runtime_mass_constraints)
-                    .any(|(a, b)| a.name != b.name || a.expression != b.expression)
-            {
-                return Err(failure("inconsistent native record numerical policy"));
-            }
-            combined.sectors.append(&mut local.sectors);
-            combined.contour_checks.append(&mut local.contour_checks);
-            if combined.metadata.is_none() {
-                combined.metadata = local.metadata.take();
-            }
-        } else {
-            combined = Some(local);
-        }
+        let local = read_record(reader, record, options)?;
+        completed += usize::from(!local.sectors.is_empty());
+        assembly.push(local, &record.receipt.source_indices, exact_only)?;
     }
-    let mut combined = combined.ok_or_else(|| failure("empty native archive"))?;
-    charts.sort_by_key(|chart| chart.source_index);
-    if !exact_only
-        && charts
-            .iter()
-            .enumerate()
-            .any(|(index, chart)| chart.source_index != index)
-    {
-        return Err(failure("incomplete original source-chart coverage"));
-    }
-    if exact_only {
-        combined.metadata = None;
-    } else if let Some(metadata) = &mut combined.metadata {
-        metadata.charts = charts;
-    }
-    combined.coefficient_orders = coefficient_orders;
-    combined.orders = selection.orders.to_vec();
-    combined.components = selection.components.to_vec();
-    combined.exact_expressions = exact;
-    combined.exact_coefficients = if combined.runtime_parameters.is_empty() {
-        crate::kernel::exact::evaluate(&combined.exact_expressions, &Default::default(), complex)?
-    } else {
-        vec![f64::NAN; combined.orders.len()]
-    };
-    combined.content_id = selection.content_id.to_owned();
-    combined.template_content_id = None;
+    let combined = assembly.finish(
+        selection.content_id.to_owned(),
+        selection.orders,
+        selection.components,
+        exact_only,
+    )?;
     if progress(&KernelLoadProgress::Restoring(CompilationProgress {
         completed,
         total,

@@ -1,6 +1,105 @@
 use super::*;
 use crate::kernel::{evaluator::MappingRequirements, program::ExactProgram};
 use symbolica::{parse, symbol};
+mod checked;
+
+#[test]
+fn complete_native_vector_shares_callbacks_and_keeps_branches_lazy() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    use symbolica::{atom::EvaluationInfo, function};
+    let calls = Arc::new(AtomicUsize::new(0));
+    let counter = calls.clone();
+    let f = symbol!(
+        "exact_vector::counted",
+        eval = EvaluationInfo::new().register(move |x: &[f64]| {
+            counter.fetch_add(1, Ordering::SeqCst);
+            x[0] * x[0]
+        })
+    );
+    let invalid = symbol!(
+        "exact_vector::dead",
+        eval = EvaluationInfo::new()
+            .register(|_: &[f64]| -> f64 { panic!("dead exact branch executed") })
+    );
+    let p = symbol!("exact_vector::p");
+    let condition = symbol!("exact_vector::condition");
+    let live = function!(f, Atom::var(p));
+    let expressions = vec![
+        function!(
+            Symbol::IF,
+            Atom::var(condition),
+            function!(invalid, Atom::var(p)),
+            live.clone()
+        ),
+        &live + 1,
+        &live * 2,
+    ];
+    assert_eq!(
+        evaluate(
+            &expressions,
+            &BTreeMap::from([(p, 2.), (condition, 0.)]),
+            false
+        )
+        .unwrap(),
+        [4., 5., 8.]
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn aggregate_atoms_cancel_exact_singularities_before_native_vector_evaluation() {
+    use symbolica::{atom::EvaluationInfo, function};
+    let invalid = symbol!(
+        "exact_vector::cancelled",
+        eval = EvaluationInfo::new()
+            .register(|_: &[f64]| -> f64 { panic!("cancelled exact callback executed") })
+    );
+    let p = symbol!("exact_vector::zero_parameter");
+    let left = Atom::one() / Atom::var(p) + function!(invalid, Atom::var(p));
+    let right = -left.clone();
+    let raw = [&left + &right, &left + &right + 6];
+    // Native Add normalization does not distribute a numeric sign into the
+    // negative sum. Exercise the same narrow operation as both generation and
+    // selected-record assembly, before the direct numeric owner sees the sum.
+    assert!(!raw[0].is_zero());
+    let summed = raw
+        .iter()
+        .map(crate::generation::normalize_exact_coefficient)
+        .collect::<Vec<_>>();
+    assert_eq!(summed, [Atom::Zero, Atom::num(6)]);
+    assert_eq!(
+        evaluate(&summed, &BTreeMap::from([(p, 0.)]), false).unwrap(),
+        [0., 6.]
+    );
+}
+
+#[test]
+fn exact_numeric_weight_normalization_preserves_dynamic_root_keys_and_products() {
+    use crate::contour::functions::dynamic::{RootProgram, strength};
+    let p = Atom::var(symbol!("exact_normalization::p"));
+    let q = Atom::var(symbol!("exact_normalization::q"));
+    let helper = RootProgram::build(1).unwrap();
+    let root = strength(
+        &helper,
+        &[2 * (&p + 1)],
+        &(Atom::num((1, 5)) * (&q + 1)),
+        &Atom::one(),
+    )
+    .unwrap();
+    let normalize = crate::generation::normalize_exact_coefficient;
+    // Count/semantic tags and the deliberately factored callback arguments are
+    // opaque to Symbolica's expand_num, preserving the saved exact association.
+    assert_eq!(normalize(&root), root);
+    let factored = (&p + 1) * (&q + 1);
+    assert_eq!(normalize(&factored), factored);
+    let aggregate: Atom = &root + 2 * (Atom::one() / &p + 1) - 2 / &p;
+    let normalized = normalize(&aggregate);
+    assert_eq!(normalized, &root + 2);
+    assert!(normalized.contains(root.as_view()));
+}
 
 #[test]
 fn direct_native_offsets_match_compiled_complex_branches_and_callbacks() {

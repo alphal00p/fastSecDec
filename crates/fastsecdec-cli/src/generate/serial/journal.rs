@@ -425,7 +425,10 @@ mod tests {
         card(&input);
         let original = fs::read(&input).unwrap();
         let output = dir.path().join("integral.fsd");
-        let overrides = crate::config::GenerationOverrides { contour: true };
+        let overrides = crate::config::GenerationOverrides {
+            contour: true,
+            ..Default::default()
+        };
         let journal =
             Journal::open_with_overrides(&input, &output, false, "first", overrides).unwrap();
         drop(journal);

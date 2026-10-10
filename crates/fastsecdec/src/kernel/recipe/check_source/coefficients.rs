@@ -38,50 +38,58 @@ pub(crate) struct CoefficientSource {
     pub outputs: Vec<Atom>,
 }
 
+pub(super) fn expected_schema(
+    chart: &super::super::DynamicChartRecipe,
+    recipe: ProgramRecipe,
+) -> Result<Vec<CoefficientInput>, String> {
+    let mut expected = vec![
+        CoefficientInput::LambdaCap,
+        CoefficientInput::DisplacementCap,
+        CoefficientInput::DirectionNormSquared,
+    ];
+    let polynomial = match recipe {
+        ProgramRecipe::DynamicPolynomialV1 => true,
+        ProgramRecipe::DynamicSignAwareV1 => false,
+        _ => return Err("coefficient check source requires a dynamic recipe".into()),
+    };
+    expected.extend(chart.causal_orders.iter().map(|order| {
+        if polynomial {
+            CoefficientInput::CausalSquared { order: *order }
+        } else {
+            CoefficientInput::CausalPositive { order: *order }
+        }
+    }));
+    expected.extend(
+        chart
+            .positive_orders
+            .iter()
+            .enumerate()
+            .flat_map(|(factor, orders)| {
+                orders.iter().map(move |order| {
+                    if polynomial {
+                        CoefficientInput::PositiveSquared {
+                            factor,
+                            order: *order,
+                        }
+                    } else {
+                        CoefficientInput::PositivePositive {
+                            factor,
+                            order: *order,
+                        }
+                    }
+                })
+            }),
+    );
+    Ok(expected)
+}
+
 impl CoefficientSource {
     pub(crate) fn validate_for(
         &self,
         chart: &super::super::DynamicChartRecipe,
         recipe: ProgramRecipe,
     ) -> Result<(), String> {
-        let mut expected = vec![
-            CoefficientInput::LambdaCap,
-            CoefficientInput::DisplacementCap,
-            CoefficientInput::DirectionNormSquared,
-        ];
-        let polynomial = match recipe {
-            ProgramRecipe::DynamicPolynomialV1 => true,
-            ProgramRecipe::DynamicSignAwareV1 => false,
-            _ => return Err("coefficient check source requires a dynamic recipe".into()),
-        };
-        expected.extend(chart.causal_orders.iter().map(|order| {
-            if polynomial {
-                CoefficientInput::CausalSquared { order: *order }
-            } else {
-                CoefficientInput::CausalPositive { order: *order }
-            }
-        }));
-        expected.extend(
-            chart
-                .positive_orders
-                .iter()
-                .enumerate()
-                .flat_map(|(factor, orders)| {
-                    orders.iter().map(move |order| {
-                        if polynomial {
-                            CoefficientInput::PositiveSquared {
-                                factor,
-                                order: *order,
-                            }
-                        } else {
-                            CoefficientInput::PositivePositive {
-                                factor,
-                                order: *order,
-                            }
-                        }
-                    })
-                }),
-        );
+        let expected = expected_schema(chart, recipe)?;
         if self.schema != expected
             || self.parameters.len() != expected.len()
             || self.parameters.first() != Some(&lambda_cap_symbol())

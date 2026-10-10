@@ -2,7 +2,10 @@
 use std::rc::Rc;
 
 use fastsecdec::{
-    contour::{ContourMode, ContourSettings, ContourValidation, ContourValidationOptions},
+    contour::{
+        ContourMode, ContourSettings, ContourValidation, ContourValidationOptions,
+        DynamicConstruction,
+    },
     kernel::{ContourCheckReport, ContourValidationChart, ContourValidationReport, KernelSet},
 };
 use pyo3::{prelude::*, types::PyModule};
@@ -24,6 +27,12 @@ fn policy_name(value: ContourValidation) -> &'static str {
     }
 }
 
+fn construction(value: &str) -> PyResult<DynamicConstruction> {
+    serde_json::from_value(serde_json::Value::String(value.into())).map_err(|_| {
+        pyo3::exceptions::PyValueError::new_err("construction must be 'polynomial' or 'sign_aware'")
+    })
+}
+
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "ContourSettings",
@@ -39,22 +48,47 @@ pub(crate) struct PyContourSettings {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyContourSettings {
-    /// Mathematical strength and optional checking policy are separate native settings.
+    /// Mathematical deformation and optional checking policy are separate native settings.
     #[new]
-    #[pyo3(signature=(*, mode="off", lambda_value=None, validation="always", pilot_points=256))]
+    #[pyo3(signature=(*, mode="off", lambda_value=None, safety_fraction=None, lambda_cap=None, displacement_cap=None, construction=None, validation="always", pilot_points=256))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
         mode: &str,
         lambda_value: Option<f64>,
+        safety_fraction: Option<f64>,
+        lambda_cap: Option<f64>,
+        displacement_cap: Option<f64>,
+        construction: Option<&str>,
         validation: &str,
         pilot_points: usize,
     ) -> PyResult<Self> {
-        let deformation = match (mode, lambda_value) {
-            ("off", None) => ContourMode::Off,
-            ("fixed", Some(lambda)) => ContourMode::Fixed { lambda },
+        let deformation = match (
+            mode,
+            lambda_value,
+            safety_fraction,
+            lambda_cap,
+            displacement_cap,
+            construction,
+        ) {
+            ("off", None, None, None, None, None) => ContourMode::Off,
+            ("fixed", Some(lambda), None, None, None, None) => ContourMode::Fixed { lambda },
+            ("dynamical", None, Some(safety_fraction), lambda_cap, displacement_cap, choice) => {
+                ContourMode::Dynamical {
+                    safety_fraction,
+                    lambda_cap: lambda_cap.unwrap_or(1.0),
+                    displacement_cap: displacement_cap.unwrap_or(1.0),
+                    construction: choice
+                        .map(self::construction)
+                        .transpose()?
+                        .unwrap_or_default(),
+                }
+            }
             _ => {
                 return Err(pyo3::exceptions::PyValueError::new_err(
-                    "use mode='off' without a strength, or mode='fixed' with lambda_value",
+                    "use mode='off' without deformation parameters, mode='fixed' with only \
+                     lambda_value, or mode='dynamical' with safety_fraction and optional \
+                     lambda_cap, displacement_cap and construction",
                 ));
             }
         };
@@ -78,7 +112,44 @@ impl PyContourSettings {
         validation: &str,
         pilot_points: usize,
     ) -> PyResult<Self> {
-        Self::new(py, "fixed", Some(lambda_value), validation, pilot_points)
+        Self::new(
+            py,
+            "fixed",
+            Some(lambda_value),
+            None,
+            None,
+            None,
+            None,
+            validation,
+            pilot_points,
+        )
+    }
+    /// Select the native smooth causal radius with 0 < safety_fraction < 1.
+    /// Validation may be 'always', 'pilot', or 'off'; a finite pilot is not a
+    /// global floating-point certificate. This does not generate or integrate.
+    #[staticmethod]
+    #[pyo3(signature=(safety_fraction, *, lambda_cap=1.0, displacement_cap=1.0, construction="sign_aware", validation="always", pilot_points=256))]
+    #[allow(clippy::too_many_arguments)]
+    fn dynamical(
+        py: Python<'_>,
+        safety_fraction: f64,
+        lambda_cap: f64,
+        displacement_cap: f64,
+        construction: &str,
+        validation: &str,
+        pilot_points: usize,
+    ) -> PyResult<Self> {
+        Self::new(
+            py,
+            "dynamical",
+            None,
+            Some(safety_fraction),
+            Some(lambda_cap),
+            Some(displacement_cap),
+            Some(construction),
+            validation,
+            pilot_points,
+        )
     }
     #[staticmethod]
     fn from_json(py: Python<'_>, value: &str) -> PyResult<Self> {
@@ -97,13 +168,49 @@ impl PyContourSettings {
         match self.inner.deformation {
             ContourMode::Off => "off",
             ContourMode::Fixed { .. } => "fixed",
+            ContourMode::Dynamical { .. } => "dynamical",
         }
     }
     #[getter]
     fn lambda_value(&self) -> Option<f64> {
         match self.inner.deformation {
-            ContourMode::Off => None,
             ContourMode::Fixed { lambda } => Some(lambda),
+            _ => None,
+        }
+    }
+    #[getter]
+    fn safety_fraction(&self) -> Option<f64> {
+        match self.inner.deformation {
+            ContourMode::Dynamical {
+                safety_fraction, ..
+            } => Some(safety_fraction),
+            _ => None,
+        }
+    }
+    #[getter]
+    fn lambda_cap(&self) -> Option<f64> {
+        match self.inner.deformation {
+            ContourMode::Dynamical { lambda_cap, .. } => Some(lambda_cap),
+            _ => None,
+        }
+    }
+    #[getter]
+    fn displacement_cap(&self) -> Option<f64> {
+        match self.inner.deformation {
+            ContourMode::Dynamical {
+                displacement_cap, ..
+            } => Some(displacement_cap),
+            _ => None,
+        }
+    }
+    #[getter]
+    fn construction(&self) -> Option<&'static str> {
+        match self.inner.deformation {
+            ContourMode::Dynamical { construction, .. } => Some(match construction {
+                DynamicConstruction::Polynomial => "polynomial",
+                DynamicConstruction::SignAware => "sign_aware",
+            }),
+            _ => None,
         }
     }
     #[getter]
@@ -115,10 +222,23 @@ impl PyContourSettings {
         self.inner.validation.pilot_points
     }
     fn __repr__(&self) -> String {
+        let parameters = match self.inner.deformation {
+            ContourMode::Off => String::new(),
+            ContourMode::Fixed { lambda } => format!(", lambda_value={lambda:?}"),
+            ContourMode::Dynamical {
+                safety_fraction,
+                lambda_cap,
+                displacement_cap,
+                ..
+            } => format!(
+                ", safety_fraction={safety_fraction:?}, lambda_cap={lambda_cap:?}, \
+                 displacement_cap={displacement_cap:?}, construction='{}'",
+                self.construction().expect("dynamic construction")
+            ),
+        };
         format!(
-            "ContourSettings(mode='{}', lambda_value={:?}, validation='{}', pilot_points={})",
+            "ContourSettings(mode='{}'{parameters}, validation='{}', pilot_points={})",
             self.mode(),
-            self.lambda_value(),
             self.validation(),
             self.pilot_points()
         )
@@ -146,6 +266,16 @@ impl PyContourValidationChart {
     #[getter]
     fn kernel_sector(&self) -> Option<usize> {
         self.inner.kernel_sector
+    }
+    /// All stochastic sectors whose generated requests require this source.
+    #[getter]
+    fn kernel_sectors(&self) -> Vec<usize> {
+        self.inner.kernel_sectors.clone()
+    }
+    /// Whether surviving exact contributions also require this source.
+    #[getter]
+    fn includes_exact(&self) -> bool {
+        self.inner.includes_exact
     }
     #[getter]
     fn dimension(&self) -> usize {

@@ -89,7 +89,7 @@ pub(in crate::kernel) fn build_checks(
 
 /// This checks eligibility for the owner's *certifying arithmetic subset*;
 /// it is not a replacement native-IR structural validator.
-fn admit_certified_arithmetic(
+pub(in crate::kernel) fn admit_certified_arithmetic(
     program: &ExportedInstructions<Complex<Rational>>,
 ) -> Result<(), KernelError> {
     if !program.constant_functions.is_empty() {
@@ -180,7 +180,39 @@ mod certified_domain_tests {
 pub struct ContourValidationChart {
     pub chart_index: usize,
     pub kernel_sector: Option<usize>,
+    /// Complete stochastic associations. Older records use `kernel_sector`.
+    #[serde(default)]
+    pub kernel_sectors: Vec<usize>,
+    /// The same source may contribute both stochastic and exact terms.
+    #[serde(default)]
+    pub includes_exact: bool,
     pub dimension: usize,
+}
+impl ContourValidationChart {
+    /// One native scope decision for complete source associations, including
+    /// legacy snapshots whose only association is the singular field.
+    pub fn required_by_scope(&self, scope: &crate::results::ResultScope) -> bool {
+        use crate::results::{ExactContributionPolicy, ResultScope};
+        match scope {
+            ResultScope::FullIntegral => true,
+            ResultScope::SelectedSectors {
+                sector_ids,
+                exact_policy,
+            } => {
+                let exact = self.includes_exact
+                    || (self.kernel_sectors.is_empty() && self.kernel_sector.is_none());
+                let sectors = self
+                    .kernel_sectors
+                    .iter()
+                    .copied()
+                    .chain(self.kernel_sector);
+                (exact && *exact_policy == ExactContributionPolicy::IncludeAll)
+                    || sectors
+                        .into_iter()
+                        .any(|sector| sector_ids.contains(&(sector as u64)))
+            }
+        }
+    }
 }
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ContourCheckReport {
@@ -359,13 +391,13 @@ impl Check {
     }
 }
 
-pub(in crate::kernel) struct ContourBinding {
+pub(in crate::kernel) struct FixedBinding {
     settings: ContourSettings,
     checks: Vec<Check>,
     ready: BTreeMap<usize, Arc<AtomicBool>>,
     point: BTreeMap<Symbol, f64>,
 }
-impl Clone for ContourBinding {
+impl Clone for FixedBinding {
     fn clone(&self) -> Self {
         Self {
             settings: self.settings.clone(),
@@ -385,7 +417,7 @@ impl Clone for ContourBinding {
     }
 }
 
-impl ContourBinding {
+impl FixedBinding {
     pub fn require_ready(&self, scope: &crate::results::ResultScope) -> Result<(), KernelError> {
         use crate::results::{ExactContributionPolicy, ResultScope};
         if self.settings.validation.policy == ContourValidation::Off {
@@ -543,6 +575,8 @@ impl ContourBinding {
             .map(|c| ContourValidationChart {
                 chart_index: c.chart_index,
                 kernel_sector: c.kernel_sector,
+                kernel_sectors: c.kernel_sector.into_iter().collect(),
+                includes_exact: c.kernel_sector.is_none(),
                 dimension: c.dimension,
             })
             .collect()
@@ -669,6 +703,11 @@ pub(in crate::kernel) enum SectorValidation {
         checks: Vec<Check>,
     },
     Pilot(Vec<Arc<AtomicBool>>),
+    /// Dynamic numeric owners perform their own attempt-local checks.
+    Dynamic {
+        ready: Vec<Arc<AtomicBool>>,
+        policy: ContourValidation,
+    },
 }
 impl SectorValidation {
     pub fn take_report(&mut self) -> ContourProductionReport {
@@ -698,6 +737,7 @@ impl SectorValidation {
             policy: match self {
                 Self::Always { .. } => ContourValidation::Always,
                 Self::Pilot(_) => ContourValidation::Pilot,
+                Self::Dynamic { policy, .. } => *policy,
             },
             checked_arguments,
             maximum_bits,
@@ -709,12 +749,12 @@ impl SectorValidation {
                 checks.iter().map(|c| c.checked_arguments).sum(),
                 checks.iter().map(|c| c.maximum_bits).max().unwrap_or(0),
             ),
-            Self::Pilot(_) => (0, 0),
+            Self::Pilot(_) | Self::Dynamic { .. } => (0, 0),
         }
     }
     pub fn validate(&mut self, point: &[f64]) -> Result<(), KernelError> {
         let ready = match self {
-            Self::Always { ready, .. } | Self::Pilot(ready) => ready,
+            Self::Always { ready, .. } | Self::Pilot(ready) | Self::Dynamic { ready, .. } => ready,
         };
         if !ready.iter().all(|ready| ready.load(Ordering::Acquire)) {
             return Err(KernelError::Contour(
@@ -728,7 +768,7 @@ impl SectorValidation {
                 }
                 Ok(())
             }
-            Self::Pilot(_) => Ok(()),
+            Self::Pilot(_) | Self::Dynamic { .. } => Ok(()),
         }
     }
 }

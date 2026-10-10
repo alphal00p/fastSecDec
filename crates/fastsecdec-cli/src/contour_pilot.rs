@@ -48,16 +48,7 @@ pub(crate) fn run(
     let charts = kernels
         .contour_validation_charts()
         .into_iter()
-        .filter(|chart| match scope {
-            Some(fastsecdec::results::ResultScope::SelectedSectors {
-                sector_ids,
-                exact_policy,
-            }) => chart.kernel_sector.map_or(
-                *exact_policy == fastsecdec::results::ExactContributionPolicy::IncludeAll,
-                |sector| sector_ids.contains(&(sector as u64)),
-            ),
-            _ => true,
-        })
+        .filter(|chart| scope.is_none_or(|scope| chart.required_by_scope(scope)))
         .collect::<Vec<_>>();
     let selected = charts
         .iter()

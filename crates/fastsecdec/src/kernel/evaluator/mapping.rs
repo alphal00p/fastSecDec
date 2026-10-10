@@ -1,32 +1,79 @@
 //! Admission for upstream coefficient mapping, which assumes that each external
 //! callback and constant supports the requested numeric domain. This inspects
 //! native callback metadata only; it does not validate or rewrite native IR.
-use super::super::program::ExactProgram;
-use std::{collections::HashSet, sync::Arc};
+use super::super::program::{self, Callback, ExactProgram};
+use crate::kernel::contour::dynamic::validation::{self, Specification, Validation};
+use std::sync::Arc;
 use symbolica::{
-    atom::{Atom, AtomCore, Symbol},
+    atom::{Atom, AtomCore},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluationDomain, ExportedInstructions, ExpressionEvaluator, Instruction},
+    evaluate::{EvaluationDomain, ExpressionEvaluator},
 };
 
-struct Requirement {
-    symbol: Symbol,
-    tags: Vec<Atom>,
-    // None is a point-dependent callback; Some([]) is a registered constant.
-    fixed_args: Option<Vec<Complex<Rational>>>,
-}
-
 pub(in crate::kernel) struct MappingRequirements(
-    Vec<Requirement>,
+    Vec<Callback>,
     crate::contour::functions::dynamic::ProgramScope,
+    crate::contour::functions::dynamic::requested::Mode,
+    bool,
+    Option<Arc<Specification>>,
 );
 
 impl MappingRequirements {
+    /// Recognize the owner's essential callback-failure protocol once while
+    /// preparing the evaluator. Ordinary and fixed programs never enter its
+    /// thread-local attempt machinery while sampling.
+    pub(in crate::kernel) fn has_dynamic_callbacks(&self) -> bool {
+        self.3
+    }
+    pub(in crate::kernel) fn validation(&self) -> Option<Validation> {
+        self.4.clone().map(Validation::new)
+    }
+    pub(in crate::kernel) fn specification(&self) -> Option<Arc<Specification>> {
+        self.4.clone()
+    }
+
+    /// Native mapping can evaluate fixed-argument callbacks. A failed constant
+    /// must fail preparation even if downstream instructions mask its NaN.
+    pub(in crate::kernel) fn prepare<T>(
+        &self,
+        prepare: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _preparing = self.1.enter();
+        let _observing = self.2.enter();
+        let _checking = validation::enter_optional(self.4.clone());
+        if !self.3 {
+            return prepare();
+        }
+        let (result, failure) = crate::contour::functions::dynamic::isolated_attempt(prepare);
+        match failure {
+            Some(error) => Err(format!("dynamic callback preparation failed: {error}")),
+            None => result,
+        }
+    }
+
     /// Called while constructing the kernel, before caller-owned workers start.
     /// In particular, parsing canonical native tags never happens per sample.
     pub(in crate::kernel) fn new(exact: &ExactProgram) -> Result<Arc<Self>, String> {
-        let mut requirements = Self(Vec::new(), Default::default());
-        requirements.collect(&exact.export_instructions(), &mut HashSet::new())?;
+        let mut requirements = Self(
+            program::callbacks(exact)?,
+            Default::default(),
+            crate::contour::functions::dynamic::requested::Mode::capture(),
+            false,
+            validation::capture(),
+        );
+        if let Some(specification) = &requirements.4 {
+            specification.admit_callbacks(&requirements.0)?;
+            requirements.2 = crate::contour::functions::dynamic::requested::Mode::checked();
+        }
+        requirements.3 = requirements.0.iter().any(|requirement| {
+            matches!(
+                requirement.symbol.get_name(),
+                "fastsecdec::contour::dynamic::strength_v1"
+                    | "fastsecdec::contour::dynamic::requested_strength_v1"
+                    | "fastsecdec::contour::smooth_hypot_v1"
+                    | "fastsecdec::contour::smooth_positive_v1"
+            )
+        });
         requirements.1 = crate::contour::functions::dynamic::ProgramScope::capture_for(
             requirements.0.iter().flat_map(|requirement| {
                 requirement
@@ -38,67 +85,20 @@ impl MappingRequirements {
         Ok(Arc::new(requirements))
     }
 
-    fn collect(
-        &mut self,
-        exported: &ExportedInstructions<Complex<Rational>>,
-        visited: &mut HashSet<usize>,
-    ) -> Result<(), String> {
-        for constant in &exported.constant_functions {
-            self.0.push(Requirement {
-                symbol: constant.symbol,
-                tags: tags(&constant.tags)?,
-                fixed_args: Some(constant.fixed_args.clone()),
-            });
-        }
-        for instruction in &exported.instructions {
-            let Instruction::Fun(_, call, _) = instruction else {
-                continue;
-            };
-            let (symbol, tag_names, _) = &**call;
-            if [
-                Symbol::EXP,
-                Symbol::LOG,
-                Symbol::SIN,
-                Symbol::COS,
-                Symbol::SQRT,
-                Symbol::ABS,
-                Symbol::CONJ,
-            ]
-            .contains(symbol)
-                || exported
-                    .sub_evaluators
-                    .iter()
-                    .any(|body| body.symbol == *symbol && body.tags == *tag_names)
-            {
-                continue;
-            }
-            self.0.push(Requirement {
-                symbol: *symbol,
-                tags: tags(tag_names)?,
-                fixed_args: None,
-            });
-        }
-        for body in &exported.sub_evaluators {
-            if visited.insert(Arc::as_ptr(&body.instructions) as usize) {
-                self.collect(&body.instructions, visited)?;
-            }
-        }
-        Ok(())
-    }
-
     pub(in crate::kernel) fn map<T: EvaluationDomain>(
         &self,
         exact: &ExactProgram,
         coefficient: impl Fn(&Complex<Rational>) -> T,
         bits: u32,
     ) -> Result<ExpressionEvaluator<T>, String> {
-        let _preparing = self.1.enter();
-        for requirement in &self.0 {
-            let info = requirement.symbol.get_evaluation_info().ok_or_else(|| {
-                format!(
-                    "External function '{}' has no evaluation info",
-                    requirement.symbol
-                )
+        self.prepare(|| {
+            crate::contour::functions::dynamic::with_precision(bits, || {
+                for requirement in &self.0 {
+                    let info = requirement.symbol.get_evaluation_info().ok_or_else(|| {
+                        format!(
+                            "External function '{}' has no evaluation info",
+                            requirement.symbol
+                        )
             })?;
             let tags = requirement
                 .tags
@@ -128,19 +128,8 @@ impl MappingRequirements {
         }
         // No generic constant fallback: fixed functions must have their own
         // implementation in T. User callbacks retain Symbolica's own contract.
-        Ok(crate::contour::functions::dynamic::with_precision(
-            bits,
-            || exact.clone().map_coeff_with_prec(&coefficient, bits),
-        ))
-    }
-}
-
-fn tags(values: &[String]) -> Result<Vec<Atom>, String> {
-    values
-        .iter()
-        .map(|value| {
-            Atom::parse(value, "fastsecdec::artifact", Default::default())
-                .map_err(|error| format!("Native evaluator callback tag: {error}"))
+        Ok(exact.clone().map_coeff_with_prec(&coefficient, bits))
+            })
         })
-        .collect()
+    }
 }

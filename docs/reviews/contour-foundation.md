@@ -229,7 +229,11 @@ the existing owners. The first iteration explicitly rejected numerical-dual
 contour generation rather than silently changing generation strategy. The owner
 has since implemented contour jets with existing native `SourcePrograms::jets`,
 `HyperDual`, `Dualizer` and `EvaluatorComposer`, keeping meromorphic prefactors
-outside source jets. Its complete independent regression review remains pending.
+outside source jets. At that early review its independent regression gate was
+pending. Subsequent fixed-mode scientific gates and the native eager/SymJIT
+higher-endpoint vector controls passed; the current consuming-root evidence is
+recorded in [the prepared-root review](contour-root-solver.md). These controls
+do not imply that dynamic runtime admission is complete.
 
 Two review findings were communicated and addressed in source before milestone
 acceptance: contour factors require an existing native symbolic realness proof,

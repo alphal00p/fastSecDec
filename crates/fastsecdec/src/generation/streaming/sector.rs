@@ -41,11 +41,9 @@ pub fn generate_sector(
             return Err(invalid("empty sector job for a nonempty integral"));
         }
         return Ok(GeneratedUnit {
-            generated: Assembly::new(context.options.max_order).finish(
-                domain,
-                vec![],
-                context.options.max_order,
-            ),
+            generated: Assembly::new(context.options.max_order)
+                .finish(domain, vec![], context.options.max_order)
+                .preserve_empty_recipe(context.options.program_recipe)?,
             source_indices: vec![],
             runtime_parameters: context.runtime_parameters,
             runtime_mass_constraints: context.runtime_mass_constraints,

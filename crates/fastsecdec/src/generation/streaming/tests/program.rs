@@ -202,16 +202,12 @@ fn dynamic_staged_worker() {
         })
         .unwrap();
     assert_eq!(kernels.program_recipe(), job.program_recipe);
-    assert!(
-        kernels
-            .to_bytes()
-            .unwrap()
-            .starts_with(b"FastSecDec\0binserde\x0a")
-    );
+    let bytes = kernels.to_bytes().unwrap();
+    assert!(bytes.starts_with(b"FastSecDec\0binserde\x0b"));
     drop(kernels);
     drop(unit);
-    // The restored evaluator's native callback must remain functional after
-    // every staged/generation owner is gone, without enabling production yet.
+    // The staged evaluator's native callback must remain functional after
+    // every staged/generation owner is gone.
     let value = evaluator.evaluate_single(&[
         Complex::new(0.31, 0.),
         Complex::new(0.8, 0.),
@@ -220,6 +216,49 @@ fn dynamic_staged_worker() {
     ]);
     assert!(value.re.is_finite() && value.im.is_finite());
     assert!(value.im.abs() > 1e-8);
+    drop(evaluator);
+    // Restore the actual native record only after every previous callback
+    // owner has gone. This child process has no parent-generation registry.
+    let mut restored = KernelSet::from_bytes(&bytes).unwrap();
+    assert_eq!(restored.program_recipe(), job.program_recipe);
+    assert_eq!(restored.to_bytes().unwrap(), bytes);
+    restored
+        .bind_parameters_with_contour(
+            &BTreeMap::new(),
+            &crate::contour::ContourSettings {
+                deformation: crate::contour::ContourMode::Dynamical {
+                    safety_fraction: 0.8,
+                    lambda_cap: 0.2,
+                    displacement_cap: 1.,
+                    construction: match job.program_recipe {
+                        ProgramRecipe::DynamicPolynomialV1 => {
+                            crate::contour::DynamicConstruction::Polynomial
+                        }
+                        ProgramRecipe::DynamicSignAwareV1 => {
+                            crate::contour::DynamicConstruction::SignAware
+                        }
+                        _ => unreachable!(),
+                    },
+                },
+                validation: crate::contour::ContourValidationOptions {
+                    policy: crate::contour::ContourValidation::Off,
+                    ..Default::default()
+                },
+            },
+        )
+        .unwrap();
+    assert_eq!(restored.orders(), &[0, 0]);
+    assert_eq!(
+        restored.components(),
+        &[CoefficientComponent::Real, CoefficientComponent::Imag]
+    );
+    let mut output = [0.; 2];
+    restored.sectors_mut()[0]
+        .evaluate(&[0.31], &mut output)
+        .unwrap();
+    for (actual, expected) in output.into_iter().zip([value.re, value.im]) {
+        assert!((actual - expected).abs() < 1e-10 * expected.abs().max(1.));
+    }
     std::fs::write(directory.join("restored.ok"), b"retained").unwrap();
 }
 

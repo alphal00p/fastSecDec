@@ -2,18 +2,23 @@
 use super::{EvaluatorBackend, EvaluatorTiming, KernelError, program::ExactProgram};
 use symbolica::domains::float::Complex;
 mod batch;
+mod checked;
 mod conditioning;
 mod mapping;
 pub(super) use conditioning::Conditioning;
 pub(super) use mapping::MappingRequirements;
 
 macro_rules! evaluator {
-    ($name:ident, $scalar:ty) => {
+    ($name:ident, $scalar:ty, $invalid:expr, $physical:expr) => {
         #[derive(Clone)]
         pub(super) enum $name {
             #[cfg(feature = "native")]
             Symjit(symbolica::evaluate::JITCompiledEvaluator<$scalar>),
             Eager(symbolica::evaluate::ExpressionEvaluator<$scalar>),
+            /// A failed callback cannot become an accepted finite value merely
+            /// because later arithmetic or an external consumer masks it.
+            Dynamic(Box<Self>, Option<String>),
+            Checked(Box<checked::Checked<Self>>),
         }
         impl $name {
             pub(super) fn evaluate(&mut self, input: &[$scalar], output: &mut [$scalar]) {
@@ -21,6 +26,26 @@ macro_rules! evaluator {
                     #[cfg(feature = "native")]
                     Self::Symjit(evaluator) => evaluator.evaluate(input, output),
                     Self::Eager(evaluator) => evaluator.evaluate(input, output),
+                    Self::Checked(checked) => {
+                        checked.point.clear();
+                        checked.point.extend(input.iter().map($physical));
+                        if !checked
+                            .validation
+                            .evaluate(&checked.point, || checked.evaluator.evaluate(input, output))
+                        {
+                            output.fill($invalid);
+                        }
+                    }
+                    Self::Dynamic(evaluator, last_error) => {
+                        let (_, failure) =
+                            crate::contour::functions::dynamic::isolated_attempt(|| {
+                                evaluator.evaluate(input, output)
+                            });
+                        *last_error = failure;
+                        if last_error.is_some() {
+                            output.fill($invalid);
+                        }
+                    }
                 }
             }
             pub(super) fn evaluate_batch(
@@ -39,6 +64,34 @@ macro_rules! evaluator {
                     Self::Eager(evaluator) => {
                         batch::evaluate_eager(evaluator, input, output, rows, inputs, outputs)
                     }
+                    Self::Checked(_) => {
+                        let mut timings = Vec::with_capacity(rows);
+                        for row in 0..rows {
+                            let started = std::time::Instant::now();
+                            self.evaluate(
+                                &input[row * inputs..(row + 1) * inputs],
+                                &mut output[row * outputs..(row + 1) * outputs],
+                            );
+                            let mut timing = EvaluatorTiming::default();
+                            timing.record(started);
+                            timings.push(timing);
+                        }
+                        timings
+                    }
+                    Self::Dynamic(evaluator, last_error) => {
+                        let (timings, failure) =
+                            crate::contour::functions::dynamic::isolated_attempt(|| {
+                                evaluator.evaluate_batch(input, output, rows, inputs, outputs)
+                            });
+                        *last_error = failure;
+                        if last_error.is_some() {
+                            // The matrix owner does not expose the failing row.
+                            // Discard every provisional row, then let existing
+                            // scalar precision rescue retry each actual point.
+                            output.fill($invalid);
+                        }
+                        timings
+                    }
                 }
             }
             pub(super) fn symjit_ir_bytes(&self) -> Option<usize> {
@@ -46,23 +99,82 @@ macro_rules! evaluator {
                     #[cfg(feature = "native")]
                     Self::Symjit(evaluator) => Some(evaluator.as_bytes().len()),
                     Self::Eager(_) => None,
+                    Self::Dynamic(evaluator, _) => evaluator.symjit_ir_bytes(),
+                    Self::Checked(checked) => checked.evaluator.symjit_ir_bytes(),
+                }
+            }
+            pub(super) fn last_dynamic_error(&self) -> Option<&str> {
+                match self {
+                    Self::Dynamic(_, error) => error.as_deref(),
+                    Self::Checked(checked) => checked.validation.last_error.as_deref(),
+                    _ => None,
+                }
+            }
+            pub(super) fn has_dynamic_callbacks(&self) -> bool {
+                matches!(self, Self::Dynamic(..) | Self::Checked(..))
+            }
+            pub(super) fn execution_backend(&self) -> EvaluatorBackend {
+                match self {
+                    #[cfg(feature = "native")]
+                    Self::Symjit(_) => EvaluatorBackend::Symjit,
+                    Self::Eager(_) => EvaluatorBackend::Eager,
+                    Self::Dynamic(evaluator, _) => evaluator.execution_backend(),
+                    Self::Checked(checked) => checked.evaluator.execution_backend(),
+                }
+            }
+            pub(super) fn clear_dynamic_attempt(&mut self) {
+                match self {
+                    Self::Dynamic(_, error) => *error = None,
+                    Self::Checked(checked) => checked.validation.clear_attempt(),
+                    _ => {}
+                }
+            }
+            pub(super) fn validation(
+                &self,
+            ) -> Option<&crate::kernel::contour::dynamic::validation::Validation> {
+                match self {
+                    Self::Checked(checked) => Some(&checked.validation),
+                    _ => None,
+                }
+            }
+            pub(super) fn validation_mut(
+                &mut self,
+            ) -> Option<&mut crate::kernel::contour::dynamic::validation::Validation> {
+                match self {
+                    Self::Checked(checked) => Some(&mut checked.validation),
+                    _ => None,
+                }
+            }
+            fn with_dynamic_fence(self, requirements: &MappingRequirements) -> Self {
+                if let Some(specification) = requirements.specification() {
+                    Self::Checked(Box::new(checked::Checked::new(self, specification)))
+                } else if requirements.has_dynamic_callbacks() {
+                    Self::Dynamic(Box::new(self), None)
+                } else {
+                    self
                 }
             }
         }
     };
 }
-evaluator!(RealEvaluator, f64);
-evaluator!(ComplexEvaluator, Complex<f64>);
+evaluator!(RealEvaluator, f64, f64::NAN, |value: &f64| *value);
+evaluator!(
+    ComplexEvaluator,
+    Complex<f64>,
+    Complex::new(f64::NAN, f64::NAN),
+    |value: &Complex<f64>| if value.im == 0. { value.re } else { f64::NAN }
+);
 
 pub(super) fn real(
     exact: &ExactProgram,
     backend: EvaluatorBackend,
 ) -> Result<RealEvaluator, KernelError> {
+    let requirements = MappingRequirements::new(exact).map_err(KernelError::Compilation)?;
     #[cfg(feature = "native")]
     if !backend.is_eager() {
-        return exact
-            .jit_compile::<f64>(settings())
-            .map(RealEvaluator::Symjit)
+        return requirements
+            .prepare(|| exact.jit_compile::<f64>(settings()))
+            .map(|evaluator| RealEvaluator::Symjit(evaluator).with_dynamic_fence(&requirements))
             .map_err(KernelError::Compilation);
     }
     #[cfg(feature = "portable")]
@@ -71,9 +183,9 @@ pub(super) fn real(
             "SymJIT is unavailable in a portable build".into(),
         ));
     }
-    MappingRequirements::new(exact)
-        .and_then(|requirements| requirements.map(exact, |value| value.re.to_f64(), 53))
-        .map(RealEvaluator::Eager)
+    requirements
+        .map(exact, |value| value.re.to_f64(), 53)
+        .map(|evaluator| RealEvaluator::Eager(evaluator).with_dynamic_fence(&requirements))
         .map_err(KernelError::Compilation)
 }
 
@@ -81,11 +193,12 @@ pub(super) fn complex(
     exact: &ExactProgram,
     backend: EvaluatorBackend,
 ) -> Result<ComplexEvaluator, KernelError> {
+    let requirements = MappingRequirements::new(exact).map_err(KernelError::Compilation)?;
     #[cfg(feature = "native")]
     if !backend.is_eager() {
-        return exact
-            .jit_compile::<Complex<f64>>(settings())
-            .map(ComplexEvaluator::Symjit)
+        return requirements
+            .prepare(|| exact.jit_compile::<Complex<f64>>(settings()))
+            .map(|evaluator| ComplexEvaluator::Symjit(evaluator).with_dynamic_fence(&requirements))
             .map_err(KernelError::Compilation);
     }
     #[cfg(feature = "portable")]
@@ -94,15 +207,13 @@ pub(super) fn complex(
             "SymJIT is unavailable in a portable build".into(),
         ));
     }
-    MappingRequirements::new(exact)
-        .and_then(|requirements| {
-            requirements.map(
-                exact,
-                |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
-                53,
-            )
-        })
-        .map(ComplexEvaluator::Eager)
+    requirements
+        .map(
+            exact,
+            |value| Complex::new(value.re.to_f64(), value.im.to_f64()),
+            53,
+        )
+        .map(|evaluator| ComplexEvaluator::Eager(evaluator).with_dynamic_fence(&requirements))
         .map_err(KernelError::Compilation)
 }
 
@@ -114,6 +225,8 @@ fn settings() -> symbolica::evaluate::JITCompilationSettings {
         .with_option("use_threads", "false")
 }
 
+#[cfg(test)]
+mod dynamic_tests;
 #[cfg(test)]
 mod eager_tests;
 #[cfg(test)]

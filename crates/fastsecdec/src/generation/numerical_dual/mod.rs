@@ -109,7 +109,10 @@ pub(super) fn finish(
     Ok(GeneratedIntegral {
         program_descriptor: program.descriptor,
         dynamic_check_sources: program.checks,
-        exact_coefficients,
+        exact_coefficients: exact_coefficients
+            .iter()
+            .map(super::normalize_exact_coefficient)
+            .collect(),
         orders,
         sectors,
         metadata: GenerationMetadata { domain, charts },

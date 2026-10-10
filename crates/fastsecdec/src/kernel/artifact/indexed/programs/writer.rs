@@ -93,6 +93,26 @@ impl<W: Write + Seek> ProgramArchiveWriter<W> {
         }
         Ok(())
     }
+
+    /// Append one complete native representative with local-to-source chart
+    /// indices. Partitioning preserves independent exact and stochastic records.
+    /// Only one temporary serialized record is resident at a time.
+    pub fn append_unit(
+        &mut self,
+        recipe: ProgramRecipe,
+        kernels: &KernelSet,
+        source_indices: &[usize],
+    ) -> Result<(), KernelError> {
+        if kernels.program_recipe() != recipe || kernels.template_content_id.is_some() {
+            return Err(failure(
+                "archive unit must be an unbound template of the requested recipe",
+            ));
+        }
+        super::super::writer::for_each_unit_record(kernels, source_indices, |mut bytes, receipt| {
+            self.append_record(recipe, &mut bytes, receipt)
+        })
+        .inspect_err(|_| self.failed = true)
+    }
     pub fn finish(mut self) -> Result<(W, ProgramArchiveCatalogue), KernelError> {
         if self.failed {
             return Err(failure("cannot finish a failed archive writer"));

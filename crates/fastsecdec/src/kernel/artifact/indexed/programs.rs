@@ -2,12 +2,14 @@
 //! every active numerical owner still contains exactly one mathematical recipe.
 mod catalogue;
 mod reader;
+mod resident;
 #[cfg(test)]
 mod tests;
 mod writer;
 
 pub use catalogue::{ProgramArchiveCatalogue, ProgramRecipe, ProgramRecipeCatalogue};
 pub use reader::{ProgramArchiveReader, SelectedProgramReader};
+pub(crate) use resident::ProgramResidentAssembly;
 pub use writer::ProgramArchiveWriter;
 
 pub(crate) const MAGIC: &[u8] = b"FastSecDec\0indexed\x02";

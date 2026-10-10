@@ -111,7 +111,11 @@ where
                         .from_usize(2)
                         .pow(u64::from(bits.saturating_sub(5)))
                         .inv(),
-                    max_iterations: 256,
+                    // A finite work allowance, not a universal convergence
+                    // bound. Strict bracket refinement must also accommodate
+                    // the caller's high-precision domains (up to thousands of
+                    // bits), rather than retain an f64-sized iteration cap.
+                    max_iterations: (bits as usize).saturating_mul(4).max(256),
                     initial_guess: None,
                     convergence: BracketedRootConvergence::Bracket,
                 },
@@ -176,15 +180,37 @@ where
             output,
             options,
         } = &mut *scratch;
-        let answer = nsolve_bracketed(zero.clone(), one.clone(), options, |coordinate| {
-            input[0] = Complex::new(coordinate.clone(), coordinate.zero());
-            if evaluator.try_evaluate(input, output).is_err() {
-                return (T::invalid(self.bits), T::invalid(self.bits));
-            }
-            (output[0].re.clone(), output[1].re.clone())
-        })
-        .map_err(|error| format!("dynamic contour radius solver: {error}"))?;
-        if !answer.root.is_finite() || answer.root <= zero || answer.root > one {
+        let root = if self.helper.coefficient_count == 1 {
+            // H(u)=a2*u^2 has the positive solution 1/sqrt(a2). Reuse
+            // the native operation already used for the initial guess,
+            // including its tracked real uncertainty. The native complex
+            // correction below still supplies imaginary uncertainty.
+            options.initial_guess.as_ref().unwrap().clone()
+        } else {
+            let answer = nsolve_bracketed(zero.clone(), one.clone(), options, |coordinate| {
+                input[0] = Complex::new(coordinate.clone(), coordinate.zero());
+                if evaluator.try_evaluate(input, output).is_err() {
+                    return (T::invalid(self.bits), T::invalid(self.bits));
+                }
+                (output[0].re.clone(), output[1].re.clone())
+            });
+            answer.map_err(|error| {
+                format!(
+                "dynamic contour radius solver: {error}; domain {}, precision {}, rounded f64 centres: coefficients {:?}, safety {:?}, cap {:?}, initial {:?}, relative tolerance {:?}, iteration limit {}, last point {}, last value/derivative {:?}",
+                std::any::type_name::<T>(),
+                self.bits,
+                input[1..].iter().map(|value| value.re.to_f64()).collect::<Vec<_>>(),
+                scalar.as_ref().map(|value| value.re.to_f64()),
+                cap.as_ref().map(|value| value.re.to_f64()),
+                options.initial_guess.as_ref().map(RealLike::to_f64),
+                options.relative_tolerance.to_f64(),
+                options.max_iterations,
+                input[0].re.to_f64(),
+                output.iter().map(|value| value.re.to_f64()).collect::<Vec<_>>(),
+                )
+            })?.root
+        };
+        if !root.is_finite() || root <= zero || root > one {
             return Err(
                 "dynamic contour radius is nonpositive, nonfinite, or exceeds its cap".into(),
             );
@@ -192,12 +218,12 @@ where
         // The physical coefficient centres are real, but tracked zero-centred
         // imaginary parts can carry uncertainty. Native complex Newton
         // arithmetic retains that uncertainty without a second AD system.
-        input[0] = Complex::new(answer.root.clone(), zero.clone());
+        input[0] = Complex::new(root.clone(), zero.clone());
         evaluator
             .try_evaluate(input, output)
             .map_err(|error| error.to_string())?;
         let correction = output[0].clone() / &output[1];
-        let radius = Complex::new(answer.root, -correction.im);
+        let radius = Complex::new(root, -correction.im);
         let scalar = scalar.ok_or("missing dynamic safety fraction")?;
         let cap = cap.ok_or("missing dynamic strength cap")?;
         let strength = (scalar * cap) * radius;

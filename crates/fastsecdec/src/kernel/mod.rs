@@ -129,6 +129,8 @@ pub enum KernelLoadProgress {
 
 pub struct SectorKernel {
     contour_validation: Option<contour::SectorValidation>,
+    dynamic_history: (usize, u32),
+    dynamic_failure: Option<std::sync::Arc<contour::dynamic::failure::FailureContext>>,
     projection: Option<projection::OutputProjection>,
     cancellation: cancellation::Cancellation,
     precision: PrecisionPolicy,
@@ -166,6 +168,61 @@ struct RealKernel {
 }
 
 impl SectorKernel {
+    fn clear_dynamic_attempt(&mut self) {
+        match &mut self.backend {
+            Backend::Real(kernel) => {
+                if !kernel.evaluator.has_dynamic_callbacks() {
+                    return;
+                }
+                kernel.evaluator.clear_dynamic_attempt();
+                kernel.double_cache.clear_dynamic_attempt();
+                kernel.precision_cache.clear_dynamic_attempt();
+                kernel.conditioning.clear_dynamic_attempt();
+            }
+            Backend::Complex(kernel) => kernel.clear_dynamic_attempt(),
+        }
+    }
+
+    fn explain_dynamic_error(&self, error: KernelError) -> KernelError {
+        if !matches!(
+            error,
+            KernelError::NonFinite
+                | KernelError::PrecisionExhausted { .. }
+                | KernelError::PrecisionEvaluation(_)
+        ) {
+            return error;
+        }
+        let reason = match &self.backend {
+            Backend::Real(kernel) => kernel
+                .precision_cache
+                .last_dynamic_error
+                .as_deref()
+                .or(kernel.double_cache.last_dynamic_error.as_deref())
+                .or(kernel.evaluator.last_dynamic_error())
+                .or(kernel.conditioning.last_dynamic_error()),
+            Backend::Complex(kernel) => kernel.last_dynamic_error(),
+        };
+        if let Some(context) = &self.dynamic_failure {
+            let mut message = format!("unresolved deformation: {error}");
+            if let Some(reason) = reason {
+                message.push_str(&format!("; {reason}"));
+            }
+            if let Some(evidence) = context.describe(&self.input[..self.dimension()]) {
+                message.push_str(&format!("; {evidence}"));
+            }
+            return KernelError::Contour(message);
+        }
+        match reason {
+            Some(reason) => KernelError::Contour(format!("{error}; {reason}")),
+            None => error,
+        }
+    }
+    pub(in crate::kernel) fn exact_program(&self) -> &program::ExactProgram {
+        match &self.backend {
+            Backend::Real(kernel) => &kernel.exact_evaluator,
+            Backend::Complex(kernel) => kernel.exact_program(),
+        }
+    }
     /// Facts recorded from the actual complete-vector evaluator construction.
     /// Reading these records never constructs or executes an evaluator.
     pub fn statistics(&self) -> &EvaluatorStatistics {
@@ -223,7 +280,9 @@ impl SectorKernel {
             });
         }
         let before = self.evaluation_metrics();
-        let mut report = self.evaluate_scaled_inner(point, output, weight, primary)?;
+        let mut report = self
+            .evaluate_scaled_inner(point, output, weight, primary)
+            .map_err(|error| self.explain_dynamic_error(error))?;
         report.timings = self.evaluation_metrics().since(before);
         Ok(report)
     }
@@ -259,6 +318,7 @@ impl SectorKernel {
         if let Some(validation) = &mut self.contour_validation {
             validation.validate(point)?;
         }
+        self.clear_dynamic_attempt();
         self.input[..point.len()].copy_from_slice(point);
         if self.stability.mode == StabilityMode::Distance {
             let class = self.routing.class(point);
@@ -318,24 +378,26 @@ impl SectorKernel {
                 *target = ErrorPropagatingFloat::new(*value, 15.0);
             }
             let started = std::time::Instant::now();
-            conditioning.evaluate(&backend.check_input, &mut backend.check_output);
+            let callback_failed =
+                conditioning.evaluate_at(&backend.check_input, &mut backend.check_output, point);
             backend.conditioning_timing.record(started);
-            let stable = backend
-                .check_output
-                .iter()
-                .zip(output.iter())
-                .zip(&self.exact_zero)
-                .all(|((checked, compiled), zero)| {
-                    if *zero {
-                        return *compiled == 0.0;
-                    }
-                    let value = checked.to_f64() * weight;
-                    let tolerance = self.precision.absolute_tolerance
-                        + self.precision.relative_tolerance * value.abs();
-                    value.is_finite()
-                        && checked.get_absolute_error() * weight <= tolerance
-                        && (value - compiled).abs() <= tolerance
-                });
+            let stable = !callback_failed
+                && backend
+                    .check_output
+                    .iter()
+                    .zip(output.iter())
+                    .zip(&self.exact_zero)
+                    .all(|((checked, compiled), zero)| {
+                        if *zero {
+                            return *compiled == 0.0;
+                        }
+                        let value = checked.to_f64() * weight;
+                        let tolerance = self.precision.absolute_tolerance
+                            + self.precision.relative_tolerance * value.abs();
+                        value.is_finite()
+                            && checked.get_absolute_error() * weight <= tolerance
+                            && (value - compiled).abs() <= tolerance
+                    });
             if stable {
                 return Ok(PrecisionReport {
                     rescued: false,
@@ -385,11 +447,12 @@ impl SectorKernel {
                 actual: point.len(),
             });
         }
+        self.clear_dynamic_attempt();
         self.input[..point.len()].copy_from_slice(point);
         let point = self.input.as_slice();
         let mut policy = self.precision.clone();
         policy.initial_bits = policy.initial_bits.max(minimum_bits);
-        match &mut self.backend {
+        let result = match &mut self.backend {
             Backend::Real(kernel) => precision::rescue(
                 &kernel.exact_evaluator,
                 &mut kernel.precision_cache,
@@ -400,12 +463,15 @@ impl SectorKernel {
                 weight,
             ),
             Backend::Complex(kernel) => kernel.replay_scaled(point, output, weight, &policy),
-        }
+        };
+        result.map_err(|error| self.explain_dynamic_error(error))
     }
 
     /// Clone native evaluator state and buffers for an independently owned worker.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            dynamic_history: (0, 0),
+            dynamic_failure: self.dynamic_failure.clone(),
             contour_validation: self
                 .contour_validation
                 .as_ref()
@@ -444,6 +510,7 @@ pub struct KernelSet {
     program_descriptor: Option<NativeProgramDescriptor>,
     contour_checks: Vec<contour::CheckProgram>,
     contour_binding: Option<contour::ContourBinding>,
+    dynamic_pilot: contour::dynamic::runtime::PilotOwners,
     compilation_settings: CompilationSettings,
     stability: StabilitySettings,
     runtime_parameters: Vec<Symbol>,
@@ -455,6 +522,7 @@ pub struct KernelSet {
     components: Vec<crate::status::CoefficientComponent>,
     precision: PrecisionPolicy,
     exact_expressions: Vec<Atom>,
+    exact_requests: Vec<crate::contour::functions::dynamic::requests::ExactRequest>,
     content_id: String,
     orders: Vec<i32>,
     sectors: Vec<SectorKernel>,
@@ -470,6 +538,7 @@ impl KernelSet {
             program_descriptor: self.program_descriptor.clone(),
             contour_checks: self.contour_checks.clone(),
             contour_binding: self.contour_binding.clone(),
+            dynamic_pilot: Default::default(),
             compilation_settings: self.compilation_settings,
             stability: self.stability.clone(),
             runtime_parameters: self.runtime_parameters.clone(),
@@ -481,6 +550,7 @@ impl KernelSet {
             components: self.components.clone(),
             precision: self.precision.clone(),
             exact_expressions: self.exact_expressions.clone(),
+            exact_requests: self.exact_requests.clone(),
             content_id: self.content_id.clone(),
             orders: self.orders.clone(),
             sectors: self
@@ -525,6 +595,11 @@ impl KernelSet {
         &mut self,
         values: &std::collections::BTreeMap<Symbol, f64>,
     ) -> Result<(), KernelError> {
+        if self.program_recipe().is_dynamic() {
+            return Err(KernelError::Parameters(
+                "dynamic contour inputs require bind_parameters_with_contour".into(),
+            ));
+        }
         if self.contour_capable() {
             let mut physics = values.clone();
             let lambda = physics
@@ -552,6 +627,25 @@ impl KernelSet {
         if let Some(descriptor) = &self.program_descriptor {
             descriptor.admit_runtime()?;
         }
+        let ordered = self.ordered_runtime_parameters(values)?;
+        if self.runtime_parameters.is_empty() {
+            return Ok(());
+        }
+        let _preparing = NativeProgramDescriptor::enter_optional(self.program_descriptor.as_ref());
+        let exact_coefficients = exact::evaluate(
+            &self.exact_expressions,
+            values,
+            self.components
+                .contains(&crate::status::CoefficientComponent::Imag),
+        )?;
+        self.commit_runtime_parameters(&ordered, exact_coefficients);
+        Ok(())
+    }
+
+    fn ordered_runtime_parameters(
+        &self,
+        values: &std::collections::BTreeMap<Symbol, f64>,
+    ) -> Result<Vec<f64>, KernelError> {
         if let Some(lambda) = values.get(&crate::contour::lambda_symbol())
             && (!lambda.is_finite() || *lambda <= 0.0)
         {
@@ -580,19 +674,13 @@ impl KernelSet {
             })
             .collect::<Result<Vec<_>, _>>()?;
         self.validate_runtime_masses_at(values)?;
-        if self.runtime_parameters.is_empty() {
-            return Ok(());
-        }
-        let _preparing = NativeProgramDescriptor::enter_optional(self.program_descriptor.as_ref());
-        let exact_coefficients = exact::evaluate(
-            &self.exact_expressions,
-            values,
-            self.components
-                .contains(&crate::status::CoefficientComponent::Imag),
-        )?;
+        Ok(ordered)
+    }
+
+    fn commit_runtime_parameters(&mut self, ordered: &[f64], exact_coefficients: Vec<f64>) {
         for sector in &mut self.sectors {
             let dimension = sector.dimension();
-            sector.input[dimension..].copy_from_slice(&ordered);
+            sector.input[dimension..].copy_from_slice(ordered);
             sector.parameters_bound = true;
         }
         self.exact_coefficients = exact_coefficients;
@@ -606,7 +694,6 @@ impl KernelSet {
             hash.update(&value.to_bits().to_le_bytes());
         }
         self.content_id = hash.finalize().to_hex().to_string();
-        Ok(())
     }
     /// Legacy version-one artifacts have no retained generation metadata.
     pub fn generation_metadata(&self) -> Option<&crate::generation::GenerationMetadata> {

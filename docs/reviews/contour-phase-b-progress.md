@@ -12,13 +12,16 @@ or the required physical multiloop tests.
 | Caller-owned execution | Real CLI tests cover ordinary/serial generation and integration, all validation policies, cancellation during preflight, exact offsets and policy-only resume. |
 | Independent physical references | Above-threshold B0, C0 and D0 agree with native HEPKit/OneLOop in both generation modes. Full fixed-mode 400 GeV ggHH agrees with HEPKit and MadLoop at 0.39 standard errors, with relative uncertainty `2.96355e-4`, pole cancellations and Ward checks. Physical double box and required LTD cases remain pending. |
 | Fixed milestone native regression suite | At `f2c2d930`, **730 distinct enabled tests passed; 29 were ignored**: 245 core scientific/integration tests, 252 library tests and 233 CLI/QMC/sector tests. Results for the subsequent dynamic generation increment are recorded separately below. Ignored tests are not acceptance evidence. |
-| Strict lint gate | At `669ebfe`, `cargo clippy --workspace --all-targets --locked -- -D warnings` passed. The current runtime/family increment needs its own final lint gate after integration. |
-| Dynamic algebra | Polynomial and sign-aware recipe generation apply the full local-strength map before subtraction. Analytic complex Laurent controls now execute both symbolic and actual native numerical-dual evaluators, including repeated endpoint poles and Taylor/IBP. Certified dynamic runtime admission remains pending. |
-| Dynamic numerical root | Native callback/implicit-jet and restoration foundations pass. Owner tests cover prepared eager/JIT solves, tracked hypot, certified square roots and portable domains. An independent enclosure probe passed 2,620 cases at 8/24/96/256 bits. Production checker integration remains pending. |
+| Current native library gate | On `516beb37`, the complete library suite passes **366 tests, with 18 ignored**, in 27.22 seconds of test execution. An initial stale v10 assertion was updated and strengthened to restore/evaluate the actual v11 record after original-owner drops. No numerical tolerance or production behavior was changed for that correction. |
+| Current CLI and broad native gates | On the same owner selection, core/QMC/sector tests pass **692 tests, with 24 explicitly ignored**, across 59 executables; this includes the library and public dynamic controls above. All CLI targets pass **168 tests, with 8 ignored**, across 26 executables. The distinct total is **860 passed, 32 ignored**. The actual-process dynamic matrix covers both constructions, ordinary/serial execution, all validation policies and checkpoint admission. |
+| Strict lint gate | The current `cargo clippy --workspace --all-targets --locked -- -D warnings` gate passes in 27.23 seconds after equivalent let-chain/type-alias and test-comparison style corrections. Final family **8/8** and dynamic **20/20** focused tests, workspace formatting and staged whitespace checks pass. No numerical algorithm or tolerance changed. |
+| Dynamic algebra | Public analytic admission passes for both constructions, symbolic/numerical-dual generation, Taylor/IBP, repeated endpoint poles and complete complex vectors. The three-test public suite retains its original tolerances; physical multiloop acceptance remains pending. |
+| Dynamic numerical root | The current 23-test callback gate covers implicit jets, tracked uncertainty, duplicate/conflicting observations, high precision and restoration. The 18-test binding lifecycle gate and public bubble policy/branch control pass. Independent enclosure probes and owner tests provide additional evidence; broad current regression and physical tests remain pending. |
 | Recipe-addressable artifacts | Ordinary and serial generation now publish the same native v2 archive. Internal family orchestration shares source preparation and retains recipe-local symmetry/formulas, with actual-process recovery tests. Public family selection and dynamic admission remain pending; ordinary/serial integration, covariance, selective inspection and checkpoint isolation pass for undeformed/fixed programs. |
-| Portable execution | The full maintained standalone portable suite passes **73 tests, zero failures or ignored**, with ordinary `--locked` Cargo on the final public source matrix. This includes fixed threshold bubbles in both generation modes, all complex Laurent components, certified pilot/production validation, fresh-process restoration, covariance and checkpoint/replay controls. Native portable execution is not an actual browser/WASM run. |
-| HEPKit/Python | The refreshed full-default private Community wheel built from fixed milestone `f2c2d930` passes **8 contour tests, 210 maintained binding/demo/notebook/wavefunction tests, and 6 owner compatibility controls**. The independent standalone binding check also passes for the subsequent generation selector increment. The wheel does not contain that dynamic increment; latest Community `9a65` and actual WASM execution remain separate gates. |
-| Variance and performance | [Matched-work protocol](contour-variance-protocol.md) and fixed/fixed executable control verify matching actual coordinates/weights, separate result identities and complete covariance. No dynamic production variance gain has been measured or claimed. |
+| Portable and WASM execution | The refreshed standalone portable suite on Symbolica/Numerica `516beb37` passes **76 tests, zero failures or ignored**. The same three public dynamic controls also pass under actual Rust WASM/Emscripten/Node, with original quadrature and tolerances, including generation, restoration, pilots and policies. Browser/Pyodide-wheel and WASM family-storage execution remain separate gates. |
+| HEPKit/Python | The earlier fixed `f2c2d930` full-default private wheel passes **8 contour, 210 maintained binding/demo/notebook/wavefunction and 6 owner compatibility controls**. Current dynamic/family Rust bindings and stub generation pass check and binding-only strict Clippy on `516beb37`. The full-default Community `9a65` overlay passes locked metadata, unique-owner admission and its consuming native library check (4m57s). Installed dynamic Python/browser-wheel tests remain pending. |
+| Variance and performance | The [matched-work controls](contour-variance-protocol.md) now execute two fixed strengths and both dynamic constructions over eight independent seed pairs, with verified actual coordinates and full covariance. The 2D control has a median 1.375× variance gain against fixed 0.25, but no time-efficiency gain. Bubble variances reach floating-point noise. Physical/eight-worker comparisons remain pending. |
+| Initial dynamic physical controls | The [400 GeV one-loop box](contour-dynamic-physical-readiness.md) with explicit cap `1e-5` reaches the requested accuracy and agrees with the complete native Laurent reference. Its default-cap coarse comparison fails despite successful causal checks. The [nonlinear scaled-cube control](contour-dynamic-scaling-control.md) independently exposes strong cap-dependent variance with matching actual points/weights. Default physical behavior, complete amplitude and required multiloop acceptance remain unresolved. |
 
 The sign-aware generation milestone's publicly reproducible source matrix is Symbolica/Numerica
 `7ec1be45ef92ae3b154e0d4ce754c0bdf3d9d0ca`, SymJIT
@@ -66,9 +69,26 @@ and numeric tracking. Independent review, eight new tests and fifteen existing
 evaluation tests pass on both the upstream PR base and the combined consumer
 revision `1e1cb169bec35ed3b8536050f789321f063a2047` (one existing stress test
 ignored). The three maintained consumer manifests/lockfiles now select that
-revision and pass locked metadata/unique-owner checks. This records owner and
-dependency-resolution evidence; the new FastSecDec runtime build and checked
-exact-offset integration remain pending.
+revision and pass locked metadata/unique-owner checks. The new native all-target
+check passes. Focused checked exact-offset, recipe and artifact gates pass
+10, 17 and 45 tests respectively (the latter two each have one child-only
+ignored entry). These include actual saved-record exact cancellations.
+After correcting a redundant comparison of equivalent symbol spellings, all
+18 dynamic tests pass, including the complete restored binding, actual pilot,
+policy remapping and atomic-rebind gate on eager and SymJIT owners.
+Public dynamic analytic admission subsequently passes three tests, including
+eight endpoint combinations at their original 8,192-point tolerances and the
+complex threshold-bubble policy/branch control. The callback gate passes 23
+tests and empty/zero-dimensional generation four. Native repeated callback
+observations are now admitted only when their exact candidates and precision
+agree. A separate owner CSE fix is published as
+[Symbolica PR #60](https://github.com/symbolica-dev/symbolica/pull/60); it is not
+yet part of these consumer measurements. The native quadratic root shortcut
+and precision-scaled higher-degree iteration budget fix an observed
+3,322-bit solve exhaustion without weakening convergence. Variance comparisons
+include two fixed strengths to avoid crediting dynamic mode for merely beating
+a poorly chosen fixed value. See the
+[runtime integration audit](contour-runtime-integration-audit.md).
 
 On the development source before that dependency increment, the saved dynamic
 checker/attempt gate passes eleven tests, the recipe gate passes sixteen plus

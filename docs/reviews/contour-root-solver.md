@@ -130,8 +130,10 @@ O2. Coefficients change between solves; symbolic differentiation, Horner/CPE,
 coefficient mapping and JIT construction occur before refinement. Tiny positive
 quadratic roots use a supplied scale-aware initial guess. The only library
 build warning was the pre-existing unused export result in `src/atom.rs`.
-Measured production runtime, consuming FastSecDec integration and actual WASM
-execution remain pending.
+At that owner-probe checkpoint, measured production runtime, consuming FastSecDec
+integration and actual WASM execution remained pending. The consuming native
+eager and SymJIT higher-jet controls subsequently passed, as recorded below;
+actual WASM execution and final dynamic-production timing remain separate gates.
 
 A subsequent 100,000-case prepared JIT microprobe exposed a rounded Newton
 candidate one ULP outside a bracket that had already met tolerance. The initial
@@ -157,3 +159,21 @@ The runtime and generation agents independently reviewed the implementation.
 Their requested strict/heuristic distinction and tracked center/endpoint controls
 are included. No source-review blocker remains. The authorized publication is
 recorded above; these owner controls do not establish Phase B completion.
+
+## Consuming requested-vector controls, 2026-10-10
+
+The combined FastSecDec generation-program filter passes ten tests, including
+complete higher-endpoint Laurent vectors through native eager and actual SymJIT
+evaluators. The tests retain the strict duplicate-root observation guard and
+check the emitted request counts: two distinct requests for Taylor and three
+for IBP in the selected control. Native higher jets and all Laurent outputs
+share each required root within its actual coordinate/face request.
+
+An initial IBP failure identified a diagnostic identity mismatch: equal symbolic
+radii at two endpoint faces shared a union identity, while numerical-dual
+subtraction evaluates separate face programs. The corrected native dual lowering
+uses each actual face's subset identity; symbolic roots genuinely merged before
+subtraction retain their union identity. This was not an evaluator CSE defect,
+and the fix does not suppress duplicate detection or add a sampling cache. The
+dedicated actual-face regression also passes. Dynamic production admission and
+saved exact-vector binding are still separate, unfinished integration gates.

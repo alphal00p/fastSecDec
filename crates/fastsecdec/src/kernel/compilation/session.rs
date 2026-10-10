@@ -8,6 +8,8 @@ pub struct CompilationSession {
     precision: PrecisionPolicy,
     settings: CompilationSettings,
     use_complex: bool,
+    dynamic: Option<PreparedDynamic>,
+    prepared: bool,
     owner: Arc<()>,
     sectors: Vec<SectorKernel>,
     result: Option<KernelSet>,
@@ -34,6 +36,8 @@ impl CompilationSession {
             precision,
             settings,
             use_complex,
+            dynamic: None,
+            prepared: false,
             owner: Arc::new(()),
             sectors: Vec::new(),
             result: None,
@@ -99,6 +103,18 @@ impl CompilationSession {
             if progress(&event).is_break() {
                 return Ok(false);
             }
+            if !self.prepared {
+                match PreparedDynamic::build(&self.generated, &self.runtime, self.settings) {
+                    Ok(dynamic) => {
+                        self.dynamic = dynamic;
+                        self.prepared = true;
+                    }
+                    Err(error) => {
+                        self.failed = Some(error.to_string());
+                        return Err(error);
+                    }
+                }
+            }
             let result = if self.sectors.len() < self.total_sectors() {
                 let index = self.sectors.len();
                 CompilationJob {
@@ -106,6 +122,7 @@ impl CompilationSession {
                     program_descriptor: self.generated.sectors()[index]
                         .program_descriptor()
                         .cloned(),
+                    request_lookup: self.dynamic.as_ref().map(|value| value.lookup.clone()),
                     index,
                     sector: self.generated.sectors()[index].clone(),
                     runtime_parameters: self.runtime.clone(),
@@ -119,7 +136,10 @@ impl CompilationSession {
                 KernelSet::finish(
                     self.generated.orders().to_vec(),
                     std::mem::take(&mut self.sectors),
-                    self.generated.exact_coefficients().to_vec(),
+                    self.dynamic.as_ref().map_or_else(
+                        || self.generated.exact_coefficients().to_vec(),
+                        |value| value.exact.clone(),
+                    ),
                     self.precision.clone(),
                     Some(self.generated.metadata().clone()),
                     self.use_complex,
@@ -127,7 +147,16 @@ impl CompilationSession {
                     self.settings,
                 )
                 .and_then(|mut kernels| {
-                    kernels.attach_program_descriptor(self.generated.program_descriptor())?;
+                    kernels.exact_requests = self
+                        .dynamic
+                        .as_ref()
+                        .map_or_else(Vec::new, |value| value.exact_requests.clone());
+                    kernels.attach_program_descriptor(
+                        self.dynamic
+                            .as_ref()
+                            .map(|value| &value.descriptor)
+                            .or(self.generated.program_descriptor()),
+                    )?;
                     kernels.initialize_artifact()?;
                     self.result = Some(kernels);
                     self.complete = true;

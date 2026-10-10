@@ -179,6 +179,9 @@ impl RootProgram {
     pub(crate) fn coefficient_count(&self) -> usize {
         self.0.coefficient_count
     }
+    pub(crate) fn exact_program(&self) -> &Exact {
+        &self.0.exact
+    }
     pub(crate) fn bytes(&self) -> &[u8] {
         &self.0.bytes
     }

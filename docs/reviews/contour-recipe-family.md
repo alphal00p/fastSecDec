@@ -1,8 +1,10 @@
 # Universal recipe-family generation
 
-Implementation and independent source reviews pass. The public contour switch
-still requests the fixed recipe only. Dynamic recipe storage is not dynamic
-runtime admission.
+Implementation and independent source reviews pass. Public singleton generation
+now accepts all four native recipe identifiers, and dynamic runtime admission
+passes the native scientific and CLI process controls recorded below. The
+generation `--contour` switch still requests the fixed recipe only; exposing the
+complete capability family remains a separate delivery step.
 
 ## Shared caller-owned orchestration
 
@@ -40,7 +42,7 @@ human inspection preview under the matching recipe key. Selecting another
 recipe never borrows that preview. Deep inspection continues to use the native
 selected-record reader.
 
-## Acceptance controls
+## Earlier family-publication acceptance controls
 
 The CLI all-target compilation check passes. Independent runtime-owner review
 confirmed the family/default resume fences, recipe-local job and formula
@@ -79,7 +81,7 @@ offline inspection, and killed-coordinator recovery. Combined CLI evidence is
 workspace formatting check pass. The native whole-library gate independently
 passes 297 tests with 16 ignored; the portable suite passes 73 tests.
 
-## Next public-interface dependency
+## Public-interface dependency at the earlier checkpoint
 
 The native single-recipe `GeneratedIntegral`, `GenerationSession`, compilation
 jobs and `KernelSet` remain the inner owners. A caller-driven native family
@@ -96,3 +98,64 @@ while other completed recipes can be serialized and released. This requires a
 narrow `main` Run call-site change alongside the future native family owner.
 None of these future public changes are advertised by this checkpoint; the
 existing public contour flag still requests a fixed singleton.
+
+## Earlier guarded runtime steering follow-up
+
+The CLI now resolves the requested native recipe before any parametrization or
+worker launch. The ordinary `run` path carries the requested resident recipe
+explicitly, independently of the artifact default; the current public singleton
+capability refuses a missing recipe rather than generating a substitute. The
+future native family owner can use this argument to retain an existing compiled
+owner without reload. Public generation still admits only fixed/undeformed
+singletons; parsing dynamic settings does not open dynamic numerical execution.
+
+Dynamic steering uses native `ContourMode` and `DynamicConstruction`, including
+native defaults and range checks. Partial runtime overlays preserve same-mode
+caps. An explicit change of the contour mode replaces only fields belonging to
+the previous deformation variant, allowing native unknown-field checks to reject
+misspelled new fields without retaining obsolete fields from another mode. Hidden
+CLI cap/construction flags remain unadvertised until runtime admission is complete.
+
+The focused all-target CLI check passes, as do six contour steering unit tests
+and one actual subprocess admission test covering ordinary/serial requested-mode
+errors before deliberately missing model/graph inputs are accessed. The runtime
+owner independently reviewed the parser, overlay replacement, resident admission
+and native recipe mapping and found no blocker. Broader public CLI regression
+coverage remains part of the next combined milestone gate.
+
+## Public singleton runtime acceptance (2026-10-10)
+
+The native `RecipeFamilySession` now supplies caller-owned family execution and
+optional resident retention; its lifecycle and storage evidence is recorded in
+[the native family review](contour-native-family.md). Public singleton CLI
+generation accepts `--recipe undeformed-v1`, `fixed-v1`,
+`dynamic-polynomial-v1`, or `dynamic-sign-aware-v1` through the native parser.
+Explicit `--recipe` conflicts with `--contour`, and overrides a card's legacy
+contour selection. Existing ordinary thread scheduling and serial process
+scheduling remain intact. `run --contour dynamical=<S>` requests the matching
+native resident recipe, with caps and construction validated by native settings.
+
+On the public `516beb37` Symbolica/Numerica and `d74993ff` SymJIT graph, the full
+CLI all-target suite passes: 168 passed and eight explicitly ignored across 26
+executables. Its two new dynamic subprocess tests pass in 14.34 seconds. They
+cross both dynamic recipes, ordinary/serial generation and integration, both
+generation modes, and Always/Pilot/Off policies. The complete complex Laurent
+vector is compared with the bubble's analytic result; policy changes preserve
+the sampled means. Checked-to-Off resume with a changed pilot-point count keeps
+prior evidence without adding production checks. Changing S, lambda cap or
+displacement cap rejects the checkpoint without modifying it. Requesting the
+opposite construction from a singleton archive is rejected as a missing recipe;
+that control does not claim a full-family construction-change checkpoint test.
+
+The same suite exercises the real `run` path, malformed settings before input
+work, fixed compatibility, recipe-local inspection and durable cancellation/
+recovery. The broad native core/QMC/sectors test gate passes 692 tests with 24
+explicit ignores across 59 executables, including the library's 366 passes and
+the three public dynamic scientific controls. Together with CLI this is 860
+distinct passes and 32 ignores. Strict workspace all-target Clippy passes on the
+final source; its fixes only simplify a condition, name tuple types and avoid
+two test comparison allocations. The standalone portable host gate passes 76
+tests, and the three public dynamic controls also pass in actual Emscripten/Wasm.
+Full `generate --contour` capability generation and ordinary family worker
+dispatch remain pending, with artifact default and requested resident kept
+distinct. Undeformed generation continues to use the direct singleton path.

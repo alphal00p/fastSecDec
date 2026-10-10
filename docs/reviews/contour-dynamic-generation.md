@@ -1,7 +1,11 @@
 # Selected dynamic recipe generation and ownership
 
-2026-10-09. This slice prepares one selected mathematical program. It does not
-enable dynamic production integration or claim the complete Phase B delivery.
+Historical foundation record, 2026-10-09, followed by dated acceptance updates
+below. That initial slice prepared one selected mathematical program without
+enabling dynamic production. Both dynamic constructions now pass the public
+analytic gate, including empty/zero-dimensional inputs; see the final sections
+and [the current milestone audit](contour-dynamic-milestone-audit.md). Physical
+dynamic execution and complete Phase B acceptance remain pending.
 
 ## Native boundary and reuse
 
@@ -19,11 +23,11 @@ or determinant implementation was added. Factored residuals remain native Atoms.
 The complete chart's positive factors are discovered before its envelope;
 subtraction faces restrict the same map and structural counts.
 
-The sign-aware selector currently reports an explicit unsupported error because
-its cancellation-resistant positive-part runtime callback is still pending.
-An empty dynamic input also reports an explicit admission error pending its
+At this initial milestone the sign-aware selector reported an explicit
+unsupported error because its cancellation-resistant positive-part runtime
+callback was still pending. An empty dynamic input also reported an explicit admission error pending its
 empty-recipe handling. Neither case silently selects another recipe. The native
-kernel runtime continues to reject dynamic production pending its complete
+kernel runtime then rejected dynamic production pending its complete
 certified checker and scientific gates.
 
 ## Ownership and staging
@@ -100,3 +104,70 @@ persists its sector and releases it. Caller-retained ordinary generation
 semantics remain explicit. Complete multi-recipe CLI orchestration, optimized
 dynamic checking programs, sign-aware production, certified runtime admission,
 and fixed/dynamic variance measurements remain pending.
+
+## Empty and zero-dimensional admission update — 2026-10-10
+
+The historical empty-input restriction above is now removed through explicit
+native recipe ownership. A chart-free dynamic generation result receives an
+empty `NativeProgramDescriptor` only when it has no stochastic sectors, no
+checking sources and exclusively literal zero exact coefficients. Compilation
+then supplies an explicit empty saved-certificate set. There is no dummy radius,
+fabricated causal factor or inferred scaleless contribution.
+
+A genuinely zero-dimensional nonzero input still follows normal mapping and
+retains its actual causal-factor metadata and exact value. The control with
+prefactor 3 and constant F=2 at power -1 produces 3/2. Identically zero singular
+denominators remain rejected by native input admission, including when their
+prefactor is zero; an explicit zero prefactor with a valid denominator may
+produce the ordinary empty exact result.
+
+The focused empty filter passed **4/4 tests**, covering both dynamic recipes and
+both generation modes through direct, cooperative and streamed generation,
+native compilation, binary restoration and `always` binding. Root-free results
+require no sampled pilot arguments and retain their selected mathematical recipe.
+The existing fixed-empty regression also passes. Evidence is
+`target/contour-dynamic-empty-tests.log`. These controls do not replace the
+separate public endpoint, threshold and physical dynamic-contour gates.
+
+## Public dynamic scientific gate — 2026-10-10
+
+`crates/fastsecdec/tests/contour_dynamic.rs` now exercises the ordinary public
+generation, compilation, binary restoration, runtime binding and evaluation
+interfaces. All **3 tests passed, with none ignored, in 1.75 seconds** against
+the current native owner dependencies. The log is
+`target/contour-dynamic-public-analytic-root-fix.log`.
+
+The endpoint controls evaluate the complete complex Laurent vector of
+`(1+i) x^(-a-eps)/(1-2x-i0)` for a=1 and a=3. Polynomial/symbolic/Taylor,
+polynomial/numerical-dual/IBP, sign-aware/symbolic/IBP and
+sign-aware/numerical-dual/Taylor give the independent references obtained from
+the native-verified recurrence `J_a=1/(1-a-eps)+2 J_(a-1)`:
+
+- `J_1=-1/eps+i*pi+O(eps)`;
+- `J_3=-4/eps-5/2+4*i*pi+O(eps)`.
+
+The test multiplies the full reference vector by `1+i`, completes checked
+preflight and then integrates restored native evaluators on 8192 identical
+midpoint coordinates with production validation off. All eight combinations
+passed their original declared tolerances; no tolerance was loosened. This
+includes actual native deferred numerical-dual execution and higher endpoint
+derivatives through the public kernel interface.
+
+The threshold control uses `(1/eps) integral (1-5x(1-x)-i0)^(-eps) dx`. With
+`beta=sqrt(1/5)`, its pole is real 1 and finite term is
+`2-beta*log((1+beta)/(1-beta))+i*pi*beta`. Both constructions pass; native
+`always`, `pilot` and `off` preserve identical sample values and mathematical
+identity, while only `always` increments production validation counts. The
+stationary point x=1/2 explicitly exercises the negative-real causal lower lip.
+
+The first higher-pole attempt exposed a 3322-bit strict native root refinement
+being limited to 256 iterations. The corrected runtime uses the exact native
+reciprocal-square-root solution for a structurally quadratic envelope and a
+precision-scaled finite allowance for genuinely higher-degree envelopes.
+Independent owner/native tests retain tracked uncertainty, higher-degree
+zero-centred coefficient slots and strict bracket termination. This correction
+changes numerical execution, not the generated mathematical integrand.
+
+These analytic controls establish the first public dynamic admission gate. They
+do not establish full physical one-/two-/three-loop validation, portable/WASM
+execution of this new gate, or a general variance/performance advantage.

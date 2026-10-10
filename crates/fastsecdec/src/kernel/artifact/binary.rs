@@ -1,5 +1,6 @@
 //! Native context-aware binserde caches. JSON presentation has no program bytes.
 use super::{native, validate_orders};
+use crate::contour::functions::dynamic::requests::{ExactRequest, merge_exact_requests};
 use crate::{
     kernel::{
         CompilationSettings, KernelError, KernelLoadOptions, KernelSet, PrecisionPolicy,
@@ -21,6 +22,7 @@ mod tests;
 pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
 pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x09";
 const MAGIC_V10: &[u8] = b"FastSecDec\0binserde\x0a";
+const MAGIC_V11: &[u8] = b"FastSecDec\0binserde\x0b";
 const MAGIC_V8: &[u8] = b"FastSecDec\0binserde\x08";
 const MAGIC_V7: &[u8] = b"FastSecDec\0binserde\x07";
 const MAGIC_V6: &[u8] = b"FastSecDec\0binserde\x06";
@@ -66,6 +68,67 @@ struct PayloadV10 {
     base: Payload,
     #[bincode(with_serde)]
     descriptor: crate::kernel::recipe::SavedProgramDescriptor,
+}
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV11 {
+    base: Payload,
+    #[bincode(with_serde)]
+    descriptor: crate::kernel::recipe::SavedProgramDescriptorV2,
+    exact_requests: Vec<ExactRequest>,
+}
+
+enum SavedDescriptor {
+    V10(crate::kernel::recipe::SavedProgramDescriptor),
+    V11(crate::kernel::recipe::SavedProgramDescriptorV2),
+}
+impl SavedDescriptor {
+    fn from_native(value: &crate::kernel::NativeProgramDescriptor) -> Result<Self, KernelError> {
+        if value.certificates().is_some() {
+            Ok(Self::V11(
+                crate::kernel::recipe::SavedProgramDescriptorV2::from_native(value)?,
+            ))
+        } else {
+            Ok(Self::V10(
+                crate::kernel::recipe::SavedProgramDescriptor::from_native(value),
+            ))
+        }
+    }
+    fn identity(
+        &self,
+        payload: &Payload,
+        exact_requests: &[ExactRequest],
+    ) -> Result<String, KernelError> {
+        match self {
+            Self::V10(descriptor) => {
+                if !exact_requests.is_empty() {
+                    return Err(failure(
+                        "legacy descriptor cannot store exact root associations",
+                    ));
+                }
+                semantic_id_v10(payload, descriptor)
+            }
+            Self::V11(descriptor) => {
+                let mut hash = blake3::Hasher::new();
+                hash.update(b"fastsecdec-native-semantic-v11\0");
+                hash.update(semantic_id(payload, 9)?.as_bytes());
+                serde_json::to_writer(&mut hash, descriptor)?;
+                for request in exact_requests {
+                    serde_json::to_writer(
+                        &mut hash,
+                        &(request.root.to_canonical_string(), &request.bundle),
+                    )?;
+                }
+                Ok(hash.finalize().to_hex().to_string())
+            }
+        }
+    }
+    fn restore(self) -> Result<crate::kernel::NativeProgramDescriptor, KernelError> {
+        match self {
+            Self::V10(value) => value.restore(),
+            Self::V11(value) => value.restore(),
+        }
+    }
 }
 #[derive(Encode, Decode)]
 #[bincode(decode_context = "StateMap")]
@@ -329,13 +392,28 @@ fn semantic_id_v10(
 fn encode(payload: Payload) -> Result<(String, Vec<u8>), KernelError> {
     encode_with_descriptor(payload, None)
 }
+#[cfg(test)]
 fn encode_with_descriptor(
     payload: Payload,
-    descriptor: Option<crate::kernel::recipe::SavedProgramDescriptor>,
+    descriptor: Option<SavedDescriptor>,
+) -> Result<(String, Vec<u8>), KernelError> {
+    encode_with_requests(payload, descriptor, Vec::new())
+}
+fn encode_with_requests(
+    payload: Payload,
+    descriptor: Option<SavedDescriptor>,
+    exact_requests: Vec<ExactRequest>,
 ) -> Result<(String, Vec<u8>), KernelError> {
     let content_id = match &descriptor {
-        Some(descriptor) => semantic_id_v10(&payload, descriptor)?,
-        None => semantic_id(&payload, 9)?,
+        Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
+        None => {
+            if !exact_requests.is_empty() {
+                return Err(failure(
+                    "exact root associations require a native v11 descriptor",
+                ));
+            }
+            semantic_id(&payload, 9)?
+        }
     };
     let mut symbols = Atom::Zero.get_all_symbols(true);
     let mut collect = |atom: &Atom| {
@@ -343,6 +421,9 @@ fn encode_with_descriptor(
     };
     for atom in &payload.exact {
         collect(atom);
+    }
+    for request in &exact_requests {
+        collect(&request.root);
     }
     for constraint in &payload.runtime_mass_constraints {
         collect(&constraint.expression);
@@ -360,12 +441,24 @@ fn encode_with_descriptor(
     let mut state = Vec::new();
     State::export_partial(&mut state, symbols).map_err(failure)?;
     let (magic, payload) = match descriptor {
-        Some(descriptor) => (
+        Some(SavedDescriptor::V10(descriptor)) => (
             MAGIC_V10,
             bincode::encode_to_vec(
                 PayloadV10 {
                     base: payload,
                     descriptor,
+                },
+                bincode::config::standard(),
+            )
+            .map_err(failure)?,
+        ),
+        Some(SavedDescriptor::V11(descriptor)) => (
+            MAGIC_V11,
+            bincode::encode_to_vec(
+                PayloadV11 {
+                    base: payload,
+                    descriptor,
+                    exact_requests,
                 },
                 bincode::config::standard(),
             )
@@ -388,7 +481,7 @@ fn encode_with_descriptor(
     Ok((content_id, bytes))
 }
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
-    encode_with_descriptor(
+    encode_with_requests(
         Payload {
             codec: CODEC.into(),
             compiler_policy: native::compiler_policy_with_settings(kernels.compilation_settings),
@@ -427,7 +520,9 @@ pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelE
         kernels
             .program_descriptor
             .as_ref()
-            .map(crate::kernel::recipe::SavedProgramDescriptor::from_native),
+            .map(SavedDescriptor::from_native)
+            .transpose()?,
+        kernels.exact_requests.clone(),
     )
 }
 
@@ -542,18 +637,27 @@ pub(super) fn partition(
             })
             .collect(),
     };
+    let exact_requests =
+        merge_exact_requests(&payload.exact, kernels.exact_requests.clone()).map_err(failure)?;
     let descriptor = kernels
         .program_descriptor
         .as_ref()
         .map(|descriptor| {
-            descriptor.for_payload(&source_indices, &payload.exact, kernels.metadata.as_ref())
+            descriptor.for_payload_with_requests(
+                &source_indices,
+                &payload.exact,
+                kernels.metadata.as_ref(),
+                &exact_requests,
+            )
         })
         .transpose()?;
-    let (id, bytes) = encode_with_descriptor(
+    let (id, bytes) = encode_with_requests(
         payload,
         descriptor
             .as_ref()
-            .map(crate::kernel::recipe::SavedProgramDescriptor::from_native),
+            .map(SavedDescriptor::from_native)
+            .transpose()?,
+        exact_requests,
     )?;
     Ok((id, bytes, source_indices))
 }
@@ -569,14 +673,24 @@ pub(super) fn generated(
     let _preparing = crate::kernel::NativeProgramDescriptor::enter_optional(
         value.program_descriptor().map(std::sync::Arc::as_ref),
     );
-    let contour_checks =
-        crate::kernel::contour::build_checks(value.metadata(), &runtime_parameters, settings)?;
+    let dynamic =
+        crate::kernel::compilation::PreparedDynamic::build(value, &runtime_parameters, settings)?;
+    let contour_checks = if dynamic.is_some() {
+        Vec::new()
+    } else {
+        crate::kernel::contour::build_checks(value.metadata(), &runtime_parameters, settings)?
+    };
     let complex = crate::kernel::compilation::requires_complex(value, &runtime_parameters);
     let sectors = value
         .sectors()
         .iter()
         .map(|sector| {
-            let program = program::build_sector(sector, &runtime_parameters, settings)?;
+            let program = program::build_sector_with_lowering(
+                sector,
+                &runtime_parameters,
+                settings,
+                dynamic.as_ref().map(|value| value.lookup.as_ref()),
+            )?;
             Ok(Sector {
                 parameters: program.parameters,
                 program: program::encode(&program.exact)?,
@@ -586,7 +700,7 @@ pub(super) fn generated(
             })
         })
         .collect::<Result<_, KernelError>>()?;
-    Ok(encode_with_descriptor(
+    Ok(encode_with_requests(
         Payload {
             codec: CODEC.into(),
             compiler_policy: native::compiler_policy_with_settings(settings),
@@ -600,9 +714,15 @@ pub(super) fn generated(
             metadata: Some(PortableMetadata::from_native(value.metadata())),
             contour_checks,
         },
-        value.program_descriptor().map(|descriptor| {
-            crate::kernel::recipe::SavedProgramDescriptor::from_native(descriptor)
-        }),
+        dynamic
+            .as_ref()
+            .map(|value| value.descriptor.as_ref())
+            .or_else(|| value.program_descriptor().map(std::sync::Arc::as_ref))
+            .map(SavedDescriptor::from_native)
+            .transpose()?,
+        dynamic
+            .map(|value| value.exact_requests)
+            .unwrap_or_default(),
     )?
     .1)
 }
@@ -618,7 +738,9 @@ pub(super) fn load_with_progress(
     options: KernelLoadOptions,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
-    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V10) {
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V11) {
+        (wire, MAGIC_V11, 11)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V10) {
         (wire, MAGIC_V10, 10)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC) {
         (wire, MAGIC, 9)
@@ -646,7 +768,7 @@ pub(super) fn load_with_progress(
     }
     let _ = symbolica::transcendental::gamma();
     crate::contour::functions::register();
-    if version == 10 {
+    if version >= 10 {
         crate::contour::functions::dynamic::register();
     }
     let mut state_source = envelope.state;
@@ -655,14 +777,25 @@ pub(super) fn load_with_progress(
         return Err(failure("trailing symbol context bytes"));
     }
     let mut saved_descriptor = None;
-    let (payload, used): (Payload, usize) = if version == 10 {
+    let mut exact_requests = Vec::new();
+    let (payload, used): (Payload, usize) = if version == 11 {
+        let (payload, used): (PayloadV11, usize) = bincode::decode_from_slice_with_context(
+            envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?;
+        exact_requests = payload.exact_requests;
+        saved_descriptor = Some(SavedDescriptor::V11(payload.descriptor));
+        (payload.base, used)
+    } else if version == 10 {
         let (payload, used): (PayloadV10, usize) = bincode::decode_from_slice_with_context(
             envelope.payload,
             bincode::config::standard(),
             context,
         )
         .map_err(failure)?;
-        saved_descriptor = Some(payload.descriptor);
+        saved_descriptor = Some(SavedDescriptor::V10(payload.descriptor));
         (payload.base, used)
     } else if version == 5 {
         let (payload, used): (PayloadV5, usize) = bincode::decode_from_slice_with_context(
@@ -701,7 +834,7 @@ pub(super) fn load_with_progress(
     }
     let actual_id = if options.validate {
         Some(match &saved_descriptor {
-            Some(descriptor) => semantic_id_v10(&payload, descriptor)?,
+            Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
             None => semantic_id(&payload, version)?,
         })
     } else {
@@ -710,12 +843,32 @@ pub(super) fn load_with_progress(
     if actual_id.is_some_and(|id| id != envelope.content_id) {
         return Err(failure("semantic content identity mismatch"));
     }
+    if version == 11 {
+        let canonical =
+            merge_exact_requests(&payload.exact, exact_requests.clone()).map_err(failure)?;
+        let mut seen = std::collections::BTreeSet::new();
+        if canonical.len() != exact_requests.len()
+            || exact_requests.iter().any(|request| {
+                !seen.insert(&request.root)
+                    || !canonical.iter().any(|expected| {
+                        expected.root == request.root && expected.bundle == request.bundle
+                    })
+            })
+        {
+            return Err(failure("duplicate or surplus exact root associations"));
+        }
+    }
     // Retain immutable helper owners before any numerical callback can be
     // constructed. Restoration never reruns symbolic evaluator optimization.
     let descriptor = saved_descriptor
         .map(|descriptor| descriptor.restore())
         .transpose()?;
     if let Some(descriptor) = &descriptor {
+        if version == 10 && descriptor.recipe().is_dynamic() {
+            return Err(failure(
+                "dynamic v10 artifacts lack saved certificate and exact-root associations; regenerate with the current compiler",
+            ));
+        }
         descriptor.recipe().validate_runtime_schema(
             &payload
                 .runtime_parameters
@@ -798,7 +951,19 @@ pub(super) fn load_with_progress(
         .map(|m| m.into_native(&coordinates, options.validate))
         .transpose()?;
     if let Some(descriptor) = &descriptor {
+        // This compares the complete ordered native Symbol schema. Saved
+        // get_name() labels and canonical Atom spellings can denote the same
+        // symbol, so a second raw-string comparison would reject valid files.
         descriptor.validate_generation(metadata.as_ref(), &payload.runtime_parameters)?;
+        for certificate in descriptor.certificates().into_iter().flatten() {
+            if let Some(metadata) = &metadata {
+                certificate.validate_metadata(metadata)?;
+            } else if certificate.chart_index.is_some() {
+                return Err(failure(
+                    "projected certificate lacks its retained chart metadata",
+                ));
+            }
+        }
     }
     if !use_complex
         && payload.exact.iter().any(|coefficient| {
@@ -829,6 +994,8 @@ pub(super) fn load_with_progress(
         .collect();
     kernels.contour_checks = payload.contour_checks;
     kernels.program_descriptor = descriptor;
+    kernels.exact_requests =
+        merge_exact_requests(&kernels.exact_expressions, exact_requests).map_err(failure)?;
     kernels.validate_runtime_mass_constraints()?;
     kernels.content_id = envelope.content_id.to_owned();
     kernels.portable_artifact = Some(bytes.to_vec());

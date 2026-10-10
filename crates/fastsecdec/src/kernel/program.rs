@@ -1,4 +1,6 @@
 //! Native symbolic-to-numeric boundary. One exact program owns every numeric path.
+mod callbacks;
+pub(in crate::kernel) use callbacks::{Callback, callbacks};
 #[cfg(test)]
 mod captured;
 #[cfg(test)]
@@ -23,10 +25,11 @@ pub(super) struct SectorProgram {
     pub real_coefficients: Vec<bool>,
 }
 
-pub(super) fn build_sector(
+pub(super) fn build_sector_with_lowering(
     sector: &crate::generation::GeneratedSector,
     runtime_parameters: &[Symbol],
     settings: CompilationSettings,
+    lookup: Option<&crate::contour::functions::dynamic::requests::Lookup>,
 ) -> Result<SectorProgram, KernelError> {
     let cancellation = Cancellation::new(
         sector.cancellation_degree(),
@@ -35,11 +38,39 @@ pub(super) fn build_sector(
     )?
     .with_endpoint_profiles(sector.endpoint_profiles().to_vec())?;
     if let Some(deferred) = &sector.deferred {
-        let exact = crate::generation::numerical_dual::native::build(
-            deferred,
-            runtime_parameters,
-            settings,
-        )?;
+        use crate::generation::numerical_dual::native;
+        let exact = if let Some(lookup) = lookup {
+            native::build_with_lowering(
+                deferred,
+                runtime_parameters,
+                settings,
+                &mut |body, coordinates| {
+                    let mut face = Vec::new();
+                    for (axis, coordinate) in coordinates.iter().enumerate() {
+                        match coordinate {
+                            native::Coordinate::Variable(index) if *index == axis => {}
+                            native::Coordinate::Zero => face.push((axis, 0)),
+                            native::Coordinate::One => face.push((axis, 1)),
+                            native::Coordinate::Variable(_) => {
+                                return Err(KernelError::Compilation(
+                                    "nonidentity dynamic request coordinate projection".into(),
+                                ));
+                            }
+                        }
+                    }
+                    lookup
+                        .lower_on_face(
+                            body,
+                            crate::contour::functions::dynamic::requested::symbol(),
+                            &deferred.parameters,
+                            &face,
+                        )
+                        .map_err(KernelError::Compilation)
+                },
+            )?
+        } else {
+            native::build(deferred, runtime_parameters, settings)?
+        };
         Ok(SectorProgram {
             parameters: sector.parameters().to_vec(),
             runtime_parameters: runtime_parameters.to_vec(),
@@ -55,12 +86,13 @@ pub(super) fn build_sector(
             real_coefficients: vec![false; sector.aliased_coefficients().len()],
         })
     } else {
-        build_with_settings(
+        build_with_lowering(
             sector.parameters().to_vec(),
             runtime_parameters,
             sector.aliased_coefficients(),
             cancellation,
             settings,
+            lookup,
         )
     }
 }
@@ -92,12 +124,31 @@ pub(super) fn build_with_parameters(
     )
 }
 
+#[cfg(test)]
 pub(super) fn build_with_settings(
     parameters: Vec<Symbol>,
     runtime_parameters: &[Symbol],
     coefficients: &[AliasedAtom],
     cancellation: Cancellation,
     settings: CompilationSettings,
+) -> Result<SectorProgram, KernelError> {
+    build_with_lowering(
+        parameters,
+        runtime_parameters,
+        coefficients,
+        cancellation,
+        settings,
+        None,
+    )
+}
+
+fn build_with_lowering(
+    parameters: Vec<Symbol>,
+    runtime_parameters: &[Symbol],
+    coefficients: &[AliasedAtom],
+    cancellation: Cancellation,
+    settings: CompilationSettings,
+    lookup: Option<&crate::contour::functions::dynamic::requests::Lookup>,
 ) -> Result<SectorProgram, KernelError> {
     settings.validate()?;
     let mut seen = std::collections::HashSet::new();
@@ -123,10 +174,29 @@ pub(super) fn build_with_settings(
             "coefficient vector has inconsistent native alias definitions".into(),
         ));
     }
-    let roots = coefficients
+    let original_roots = coefficients
         .iter()
         .map(AliasedAtom::get_root)
         .collect::<Vec<_>>();
+    let lowered = lookup
+        .map(|lookup| {
+            original_roots
+                .iter()
+                .map(|root| {
+                    lookup
+                        .lower(
+                            root,
+                            crate::contour::functions::dynamic::requested::symbol(),
+                        )
+                        .map_err(KernelError::Compilation)
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+    let roots = lowered
+        .as_ref()
+        .map(|roots| roots.iter().collect::<Vec<_>>())
+        .unwrap_or_else(|| original_roots.clone());
     let variables = parameters
         .iter()
         .chain(runtime_parameters)
@@ -139,12 +209,23 @@ pub(super) fn build_with_settings(
         // would register identical definitions again for each coefficient.
         let mut ordered = aliases.iter().collect::<Vec<_>>();
         ordered.sort_by(|a, b| a.0.cmp(b.0));
+        let definitions = ordered
+            .into_iter()
+            .map(|(handle, body)| {
+                let body = match lookup {
+                    Some(lookup) => lookup
+                        .lower(
+                            body,
+                            crate::contour::functions::dynamic::requested::symbol(),
+                        )
+                        .map_err(KernelError::Compilation)?,
+                    None => body.clone(),
+                };
+                Ok((handle.clone(), body))
+            })
+            .collect::<Result<Vec<_>, KernelError>>()?;
         builder = builder
-            .add_aliases(
-                ordered
-                    .into_iter()
-                    .map(|(handle, body)| (handle.clone(), body.clone())),
-            )
+            .add_aliases(definitions)
             .map_err(|error| KernelError::Compilation(error.to_string()))?;
     }
     let exact = builder
@@ -159,7 +240,7 @@ pub(super) fn build_with_settings(
         runtime_parameters: runtime_parameters.to_vec(),
         exact,
         cancellation,
-        exact_zero: roots.iter().map(|root| root.is_zero()).collect(),
+        exact_zero: original_roots.iter().map(|root| root.is_zero()).collect(),
         real_coefficients,
     })
 }

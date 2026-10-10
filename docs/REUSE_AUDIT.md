@@ -2671,3 +2671,29 @@ on public consumer `1e1cb169bec35ed3b8536050f789321f063a2047`, selected by all
 three maintained manifests/lockfiles. Locked metadata confirms unique native
 owner identities. The complete FastSecDec build and dynamic exact-contribution
 lifecycle remain separate pending gates.
+
+## Exact aggregate numeric-sign normalization (2026-10-10)
+
+The direct-vector regression exposed an actual native normal-form distinction:
+`left=f(p)+1/p`, `right=-(f(p)+1/p)` can retain the factored sum
+`f(p)-(f(p)+1/p)+1/p`. Evaluating that representation at `p=0` can execute a
+cancelled callback or singular inverse. Native `cancel()` alone does not remove
+this case. Symbolica's public `AtomCore::expand_num` distributes numeric
+coefficients over sums; its pinned `expand.rs::expand_num_impl` treats function
+arguments as opaque. The focused executable probe verifies exact `[0,6]`
+aggregation with no callback execution, unchanged function arguments/tags and
+preserved nonnumeric products. This is existing CAS reuse, not an owner bug
+requiring a new upstream implementation.
+
+One crate-visible generation helper delegates to that native operation at the
+ordinary and consuming resident exact-aggregation boundaries, before pruning
+root associations. No smooth density, native evaluator or saved certificate is
+rebuilt. Indexed loading already aggregates exact records and now also performs
+this necessary numeric-sign normalization; that loading cost is not claimed
+zero. A regression encodes valid factored exact records and checks both live
+resident assembly and actual saved-record reload at the cancelled singular
+point. The focused native gates now pass: 10 exact-vector tests, 17 recipe tests
+and 45 artifact tests, with one intentional subprocess entry ignored in each
+of the latter two parent suites. The saved-record regression is included in
+the artifact gate. The complete public dynamic lifecycle remains a separate
+acceptance step.

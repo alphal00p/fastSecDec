@@ -9,9 +9,11 @@ use symbolica::{
     atom::{Atom, Symbol},
     domains::float::ErrorPropagatingFloat,
 };
+mod dynamic;
 #[cfg(test)]
 mod ownership_tests;
 mod session;
+pub(super) use dynamic::PreparedDynamic;
 pub use session::CompilationSession;
 
 pub(super) fn requires_complex(generated: &GeneratedIntegral, runtime: &[Symbol]) -> bool {
@@ -83,6 +85,7 @@ pub struct CompilationJob {
     // Before numeric callbacks exist, their symbolic tags do not retain the
     // weakly registered helper. A caller may move this job beyond generation.
     program_descriptor: Option<std::sync::Arc<super::NativeProgramDescriptor>>,
+    request_lookup: Option<std::sync::Arc<crate::contour::functions::dynamic::requests::Lookup>>,
     index: usize,
     sector: crate::generation::GeneratedSector,
     runtime_parameters: std::sync::Arc<Vec<Symbol>>,
@@ -106,7 +109,12 @@ impl CompilationJob {
         if let Some(descriptor) = &self.program_descriptor {
             descriptor.validate_sources(self.sector.dynamic_check_sources(), None)?;
         }
-        let program = program::build_sector(&self.sector, &self.runtime_parameters, self.settings)?;
+        let program = program::build_sector_with_lowering(
+            &self.sector,
+            &self.runtime_parameters,
+            self.settings,
+            self.request_lookup.as_deref(),
+        )?;
         let sector = SectorKernel::from_program_with_backend(
             program,
             &self.precision,
@@ -209,9 +217,15 @@ impl GeneratedIntegral {
         // native host compilation. Initial cancellation precedes symbolic work.
         let mut emit = |completed| emit(&mut progress, started, completed, total);
         emit(0)?;
+        let dynamic = PreparedDynamic::build(self, runtime_parameters, settings)?;
         let mut sectors = Vec::with_capacity(total);
         for sector in self.sectors() {
-            let program = program::build_sector(sector, runtime_parameters, settings)?;
+            let program = program::build_sector_with_lowering(
+                sector,
+                runtime_parameters,
+                settings,
+                dynamic.as_ref().map(|value| value.lookup.as_ref()),
+            )?;
             sectors.push(SectorKernel::from_program_with_backend(
                 program,
                 &precision,
@@ -223,14 +237,25 @@ impl GeneratedIntegral {
         let mut kernels = KernelSet::finish(
             self.orders().to_vec(),
             sectors,
-            self.exact_coefficients().to_vec(),
+            dynamic.as_ref().map_or_else(
+                || self.exact_coefficients().to_vec(),
+                |value| value.exact.clone(),
+            ),
             precision,
             Some(self.metadata().clone()),
             use_complex,
             runtime_parameters.to_vec(),
             settings,
         )?;
-        kernels.attach_program_descriptor(self.program_descriptor())?;
+        kernels.exact_requests = dynamic
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.exact_requests.clone());
+        kernels.attach_program_descriptor(
+            dynamic
+                .as_ref()
+                .map(|value| &value.descriptor)
+                .or(self.program_descriptor()),
+        )?;
         kernels.initialize_artifact()?;
         Ok(kernels)
     }
@@ -286,6 +311,7 @@ impl GeneratedIntegral {
         let started = Instant::now();
         let total = self.sectors().len();
         emit(&mut progress, started, 0, total)?;
+        let dynamic = PreparedDynamic::build(self, runtime_parameters, settings)?;
         let use_complex = requires_complex(self, runtime_parameters);
         let owner = std::sync::Arc::new(());
         let runtime = std::sync::Arc::new(runtime_parameters.to_vec());
@@ -296,6 +322,7 @@ impl GeneratedIntegral {
             .map(|(index, sector)| CompilationJob {
                 owner: std::sync::Arc::clone(&owner),
                 program_descriptor: sector.program_descriptor().cloned(),
+                request_lookup: dynamic.as_ref().map(|value| value.lookup.clone()),
                 index,
                 sector: sector.clone(),
                 runtime_parameters: std::sync::Arc::clone(&runtime),
@@ -327,14 +354,25 @@ impl GeneratedIntegral {
         let mut kernels = KernelSet::finish(
             self.orders().to_vec(),
             sectors,
-            self.exact_coefficients().to_vec(),
+            dynamic.as_ref().map_or_else(
+                || self.exact_coefficients().to_vec(),
+                |value| value.exact.clone(),
+            ),
             precision,
             Some(self.metadata().clone()),
             use_complex,
             runtime_parameters.to_vec(),
             settings,
         )?;
-        kernels.attach_program_descriptor(self.program_descriptor())?;
+        kernels.exact_requests = dynamic
+            .as_ref()
+            .map_or_else(Vec::new, |value| value.exact_requests.clone());
+        kernels.attach_program_descriptor(
+            dynamic
+                .as_ref()
+                .map(|value| &value.descriptor)
+                .or(self.program_descriptor()),
+        )?;
         kernels.initialize_artifact()?;
         Ok(kernels)
     }
@@ -455,6 +493,8 @@ impl SectorKernel {
         };
         Ok(Self {
             contour_validation: None,
+            dynamic_history: (0, 0),
+            dynamic_failure: None,
             input: vec![0.0; inputs],
             projection: None,
             parameters_bound: runtime_parameters.is_empty(),
@@ -609,6 +649,7 @@ impl KernelSet {
             contour_checks: Vec::new(),
             program_descriptor: None,
             contour_binding: None,
+            dynamic_pilot: Default::default(),
             compilation_settings,
             runtime_parameters,
             stability: super::StabilitySettings::default(),
@@ -639,6 +680,7 @@ impl KernelSet {
             coefficient_orders,
             precision,
             exact_expressions,
+            exact_requests: Vec::new(),
             exact_coefficients,
             content_id: String::new(),
             sectors,

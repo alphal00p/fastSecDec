@@ -14,6 +14,8 @@ from _fixtures import fixed_arguments
 def test_contour_settings_are_native_and_reject_invalid_strengths():
     default = sd.ContourSettings()
     assert default.mode == "off" and default.lambda_value is None
+    assert default.safety_fraction is default.lambda_cap is default.displacement_cap is None
+    assert default.construction is None
     assert default.validation == "always"
     fixed = sd.ContourSettings.fixed(0.01, validation="pilot", pilot_points=2)
     assert fixed.mode == "fixed" and fixed.lambda_value == 0.01
@@ -25,6 +27,66 @@ def test_contour_settings_are_native_and_reject_invalid_strengths():
         sd.ContourSettings.fixed(0.1, validation="unknown")
     with pytest.raises(sd.FastSecDecError):
         sd.ContourSettings.fixed(0.1, pilot_points=0)
+
+
+@pytest.mark.parametrize("construction", ["polynomial", "sign_aware"])
+@pytest.mark.parametrize("validation", ["always", "pilot", "off"])
+def test_dynamical_settings_roundtrip_native_prescription(construction, validation):
+    settings = sd.ContourSettings.dynamical(
+        0.8, lambda_cap=0.25, displacement_cap=2.0,
+        construction=construction, validation=validation, pilot_points=4,
+    )
+    assert settings.mode == "dynamical" and settings.lambda_value is None
+    assert settings.safety_fraction == 0.8
+    assert settings.lambda_cap == 0.25 and settings.displacement_cap == 2.0
+    assert settings.construction == construction and settings.validation == validation
+    restored = sd.ContourSettings.from_json(settings.to_json())
+    assert restored.to_json() == settings.to_json()
+    assert "safety_fraction=0.8" in repr(settings)
+    payload = json.loads(settings.to_json())
+    assert payload["deformation"] == {
+        "mode": "dynamical", "safety_fraction": 0.8,
+        "lambda_cap": 0.25, "displacement_cap": 2.0,
+        "construction": construction,
+    }
+    with pytest.raises(AttributeError):
+        settings.safety_fraction = 0.5
+
+
+def test_dynamical_settings_defaults_and_native_range_admission():
+    settings = sd.ContourSettings(mode="dynamical", safety_fraction=0.8)
+    assert settings.to_json() == sd.ContourSettings.dynamical(0.8).to_json()
+    assert settings.lambda_cap == settings.displacement_cap == 1.0
+    assert settings.construction == "sign_aware"
+    for fraction in (-1.0, 0.0, 1.0, float("inf"), float("nan")):
+        with pytest.raises(sd.FastSecDecError):
+            sd.ContourSettings.dynamical(fraction)
+    for name in ("lambda_cap", "displacement_cap"):
+        for invalid in (-1.0, 0.0, float("inf"), float("nan")):
+            with pytest.raises(sd.FastSecDecError):
+                sd.ContourSettings.dynamical(0.8, **{name: invalid})
+    with pytest.raises(ValueError, match="construction"):
+        sd.ContourSettings.dynamical(0.8, construction="unknown")
+
+
+@pytest.mark.parametrize("arguments", [
+    {"mode": "dynamical"},
+    {"mode": "dynamical", "safety_fraction": 0.8, "lambda_value": 0.1},
+    {"mode": "fixed", "lambda_value": 0.1, "safety_fraction": 0.8},
+    {"mode": "off", "lambda_cap": 1.0},
+])
+def test_contour_constructor_rejects_incompatible_prescriptions(arguments):
+    with pytest.raises(ValueError):
+        sd.ContourSettings(**arguments)
+
+
+@pytest.mark.parametrize("deformation", [
+    {"mode": "dynamical", "safety_fraction": 0.8, "lambda_cpa": 2.0},
+    {"mode": "off", "lambda": 0.1},
+])
+def test_contour_json_rejects_unknown_prescription_fields(deformation):
+    with pytest.raises(sd.FastSecDecError, match="unknown field"):
+        sd.ContourSettings.from_json(json.dumps({"deformation": deformation}))
 
 
 @pytest.fixture(scope="module")
@@ -63,6 +125,11 @@ def test_contour_capability_and_caller_owned_pilot_survive_reload(generated):
     with pytest.raises(sd.FastSecDecError, match="pilot"):
         configured.finish_contour_pilot()
     for chart in configured.contour_validation_charts:
+        assert chart.kernel_sectors == [chart.kernel_sector]
+        assert not chart.includes_exact  # This finite triangle has no exact offset.
+        copied_sectors = chart.kernel_sectors
+        copied_sectors.append(10000)
+        assert chart.kernel_sectors == [chart.kernel_sector]
         for coordinate in (0.3, 0.6):
             report = configured.validate_contour_point(chart.chart_index, [coordinate] * chart.dimension)
             assert report.maximum_bits >= 96

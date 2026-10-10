@@ -2,7 +2,7 @@ use super::*;
 use symbolica::{
     domains::{
         dual::HyperDual,
-        float::{Complex, Real, RealLike},
+        float::{Complex, FloatLike, Real, RealLike},
         rational::Rational,
     },
     evaluate::{Dualizer, ExpressionEvaluator},
@@ -327,4 +327,79 @@ fn root_keeps_native_double_double_and_multiprecision_domains() {
     });
     let answer = mp.evaluate_single(&[4., 0., 0., 0.8, 1.].map(|x| Float::with_val(192, x)));
     assert!((answer - Float::with_val(192, 0.4)).norm().to_f64() < 1e-50);
+}
+
+fn single_coefficient_native_domain<T: numeric::Number>(bits: u32)
+where
+    Complex<T>: symbolica::evaluate::EvaluationDomain,
+{
+    let (helper, inputs, expression) = fixture(1);
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
+    let one = T::one_at(bits);
+    let a = Rational::from((17, 16384));
+    let coefficient =
+        Rational::from(1) + Rational::from(4) * a.pow(2) * (Rational::from(1) - a).pow(2);
+    let mut evaluator = with_precision(bits, || {
+        expression
+            .evaluator(&inputs)
+            .build()
+            .unwrap()
+            .map_coeff_with_prec(&|c| one.from_rational(&c.re), bits)
+    });
+    let coefficient = one.from_rational(&coefficient);
+    let safety = one.from_rational(&Rational::from((4, 5)));
+    let expected = safety.clone() / coefficient.sqrt();
+    let (actual, failure) =
+        isolated_attempt(|| evaluator.evaluate_single(&[coefficient, safety, one.clone()]));
+    assert!(failure.is_none(), "{failure:?}");
+    assert!(actual.is_finite());
+    let tolerance = one.from_usize(2).pow(u64::from(bits - 8)).inv();
+    assert!((actual - expected).norm() <= tolerance);
+}
+
+#[test]
+fn single_coefficient_positive_root_uses_native_sqrt_in_all_registered_domains() {
+    let a = Atom::var(symbol!("dynamic_closed_root::a"));
+    let radius = a.sqrt().pow(-1);
+    assert!((a * radius.pow(2) - Atom::one()).expand().is_zero());
+    single_coefficient_native_domain::<f64>(53);
+    single_coefficient_native_domain::<DoubleFloat>(106);
+    single_coefficient_native_domain::<Float>(3322);
+    single_coefficient_native_domain::<Float>(4096);
+    single_coefficient_native_domain::<ErrorPropagatingFloat<f64>>(53);
+    single_coefficient_native_domain::<ErrorPropagatingFloat<Float>>(192);
+    // The separate complex-uncertainty control also exercises this branch.
+}
+
+#[test]
+fn strict_native_root_refinement_has_a_precision_scaled_work_allowance() {
+    let (helper, inputs, expression) = fixture(2);
+    let _scope = ProgramScope::new(std::slice::from_ref(&helper)).enter();
+    let x = Rational::from((17, 16384));
+    let coefficient =
+        Rational::from(1) + Rational::from(4) * x.pow(2) * (Rational::from(1) - x).pow(2);
+    for bits in [3322, 4096] {
+        let a = coefficient.to_multi_prec_float(bits);
+        let mut evaluator = with_precision(bits, || {
+            expression
+                .evaluator(&inputs)
+                .build()
+                .unwrap()
+                .map_coeff_with_prec(&|c| c.re.to_multi_prec_float(bits), bits)
+        });
+        for b in [0., 0.5] {
+            let b = Float::with_val(bits, b);
+            let safety = Float::with_val(bits, 0.8);
+            let expected = safety.clone()
+                * (Float::with_val(bits, 2)
+                    / (a.clone() + (a.clone() * &a + Float::with_val(bits, 4) * &b).sqrt()))
+                .sqrt();
+            let (actual, failure) = isolated_attempt(|| {
+                evaluator.evaluate_single(&[a.clone(), b, safety, Float::with_val(bits, 1)])
+            });
+            assert!(failure.is_none(), "{failure:?}");
+            let tolerance = Float::with_val(bits, 2).pow(u64::from(bits - 8)).inv();
+            assert!((actual - expected).norm() <= tolerance);
+        }
+    }
 }

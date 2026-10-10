@@ -6,10 +6,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use symbolica::{atom::AtomCore, domains::rational::Rational};
 
+mod certificates;
+mod check_program;
 mod check_source;
 mod stored;
-pub(crate) use check_source::DynamicCheckSource;
+mod stored_v2;
+pub(crate) use check_program::DynamicCheckProgram;
+pub(crate) use check_source::{CoefficientInput, DynamicCheckOutput, DynamicCheckSource};
 pub(crate) use stored::SavedProgramDescriptor;
+pub(crate) use stored_v2::SavedProgramDescriptorV2;
 #[cfg(test)]
 mod tests;
 
@@ -137,6 +142,7 @@ pub struct NativeProgramDescriptor {
     charts: Vec<DynamicChartRecipe>,
     helpers: Vec<RootProgram>,
     exact_helpers: Vec<String>,
+    certificates: Option<std::sync::Arc<[DynamicCheckProgram]>>,
 }
 
 impl std::fmt::Debug for NativeProgramDescriptor {
@@ -145,6 +151,10 @@ impl std::fmt::Debug for NativeProgramDescriptor {
             .field("recipe", &self.recipe)
             .field("charts", &self.charts)
             .field("exact_helpers", &self.exact_helpers)
+            .field(
+                "certificate_count",
+                &self.certificates.as_ref().map(|value| value.len()),
+            )
             .field(
                 "helpers",
                 &self
@@ -158,6 +168,10 @@ impl std::fmt::Debug for NativeProgramDescriptor {
 }
 
 impl NativeProgramDescriptor {
+    pub(crate) fn root_helper(&self, digest: &str) -> Option<&RootProgram> {
+        self.helpers.iter().find(|helper| helper.digest() == digest)
+    }
+
     pub(crate) fn enter_optional(
         owner: Option<&Self>,
     ) -> crate::contour::functions::dynamic::ProgramPreparation {
@@ -189,6 +203,7 @@ impl NativeProgramDescriptor {
             charts: Vec::new(),
             helpers: Vec::new(),
             exact_helpers: Vec::new(),
+            certificates: None,
         })
     }
 
@@ -210,12 +225,14 @@ impl NativeProgramDescriptor {
             charts,
             helpers: unique.into_values().collect(),
             exact_helpers: Vec::new(),
+            certificates: None,
         };
         value.validate()?;
         Ok(value)
     }
 
     fn validate(&self) -> Result<(), KernelError> {
+        self.validate_certificates()?;
         if !self.recipe.is_dynamic() {
             return if self.charts.is_empty()
                 && self.helpers.is_empty()
@@ -254,6 +271,9 @@ impl NativeProgramDescriptor {
             chart.validate(helper)?;
             used.insert(helper.digest());
         }
+        for certificate in self.certificates().into_iter().flatten() {
+            used.insert(certificate.structure.helper_digest.as_str());
+        }
         if used.len() != self.helpers.len() {
             return Err(invalid("unreferenced or duplicate dynamic root helper"));
         }
@@ -266,6 +286,19 @@ impl NativeProgramDescriptor {
         exact: &[symbolica::atom::Atom],
         metadata: Option<&crate::generation::GenerationMetadata>,
     ) -> Result<Self, KernelError> {
+        self.for_payload_with_requests(sources, exact, metadata, &[])
+    }
+
+    pub(crate) fn for_payload_with_requests(
+        &self,
+        sources: &[usize],
+        exact: &[symbolica::atom::Atom],
+        metadata: Option<&crate::generation::GenerationMetadata>,
+        exact_requests: &[crate::contour::functions::dynamic::requests::ExactRequest],
+    ) -> Result<Self, KernelError> {
+        if sources.iter().copied().collect::<BTreeSet<_>>().len() != sources.len() {
+            return Err(invalid("duplicate requested source chart"));
+        }
         let symbols = exact
             .iter()
             .flat_map(|atom| atom.get_all_symbols(true))
@@ -305,6 +338,7 @@ impl NativeProgramDescriptor {
                 ));
             }
         }
+        let certificates = self.select_certificates(sources, exact, exact_requests)?;
         let helpers = self
             .helpers
             .iter()
@@ -313,6 +347,11 @@ impl NativeProgramDescriptor {
                     .iter()
                     .any(|chart| chart.helper_digest == helper.digest())
                     || exact_helpers.iter().any(|digest| digest == helper.digest())
+                    || certificates
+                        .as_deref()
+                        .into_iter()
+                        .flatten()
+                        .any(|certificate| certificate.structure.helper_digest == helper.digest())
             })
             .cloned()
             .collect();
@@ -321,6 +360,7 @@ impl NativeProgramDescriptor {
             charts,
             helpers,
             exact_helpers,
+            certificates,
         };
         value.validate()?;
         Ok(value)
@@ -335,6 +375,7 @@ impl NativeProgramDescriptor {
         runtime: &[symbolica::atom::Symbol],
     ) -> Result<(), KernelError> {
         self.validate()?;
+        self.validate_certificate_runtime(runtime)?;
         self.recipe.validate_runtime_schema(
             &runtime
                 .iter()
@@ -377,9 +418,9 @@ impl NativeProgramDescriptor {
     }
 
     pub(crate) fn admit_runtime(&self) -> Result<(), KernelError> {
-        if self.recipe.is_dynamic() {
+        if self.recipe.is_dynamic() && self.certificates.is_none() {
             return Err(invalid(
-                "dynamic production admission awaits the complete map, radius and certified-check gate",
+                "dynamic runtime requires saved v11 certificates; regenerate this artifact",
             ));
         }
         Ok(())
@@ -458,6 +499,7 @@ impl NativeProgramDescriptor {
                 .get(chart.chart_index)
                 .ok_or_else(|| invalid("invalid local dynamic chart index"))?;
         }
+        self.remap_certificates(sources)?;
         self.validate()
     }
 
@@ -465,6 +507,7 @@ impl NativeProgramDescriptor {
         if self.recipe != other.recipe {
             return Err(invalid("cannot merge different native recipes"));
         }
+        self.merge_certificates(other.certificates.clone())?;
         self.charts.extend(other.charts);
         self.exact_helpers.extend(other.exact_helpers);
         self.exact_helpers.sort();

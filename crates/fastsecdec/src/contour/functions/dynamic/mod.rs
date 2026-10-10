@@ -1,7 +1,12 @@
 //! Prepared native radius callbacks. No sampling loop or production RNG lives here.
+mod candidate;
+pub(crate) use candidate::CandidateNumber;
 pub(crate) mod numeric;
+pub(crate) mod observation;
 mod preparation;
 mod program;
+pub(crate) mod requested;
+pub(crate) mod requests;
 
 pub(crate) use preparation::with_precision;
 pub(crate) use program::{ProgramPreparation, ProgramScope, RootProgram};
@@ -44,6 +49,7 @@ pub(crate) fn isolated_attempt<R>(evaluate: impl FnOnce() -> R) -> (R, Option<St
 
 pub(crate) fn register() {
     let _ = *STRENGTH;
+    let _ = requested::symbol();
 }
 
 pub(crate) fn strength(
@@ -60,6 +66,10 @@ pub(crate) fn strength(
         .chain(coefficients.iter().cloned())
         .chain([safety.clone(), cap.clone()]);
     Ok(STRENGTH.call_args(arguments))
+}
+
+pub(crate) fn symbol() -> Symbol {
+    *STRENGTH
 }
 
 static STRENGTH: LazyLock<Symbol> = LazyLock::new(|| {

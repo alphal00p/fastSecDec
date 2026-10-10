@@ -14,7 +14,46 @@ use symbolica::{
 };
 
 mod cubic;
+mod empty;
 mod higher;
+mod lowering;
+
+#[test]
+fn empty_fixed_results_keep_explicit_recipe_across_direct_and_cooperative_generation() {
+    use crate::generation::GenerationSession;
+    let empty = ParametricIntegrand::new(
+        vec![symbol!("empty_fixed_generation::x")],
+        symbol!("empty_fixed_generation::eps"),
+        ParametricDomain::UnitCube,
+        vec![],
+    )
+    .unwrap();
+    for mode in [GenerationMode::Symbolic, GenerationMode::NumericalDual] {
+        let options = GenerationOptions {
+            mode,
+            program_recipe: ProgramRecipe::FixedV1,
+            ..Default::default()
+        };
+        let direct = generate(&empty, &options, |_| ControlFlow::Continue(())).unwrap();
+        let mut session = GenerationSession::new(empty.clone(), options);
+        while !session.is_complete() {
+            session.step(1, |_| ControlFlow::Continue(())).unwrap();
+        }
+        for generated in [direct, session.take_result().unwrap()] {
+            assert!(generated.sectors().is_empty());
+            assert!(generated.metadata().charts().is_empty());
+            assert_eq!(
+                generated.program_descriptor().unwrap().recipe(),
+                ProgramRecipe::FixedV1,
+            );
+            let kernels = generated.compile().unwrap();
+            assert_eq!(kernels.program_recipe(), ProgramRecipe::FixedV1);
+            let restored =
+                crate::kernel::KernelSet::from_bytes(&kernels.to_bytes().unwrap()).unwrap();
+            assert_eq!(restored.program_recipe(), ProgramRecipe::FixedV1);
+        }
+    }
+}
 
 fn pole() -> ParametricIntegrand {
     let x = symbol!("dynamic_generation_gate::x");

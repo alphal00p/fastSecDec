@@ -25,10 +25,18 @@ mod tests;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, Deserialize)]
 pub(crate) struct GenerationOverrides {
     pub contour: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
 }
 impl GenerationOverrides {
     pub(crate) fn apply(self, card: &mut RunCard) {
         card.generation.contour |= self.contour;
+        if let Some(recipe) = self.recipe.or_else(|| {
+            self.contour
+                .then_some(fastsecdec::kernel::ProgramRecipe::FixedV1)
+        }) {
+            card.generation.recipe = Some(recipe);
+        }
     }
 }
 
@@ -135,6 +143,8 @@ pub struct GenerationInput {
     pub serial: bool,
     /// Retain causal contour maps and runtime strength in generated kernels.
     pub contour: bool,
+    /// Explicit singleton recipe; omitted historical cards use `contour`.
+    pub recipe: Option<fastsecdec::kernel::ProgramRecipe>,
     pub order: i32,
     pub mode: fastsecdec::generation::GenerationMode,
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
@@ -153,11 +163,27 @@ impl GenerationInput {
     /// Select the native program while retaining the existing card interface.
     pub fn program_recipe(&self) -> fastsecdec::kernel::indexed::ProgramRecipe {
         use fastsecdec::kernel::indexed::ProgramRecipe;
-        if self.contour {
+        self.recipe.unwrap_or(if self.contour {
             ProgramRecipe::FixedV1
         } else {
             ProgramRecipe::UndeformedV1
+        })
+    }
+
+    /// Admission before parametrization. Public generation still requests one
+    /// tested recipe; a runtime selection cannot silently substitute another.
+    pub(crate) fn validate_resident_recipe(
+        &self,
+        requested: fastsecdec::kernel::ProgramRecipe,
+    ) -> crate::CliResult<()> {
+        let generated = self.program_recipe();
+        if requested != generated {
+            return Err(format!(
+                "requested resident recipe {} is absent from the configured generation capability {}; no alternative recipe will be substituted",
+                requested.name(), generated.name(),
+            ).into());
         }
+        Ok(())
     }
 }
 
@@ -166,6 +192,7 @@ impl Default for GenerationInput {
         Self {
             serial: false,
             contour: false,
+            recipe: None,
             order: 0,
             mode: Default::default(),
             subtraction: Default::default(),
@@ -374,11 +401,30 @@ impl IntegrationInput {
 }
 
 pub(crate) fn merge_runtime_values(base: &mut serde_json::Value, overlay: serde_json::Value) {
+    // An explicit native enum change replaces the previous variant's fields.
+    // Ordinary partial settings overlays still merge field by field. Keeping
+    // a former fixed lambda inside a dynamic prescription would be ambiguous,
+    // and native unknown-field admission correctly refuses it.
+    if let Some(mode) = overlay
+        .pointer("/contour/deformation/mode")
+        .and_then(serde_json::Value::as_str)
+        && base
+            .pointer("/contour/deformation/mode")
+            .and_then(serde_json::Value::as_str)
+            != Some(mode)
+        && let Some(previous) = base.pointer_mut("/contour/deformation")
+    {
+        *previous = serde_json::json!({});
+    }
+    merge_runtime_fields(base, overlay);
+}
+
+fn merge_runtime_fields(base: &mut serde_json::Value, overlay: serde_json::Value) {
     match (base, overlay) {
         (serde_json::Value::Object(base), serde_json::Value::Object(overlay)) => {
             for (key, value) in overlay {
                 if let Some(existing) = base.get_mut(&key) {
-                    merge_runtime_values(existing, value);
+                    merge_runtime_fields(existing, value);
                 } else {
                     base.insert(key, value);
                 }

@@ -327,3 +327,194 @@ the proof when its originating full chart is absent from that record without
 retaining every source checker in the serial coordinator. V10 remains a distinct
 legacy layout. Neither that wire format nor dynamic production admission is
 claimed complete by the source-transfer gates above.
+
+## Actual candidate and compiled checker boundary (2026-10-10)
+
+The late requested callback now passes the complete native Laurent-vector
+execution controls for both dynamic constructions and Taylor/IBP subtraction,
+including actual numerical-dual jets, eager and SymJIT owners, double-float and
+192-bit remapping. The native-dual request includes its actual restricted face:
+Taylor has two distinct requests and IBP has three in this control. Symbolic
+lowering retains merged face bundles where native mathematical equality shares
+the radius. The strict duplicate guard therefore concerns the same actual
+request, rather than incorrectly conflating equal radii on distinct IBP faces.
+
+The saved independent arithmetic checker is registered. Eight focused native
+checks pass: native outward primitive operations, root-enclosure inequalities,
+actual production candidates for both constructions, rejection of a safe but
+incorrectly solved strength, binding mismatches, safety fractions immediately
+below one, and caps of order 1e±100. The separate recipe admission filter passes
+16 tests with one child entry intentionally ignored. These are native component
+gates; public dynamic production remains rejected pending the per-attempt
+consumer, binding/pilot lifecycle and complete exact-offset integration.
+
+A reduced-dimensional numerical program can omit a full-source coordinate even
+while an equal radius request refers to a face on which that coordinate remains
+free. The checker represents such missing coordinates by the native closed
+interval [0,1]. It must prove the candidate uniformly over the interval, with
+recorded fixed-face coordinates overriding the interval exactly. No coordinate
+zero, numerical floor, or separate dependency algebra is substituted into the
+production map. Insufficient enclosure remains an explicit unresolved check.
+
+### Exact vectors preserve native cancellation and conditional execution
+
+Separate saved per-unit exact-vector evaluators are not acceptable. A native
+probe with A=[1/p,1/p+x], B=[-1/p,-1/p+2x], p=0 and x=2 produces nonfinite values
+when the separate numerical vectors are summed, whereas native Atom aggregation
+first produces [0,6]. A native evaluator composer also retains the singular
+intermediate and does not replace algebraic simplification. This counterexample
+rules out both the per-unit saved-vector proposal and aggregate-literal-zero
+masking as a complete correction.
+
+Exact mathematical Atoms consequently stay untagged through native aggregate
+simplification. V11 stores the native root-Atom-to-request-context association
+separately. Native equality merges its contexts and removes associations whose
+roots actually cancel. A focused probe of Symbolica's public full-function
+value map confirms shared root reuse across outputs in seven numerical domains,
+including tracked complex uncertainty. Eagerly precomputing every syntactic
+root would, however, violate native lazy IF semantics. The narrowly scoped
+owner API proposed in Symbolica PR59 shares the existing direct-evaluation cache
+across a complete Atom vector and exposes only actually executed custom function
+values. Its consuming revision and exact-offset runtime integration are still
+pending. Untaken branches and canceled roots must not be converted into missing
+candidate errors by the stochastic strict-coverage observer.
+
+The first per-attempt validation test build caught a fixture using original
+integrand symbols instead of generated target-coordinate symbols. The fixture
+now reads the retained native map and its actual full-source coordinate schema;
+its test permutation does not assume source and target axis order agree. The
+reduced-coordinate test intentionally prepares a numerical owner with an
+irrelevant source axis omitted. It is an owner-projection control, not a claim
+that the simple generation fixture currently eliminates that stochastic axis.
+
+### Native attempt owners and public lifecycle wiring (2026-10-10)
+
+The public combined Symbolica/Numerica revision `1e1cb169` now supplies PR59's
+direct vector cache. The first consuming runtime gate passed 14 dynamic tests,
+including complete checked Laurent vectors through eager and SymJIT numerical
+owners, scalar-per-row checked batches, DD/Float remapping and tracked
+conditioning. Eight of nine exact-vector tests passed; the remaining test
+exposed a sum still containing an undistributed numeric minus sign. Native
+`expand_num` normalization at the aggregation boundary is being checked before
+accepting that cancellation control. No result from that failed test is counted
+as evidence of cancellation support.
+
+The next lifecycle slice prepares all numerical replacements and the complete
+accepted exact vector before committing a physical rebind. Policy remapping
+uses saved native IR and preserves accumulated production check counts.
+Unchecked dynamic callbacks keep essential failure fencing; ordinary/fixed
+owners return immediately from the dynamic reset path. Production check counts
+aggregate primary, DD, Float and conditioning owners, including failed argument
+certificates encountered during rescue. Pilot owners are private and independent
+of these counters, retained only for currently resident sectors and released
+when their required contexts finish. Pilot `checked_arguments` means successful
+certified context/face coverage; it does not count every failed intermediate
+precision attempt. The elapsed pilot cost still includes all such work.
+
+Restoration of complete v11 certificate payloads is now admitted; v10 dynamic
+payloads still require regeneration. The public dynamic binding guard remains
+closed while atomic binding, actual pilot execution, policy transitions and
+restored public analytic controls are being tested. This is an implementation
+status update, not a claim that dynamic production is accepted.
+
+### Public execution exposes repeated native calls (2026-10-10)
+
+The lifecycle gate now passes 18 tests, including restored eager/SymJIT owners,
+actual pilot execution, atomic failed exact-offset rebind, policy transitions,
+private pilot-cache lifetime and cumulative numerical check reporting. The
+native exact normalization correction passes all 10 exact tests; the same
+compiled snapshot passes 17 recipe tests and 45 artifact tests (one subprocess
+entry is intentionally ignored in each latter filter).
+
+Public dynamic binding was enabled locally to run the scientific acceptance
+controls. The first public run passed the independent analytic recurrence but
+both endpoint and threshold controls failed during pilot execution: native direct
+translation retained repeated calls for the same radius. An independent native
+IR probe found four identical calls for the symbolic threshold bubble with
+direct translation enabled, versus one with the tree optimizer. This is valid
+numerical IR; unique callback execution cannot be a correctness precondition.
+It remains a separate optimization obligation for the one-solve cost target.
+
+The bounded observer now coalesces only an exactly equal rational candidate at
+the identical native precision within one admitted request bundle. Each native
+call still computes and returns its own value, including tracked uncertainty;
+no numerical result is cached or substituted by FastSecDec. The independent
+checker certifies that identical actual value against every associated context
+and face. A different value or precision fails explicitly, and unknown and
+missing request checks remain. The public scientific rerun is pending; dynamic
+production acceptance is not claimed by the lifecycle or observation changes.
+
+The next public run passed the threshold-bubble policy/branch control and the
+analytic recurrence, then exposed a distinct endpoint issue at x=17/16384 in
+the third-order endpoint-pole control. Its distance-selected native Float owner
+uses 3,322 bits, while the root callback still allowed only 256 iterations for
+a strict relative bracket tolerance near 10^-999. The actual coefficient is
+a2=1+4*x^2*(1-x)^2. A focused native Symbolica evaluator/solver probe reproduces
+the failure and reaches strict bracket termination in 3,300 iterations when
+given sufficient work; this is a FastSecDec configuration mismatch, not evidence
+of a solver defect.
+
+The structural one-coefficient helper now uses the native positive solution
+1/sqrt(a2), already used as the previous initial guess. Its existing native
+complex correction remains responsible for zero-centred imaginary uncertainty.
+No higher coefficient is discarded based on its rounded centre. General helpers
+retain the same strict convergence rule with a finite max(256,4*bits) work
+allowance; this is explicitly not a universal convergence bound, and exhaustion
+still fails. Independent native probes cover 53,106,192,3322 and4096 bits with
+zero and nonzero quartic coefficients. Consuming tests and the public rerun are
+pending at this update.
+
+The consuming root/callback filter now passes 23 tests, including the new
+native-domain square-root and 3322/4096-bit refinement controls. Empty and
+zero-dimensional generation passes four tests, including refusal to reinterpret
+a singular denominator with a zero prefactor as a zero integral. The complete
+public analytic target passes all three functions in 1.75 seconds: eight
+endpoint cases retain their original 8192-point quadrature and tolerances, and
+the threshold bubble exercises restoration, actual pilots, validation policy
+changes and the stationary negative-F branch. Paired variance and full milestone
+lint/ecosystem gates remain separate requirements.
+
+### Terminal failure context (2026-10-10)
+
+The dynamic lifecycle/checker filter now passes 20 tests, including two new
+failure controls. A genuine stationary causal zero reports certified retained
+context evidence for F=0 and the weighted-gradient magnitude zero; the same
+factor canceled from the complete density remains finite and nonzero. The
+diagnostic explicitly does not identify a unique failing density branch or
+classify a Landau pinch. A root-free exact failure retains its native nonfinite
+reason without inventing a stationary-zero certificate, and failed rebinding
+preserves the previous accepted exact vector.
+
+Each detached sector retains only the raw saved certificate bytes and compact
+source projection/runtime context for its own requests. Binding prepares that
+immutable context before the atomic commit. Decoding, native ball mapping and
+stationary testing occur only after terminal numerical failure; successful Off
+samples perform none of that work. Missing source axes retain the full [0,1]
+enclosure. Independent source review confirms this ownership and failure-only
+boundary. The four detailed radius-proof bounds remain available in tests;
+production acceptance performs the same inequalities without retaining unused
+diagnostic conversions.
+
+The evidence is `target/contour-dynamic-failure-context-tests.log` (20/20,
+0.26 seconds). The next owner dependency transition and full native, CLI,
+portable and lint gates are separate acceptance steps; this focused result
+does not establish WASM execution or overall Phase B completion.
+
+The subsequent portable host gate on public Symbolica/Numerica `516beb37`
+passes all 76 maintained tests, including the same three public dynamic analytic
+controls (5.83 seconds) with unchanged quadrature and tolerances. It uses the
+existing Malachite/Astro/eager consumer and no alternate numerical implementation.
+The manifest, lockfile, wrapper and shared scientific source hashes remained
+unchanged throughout the gate. Evidence is
+`target/contour-dynamic-portable-owner516-tests.log`. Actual Emscripten execution
+was checked separately using the existing Rust 1.98.0 / Emscripten 5.0.3 /
+Node 24.19.0 installation. The unchanged three-test public wrapper cross-compiled
+successfully in 5 minutes 44 seconds and all three tests passed in actual WASM
+execution under Node (2.03 seconds). This includes complete endpoint vectors,
+saved-program restoration, actual pilot certification and validation-policy
+transitions. No alternate test implementation, source adaptation or new toolchain
+was introduced. The build and execution logs are
+`target/contour-dynamic-wasm-owner516-build.log`, its adjacent Cargo JSON artifact
+record, and `target/contour-dynamic-wasm-owner516-tests.log`. These are acceptance
+test durations, not a host/WASM performance comparison. Node execution does not
+establish browser responsiveness or a Pyodide/Python wheel.

@@ -3,6 +3,7 @@
 use super::{
     KernelError, PrecisionPolicy, PrecisionReport, cancellation::Cancellation, evaluator, precision,
 };
+mod dynamic;
 #[cfg(test)]
 use symbolica::atom::{Atom, AtomCore};
 use symbolica::{
@@ -33,6 +34,26 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    pub(super) fn clear_dynamic_attempt(&mut self) {
+        if !self.evaluator.has_dynamic_callbacks() {
+            return;
+        }
+        self.evaluator.clear_dynamic_attempt();
+        self.double_cache.clear_dynamic_attempt();
+        self.precision_cache.clear_dynamic_attempt();
+        self.conditioning.clear_dynamic_attempt();
+    }
+    pub(super) fn last_dynamic_error(&self) -> Option<&str> {
+        self.precision_cache
+            .last_dynamic_error
+            .as_deref()
+            .or(self.double_cache.last_dynamic_error.as_deref())
+            .or(self.evaluator.last_dynamic_error())
+            .or(self.conditioning.last_dynamic_error())
+    }
+    pub(super) fn exact_program(&self) -> &super::program::ExactProgram {
+        &self.exact
+    }
     pub(super) fn evaluate_primary_batch(
         &mut self,
         input: &[f64],
@@ -283,27 +304,30 @@ impl ComplexKernel {
                 *input = Complex::new(tracked(*value), tracked(0.0));
             }
             let started = std::time::Instant::now();
-            conditioning.evaluate(&self.check_input, &mut self.check_output);
+            let callback_failed =
+                conditioning.evaluate_at(&self.check_input, &mut self.check_output, point);
             self.conditioning_timing.record(started);
             // Relative accuracy applies to the complex coefficient's infinity
             // norm. An exactly zero imaginary component must not demand an
             // arbitrarily small relative error from native roundoff tracking.
-            let stable = self
-                .check_output
-                .iter()
-                .zip(&self.output)
-                .all(|(checked, compiled)| {
-                    let scale = checked.re.to_f64().abs().max(checked.im.to_f64().abs()) * weight;
-                    let tolerance = self.precision.absolute_tolerance
-                        + self.precision.relative_tolerance * scale;
-                    [(checked.re, compiled.re), (checked.im, compiled.im)]
-                        .iter()
-                        .all(|(value, compiled)| {
-                            value.to_f64().is_finite()
-                                && value.get_absolute_error() * weight <= tolerance
-                                && ((value.to_f64() - compiled) * weight).abs() <= tolerance
-                        })
-                });
+            let stable = !callback_failed
+                && self
+                    .check_output
+                    .iter()
+                    .zip(&self.output)
+                    .all(|(checked, compiled)| {
+                        let scale =
+                            checked.re.to_f64().abs().max(checked.im.to_f64().abs()) * weight;
+                        let tolerance = self.precision.absolute_tolerance
+                            + self.precision.relative_tolerance * scale;
+                        [(checked.re, compiled.re), (checked.im, compiled.im)]
+                            .iter()
+                            .all(|(value, compiled)| {
+                                value.to_f64().is_finite()
+                                    && value.get_absolute_error() * weight <= tolerance
+                                    && ((value.to_f64() - compiled) * weight).abs() <= tolerance
+                            })
+                    });
             if stable {
                 return Ok(PrecisionReport {
                     rescued: false,

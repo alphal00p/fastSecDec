@@ -1,6 +1,8 @@
 //! Runtime contour steering, separate from sampling and mathematical generation.
+mod settings;
+
 use clap::{Args, ValueEnum};
-use fastsecdec::contour::{ContourMode, ContourSettings, ContourValidation};
+use fastsecdec::contour::{ContourMode, ContourSettings, ContourValidation, DynamicConstruction};
 
 use crate::{CliResult, config::IntegrationInput};
 
@@ -13,12 +15,21 @@ enum ValidationArg {
 
 #[derive(Args, Default)]
 pub(crate) struct ContourArgs {
-    /// Contour prescription: fixed or off. Requires contour-capable kernels.
+    /// Contour prescription: fixed, off, or dynamical=<S> with 0<S<1.
     #[arg(long, value_name = "MODE")]
     contour: Option<String>,
     /// Positive fixed contour strength; never automatically reduced.
     #[arg(long, allow_hyphen_values = true)]
     lambda: Option<f64>,
+    /// Positive dynamic strength cap (default 1 for a new prescription).
+    #[arg(long, allow_hyphen_values = true)]
+    lambda_cap: Option<f64>,
+    /// Positive dynamic displacement cap (default 1 for a new prescription).
+    #[arg(long, allow_hyphen_values = true)]
+    displacement_cap: Option<f64>,
+    /// Dynamic construction: polynomial or sign_aware (default).
+    #[arg(long, value_parser = settings::parse_construction)]
+    contour_construction: Option<DynamicConstruction>,
     /// Check every production point, a pilot only, or disable causal checks.
     #[arg(long, value_enum)]
     contour_validation: Option<ValidationArg>,
@@ -87,68 +98,6 @@ impl ContourArgs {
             }),
         )
     }
-
-    pub(crate) fn apply(&self, settings: &mut ContourSettings) -> CliResult<()> {
-        if let Some(mode) = self.contour.as_deref() {
-            settings.deformation = match mode {
-                "off" => ContourMode::Off,
-                "fixed" => ContourMode::Fixed {
-                    lambda: self.lambda.or(match settings.deformation {
-                        ContourMode::Fixed { lambda } => Some(lambda),
-                        ContourMode::Off => None,
-                    }).ok_or("--contour fixed requires --lambda or a fixed strength in the runtime settings")?,
-                },
-                _ => return Err("contour must be fixed or off; dynamic deformation follows the fixed-mode validation milestone".into()),
-            };
-        }
-        if let Some(lambda) = self.lambda {
-            if !matches!(settings.deformation, ContourMode::Fixed { .. }) {
-                return Err("--lambda requires a fixed contour prescription".into());
-            }
-            settings.deformation = ContourMode::Fixed { lambda };
-        }
-        if let Some(policy) = self.contour_validation {
-            settings.validation.policy = match policy {
-                ValidationArg::Always => ContourValidation::Always,
-                ValidationArg::Pilot => ContourValidation::Pilot,
-                ValidationArg::Off => ContourValidation::Off,
-            };
-        }
-        if let Some(points) = self.contour_pilot_points {
-            settings.validation.pilot_points = points.get();
-        }
-        settings.validate()?;
-        Ok(())
-    }
-
-    /// Resolve only contour steering before generation, without registering
-    /// native parameter symbols in a bounded-memory coordinator process.
-    pub(crate) fn generation_overrides(
-        &self,
-        base: &IntegrationInput,
-        overlay: Option<&std::path::Path>,
-    ) -> CliResult<crate::config::GenerationOverrides> {
-        let contour = self.resolve(base, overlay)?;
-        Ok(crate::config::GenerationOverrides {
-            contour: !matches!(contour.deformation, ContourMode::Off),
-        })
-    }
-
-    pub(crate) fn resolve(
-        &self,
-        base: &IntegrationInput,
-        overlay: Option<&std::path::Path>,
-    ) -> CliResult<ContourSettings> {
-        let mut effective = serde_json::to_value(base)?;
-        if let Some(path) = overlay {
-            let overlay = crate::config::read_integration_overlay(path)?;
-            crate::config::merge_runtime_values(&mut effective, overlay);
-        }
-        let effective: IntegrationInput = serde_json::from_value(effective)?;
-        let mut contour = effective.contour;
-        self.apply(&mut contour)?;
-        Ok(contour)
-    }
 }
 
 /// Choose the numerical program without binding parameters or importing any
@@ -158,11 +107,7 @@ pub(crate) fn select_program(
     settings: &ContourSettings,
 ) -> CliResult<()> {
     if artifact.programs.is_some() {
-        use fastsecdec::kernel::indexed::ProgramRecipe;
-        artifact.select_recipe(match settings.deformation {
-            ContourMode::Off => ProgramRecipe::UndeformedV1,
-            ContourMode::Fixed { .. } => ProgramRecipe::FixedV1,
-        })?;
+        artifact.select_recipe(settings.deformation.program_recipe())?;
     }
     Ok(())
 }

@@ -100,7 +100,7 @@ pub(crate) fn namespace(
     )
 }
 
-pub(super) fn namespace_for_chart(
+pub(crate) fn namespace_for_chart(
     recipe: ProgramRecipe,
     parameters: &[Symbol],
     factors: &FactorIdentity,

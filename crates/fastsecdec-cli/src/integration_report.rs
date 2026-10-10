@@ -139,6 +139,20 @@ fn contour_rows(report: &fastsecdec::status::ContourRunReport) -> Vec<[String; 2
     let prescription = match report.deformation {
         ContourMode::Off => "Off".into(),
         ContourMode::Fixed { lambda } => format!("Fixed · λ = {lambda}"),
+        ContourMode::Dynamical {
+            safety_fraction,
+            lambda_cap,
+            displacement_cap,
+            construction,
+        } => {
+            let construction = match construction {
+                fastsecdec::contour::DynamicConstruction::Polynomial => "polynomial",
+                fastsecdec::contour::DynamicConstruction::SignAware => "sign-aware",
+            };
+            format!(
+                "Dynamic · S = {safety_fraction} · L = {lambda_cap} · R = {displacement_cap} · {construction}"
+            )
+        }
     };
     let policy = match report.validation.policy {
         ContourValidation::Always => "Pilot and production",

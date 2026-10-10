@@ -6,11 +6,20 @@ use symbolica::{
     id::{Pattern, Replacement},
 };
 mod coefficients;
-mod identity;
-pub(crate) use coefficients::CoefficientSource;
+pub(super) mod identity;
+pub(crate) use coefficients::{CoefficientInput, CoefficientSource};
 pub(crate) use identity::FactorIdentity;
 
-#[derive(Clone, Debug, PartialEq, Eq, bincode::Encode, bincode::Decode)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    bincode::Encode,
+    bincode::Decode,
+)]
 pub(crate) enum DynamicCheckOutput {
     DirectionNormSquared,
     LeadingCausalMagnitude,
@@ -39,35 +48,47 @@ pub(crate) struct DynamicCheckSource {
     pub(crate) coefficients: CoefficientSource,
 }
 
+pub(crate) fn output_schema(chart: &super::DynamicChartRecipe) -> Vec<DynamicCheckOutput> {
+    use DynamicCheckOutput::*;
+    let mut expected = vec![DirectionNormSquared, LeadingCausalMagnitude, CausalRay];
+    for order in &chart.causal_orders {
+        expected.extend([
+            CausalSquaredBound { order: *order },
+            SpectralMean { order: *order },
+            SpectralGapSquared { order: *order },
+        ]);
+    }
+    for (factor, orders) in chart.positive_orders.iter().enumerate() {
+        expected.extend([PositiveOriginal { factor }, PositiveRay { factor }]);
+        for order in orders {
+            expected.extend([
+                PositiveRayCoefficient {
+                    factor,
+                    order: *order,
+                },
+                PositiveHarmfulCoefficient {
+                    factor,
+                    order: *order,
+                },
+            ]);
+        }
+    }
+    expected
+}
+
+pub(crate) fn coefficient_schema(
+    chart: &super::DynamicChartRecipe,
+    recipe: crate::kernel::ProgramRecipe,
+) -> Result<Vec<CoefficientInput>, super::KernelError> {
+    coefficients::expected_schema(chart, recipe).map_err(super::invalid)
+}
+
 impl DynamicCheckSource {
     pub(super) fn validate_for(
         &self,
         chart: &super::DynamicChartRecipe,
     ) -> Result<(), super::KernelError> {
-        use DynamicCheckOutput::*;
-        let mut expected = vec![DirectionNormSquared, LeadingCausalMagnitude, CausalRay];
-        for order in &chart.causal_orders {
-            expected.extend([
-                CausalSquaredBound { order: *order },
-                SpectralMean { order: *order },
-                SpectralGapSquared { order: *order },
-            ]);
-        }
-        for (factor, orders) in chart.positive_orders.iter().enumerate() {
-            expected.extend([PositiveOriginal { factor }, PositiveRay { factor }]);
-            for order in orders {
-                expected.extend([
-                    PositiveRayCoefficient {
-                        factor,
-                        order: *order,
-                    },
-                    PositiveHarmfulCoefficient {
-                        factor,
-                        order: *order,
-                    },
-                ]);
-            }
-        }
+        let expected = output_schema(chart);
         if self.chart_index != chart.chart_index
             || self.parameters.len() != chart.dimension
             || self.schema != expected

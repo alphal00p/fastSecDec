@@ -6,6 +6,17 @@ use super::{
 use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
 use symbolica::atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol};
+
+/// Canonicalize numerical weights after summing exact contributions. Native
+/// addition alone leaves `a + b - (a + b)` uncollected. Distributing only
+/// numerical coefficients exposes those cancellations without expanding general
+/// products or touching opaque function arguments (including saved root keys).
+/// This also applies when selected saved records are assembled on loading; it
+/// does not rebuild a smooth density or an optimized evaluator.
+pub(crate) fn normalize_exact_coefficient(expression: &Atom) -> Atom {
+    expression.expand_num()
+}
+
 type Pending = (
     SectorMap,
     Vec<Symbol>,
@@ -113,7 +124,12 @@ impl Assembly {
             .collect();
         let exact_coefficients = orders
             .iter()
-            .map(|order| self.exact.get(order).cloned().unwrap_or(Atom::Zero))
+            .map(|order| {
+                self.exact
+                    .get(order)
+                    .map(normalize_exact_coefficient)
+                    .unwrap_or(Atom::Zero)
+            })
             .collect();
         GeneratedIntegral {
             program_descriptor: self.program.descriptor,
