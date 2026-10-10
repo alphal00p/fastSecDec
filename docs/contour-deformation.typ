@@ -261,7 +261,8 @@ sample count, per-sector mean/maximum sample costs and peak RSS. Use independent
 production streams, a frozen 50-core affinity and separate tuning seeds.
 Fixed and dynamic settings are chosen in bounded preliminary runs and remain
 unchanged during production. No independent numerical reference exists for
-this point: finite error bars alone do not establish physical accuracy.
+this point: finite error bars alone do not establish physical accuracy. These
+frozen campaign executables precede the loader-cache update in section 3.
 
 #pagebreak()
 = Implementation and performance
@@ -336,12 +337,11 @@ retained in public consumer revision `74225696`. The same consumer adds
 #link("https://github.com/symbolica-dev/symbolica/pull/63")[Symbolica PR 63]:
 common-subexpression lookup remaps operands before hashing them, avoiding one
 optimizer pass per level of a duplicate dependency chain. Native branch
-ancestry and callback argument order remain unchanged. The corrected workspace
-passes 925 tests (33 diagnostics ignored); one subsequent public dynamic control
-raises the distinct native total to 926. The four public policy controls pass
-on native and portable hosts. Workspace and portable strict Clippy, formatting,
-and thin-binding build/lint checks pass. These are native/portable-host gates,
-not installed Python-wheel or browser/WASM execution evidence.
+ancestry and callback argument order remain unchanged. The current workspace
+passes 935 tests (34 explicit ignores, including a child invoked separately).
+The portable suite passes 83 tests. Strict Clippy, formatting, and thin-binding
+build/lint checks pass. These are native/portable-host gates, not installed
+Python-wheel or browser/WASM execution evidence.
 
 The physical QMC run also exposed avoidable coordinator work: matching common
 shifts used linear searches within already-sorted native replica records.
@@ -367,6 +367,13 @@ on historical endpoint constructions, not new physical integration results.
 Changing dynamic validation factories also reuses the native primary instead
 of rebuilding it from exact IR. Optional byte-integrity checks remain optional;
 format, compatibility and native decoding checks are retained.
+
+A second probe restores the same complete 70.41 MB fixed artifact in the old
+and new optimized implementations, then constructs 50 whole-owner worker
+clones. Post-clone RSS falls from 6.68 to 1.79 GB, and clone time from 3.32 to
+0.78 s. Loading the original uncached artifact remains similar, 3.81 versus
+3.71 s. This measures immutable ownership improvements without binding, pilot
+or sampling work; it is separate from the cache-hit comparison above.
 
 Stream identities are coordinator-owned. Pilots, production replicas and
 retries keep separate identities; rejected, duplicate or stale work cannot

@@ -294,3 +294,65 @@ source change during the broad gate is the reviewed public test correction.
 The protected `target/release/fastsecdec` retains its original hash, inode and
 size. All owned build, profile and test processes are closed. This implementation
 review has no remaining blocker; physical campaign acceptance remains separate.
+
+## Full fixed archive and 50 whole-owner clones
+
+A subsequent bounded comparison restores the same original **70,405,743-byte,
+30-sector fixed archive** on the verified candidate7 core and the optimized
+current cache core. This archive uses the clarified Symbolic endpoint/IBP path.
+Both processes use CPU250, default optional validation, and the same native owner
+versions. Neither binds parameters, performs a pilot, evaluates a stochastic
+point nor samples. The original archive is uncached in both runs: this isolates
+whole-owner loading/cloning behavior from the persisted-cache hit comparison
+above.
+
+| Measured stage | Candidate7 before ownership changes | Current optimized core |
+| --- | ---: | ---: |
+| Native selected-archive restoration | 3.809 s | 3.714 s |
+| RSS after restoration | 231.49 MB | 226.35 MB |
+| Sum of 50 native whole-owner clone call times | 3.318 s | 0.783 s |
+| RSS with original and 50 clones retained | 6,675.46 MB | 1,787.54 MB |
+| RSS after dropping original, keeping 50 clones | 6,604.23 MB | 1,786.73 MB |
+| RSS after dropping all clones | 3,083.12 MB | 1,715.53 MB |
+
+MB means decimal bytes. Stage RSS/PSS/private-dirty readings come from
+`/proc/self/smaps_rollup`; raw values are retained. They include allocator
+retention, so the final rows do not measure live allocations or demonstrate a
+leak. Periodic external RSS sampling misses the brief maximum with all clones
+retained, especially in the current run; the table uses explicit stage readings,
+not that lower sampled peak. Kernel `ru_maxrss` separately records approximately
+6.674 and 1.784 GB.
+
+Both restored owners have identical native content IDs and identical retained
+70,405,658-byte selected-archive buffers. The native selection/repackaging
+accounts for the difference from the original whole-file length. All 50 old
+clones have distinct retained-buffer addresses; all 50 current clones share the
+original immutable buffer. Each clone remains inspectable with matching native
+identity and sector count after the original owner is dropped. The workload
+then drops every clone. Independent numerical clone behavior is covered by the
+maintained tests above; this memory probe does not claim another evaluation
+check.
+
+Sharing the retained archive eliminates 50 logical copies of that 70.4 MB
+buffer. The remaining measured difference includes immutable exact-template
+sharing and other loader/clone changes; this probe does not isolate their
+individual contributions. Native mutable evaluator/workspace state remains
+independently owned, and current clones still consume appreciable memory.
+Uncached restoration time is similar here. These observations do not forecast
+sampling throughput or a full-archive cache-hit speedup.
+
+The runtime groups closed successfully in 9.07 and 5.57 seconds, without hitting
+their 120-second/8 GB bounds. The guard also includes the identity-pinned live
+polynomial generation group in its 100 GB limit and never signals that group.
+Both tiny wrappers link the existing optimized cores and unchanged dependency
+graph; no library is rebuilt. Physical generation runs concurrently, and the
+current wrapper link briefly overlaps the old runtime. These are single
+concurrent-host observations, not controlled timing ratios. The original
+artifact and protected user release binary remain byte-identical. All owned
+build and runtime groups are closed.
+
+Source, core/link/binary identities, artifact hashes, exact stage values and
+resource records are retained in
+`target/symjit-loader-profile/full-fixed-clones/result.json`, with the bounded
+helper and raw runs beside it. No production source changes are made for this
+measurement.
