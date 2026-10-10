@@ -13,6 +13,7 @@ use symbolica::{
     symbol,
 };
 
+mod compact;
 mod cubic;
 mod empty;
 mod higher;

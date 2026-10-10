@@ -215,9 +215,19 @@ pub(crate) fn referenced_namespaces(expressions: &[Atom]) -> Result<BTreeSet<Str
 }
 
 #[derive(Default)]
-pub(crate) struct Lookup(BTreeMap<Atom, BTreeSet<Request>>);
+pub(crate) struct Lookup {
+    roots: BTreeMap<Atom, BTreeSet<Request>>,
+    definitions: crate::contour::ContourDefinitions,
+}
 
 impl Lookup {
+    pub(crate) fn add_definitions(
+        &mut self,
+        definitions: &crate::contour::ContourDefinitions,
+    ) -> Result<(), String> {
+        self.definitions.merge(definitions)
+    }
+
     pub(crate) fn exact_requests(&self, expressions: &[Atom]) -> Result<Vec<ExactRequest>, String> {
         exact_roots(expressions)
             .into_iter()
@@ -261,7 +271,7 @@ impl Lookup {
                     Pattern::Literal(Atom::num(*value)),
                 )
             }));
-            self.0.entry(restricted).or_default().insert(Request {
+            self.roots.entry(restricted).or_default().insert(Request {
                 namespace: namespace.to_owned(),
                 face: face.clone(),
             });
@@ -270,8 +280,9 @@ impl Lookup {
     }
 
     pub(crate) fn bundle(&self, strength: &Atom) -> Result<Bundle, String> {
-        self.0
-            .get(strength)
+        let mathematical = self.definitions.materialize(strength)?;
+        self.roots
+            .get(&mathematical)
             .map(|requests| Bundle(requests.iter().cloned().collect()))
             .ok_or_else(|| {
                 "surviving dynamic strength does not match a retained native face restriction"
@@ -321,6 +332,7 @@ impl Lookup {
         face: Option<&[(usize, u8)]>,
     ) -> Result<Atom, String> {
         let mut error = None;
+        let mut bundles = BTreeMap::new();
         let result = expression.replace_map(|term, _, out| {
             let Some(function) = term.as_fun_view() else {
                 return;
@@ -328,7 +340,11 @@ impl Lookup {
             if function.get_symbol() != *super::STRENGTH {
                 return;
             }
-            match self.bundle(&term.replace_multiple(rules)) {
+            let restricted = term.replace_multiple(rules);
+            let bundle = bundles
+                .entry(restricted)
+                .or_insert_with_key(|root| self.bundle(root));
+            match bundle.clone() {
                 Ok(mut bundle) => {
                     // Distinct native jets evaluate distinct physical faces,
                     // even if exact symbolic restriction made their radius

@@ -1,4 +1,5 @@
 //! Parameter-space contour maps and caller-owned runtime policy.
+mod definitions;
 mod determinant;
 mod diagnostics;
 pub mod dynamic;
@@ -7,11 +8,12 @@ mod map;
 mod metadata;
 mod settings;
 
+pub use definitions::{ContourDefinition, ContourDefinitions};
 pub use diagnostics::{
     ContourDiagnosticRange, ContourDiagnosticsMode, ContourRuntimeReport, ContourRuntimeWork,
 };
 pub use map::FixedContourMap;
-pub(crate) use map::SmoothContourMap;
+pub(crate) use map::{SmoothContourMap, continued_power};
 pub use metadata::ContourMetadata;
 pub use settings::{
     ContourMode, ContourSettings, ContourValidation, ContourValidationOptions, DynamicConstruction,

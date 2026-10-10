@@ -136,18 +136,19 @@ pub(super) fn discover_loaded(
                 &mut |status| event(&mut progress, status),
             )?
         };
-        let prepared = symmetry::prepare_mapped(index, &chart.parameters, &chart.mapped, || {
-            if progress(&GenerationProgress::SymmetryPreparation {
-                sector: index,
-                total: preparation.charts.len(),
-            })
-            .is_break()
-            {
-                Err(GenerationError::Cancelled)
-            } else {
-                Ok(())
-            }
-        })?;
+        let prepared =
+            symmetry::prepare_program(0, &chart.parameters, &chart.mapped, &chart.program, || {
+                if progress(&GenerationProgress::SymmetryPreparation {
+                    sector: index,
+                    total: preparation.charts.len(),
+                })
+                .is_break()
+                {
+                    Err(GenerationError::Cancelled)
+                } else {
+                    Ok(())
+                }
+            })?;
         let key = prepared.lookup_key();
         drop(prepared);
         (
@@ -261,7 +262,7 @@ pub fn compare_symmetry(
         }
     };
     let prepared =
-        symmetry::prepare_mapped(chart.index, &context.targets, &data.mapped, &mut abort)?;
+        symmetry::prepare_program(0, &context.targets, &data.mapped, &data.program, &mut abort)?;
     let _helper_owner = data.program.descriptor.clone();
     drop(data);
     let mut previous = None;
@@ -291,10 +292,11 @@ pub fn compare_symmetry(
         // not itself own their native helper programs. Retain this candidate's
         // owner independently of the active chart and its helper arity.
         let _candidate_helper_owner = target.program.descriptor.clone();
-        let target = symmetry::prepare_mapped(
-            candidate.index,
+        let target = symmetry::prepare_program(
+            0,
             &context.targets,
             &target.mapped,
+            &target.program,
             &mut abort,
         )?;
         if let Some(permutation) = prepared.equivalent_to(&target)? {

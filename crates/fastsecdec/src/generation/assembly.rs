@@ -51,16 +51,32 @@ impl Assembly {
         program: ProgramData,
     ) -> Result<(), GenerationError> {
         self.program.merge(&program)?;
+        let definitions = program.contour_definitions()?;
         let coefficients = output
             .coefficients
             .into_iter()
-            .map(|(order, coefficient)| {
-                (
+            .map(|(order, mut coefficient)| {
+                if !definitions.is_empty() {
+                    let root = definitions
+                        .simplify(coefficient.get_root(), &parameters)
+                        .map_err(GenerationError::Contour)?;
+                    let mut simplified = AliasedAtom::from(root);
+                    for (handle, body) in coefficient.get_aliases() {
+                        simplified.register_alias(
+                            handle.clone(),
+                            definitions
+                                .simplify(body, &parameters)
+                                .map_err(GenerationError::Contour)?,
+                        );
+                    }
+                    coefficient = simplified;
+                }
+                Ok((
                     order,
                     coefficient.map_root(|root| root * Atom::num(multiplicity)),
-                )
+                ))
             })
-            .collect::<BTreeMap<_, _>>();
+            .collect::<Result<BTreeMap<_, _>, GenerationError>>()?;
         let conditioning = output.conditioning;
         if let Some(order) = coefficients.keys().next() {
             self.minimum = self.minimum.min(*order);
@@ -80,7 +96,10 @@ impl Assembly {
             })
         }) {
             for (order, coefficient) in coefficients {
-                *self.exact.entry(order).or_insert(Atom::Zero) += coefficient.into_inner();
+                let value = definitions
+                    .materialize(&coefficient.into_inner())
+                    .map_err(GenerationError::Contour)?;
+                *self.exact.entry(order).or_insert(Atom::Zero) += value;
             }
         } else {
             self.kernel_indices
@@ -105,6 +124,9 @@ impl Assembly {
             .into_iter()
             .map(
                 |(map, parameters, coefficients, conditioning, program)| GeneratedSector {
+                    contour_definitions: program
+                        .contour_definitions()
+                        .expect("previously merged contour definitions"),
                     program_descriptor: program.descriptor,
                     dynamic_check_sources: program.checks,
                     deferred: None,
@@ -139,5 +161,60 @@ impl Assembly {
             sectors,
             exact_coefficients,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{contour::ContourDefinitions, generation::GenerationPhase};
+    use std::{sync::Arc, time::Instant};
+    use symbolica::{id::Pattern, symbol};
+
+    #[test]
+    fn restricted_compact_calls_fold_before_exact_aggregation() {
+        let x = symbol!("compact_assembly::x");
+        let y = symbol!("compact_assembly::y");
+        let polynomial = Atom::one()
+            + (1..=24)
+                .map(|power| Atom::var(x).pow(Atom::num(power)))
+                .sum::<Atom>();
+        let (definitions, calls) =
+            ContourDefinitions::coefficients(&[x, y], &[polynomial]).unwrap();
+        assert!(!definitions.is_empty());
+        assert!(!calls[0].contains_symbol(y));
+        let restricted = calls[0]
+            .replace(Pattern::Literal(Atom::var(x)))
+            .with(Atom::Zero);
+        assert!(!restricted.is_one()); // Still a native function call here.
+        let mut assembly = Assembly::new(0);
+        let map = SectorMap {
+            fixed_parameter: None,
+            exponent_matrix: vec![vec![1.into(), 0.into()], vec![0.into(), 1.into()]],
+            determinant: 1.into(),
+            jacobian_powers: vec![0.into(), 0.into()],
+            factor_valuations: vec![],
+        };
+        let output = coefficients::Output {
+            coefficients: BTreeMap::from([(0, AliasedAtom::from(restricted))]),
+            conditioning: Profile::retained(vec![], vec![], 2).unwrap(),
+            phase: GenerationPhase::CoefficientExpansion,
+            phase_started: Instant::now(),
+        };
+        assembly
+            .push(
+                0,
+                map,
+                vec![x, y],
+                3,
+                output,
+                ProgramData {
+                    definitions: vec![(0, Arc::new(definitions))],
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        assert!(assembly.pending.is_empty());
+        assert_eq!(assembly.exact[&0], Atom::num(3));
     }
 }

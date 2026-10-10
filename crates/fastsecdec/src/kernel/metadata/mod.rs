@@ -66,6 +66,40 @@ impl From<PortableMetadata> for LegacyMetadata {
     }
 }
 impl PortableMetadata {
+    /// Record-local chart indices, never physical source identifiers. Definitions
+    /// remain native StateMap-coded data in the explicitly versioned sidecar.
+    pub(in crate::kernel) fn take_contour_definitions(
+        &mut self,
+    ) -> Vec<(usize, crate::contour::ContourDefinitions)> {
+        self.charts
+            .iter_mut()
+            .enumerate()
+            .filter_map(|(index, chart)| {
+                let definitions = chart.take_contour_definitions();
+                (!definitions.is_empty()).then_some((index, definitions))
+            })
+            .collect()
+    }
+
+    pub(in crate::kernel) fn attach_contour_definitions(
+        &mut self,
+        definitions: Vec<(usize, crate::contour::ContourDefinitions)>,
+    ) -> Result<(), KernelError> {
+        let mut previous = None;
+        for (index, definitions) in definitions {
+            if previous.is_some_and(|previous| index <= previous) {
+                return Err(invalid(
+                    "compact definition chart indices are not strictly ordered",
+                ));
+            }
+            previous = Some(index);
+            self.charts
+                .get_mut(index)
+                .ok_or_else(|| invalid("unknown compact definition chart"))?
+                .attach_contour_definitions(definitions)?;
+        }
+        Ok(())
+    }
     pub(in crate::kernel) fn visit_atoms(&self, visit: &mut impl FnMut(&Atom)) {
         self.domain.visit_atoms(visit);
         for chart in &self.charts {

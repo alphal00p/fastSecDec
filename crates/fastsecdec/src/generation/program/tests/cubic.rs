@@ -216,10 +216,21 @@ fn cubic_causal_and_positive_bounds_preserve_analytic_laurent_vector() {
                     assert_eq!(generated.dynamic_check_sources().len(), 1);
                 }
                 if recipe == ProgramRecipe::DynamicSignAwareV1 {
-                    assert!(contour.images().iter().any(|coefficient| {
-                        coefficient
-                            .contains_symbol(symbol!("fastsecdec::contour::smooth_positive_v1"))
-                    }));
+                    assert!(
+                        contour
+                            .images()
+                            .iter()
+                            .chain(
+                                contour
+                                    .function_definitions()
+                                    .entries()
+                                    .iter()
+                                    .map(|definition| definition.body())
+                            )
+                            .any(|coefficient| coefficient.contains_symbol(symbol!(
+                                "fastsecdec::contour::smooth_positive_v1"
+                            )))
+                    );
                 }
                 let values = integrate(&generated, recipe);
                 assert!((values[0].re + 4.).abs() < 1e-10);

@@ -29,6 +29,9 @@ enum Vertex {
 
 type DensityGraph = Graph<Vertex, usize>;
 
+mod source;
+pub(crate) use source::SourceWitness;
+
 #[cfg(test)]
 pub(super) mod profile;
 #[cfg(test)]
@@ -39,6 +42,7 @@ struct Representative {
     parameters: Vec<Symbol>,
     canonical_parameters: Vec<usize>,
     density: Atom,
+    witness: Vec<Atom>,
 }
 
 /// Immutable per-chart work. Construction is independent of the registry and
@@ -46,6 +50,7 @@ struct Representative {
 pub(super) struct PreparedDensity {
     parameters: Vec<Symbol>,
     density: Atom,
+    witness: Vec<Atom>,
     canonical: CanonicalForm<Vertex, usize>,
 }
 
@@ -100,13 +105,19 @@ impl PreparedDensity {
         let source_vertices = &self.canonical.vertex_map[..self.parameters.len()];
         let target_vertices = &target.canonical.vertex_map[..target.parameters.len()];
         let permutation = parameter_permutation(source_vertices, target_vertices)?;
-        Ok(verified_permutation(
+        Ok((verified_permutation(
             &self.density,
             &self.parameters,
             &target.density,
             &target.parameters,
             &permutation,
-        )
+        ) && verified_witness(
+            &self.witness,
+            &self.parameters,
+            &target.witness,
+            &target.parameters,
+            &permutation,
+        ))
         .then_some(permutation))
     }
 }
@@ -174,7 +185,29 @@ pub(super) fn prepare_mapped(
         parameters: parameters.to_vec(),
         density,
         canonical,
+        witness: Vec::new(),
     })
+}
+
+pub(super) fn prepare_program(
+    source_index: usize,
+    parameters: &[Symbol],
+    mapped: &[super::mapping::MappedTerm],
+    program: &super::program::ProgramData,
+    mut poll: impl FnMut() -> Result<(), GenerationError>,
+) -> Result<PreparedDensity, GenerationError> {
+    if let Some((_, witness)) = program
+        .source_witnesses
+        .iter()
+        .find(|(index, _)| *index == source_index)
+    {
+        poll()?;
+        let prepared = witness.prepare(parameters)?;
+        poll()?;
+        Ok(prepared)
+    } else {
+        prepare_mapped(source_index, parameters, mapped, poll)
+    }
 }
 
 /// A verified source-coordinate permutation into an earlier representative.
@@ -206,6 +239,7 @@ impl SymmetryRegistry {
                 parameters: parameters.to_vec(),
                 density: density.clone(),
                 canonical: incidence_graph(density, parameters)?,
+                witness: Vec::new(),
             },
         )
     }
@@ -221,6 +255,7 @@ impl SymmetryRegistry {
             parameters,
             density,
             canonical,
+            witness,
         } = prepared;
         let canonical_parameters = canonical.vertex_map[..parameters.len()].to_vec();
         let candidates = self.classes.entry(canonical.graph).or_default();
@@ -245,6 +280,12 @@ impl SymmetryRegistry {
                 &representative.density,
                 &representative.parameters,
                 &permutation,
+            ) && verified_witness(
+                &witness,
+                &parameters,
+                &representative.witness,
+                &representative.parameters,
+                &permutation,
             );
             #[cfg(test)]
             profile::trace(
@@ -264,12 +305,32 @@ impl SymmetryRegistry {
             parameters: parameters.clone(),
             canonical_parameters,
             density,
+            witness,
         });
         Ok(SymmetryMatch {
             representative: source_index,
             permutation: (0..parameters.len()).collect(),
         })
     }
+}
+
+fn verified_witness(
+    source: &[Atom],
+    source_parameters: &[Symbol],
+    target: &[Atom],
+    target_parameters: &[Symbol],
+    permutation: &[usize],
+) -> bool {
+    source.len() == target.len()
+        && source.iter().zip(target).all(|(source, target)| {
+            verified_permutation(
+                source,
+                source_parameters,
+                target,
+                target_parameters,
+                permutation,
+            )
+        })
 }
 
 fn verified_permutation(
@@ -387,6 +448,14 @@ fn incidence_graph(
     density: &Atom,
     parameters: &[Symbol],
 ) -> Result<CanonicalForm<Vertex, usize>, GenerationError> {
+    incidence_graph_with_witness(density, &[], parameters)
+}
+
+fn incidence_graph_with_witness(
+    density: &Atom,
+    witness: &[Atom],
+    parameters: &[Symbol],
+) -> Result<CanonicalForm<Vertex, usize>, GenerationError> {
     #[cfg(test)]
     let encoding_started = std::time::Instant::now();
     #[cfg(test)]
@@ -418,6 +487,10 @@ fn incidence_graph(
     let root = builder.graph.add_node(Vertex::Root);
     let expression = builder.expression(density.as_view())?;
     builder.edge(root, expression, 0)?;
+    for (slot, atom) in witness.iter().enumerate() {
+        let expression = builder.expression(atom.as_view())?;
+        builder.edge(root, expression, slot + 1)?;
+    }
     #[cfg(test)]
     let profile = profile::GraphProfile {
         density_bytes: density.as_view().get_byte_size(),

@@ -203,7 +203,7 @@ fn dynamic_staged_worker() {
         .unwrap();
     assert_eq!(kernels.program_recipe(), job.program_recipe);
     let bytes = kernels.to_bytes().unwrap();
-    assert!(bytes.starts_with(b"FastSecDec\0binserde\x0b"));
+    assert!(bytes.starts_with(b"FastSecDec\0binserde\x0c"));
     drop(kernels);
     drop(unit);
     // The staged evaluator's native callback must remain functional after
@@ -276,8 +276,8 @@ fn legacy_generation_record_version_is_rejected_before_native_import() {
     let path = old.resolve(directory.path()).unwrap();
     let mut bytes = std::fs::read(&path).unwrap();
     let version = b"FastSecDec\0generation-record".len();
-    assert_eq!(bytes[version], 3);
-    for old_version in [1, 2] {
+    assert_eq!(bytes[version], 4);
+    for old_version in [1, 2, 3] {
         bytes[version] = old_version;
         std::fs::write(&path, &bytes).unwrap();
         old.blake3 = blake3::hash(&bytes).to_hex().to_string();

@@ -2,6 +2,40 @@
 use super::*;
 
 fn decode_v11(bytes: &[u8]) -> PayloadV11 {
+    // Current generation may retain compact inspection definitions in v12;
+    // the certificate and exact-association sub-layout is still native v11.
+    if bytes.starts_with(MAGIC_V12) {
+        let (envelope, _): (Envelope, usize) = bincode::decode_from_slice(
+            bytes.strip_prefix(MAGIC_V12).unwrap(),
+            bincode::config::standard(),
+        )
+        .unwrap();
+        crate::contour::functions::register();
+        crate::contour::functions::dynamic::register();
+        let context = State::import(&mut envelope.state.as_slice(), None).unwrap();
+        let (mut payload, used): (PayloadV12, usize) = bincode::decode_from_slice_with_context(
+            &envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .unwrap();
+        assert_eq!(used, envelope.payload.len());
+        payload
+            .base
+            .metadata
+            .as_mut()
+            .unwrap()
+            .attach_contour_definitions(payload.contour_definitions)
+            .unwrap();
+        let Some(SavedDescriptor::V11(descriptor)) = payload.descriptor else {
+            panic!("dynamic certificate descriptor")
+        };
+        return PayloadV11 {
+            base: payload.base,
+            descriptor,
+            exact_requests: payload.exact_requests,
+        };
+    }
     let (envelope, used): (Envelope, usize) = bincode::decode_from_slice(
         bytes.strip_prefix(MAGIC_V11).unwrap(),
         bincode::config::standard(),
@@ -92,8 +126,12 @@ fn generated_v11_keeps_exact_mathematics_and_associations_in_separate_fields() {
             "diagnostic tags must not change mathematical exact coefficient equality"
         );
         let legacy = crate::kernel::recipe::SavedProgramDescriptor::from_native(&owner);
+        // This guard is descriptor admission, before retained chart metadata:
+        // a pre-certificate dynamic descriptor always requires regeneration.
+        let mut legacy_base = payload.base;
+        legacy_base.metadata = None;
         let (_, legacy) =
-            encode_with_descriptor(payload.base, Some(SavedDescriptor::V10(legacy))).unwrap();
+            encode_with_descriptor(legacy_base, Some(SavedDescriptor::V10(legacy))).unwrap();
         for validate in [false, true] {
             let error = KernelSet::from_bytes_with_options(&legacy, KernelLoadOptions { validate })
                 .err()

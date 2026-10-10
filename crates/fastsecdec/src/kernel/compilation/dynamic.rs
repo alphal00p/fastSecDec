@@ -45,6 +45,9 @@ impl PreparedDynamic {
                     KernelError::Compilation("dynamic source lacks retained map".into())
                 })?;
             lookup
+                .add_definitions(contour.function_definitions())
+                .map_err(KernelError::Compilation)?;
+            lookup
                 .insert(
                     &source.namespace,
                     &source.full_strength,

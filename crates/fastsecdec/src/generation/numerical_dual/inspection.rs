@@ -120,6 +120,11 @@ impl DualSector {
                     })
                     .unwrap_or(Atom::Zero)
             })
+            .map(|coefficient| {
+                self.contour_definitions
+                    .materialize(&coefficient)
+                    .expect("admitted compact contour definitions")
+            })
             .collect()
     }
 }

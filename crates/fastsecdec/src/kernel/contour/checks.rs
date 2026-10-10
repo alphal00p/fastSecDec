@@ -71,7 +71,12 @@ pub(in crate::kernel) fn build_checks(
                 .chain(runtime)
                 .map(|x| Atom::var(*x))
                 .collect::<Vec<_>>();
+            let functions = contour
+                .function_definitions()
+                .function_map(&outputs)
+                .map_err(KernelError::Compilation)?;
             let exact = Atom::evaluator_multiple(&outputs, &inputs)
+                .function_map(functions)
                 .optimization_settings(settings.native())
                 .build()
                 .map_err(|e| KernelError::Compilation(e.to_string()))?;

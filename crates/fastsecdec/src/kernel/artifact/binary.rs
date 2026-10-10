@@ -23,6 +23,7 @@ pub(super) const PREFIX: &[u8] = b"FastSecDec\0binserde";
 pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x09";
 const MAGIC_V10: &[u8] = b"FastSecDec\0binserde\x0a";
 const MAGIC_V11: &[u8] = b"FastSecDec\0binserde\x0b";
+const MAGIC_V12: &[u8] = b"FastSecDec\0binserde\x0c";
 const MAGIC_V8: &[u8] = b"FastSecDec\0binserde\x08";
 const MAGIC_V7: &[u8] = b"FastSecDec\0binserde\x07";
 const MAGIC_V6: &[u8] = b"FastSecDec\0binserde\x06";
@@ -78,9 +79,21 @@ struct PayloadV11 {
     exact_requests: Vec<ExactRequest>,
 }
 
+/// Preserve the old nested metadata layout. Native coefficient definitions
+/// are attached by local retained chart index before any semantic admission.
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV12 {
+    base: Payload,
+    descriptor: Option<SavedDescriptor>,
+    exact_requests: Vec<ExactRequest>,
+    contour_definitions: Vec<(usize, crate::contour::ContourDefinitions)>,
+}
+
+#[derive(Encode, Decode)]
 enum SavedDescriptor {
-    V10(crate::kernel::recipe::SavedProgramDescriptor),
-    V11(crate::kernel::recipe::SavedProgramDescriptorV2),
+    V10(#[bincode(with_serde)] crate::kernel::recipe::SavedProgramDescriptor),
+    V11(#[bincode(with_serde)] crate::kernel::recipe::SavedProgramDescriptorV2),
 }
 impl SavedDescriptor {
     fn from_native(value: &crate::kernel::NativeProgramDescriptor) -> Result<Self, KernelError> {
@@ -258,9 +271,9 @@ impl From<PayloadV5> for Payload {
 #[bincode(decode_context = "StateMap")]
 struct Sector {
     parameters: Vec<Symbol>,
-    // Reuse the native evaluator's established serde/bincode codec. Numerica
-    // 3.0.1 GMP Integer::Large native Encode drops a negative sign; its serde
-    // codec preserves it. Explicit Atom fields still use native StateMap Decode.
+    // Keep the established native serde/bincode codec for byte compatibility.
+    // It originally avoided Numerica 3.0.1's Integer::Large sign-loss issue;
+    // the current owner has fixed that issue. Atoms use native StateMap Decode.
     program: Vec<u8>,
     cancellation_degree: usize,
     cancellation_terms: Option<Vec<Vec<usize>>>,
@@ -271,9 +284,9 @@ struct Sector {
 #[bincode(decode_context = "StateMap")]
 struct LegacySector {
     parameters: Vec<Symbol>,
-    // Reuse the native evaluator's established serde/bincode codec. Numerica
-    // 3.0.1 GMP Integer::Large native Encode drops a negative sign; its serde
-    // codec preserves it. Explicit Atom fields still use native StateMap Decode.
+    // Keep the established native serde/bincode codec for byte compatibility.
+    // It originally avoided Numerica 3.0.1's Integer::Large sign-loss issue;
+    // the current owner has fixed that issue. Atoms use native StateMap Decode.
     program: Vec<u8>,
     cancellation_degree: usize,
     cancellation_terms: Option<Vec<Vec<usize>>>,
@@ -400,11 +413,11 @@ fn encode_with_descriptor(
     encode_with_requests(payload, descriptor, Vec::new())
 }
 fn encode_with_requests(
-    payload: Payload,
+    mut payload: Payload,
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
 ) -> Result<(String, Vec<u8>), KernelError> {
-    let content_id = match &descriptor {
+    let mut content_id = match &descriptor {
         Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
         None => {
             if !exact_requests.is_empty() {
@@ -440,34 +453,55 @@ fn encode_with_requests(
     );
     let mut state = Vec::new();
     State::export_partial(&mut state, symbols).map_err(failure)?;
-    let (magic, payload) = match descriptor {
-        Some(SavedDescriptor::V10(descriptor)) => (
-            MAGIC_V10,
+    let contour_definitions = payload
+        .metadata
+        .as_mut()
+        .map_or_else(Vec::new, PortableMetadata::take_contour_definitions);
+    let (magic, payload) = if !contour_definitions.is_empty() {
+        content_id = semantic_id_v12(&content_id);
+        (
+            MAGIC_V12,
             bincode::encode_to_vec(
-                PayloadV10 {
-                    base: payload,
-                    descriptor,
-                },
-                bincode::config::standard(),
-            )
-            .map_err(failure)?,
-        ),
-        Some(SavedDescriptor::V11(descriptor)) => (
-            MAGIC_V11,
-            bincode::encode_to_vec(
-                PayloadV11 {
+                PayloadV12 {
                     base: payload,
                     descriptor,
                     exact_requests,
+                    contour_definitions,
                 },
                 bincode::config::standard(),
             )
             .map_err(failure)?,
-        ),
-        None => (
-            MAGIC,
-            bincode::encode_to_vec(payload, bincode::config::standard()).map_err(failure)?,
-        ),
+        )
+    } else {
+        match descriptor {
+            Some(SavedDescriptor::V10(descriptor)) => (
+                MAGIC_V10,
+                bincode::encode_to_vec(
+                    PayloadV10 {
+                        base: payload,
+                        descriptor,
+                    },
+                    bincode::config::standard(),
+                )
+                .map_err(failure)?,
+            ),
+            Some(SavedDescriptor::V11(descriptor)) => (
+                MAGIC_V11,
+                bincode::encode_to_vec(
+                    PayloadV11 {
+                        base: payload,
+                        descriptor,
+                        exact_requests,
+                    },
+                    bincode::config::standard(),
+                )
+                .map_err(failure)?,
+            ),
+            None => (
+                MAGIC,
+                bincode::encode_to_vec(payload, bincode::config::standard()).map_err(failure)?,
+            ),
+        }
     };
     let digest = digest(magic, &state, &payload);
     let envelope = Envelope {
@@ -479,6 +513,13 @@ fn encode_with_requests(
     let mut bytes = magic.to_vec();
     bytes.extend(bincode::encode_to_vec(envelope, bincode::config::standard()).map_err(failure)?);
     Ok((content_id, bytes))
+}
+
+fn semantic_id_v12(base_identity: &str) -> String {
+    let mut hash = blake3::Hasher::new();
+    hash.update(b"fastsecdec-native-semantic-v12\0");
+    hash.update(base_identity.as_bytes());
+    hash.finalize().to_hex().to_string()
 }
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
     encode_with_requests(
@@ -738,7 +779,9 @@ pub(super) fn load_with_progress(
     options: KernelLoadOptions,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
-    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V11) {
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V12) {
+        (wire, MAGIC_V12, 12)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V11) {
         (wire, MAGIC_V11, 11)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V10) {
         (wire, MAGIC_V10, 10)
@@ -778,7 +821,26 @@ pub(super) fn load_with_progress(
     }
     let mut saved_descriptor = None;
     let mut exact_requests = Vec::new();
-    let (payload, used): (Payload, usize) = if version == 11 {
+    let (payload, used): (Payload, usize) = if version == 12 {
+        let (mut payload, used): (PayloadV12, usize) = bincode::decode_from_slice_with_context(
+            envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?;
+        if payload.contour_definitions.is_empty() {
+            return Err(failure("v12 artifact has no compact contour definitions"));
+        }
+        payload
+            .base
+            .metadata
+            .as_mut()
+            .ok_or_else(|| failure("compact contour definitions lack retained metadata"))?
+            .attach_contour_definitions(payload.contour_definitions)?;
+        exact_requests = payload.exact_requests;
+        saved_descriptor = payload.descriptor;
+        (payload.base, used)
+    } else if version == 11 {
         let (payload, used): (PayloadV11, usize) = bincode::decode_from_slice_with_context(
             envelope.payload,
             bincode::config::standard(),
@@ -833,9 +895,14 @@ pub(super) fn load_with_progress(
         return Err(failure("trailing payload bytes"));
     }
     let actual_id = if options.validate {
-        Some(match &saved_descriptor {
+        let identity = match &saved_descriptor {
             Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
             None => semantic_id(&payload, version)?,
+        };
+        Some(if version == 12 {
+            semantic_id_v12(&identity)
+        } else {
+            identity
         })
     } else {
         None
@@ -843,7 +910,7 @@ pub(super) fn load_with_progress(
     if actual_id.is_some_and(|id| id != envelope.content_id) {
         return Err(failure("semantic content identity mismatch"));
     }
-    if version == 11 {
+    if version >= 11 {
         let canonical =
             merge_exact_requests(&payload.exact, exact_requests.clone()).map_err(failure)?;
         let mut seen = std::collections::BTreeSet::new();

@@ -293,3 +293,15 @@ exact-contribution and pilot work, with collapsible strength/displacement and
 solver details. Ranges are approximate observed centres, not certified bounds.
 Missing observations are explicitly unavailable. Reading or rendering a report
 does not evaluate, drain observations or advance the retained session.
+
+`kernels.contour_recipes` exposes the retained native contour maps after recipe
+selection or artifact restoration. Each view supplies its original
+`source_index`, images, endpoint ratios, Jacobian and subtraction-face coverage.
+Dynamic maps can keep repeated coefficient expressions as explicit Symbolica
+functions: `function_definition_count` is a cheap summary, and
+`function_definitions` returns their formal calls and native bodies on demand.
+Derivatives in the map refer to these same bodies. Inspection does not expand
+the functions, differentiate them or construct evaluators. Views retain their
+native owner, so they remain usable after the original Python wrapper is
+released. A missing historical metadata record gives `None`; a known map-free
+artifact gives an empty list.

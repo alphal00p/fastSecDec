@@ -332,7 +332,11 @@ impl Contour {
             validation_faces: metadata.validation_faces().to_vec(),
         }
     }
-    fn native(self, atoms: &Atoms) -> Result<crate::contour::ContourMetadata, StreamingError> {
+    fn native(
+        self,
+        atoms: &Atoms,
+        definitions: std::sync::Arc<crate::contour::ContourDefinitions>,
+    ) -> Result<crate::contour::ContourMetadata, StreamingError> {
         let restore = |indices: Vec<usize>| {
             indices
                 .into_iter()
@@ -340,6 +344,7 @@ impl Contour {
                 .collect::<Result<Vec<_>, _>>()
         };
         Ok(crate::contour::ContourMetadata {
+            definitions,
             causal_polynomial: atoms.take(self.causal_polynomial)?,
             positive_polynomials: restore(self.positive_polynomials)?,
             images: restore(self.images)?,
@@ -444,6 +449,7 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
                 .collect::<Result<_, StreamingError>>()
         })
         .transpose()?;
+    let definitions = program.contour_definitions()?;
     Ok(ChartData {
         program,
         index: chart.index,
@@ -453,7 +459,7 @@ pub(super) fn read_chart(root: &Path, reference: &RecordRef) -> Result<ChartData
         deferred,
         contour: chart
             .contour
-            .map(|metadata| metadata.native(&atoms))
+            .map(|metadata| metadata.native(&atoms, definitions))
             .transpose()?,
     })
 }

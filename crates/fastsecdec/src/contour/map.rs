@@ -1,6 +1,7 @@
 //! Native Symbolica construction of an endpoint-preserving causal chart.
-use super::{ContourMetadata, functions::causal_log, lambda_symbol};
+use super::{ContourDefinitions, ContourMetadata, functions::causal_log, lambda_symbol};
 use crate::{generation::GenerationError, parametric::FactorSemantics};
+use std::sync::Arc;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     id::{Pattern, Replacement},
@@ -32,9 +33,9 @@ impl FixedContourMap {
 }
 
 /// Shared native geometry for a caller-proved real positive smooth strength.
-/// Only the fixed wrapper currently enters production generation. A future
-/// dynamic recipe must retain its own descriptor; this map alone must not be
-/// serialized as a fixed v9 recipe merely because its geometric fields agree.
+/// Dynamic recipes retain their independent descriptor and coefficient
+/// definitions alongside this geometry. The shared map does not determine the
+/// saved mathematical recipe or its runtime validation policy.
 #[derive(Clone, Debug)]
 pub(crate) struct SmoothContourMap {
     parameters: Vec<Symbol>,
@@ -46,6 +47,21 @@ impl SmoothContourMap {
         causal_polynomial: Atom,
         strength: Atom,
     ) -> Result<Self, GenerationError> {
+        Self::with_definitions(parameters, causal_polynomial, strength, Arc::default())
+    }
+
+    pub(crate) fn with_definitions(
+        parameters: &[Symbol],
+        causal_polynomial: Atom,
+        strength: Atom,
+        definitions: Arc<ContourDefinitions>,
+    ) -> Result<Self, GenerationError> {
+        definitions
+            .validate(false)
+            .map_err(GenerationError::Contour)?;
+        definitions
+            .select([&strength])
+            .map_err(GenerationError::Contour)?;
         if parameters
             .iter()
             .collect::<std::collections::BTreeSet<_>>()
@@ -97,6 +113,7 @@ impl SmoothContourMap {
         Ok(Self {
             parameters: parameters.to_vec(),
             metadata: ContourMetadata {
+                definitions,
                 causal_polynomial,
                 positive_polynomials: Vec::new(),
                 images,
@@ -149,7 +166,7 @@ impl SmoothContourMap {
     }
 }
 
-fn continued_power(base: &Atom, exponent: &Atom, causal: bool) -> Atom {
+pub(crate) fn continued_power(base: &Atom, exponent: &Atom, causal: bool) -> Atom {
     if symbolica::domains::integer::Integer::try_from(exponent.as_view()).is_ok() {
         base.pow(exponent)
     } else {

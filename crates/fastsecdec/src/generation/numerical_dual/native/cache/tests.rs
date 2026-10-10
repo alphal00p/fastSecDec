@@ -29,6 +29,53 @@ fn bytes(program: &ExactProgram) -> Vec<u8> {
 }
 
 #[test]
+fn compact_native_bodies_are_part_of_the_source_and_jet_cache_key() {
+    use crate::contour::ContourDefinitions;
+    let x = symbol!("compact_cache::x");
+    let polynomial = (1..=24)
+        .map(|power| Atom::var(x).pow(Atom::num(power)))
+        .sum::<Atom>();
+    let (definitions, calls) = ContourDefinitions::coefficients(&[x], &[polynomial]).unwrap();
+    assert_eq!(definitions.entries().len(), 1);
+    let entry = &definitions.entries()[0];
+    // A local native FunctionMap owns its exact body. Even independently
+    // admitted definition owners sharing one handle cannot share cached IR.
+    let changed = ContourDefinitions::from_parts(vec![(
+        entry.function(),
+        entry.parameters().to_vec(),
+        entry.body() + Atom::one(),
+    )])
+    .unwrap();
+    let cache = SourcePrograms::default();
+    let shape = [vec![0], vec![1], vec![2]];
+    let first = cache
+        .jets_with_definitions(
+            &calls[0],
+            &[x],
+            &shape,
+            &[],
+            CompilationSettings::default(),
+            &Arc::new(definitions),
+        )
+        .unwrap();
+    let second = cache
+        .jets_with_definitions(
+            &calls[0],
+            &[x],
+            &shape,
+            &[],
+            CompilationSettings::default(),
+            &Arc::new(changed),
+        )
+        .unwrap();
+    assert!(!Arc::ptr_eq(&first, &second));
+    assert_eq!(cache.0.lock().unwrap().len(), 2);
+    let a = evaluate(&first, &[0.25, 1., 0.], 3);
+    let b = evaluate(&second, &[0.25, 1., 0.], 3);
+    assert_eq!(b, vec![a[0] + 1., a[1], a[2]]);
+}
+
+#[test]
 fn identical_concurrent_jets_share_one_native_owner_and_exact_ir() {
     let cache = SourcePrograms::default();
     let polynomial = parse!("native_cache::x^2+native_cache::x*native_cache::y+native_cache::x^3");
@@ -217,7 +264,7 @@ fn unrelated_sources_do_not_wait_for_an_initializing_source() {
     let x = symbol!("native_cache_parallel::x");
     let polynomial = Atom::var(x);
     let source = cache
-        .source(&polynomial, &[x], CompilationSettings::default())
+        .source(&polynomial, &[x], CompilationSettings::default(), None)
         .unwrap();
     while_pending(&source.exact, scalar(&polynomial, &[x]), || {
         cache.jets(
@@ -236,7 +283,7 @@ fn unrelated_jet_shapes_do_not_wait_for_an_initializing_jet() {
     let x = symbol!("native_cache_parallel_jet::x");
     let polynomial = Atom::var(x).pow(Atom::num(2));
     let source = cache
-        .source(&polynomial, &[x], CompilationSettings::default())
+        .source(&polynomial, &[x], CompilationSettings::default(), None)
         .unwrap();
     program(&source.exact, || Ok(scalar(&polynomial, &[x]))).unwrap();
     let cell = Arc::new(ProgramCell::new());

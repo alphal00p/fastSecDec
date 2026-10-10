@@ -8,6 +8,7 @@ use crate::{
 use std::ops::ControlFlow;
 use symbolica::{parse, symbol};
 mod v11;
+mod v12;
 
 fn kernel(prefactor: Atom) -> KernelSet {
     let input = ParametricIntegrand::new(

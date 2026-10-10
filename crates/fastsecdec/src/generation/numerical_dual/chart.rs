@@ -224,6 +224,7 @@ pub(in crate::generation) fn instantiate(
             coefficients,
             profile,
             Some(Arc::new(DualSector {
+                contour_definitions: program.contour_definitions()?,
                 programs: context.programs.clone(),
                 source_parameters: context.input.parameters().to_vec(),
                 regulator: context.input.regulator(),
@@ -274,6 +275,7 @@ pub(in crate::generation) fn instantiate(
     };
     let orders = coefficients.keys().copied().collect();
     let sector = GeneratedSector {
+        contour_definitions: program.contour_definitions()?,
         program_descriptor: program.descriptor,
         dynamic_check_sources: program.checks,
         cancellation_degree: profile.degree,

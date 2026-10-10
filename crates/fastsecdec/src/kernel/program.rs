@@ -93,6 +93,7 @@ pub(super) fn build_sector_with_lowering(
             cancellation,
             settings,
             lookup,
+            sector.contour_definitions(),
         )
     }
 }
@@ -139,6 +140,7 @@ pub(super) fn build_with_settings(
         cancellation,
         settings,
         None,
+        &crate::contour::ContourDefinitions::default(),
     )
 }
 
@@ -149,6 +151,7 @@ fn build_with_lowering(
     cancellation: Cancellation,
     settings: CompilationSettings,
     lookup: Option<&crate::contour::functions::dynamic::requests::Lookup>,
+    definitions: &crate::contour::ContourDefinitions,
 ) -> Result<SectorProgram, KernelError> {
     settings.validate()?;
     let mut seen = std::collections::HashSet::new();
@@ -202,8 +205,17 @@ fn build_with_lowering(
         .chain(runtime_parameters)
         .map(|p| Atom::var(*p))
         .collect::<Vec<_>>();
-    let mut builder =
-        Atom::evaluator_multiple(&roots, &variables).optimization_settings(settings.native());
+    let functions = definitions
+        .function_map(
+            roots
+                .iter()
+                .copied()
+                .chain(aliases.into_iter().flat_map(|aliases| aliases.values())),
+        )
+        .map_err(KernelError::Compilation)?;
+    let mut builder = Atom::evaluator_multiple(&roots, &variables)
+        .function_map(functions)
+        .optimization_settings(settings.native());
     if let Some(aliases) = aliases {
         // Register a shared map once; native AliasedAtom::evaluator_multiple
         // would register identical definitions again for each coefficient.

@@ -252,6 +252,7 @@ pub struct EndpointProfileRow {
 /// All Laurent outputs retain the same sector integration support.
 #[derive(Clone, Debug)]
 pub struct GeneratedSector {
+    pub(crate) contour_definitions: std::sync::Arc<crate::contour::ContourDefinitions>,
     pub(crate) program_descriptor: Option<std::sync::Arc<crate::kernel::NativeProgramDescriptor>>,
     pub(crate) dynamic_check_sources: Vec<std::sync::Arc<crate::kernel::DynamicCheckSource>>,
     pub(crate) deferred: Option<std::sync::Arc<super::numerical_dual::DualSector>>,
@@ -266,6 +267,11 @@ pub struct GeneratedSector {
 }
 
 impl GeneratedSector {
+    pub(crate) fn contour_definitions(
+        &self,
+    ) -> &std::sync::Arc<crate::contour::ContourDefinitions> {
+        &self.contour_definitions
+    }
     pub(crate) fn program_descriptor(
         &self,
     ) -> Option<&std::sync::Arc<crate::kernel::NativeProgramDescriptor>> {
@@ -321,7 +327,11 @@ impl GeneratedSector {
             self.coefficients
                 .iter()
                 .cloned()
-                .map(AliasedAtom::into_inner)
+                .map(|coefficient| {
+                    self.contour_definitions
+                        .materialize(&coefficient.into_inner())
+                        .expect("admitted compact contour definitions")
+                })
                 .collect()
         })
     }

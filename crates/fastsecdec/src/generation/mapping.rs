@@ -10,7 +10,7 @@ use symbolica::{
 
 mod contour;
 mod regular;
-pub(super) use contour::PreparedTerm;
+pub(super) use contour::{PreparedTerm, declared_factors};
 
 #[cfg(test)]
 pub(super) mod profile;
@@ -261,6 +261,7 @@ pub(super) fn apply_prepared(
     combine: bool,
 ) -> Result<MappedOutput, GenerationError> {
     let mut program = super::program::ProgramData::default();
+    let witness = super::symmetry::SourceWitness::new(parameters, &terms, recipe)?;
     let mut combined = BTreeMap::<Vec<Atom>, BTreeMap<Atom, Atom>>::new();
     let mut separate = Vec::new();
     let contour_metadata = if recipe != crate::kernel::indexed::ProgramRecipe::UndeformedV1 {
@@ -295,6 +296,9 @@ pub(super) fn apply_prepared(
         }
         None
     };
+    if let Some(witness) = witness {
+        program.source_witnesses.push((0, witness));
+    }
     if !combine {
         return Ok((separate, contour_metadata, program));
     }

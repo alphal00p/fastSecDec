@@ -51,6 +51,14 @@ fn check_vectors(native_jit: bool) {
                 .validation_faces();
             let mut lookup = Lookup::default();
             lookup
+                .add_definitions(
+                    generated.metadata().charts()[0]
+                        .contour()
+                        .unwrap()
+                        .function_definitions(),
+                )
+                .unwrap();
+            lookup
                 .insert(
                     &source.namespace,
                     &source.full_strength,

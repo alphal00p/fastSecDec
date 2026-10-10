@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use symbolica::atom::Atom;
 
 /// Native chart data before subtraction, retained for checks and inspection.
@@ -8,12 +9,15 @@ pub struct ContourMetadata {
     pub(crate) images: Vec<Atom>,
     pub(crate) ratios: Vec<Atom>,
     pub(crate) jacobian: Atom,
+    /// Native coefficient bodies referenced by the compact map. Keep these
+    /// record-local; viewing the map does not materialize them into its Atoms.
+    pub(crate) definitions: Arc<super::ContourDefinitions>,
     /// Coordinate restrictions applied to this same full-sector map.
     pub(crate) validation_faces: Vec<Vec<(usize, u8)>>,
 }
 impl ContourMetadata {
     pub fn version(&self) -> u32 {
-        1
+        if self.definitions.is_empty() { 1 } else { 2 }
     }
     pub fn causal_polynomial(&self) -> &Atom {
         &self.causal_polynomial
@@ -29,6 +33,11 @@ impl ContourMetadata {
     }
     pub fn jacobian(&self) -> &Atom {
         &self.jacobian
+    }
+    /// Native definitions for the map's compact coefficient calls. Symbolica
+    /// owns their differentiation and lowering. This getter performs no algebra.
+    pub fn function_definitions(&self) -> &super::ContourDefinitions {
+        &self.definitions
     }
     pub fn validation_faces(&self) -> &[Vec<(usize, u8)>] {
         &self.validation_faces

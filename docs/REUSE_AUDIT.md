@@ -13,11 +13,32 @@ failure to about 575 MiB through native evaluator lowering, with exact equality
 of all 36 Jacobian entries. No replacement CAS, AD, determinant or codec is used.
 
 Opaque `AliasedAtom` differentiation and retained sub-evaluator vectorization
-are not interchangeable with this supported route. Full dependency signatures,
-native symmetry verification, subtraction faces, exact-offset cancellation and
-trace ownership, record-local storage and fresh-process restoration remain
-explicit implementation gates. No owner patch is justified by these probes;
-the production pipeline has not yet adopted the compact representation.
+are not interchangeable with this supported route. The production pipeline now
+retains chart-local native coefficient definitions through symbolic and
+numerical-dual generation, subtraction, disk staging and v12 artifact records.
+Native source witnesses preserve branch-aware exact symmetry checks, while
+exact contributions materialize restricted calls before aggregation. Full
+dependency signatures and native body equality protect cache and owner merges.
+The [integration review](reviews/contour-compact-integration.md) and
+[codec audit](reviews/contour-compact-codec.md) record these ownership boundaries.
+No owner-library patch or replacement algebra is required.
+
+The final native library gate passes 401 tests (19 ignored); the portable gate
+passes 79 across sixteen executables. The immutable consumer snapshot also
+passes all 138 maintained tests in actual Pyodide. These include retained
+HEPKit inspection views and fresh-process restoration. An independent actual
+six-dimensional chart probe compares all seven image/determinant outputs with
+native 192-bit Dualizer/Matrix references: eight points/settings and four
+backends agree within their declared tolerances, in 2.60 seconds and 137.3 MiB.
+This probe is a different workload from the 575 MiB lowering experiment; neither
+is a completed physical K1 generation or integration. The same immutable snapshot passes all 249 installed native binding/demo/
+wavefunction tests after installing its declared notebook extras, with no skips.
+Fresh stubs and strict binding Clippy pass; the whole workspace passes 904
+tests (33 ignored, including the library subsets above). In actual one-worker
+K1 generation, all 186 mappings now complete within a 300-second bounded
+campaign at 234.984 MiB sampled aggregate peak, compared with the previous
+3 GiB failure before completing the first mapping. Compilation and full
+publication remain pending; the measurement does not claim their peak memory.
 
 ## Dynamic observations and installed HEPKit family audit (2026-10-10)
 

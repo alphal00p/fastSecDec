@@ -410,15 +410,21 @@ pub(super) fn prepare_symmetry(
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<PreparedChart, GenerationError> {
     chart.program.remap(&[index])?;
-    let symmetry = symmetry::prepare_mapped(index, &chart.parameters, &chart.mapped, || {
-        emit(
-            progress,
-            GenerationProgress::SymmetryPreparation {
-                sector: index,
-                total,
-            },
-        )
-    })?;
+    let symmetry = symmetry::prepare_program(
+        index,
+        &chart.parameters,
+        &chart.mapped,
+        &chart.program,
+        || {
+            emit(
+                progress,
+                GenerationProgress::SymmetryPreparation {
+                    sector: index,
+                    total,
+                },
+            )
+        },
+    )?;
     Ok(PreparedChart { chart, symmetry })
 }
 

@@ -19,9 +19,31 @@ pub(super) fn deform_with(
     terms: Vec<PreparedTerm>,
     build: impl FnOnce(&[Symbol], Atom, &[Atom]) -> Result<SmoothContourMap, GenerationError>,
 ) -> Result<(Vec<MappedTerm>, Option<ContourMetadata>), GenerationError> {
+    let (causal, positive) = declared_factors(&terms)?;
+    let Some(causal) = causal else {
+        return Ok((Vec::new(), None));
+    };
+    let mut map = build(parameters, causal, &positive)?;
+    let mapped = terms
+        .into_iter()
+        .map(|term| {
+            let regular = map.smooth_density(&term.powers, &term.residuals);
+            MappedTerm {
+                powers: term.powers,
+                prefactor: term.prefactor,
+                regular,
+            }
+        })
+        .collect();
+    Ok((mapped, Some(map.metadata().clone())))
+}
+
+pub(in crate::generation) fn declared_factors(
+    terms: &[PreparedTerm],
+) -> Result<(Option<Atom>, Vec<Atom>), GenerationError> {
     let mut causal = None;
     let mut positive = Vec::new();
-    for term in &terms {
+    for term in terms {
         let mut factors = term
             .residuals
             .iter()
@@ -48,22 +70,7 @@ pub(super) fn deform_with(
             }
         }
     }
-    let Some(causal) = causal else {
-        return Ok((Vec::new(), None));
-    };
-    let mut map = build(parameters, causal, &positive)?;
-    let mapped = terms
-        .into_iter()
-        .map(|term| {
-            let regular = map.smooth_density(&term.powers, &term.residuals);
-            MappedTerm {
-                powers: term.powers,
-                prefactor: term.prefactor,
-                regular,
-            }
-        })
-        .collect();
-    Ok((mapped, Some(map.metadata().clone())))
+    Ok((causal, positive))
 }
 
 #[cfg(test)]

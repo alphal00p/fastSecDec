@@ -100,6 +100,10 @@ def test_contour_inspection_retains_independent_native_face_views(generated):
     for chart in generated.metadata.charts:
         recipe = chart.contour
         assert recipe is not None
+        assert recipe.source_index == chart.source_index
+        assert recipe.version == 1
+        assert recipe.function_definition_count == 0
+        assert recipe.function_definitions == []
         # The finite massive triangle needs the full map, with no endpoint
         # subtraction. The native recipe retains the interior explicitly.
         assert recipe.validation_faces == [[]]
@@ -117,6 +121,9 @@ def test_contour_capability_and_caller_owned_pilot_survive_reload(generated):
     assert template.contour_capable
     assert not template.runtime_parameters  # Strength is separate from physical inputs.
     restored = sd.Kernels.from_bytes(template.to_bytes())
+    assert [r.source_index for r in restored.contour_recipes] == [
+        r.source_index for r in template.contour_recipes]
+    assert all(r.function_definitions == [] for r in restored.contour_recipes)
     configured = restored.with_parameters({}, contour=sd.ContourSettings.fixed(
         0.01, validation="pilot", pilot_points=2))
     assert configured.contour_settings.lambda_value == 0.01

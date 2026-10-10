@@ -10,6 +10,8 @@ use std::sync::Arc;
 pub(crate) struct ProgramData {
     pub descriptor: Option<Arc<NativeProgramDescriptor>>,
     pub checks: Vec<Arc<DynamicCheckSource>>,
+    pub definitions: Vec<(usize, Arc<crate::contour::ContourDefinitions>)>,
+    pub source_witnesses: Vec<(usize, super::symmetry::SourceWitness)>,
 }
 
 impl ProgramData {
@@ -41,7 +43,32 @@ impl ProgramData {
                     })
             })
             .collect();
-        Ok(Self { descriptor, checks })
+        let definitions = sources
+            .iter()
+            .enumerate()
+            .flat_map(|(local, source)| {
+                self.definitions
+                    .iter()
+                    .filter(move |(index, _)| index == source)
+                    .map(move |(_, definitions)| (local, definitions.clone()))
+            })
+            .collect();
+        let source_witnesses = sources
+            .iter()
+            .enumerate()
+            .flat_map(|(local, source)| {
+                self.source_witnesses
+                    .iter()
+                    .filter(move |(index, _)| index == source)
+                    .map(move |(_, witness)| (local, witness.clone()))
+            })
+            .collect();
+        Ok(Self {
+            descriptor,
+            checks,
+            definitions,
+            source_witnesses,
+        })
     }
     pub fn remap(&mut self, sources: &[usize]) -> Result<(), GenerationError> {
         if let Some(descriptor) = &mut self.descriptor {
@@ -53,6 +80,16 @@ impl ProgramData {
             let check = Arc::make_mut(check);
             check.chart_index = *sources.get(check.chart_index).ok_or_else(|| {
                 GenerationError::Invariant("dynamic check source index mismatch".into())
+            })?;
+        }
+        for index in self
+            .definitions
+            .iter_mut()
+            .map(|(index, _)| index)
+            .chain(self.source_witnesses.iter_mut().map(|(index, _)| index))
+        {
+            *index = *sources.get(*index).ok_or_else(|| {
+                GenerationError::Invariant("compact contour source index mismatch".into())
             })?;
         }
         Ok(())
@@ -69,6 +106,9 @@ impl ProgramData {
             }
         }
         self.checks.extend(other.checks.iter().cloned());
+        self.definitions.extend(other.definitions.iter().cloned());
+        self.source_witnesses
+            .extend(other.source_witnesses.iter().cloned());
         self.checks.sort_by_key(|check| check.chart_index);
         if self
             .checks
@@ -80,6 +120,21 @@ impl ProgramData {
             ));
         }
         Ok(())
+    }
+
+    pub fn contour_definitions(
+        &self,
+    ) -> Result<Arc<crate::contour::ContourDefinitions>, GenerationError> {
+        if let [(_, definitions)] = self.definitions.as_slice() {
+            return Ok(definitions.clone());
+        }
+        let mut combined = crate::contour::ContourDefinitions::default();
+        for (_, definitions) in &self.definitions {
+            combined
+                .merge(definitions)
+                .map_err(GenerationError::Contour)?;
+        }
+        Ok(Arc::new(combined))
     }
 }
 

@@ -24,6 +24,7 @@ struct Source {
     polynomial: Atom,
     inputs: Vec<Symbol>,
     settings: CompilationSettings,
+    definitions: Option<Arc<crate::contour::ContourDefinitions>>,
     exact: ProgramCell,
     jets: Mutex<BTreeMap<JetKey, Arc<ProgramCell>>>,
 }
@@ -41,7 +42,21 @@ impl SourcePrograms {
         zeros: &[(usize, usize)],
         settings: CompilationSettings,
     ) -> Result<Arc<ExactProgram>, KernelError> {
-        self.source(polynomial, inputs, settings)?
+        self.source(polynomial, inputs, settings, None)?
+            .jets(shape, zeros)
+    }
+
+    pub(super) fn jets_with_definitions(
+        &self,
+        polynomial: &Atom,
+        inputs: &[Symbol],
+        shape: &[Vec<usize>],
+        zeros: &[(usize, usize)],
+        settings: CompilationSettings,
+        definitions: &Arc<crate::contour::ContourDefinitions>,
+    ) -> Result<Arc<ExactProgram>, KernelError> {
+        let definitions = (!definitions.is_empty()).then(|| definitions.clone());
+        self.source(polynomial, inputs, settings, definitions)?
             .jets(shape, zeros)
     }
 
@@ -50,6 +65,7 @@ impl SourcePrograms {
         polynomial: &Atom,
         inputs: &[Symbol],
         settings: CompilationSettings,
+        definitions: Option<Arc<crate::contour::ContourDefinitions>>,
     ) -> Result<Arc<Source>, KernelError> {
         let mut sources = self
             .0
@@ -59,6 +75,7 @@ impl SourcePrograms {
             source.polynomial == *polynomial
                 && source.inputs == inputs
                 && source.settings == settings
+                && source.definitions == definitions
         }) {
             return Ok(source.clone());
         }
@@ -66,6 +83,7 @@ impl SourcePrograms {
             polynomial: polynomial.clone(),
             inputs: inputs.to_vec(),
             settings,
+            definitions,
             exact: OnceLock::new(),
             jets: Mutex::default(),
         });
@@ -88,11 +106,16 @@ impl Source {
                 .iter()
                 .map(|s| Atom::var(*s))
                 .collect::<Vec<_>>();
-            self.polynomial
+            let builder = self
+                .polynomial
                 .evaluator(&params)
-                .optimization_settings(self.settings.native())
-                .build()
-                .map_err(|error| error.to_string())
+                .optimization_settings(self.settings.native());
+            let builder = if let Some(definitions) = &self.definitions {
+                builder.function_map(definitions.function_map([&self.polynomial])?)
+            } else {
+                builder
+            };
+            builder.build().map_err(|error| error.to_string())
         })?;
         let cell = {
             let mut jets = self

@@ -1,7 +1,7 @@
 //! Lower the selected native envelope before differentiating the complete map.
 use crate::{
     contour::{
-        FixedContourMap, SmoothContourMap,
+        ContourDefinitions, FixedContourMap, SmoothContourMap,
         dynamic::{DynamicEnvelope, lambda_cap_symbol, safety_fraction_symbol},
         functions::{
             dynamic::{RootProgram, strength},
@@ -51,15 +51,34 @@ pub(in crate::generation) fn build(
                 DynamicCheckSource::from_envelope(0, &envelope, recipe, local_strength.clone())
                     .map_err(|e| GenerationError::Contour(e.to_string()))?,
             )];
-            let descriptor = NativeProgramDescriptor::dynamic(recipe, vec![chart], vec![helper])
-                .map_err(|e| GenerationError::Contour(e.to_string()))?;
+            let descriptor =
+                NativeProgramDescriptor::dynamic(recipe, vec![chart], vec![helper.clone()])
+                    .map_err(|e| GenerationError::Contour(e.to_string()))?;
+            let (definitions, compact_coefficients) =
+                ContourDefinitions::coefficients(parameters, &coefficients)
+                    .map_err(GenerationError::Contour)?;
+            let definitions = Arc::new(definitions);
+            let compact_strength = strength(
+                &helper,
+                &compact_coefficients,
+                &Atom::var(safety_fraction_symbol()),
+                &Atom::var(lambda_cap_symbol()),
+            )
+            .map_err(GenerationError::Contour)?;
             let program = ProgramData {
                 descriptor: Some(Arc::new(descriptor)),
                 checks,
+                definitions: vec![(0, definitions.clone())],
+                ..ProgramData::default()
             };
             // The descriptor retains the callback helper during derivatives,
             // subtraction, optimization and independent job execution.
-            let map = SmoothContourMap::new(parameters, causal, local_strength)?;
+            let map = SmoothContourMap::with_definitions(
+                parameters,
+                causal,
+                compact_strength,
+                definitions,
+            )?;
             Ok((map, program))
         }
         ProgramRecipe::UndeformedV1 => Err(GenerationError::Invariant(

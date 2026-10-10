@@ -180,3 +180,61 @@ at each cap/seed; the review correctly treats these quadratic prescriptions as
 one mathematical case, not independent evidence for a gain. Source/report/map
 proof SHA-256 values match their ledger. The detailed results and unfavorable
 default-cap evidence remain in `contour-physical-variance.md`, owned separately.
+
+## Actual six-dimensional chart numerical check (2026-10-10)
+
+The bounded native probe
+`target/contour-ltd-dynamic-k1/numeric-compact-probe.rs` uses the unchanged K1
+prepared-source chart 0. It verifies the record's BLAKE3 identity
+`f2b1b9c567b44cbce7a616ef9f05c452ad0adf2e64c137b2d3bd13da320638f3`
+before restoring the original schema-3 source with Symbolica's `StateMap` and
+native Atom codec. Earlier source-parity evidence identifies this F/U and
+coordinate ordering with the retained fixed chart used in the symbolic proof.
+No kinematic or F normalization is introduced.
+
+The tested program contains the six compact coordinate images and their native
+symbolic determinant. Its independent numerical reference starts from the six
+original images with expanded coefficient arguments, applies Symbolica's native
+`Dualizer` to all six first partial derivatives, and takes the resulting
+row-major 6×6 determinant with the native numeric `Matrix` API at 192 bits. Every
+one of the seven outputs is compared; DD values are lifted using both binary
+limbs, rather than converted through f64.
+
+The predeclared points, in the original six-coordinate order, are
+`[.17,.28,.39,.51,.62,.73]`, `[.5;6]`, `[.001;6]`, and
+`[0,.28,.39,.51,.62,.73]`. Each uses S=.8, R=1 and both L=.01 and L=.1, giving
+eight reference vectors and 32 tested vectors across four numeric backends.
+The scaled error is `|actual-reference|/(1+|reference|)` for each complex output.
+
+| Backend | Predeclared tolerance | Largest observed scaled error |
+| --- | ---: | ---: |
+| Eager f64 | 1e-9 | 1.3330659323688243e-16 |
+| SymJIT O2 | 1e-9 | 4.503602545770937e-16 |
+| Native DoubleFloat | 1e-25 | 5.665715875362131e-32 |
+| Native Float, 192 bits | 1e-45 | 6.237726490654459e-58 |
+
+Every callback attempt succeeded, including all eight DD attempts. The compact
+seven-output program has 18,579 native instructions; the original-image jet
+reference has 50,235. A caller-owned process-group monitor imposed 60 seconds
+and 3 GiB, sampling aggregate resident pages every 50 ms. It recorded exit 0,
+2.603566608 seconds and a sampled peak of 143,970,304 bytes (137.3 MiB), with no
+limit triggered. This workload includes construction, native lowering, JIT and
+point evaluation. It differs from the earlier determinant-only lowering probe;
+its RSS is not a like-for-like reduction from that probe's 575 MiB.
+
+The source SHA-256 is
+`8006f737472b16246e8c565c14085c8c4b820c42d068c5b48ac1b976ea33a346`;
+the executable SHA-256 is
+`9607e0d05a34b223149028b14c5c45926631ee29b1f3f6ee6718bf43fd6b85b1`.
+The run is retained under
+`target/contour-ltd-dynamic-k1/runs/compact-map-native-numeric-chart0/`:
+`stdout.json` SHA-256
+`d55418453a97cad4dfaecb219eb3af6630bc8b1bba4133dabfef58175c46491e`,
+`execution.json` SHA-256
+`bccaba52639695b887fecf56824a53373c527153b2114e6c7283c53048d0c440`.
+The probe includes the current definition, callback and determinant source;
+its native owner is the pinned Symbolica/Numerica `516beb37` with SymJIT
+`d74993ff`. Independent source review checked native input admission, derivative
+layout, all seven comparisons and monitor scope. This establishes chart-level
+numerical representation and derivative parity. Full staged K1 generation and
+the required integrated two-loop result remain separate acceptance gates.

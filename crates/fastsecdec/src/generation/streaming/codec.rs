@@ -12,9 +12,9 @@ use symbolica::{
     state::{State, StateMap},
 };
 
-// Schema 3 retains full-sector dynamic strength, exact factor identity and the
-// independent coefficient combiner. Reject older records before native import.
-const MAGIC: &[u8] = b"FastSecDec\0generation-record\x03";
+// Schema 4 retains compact native function bodies and the undeformed symmetry
+// witness. Reject earlier staged payloads before importing any native state.
+const MAGIC: &[u8] = b"FastSecDec\0generation-record\x04";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Debug, thiserror::Error)]
@@ -85,6 +85,8 @@ struct Payload {
     atoms: Vec<Atom>,
     symbols: Vec<Symbol>,
     checks: Vec<crate::kernel::DynamicCheckSource>,
+    definitions: Vec<(usize, crate::contour::ContourDefinitions)>,
+    source_witnesses: Vec<(usize, super::super::symmetry::SourceWitness)>,
 }
 
 /// A native Atom table lets the small surrounding DTO use ordinary serde
@@ -141,6 +143,16 @@ pub(super) fn write_with_program<M: Serialize>(
         exported.extend(atom.get_all_symbols(true));
     }
     exported.extend(symbols.iter().copied());
+    for (_, definitions) in &program.definitions {
+        for definition in definitions.entries() {
+            exported.insert(definition.function());
+            exported.extend(definition.parameters().iter().copied());
+            exported.extend(definition.body().get_all_symbols(true));
+        }
+    }
+    for (_, witness) in &program.source_witnesses {
+        exported.extend(witness.symbols());
+    }
     for check in &program.checks {
         exported.extend(check.parameters.iter().copied());
         exported.extend(check.coefficients.parameters.iter().copied());
@@ -163,6 +175,12 @@ pub(super) fn write_with_program<M: Serialize>(
             .iter()
             .map(|check| check.as_ref().clone())
             .collect(),
+        definitions: program
+            .definitions
+            .iter()
+            .map(|(index, definitions)| (*index, definitions.as_ref().clone()))
+            .collect(),
+        source_witnesses: program.source_witnesses.clone(),
     };
     let payload = bincode::encode_to_vec(payload, bincode::config::standard()).map_err(invalid)?;
     let envelope = Envelope {
@@ -218,7 +236,11 @@ pub(super) fn read<M: DeserializeOwned>(
     kind: &str,
 ) -> Result<(M, Atoms, Vec<Symbol>), StreamingError> {
     let (metadata, atoms, symbols, program) = read_with_program(root, reference, kind)?;
-    if program.descriptor.is_some() || !program.checks.is_empty() {
+    if program.descriptor.is_some()
+        || !program.checks.is_empty()
+        || !program.definitions.is_empty()
+        || !program.source_witnesses.is_empty()
+    {
         return Err(invalid(
             "dynamic record requires its retained program owner",
         ));
@@ -279,6 +301,12 @@ pub(super) fn read_with_program<M: DeserializeOwned>(
                 .into_iter()
                 .map(std::sync::Arc::new)
                 .collect(),
+            definitions: payload
+                .definitions
+                .into_iter()
+                .map(|(index, definitions)| (index, std::sync::Arc::new(definitions)))
+                .collect(),
+            source_witnesses: payload.source_witnesses,
         },
     ))
 }

@@ -38,6 +38,7 @@ pub(crate) struct DualTerm {
 /// this owner to Symbolica's ordinary exact scalar IR using its native jets.
 #[derive(Clone, Debug)]
 pub(crate) struct DualSector {
+    pub contour_definitions: Arc<crate::contour::ContourDefinitions>,
     pub programs: Arc<native::SourcePrograms>,
     pub source_parameters: Vec<Symbol>,
     pub regulator: Symbol,
@@ -78,6 +79,7 @@ pub(super) fn finish(
         program.merge(&crate::generation::program::ProgramData {
             descriptor: prepared.sector.program_descriptor.clone(),
             checks: prepared.sector.dynamic_check_sources.clone(),
+            ..Default::default()
         })?;
         let coefficients = prepared
             .orders
@@ -96,7 +98,11 @@ pub(super) fn finish(
                 .iter_mut()
                 .zip(prepared.sector.coefficients)
             {
-                *exact += coefficient.into_inner();
+                *exact += prepared
+                    .sector
+                    .contour_definitions
+                    .materialize(&coefficient.into_inner())
+                    .map_err(GenerationError::Contour)?;
             }
             prepared.chart.kernel_sector = None;
             charts.push(prepared.chart);

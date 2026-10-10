@@ -206,6 +206,24 @@ def test_dynamic_family_restoration_pilot_and_policy_resume(integral, mode):
     identities = []
     for recipe in ("polynomial", "sign_aware"):
         template = sd.Kernels.from_bytes(archive.select(recipe).to_bytes())
+        saved_bytes = template.to_bytes()
+        views = template.contour_recipes
+        assert views and len({v.source_index for v in views}) == len(views)
+        assert sum(v.function_definition_count for v in views) > 0
+        for view in views:
+            definitions = view.function_definitions
+            assert len(definitions) == view.function_definition_count
+            assert view.version == (2 if definitions else 1)
+            assert "Retained coefficient definitions" in view._repr_html_()
+            definitions.clear()
+            assert len(view.function_definitions) == view.function_definition_count
+        assert template.to_bytes() == saved_bytes
+        inspected = sd.Kernels.from_bytes(saved_bytes)
+        retained_views = inspected.contour_recipes
+        del inspected
+        gc.collect()
+        assert [v.function_definitions for v in retained_views] == [
+            v.function_definitions for v in views]
         assert not template.runtime_parameters  # Native contour inputs stay separate.
         configured = template.with_parameters({}, contour=sd.ContourSettings.dynamical(
             0.8, lambda_cap=0.25, construction=recipe,

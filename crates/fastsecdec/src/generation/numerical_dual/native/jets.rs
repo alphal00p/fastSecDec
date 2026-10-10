@@ -220,12 +220,13 @@ impl Requests<'_> {
             .chain([self.sector.regulator])
             .chain(self.runtime.iter().copied())
             .collect::<Vec<_>>();
-        let program = self.sector.programs.jets(
+        let program = self.sector.programs.jets_with_definitions(
             &body,
             &inputs,
             &shape.components,
             &self.seed_zeros(request, &shape, 0),
             self.settings,
+            &self.sector.contour_definitions,
         )?;
         let seeds = self.seeds(request, &shape, composer)?;
         let values = composer.append(&program, &seeds).map_err(compilation)?;

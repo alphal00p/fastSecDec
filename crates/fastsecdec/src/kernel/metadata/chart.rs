@@ -104,6 +104,21 @@ fn integers(values: Vec<String>) -> Result<Vec<Integer>, KernelError> {
         .collect()
 }
 impl PortableChart {
+    pub(super) fn take_contour_definitions(&mut self) -> crate::contour::ContourDefinitions {
+        self.contour
+            .as_mut()
+            .map_or_else(Default::default, contour::PortableContour::take_definitions)
+    }
+
+    pub(super) fn attach_contour_definitions(
+        &mut self,
+        definitions: crate::contour::ContourDefinitions,
+    ) -> Result<(), KernelError> {
+        self.contour
+            .as_mut()
+            .ok_or_else(|| invalid("compact definition sidecar has no contour chart"))?
+            .attach_definitions(definitions)
+    }
     pub(super) fn visit_atoms(&self, visit: &mut impl FnMut(&symbolica::atom::Atom)) {
         for image in &self.images {
             visit(&image.0);
@@ -275,7 +290,7 @@ impl PortableChart {
             .transpose()?;
         let contour = self
             .contour
-            .map(|value| value.into_native(dimension))
+            .map(|value| value.into_native(dimension, validate))
             .transpose()?;
         Ok(ChartRecord {
             source_index: index,
