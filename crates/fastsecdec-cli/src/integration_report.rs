@@ -43,6 +43,13 @@ pub(crate) fn print(
         "{}",
         heading("Integration result", width, colors, Color::FG_CYAN)
     );
+    if let Some(selection) = &result.source_selection {
+        println!(
+            "Generation extent: original source charts {:?} of {}; partial original integral",
+            selection.source_sectors(),
+            selection.original_source_count()
+        );
+    }
     let target = match result.accuracy_target {
         AccuracyTarget::AllComponents => "All Laurent components".into(),
         AccuracyTarget::LaurentOrder(order) => {

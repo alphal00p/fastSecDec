@@ -103,6 +103,9 @@ fn receipt(
     source_indices: Vec<usize>,
 ) -> RecordReceipt {
     RecordReceipt {
+        source_scope: kernels
+            .generation_metadata()
+            .and_then(|metadata| metadata.source_scope().cloned()),
         version: if kernels.program_descriptor().is_some() {
             2
         } else {
@@ -136,6 +139,12 @@ pub(super) fn partition(
 ) -> Result<(Vec<u8>, RecordReceipt), KernelError> {
     let (id, bytes, source_indices) = super::super::binary::partition(kernels, sector)?;
     let mut receipt = receipt(kernels, &bytes, id, source_indices);
+    receipt.source_scope = kernels
+        .generation_metadata()
+        .and_then(|metadata| metadata.source_scope())
+        .map(|scope| scope.for_charts(&receipt.source_indices))
+        .transpose()
+        .map_err(failure)?;
     receipt.dimension = sector.map(|i| kernels.sectors()[i].dimension());
     receipt.statistics = sector.map(|i| kernels.sectors()[i].statistics().clone());
     if let Some(projection) = sector.and_then(|i| kernels.sectors()[i].projection.as_ref()) {

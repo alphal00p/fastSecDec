@@ -79,6 +79,7 @@ pub fn artifact(
                 "inspection_mode":"deep", "binary_loaded":true,
                 "binary_validated":artifact.validation.binary,
                 "metadata_identity_validated":artifact.validation.metadata_identity,
+                "source_selection":kernels.generation_metadata().and_then(|metadata| metadata.source_scope()).map(|scope|scope.selection()),
                 "generation":artifact.generation,
                 "generation_timings":artifact.generation_timings,
                 "loading_seconds":artifact.loading_seconds,
@@ -203,6 +204,7 @@ fn summary(artifact: &Artifact, kernels: &KernelSet) -> serde_json::Value {
         "exact_coefficients":kernels.parameters_bound().then(|| kernels.exact_coefficients()),
         "runtime_parameters":kernels.runtime_parameters().iter().map(|symbol| symbol.get_name()).collect::<Vec<_>>(),
         "parameters_bound":kernels.parameters_bound(),
+        "source_selection":kernels.generation_metadata().and_then(|metadata| metadata.source_scope()).map(|scope|scope.selection()),
         "generation":artifact.generation,
         "generation_timings":artifact.generation_timings,"loading_seconds":artifact.loading_seconds,
         "retained_metadata_available":kernels.generation_metadata().is_some()

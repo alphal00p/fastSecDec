@@ -109,7 +109,7 @@ impl PortableAssessment {
                     );
                     factor_value
                         .support(&parameters)
-                        .map_err(|error| invalid(&error.to_string()))?;
+                        .map_err(|error| invalid(error.to_string()))?;
                 }
                 Ok(FactorAssessment {
                     term_index: factor.term_index,

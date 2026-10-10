@@ -17,6 +17,8 @@ pub(crate) struct ResidentAssembly {
     charts: Vec<ChartRecord>,
     exact: BTreeMap<i32, Atom>,
     layouts: Vec<(Vec<i32>, Vec<CoefficientComponent>)>,
+    source_scope: Option<crate::generation::GenerationSourceScope>,
+    original_sources: BTreeMap<usize, usize>,
 }
 
 impl ResidentAssembly {
@@ -31,6 +33,33 @@ impl ResidentAssembly {
                 "resident assembly requires one unprojected native unit",
             ));
         }
+        let scope = local
+            .metadata
+            .as_ref()
+            .and_then(|metadata| metadata.source_scope.clone());
+        if self.combined.is_some()
+            && self.source_scope.as_ref().map(|scope| scope.selection())
+                != scope.as_ref().map(|scope| scope.selection())
+        {
+            return Err(failure(
+                "indexed units have different generation source selections",
+            ));
+        }
+        if let Some(scope) = &scope {
+            scope.validate(sources.len()).map_err(failure)?;
+            for (local, original) in scope.chart_source_sectors().iter().enumerate() {
+                if self
+                    .original_sources
+                    .insert(sources[local], *original)
+                    .is_some()
+                {
+                    return Err(failure("duplicate source lineage in indexed units"));
+                }
+            }
+        }
+        if self.combined.is_none() {
+            self.source_scope = scope;
+        }
         for (order, value) in local
             .coefficient_orders
             .iter()
@@ -43,7 +72,15 @@ impl ResidentAssembly {
                 return Err(failure("stochastic unit passed to exact-only assembly"));
             }
             // Exact setup intentionally does not retain rich chart expressions.
-            local.metadata = None;
+            if let Some(metadata) = &mut local.metadata {
+                if let Some(scope) = &metadata.source_scope {
+                    metadata.source_scope =
+                        Some(scope.with_chart_sources(vec![]).map_err(failure)?);
+                    metadata.charts.clear();
+                } else {
+                    local.metadata = None;
+                }
+            }
             local.contour_checks.clear();
             local.program_descriptor = local
                 .program_descriptor
@@ -153,9 +190,26 @@ impl ResidentAssembly {
             return Err(failure("incomplete original source-chart coverage"));
         }
         if exact_only {
-            combined.metadata = None;
+            if let Some(metadata) = &mut combined.metadata {
+                if let Some(scope) = &self.source_scope {
+                    metadata.source_scope =
+                        Some(scope.with_chart_sources(vec![]).map_err(failure)?);
+                    metadata.charts.clear();
+                } else {
+                    combined.metadata = None;
+                }
+            }
         } else if let Some(metadata) = &mut combined.metadata {
             metadata.charts = self.charts;
+            if let Some(scope) = self.source_scope {
+                let originals = self.original_sources.into_values().collect::<Vec<_>>();
+                if originals != scope.selection().source_sectors() {
+                    return Err(failure(
+                        "indexed archive lacks declared selected source charts",
+                    ));
+                }
+                metadata.source_scope = Some(scope.with_chart_sources(originals).map_err(failure)?);
+            }
         }
         let complex = components.contains(&CoefficientComponent::Imag);
         for (sector, (local_orders, local_components)) in

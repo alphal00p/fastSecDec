@@ -56,6 +56,12 @@ impl KernelSet {
             || self.orders != catalogue.orders
             || self.components != catalogue.components
             || self.sectors.len() != catalogue.sector_count()
+            || self
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.source_scope())
+                .map(|scope| scope.selection())
+                != catalogue.source_selection()
         {
             return Err(failure(
                 "indexed catalogue does not describe this unbound resident template",

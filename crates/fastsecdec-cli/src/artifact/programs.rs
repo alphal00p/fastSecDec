@@ -74,6 +74,12 @@ pub struct CatalogueView<'a> {
     pub records: &'a Vec<RecordDescriptor>,
 }
 impl CatalogueView<'_> {
+    pub fn source_selection(&self) -> Option<&fastsecdec::generation::SourceSectorSelection> {
+        self.records
+            .first()
+            .and_then(|record| record.receipt.source_scope.as_ref())
+            .map(|scope| scope.selection())
+    }
     pub fn sector_count(&self) -> usize {
         self.records
             .iter()
@@ -275,6 +281,7 @@ pub(super) fn summary(catalogue: CatalogueView<'_>) -> KernelSummary {
         .filter(|r| r.sector.is_some())
         .collect();
     KernelSummary {
+        source_selection: catalogue.source_selection().cloned(),
         sectors: sectors.len(),
         orders: catalogue.orders.clone(),
         components: catalogue.components.clone(),

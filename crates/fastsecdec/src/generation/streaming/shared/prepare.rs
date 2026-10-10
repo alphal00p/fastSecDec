@@ -138,6 +138,11 @@ fn prepare_recipes(
         )?)
     };
     let total = geometry.as_ref().map_or(0, Geometry::len);
+    let selection = crate::generation::selection::SourceSectorSelection::resolve(
+        options.source_sectors.as_deref(),
+        total,
+    )?;
+    let source_scope = selection.as_ref().map(|selection| selection.full_scope());
     poll(
         &mut progress,
         GenerationProgress::PhaseTiming {
@@ -148,13 +153,24 @@ fn prepare_recipes(
     let mut maps = geometry.iter_mut().flat_map(Geometry::maps).peekable();
     let dimension = maps.peek().map_or(0, |map| map.dimension());
     let targets = mapping::target_parameters(input, dimension);
-    let mut charts = Vec::with_capacity(total);
-    for (index, map) in maps.enumerate() {
+    let selected_total = selection
+        .as_ref()
+        .map_or(total, |selection| selection.source_sectors().len());
+    let mut charts = Vec::with_capacity(selected_total);
+    for (index, (_, map)) in maps
+        .enumerate()
+        .filter(|(original, _)| {
+            selection
+                .as_ref()
+                .is_none_or(|selection| selection.source_sectors().binary_search(original).is_ok())
+        })
+        .enumerate()
+    {
         poll(
             &mut progress,
             GenerationProgress::Factorization {
                 sector: index,
-                total,
+                total: selected_total,
             },
         )?;
         let map = codec::write(
@@ -177,6 +193,7 @@ fn prepare_recipes(
             input,
             &targets,
             &settings,
+            source_scope.as_ref(),
             runtime_parameters,
             runtime_mass_constraints,
         )?;
@@ -188,6 +205,7 @@ fn prepare_recipes(
         }
         physical_identity = Some(source_identity.clone());
         prepared.push(Preparation {
+            source_scope: source_scope.clone(),
             source_identity,
             program_recipe: recipe,
             source,

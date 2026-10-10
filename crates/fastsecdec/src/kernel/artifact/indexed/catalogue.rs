@@ -11,6 +11,9 @@ use std::collections::BTreeSet;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecordReceipt {
+    /// Original-geometry subset and this record's local chart lineage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_scope: Option<crate::generation::GenerationSourceScope>,
     pub version: u32,
     /// Version-two receipts identify the native v10 recipe explicitly. Legacy
     /// receipts keep their original JSON shape and schema classification.
@@ -24,7 +27,8 @@ pub struct RecordReceipt {
     pub runtime_parameters: Vec<String>,
     pub dimension: Option<usize>,
     pub statistics: Option<EvaluatorStatistics>,
-    /// Local chart ordinal -> original source-chart ordinal.
+    /// Local chart ordinal -> compact chart ordinal in this generated dataset.
+    /// A partial generation's original geometry IDs live in `source_scope`.
     pub source_indices: Vec<usize>,
 }
 
@@ -59,6 +63,9 @@ impl RecordReceipt {
             .unwrap_or_else(|| super::ProgramRecipe::legacy(&self.runtime_parameters))
     }
     pub(crate) fn validate(&self) -> Result<(), KernelError> {
+        if let Some(scope) = &self.source_scope {
+            scope.validate(self.source_indices.len()).map_err(failure)?;
+        }
         if !matches!((self.version, self.recipe), (1, None) | (2, Some(_))) || self.length == 0 {
             return Err(failure("unsupported or empty worker record"));
         }
@@ -114,6 +121,12 @@ pub(super) fn validate_layout(
 }
 
 impl KernelCatalogue {
+    pub fn source_selection(&self) -> Option<&crate::generation::SourceSectorSelection> {
+        self.records
+            .first()
+            .and_then(|record| record.receipt.source_scope.as_ref())
+            .map(|scope| scope.selection())
+    }
     /// Classify the legacy v1 runtime schema without copying its records.
     /// V2 archives use their explicit recipe directories instead.
     pub fn program_recipe(&self) -> super::ProgramRecipe {

@@ -76,6 +76,15 @@ pub(super) fn check_record(
         ));
     }
     let chart_count = record.receipt.source_indices.len();
+    if kernels
+        .generation_metadata()
+        .and_then(|metadata| metadata.source_scope())
+        != record.receipt.source_scope.as_ref()
+    {
+        return Err(failure(
+            "native source selection differs from indexed receipt",
+        ));
+    }
     if kernels.generation_metadata().is_some_and(|metadata| {
         metadata.charts().iter().enumerate().any(|(index, chart)| {
             chart.source_index != index || chart.representative >= chart_count

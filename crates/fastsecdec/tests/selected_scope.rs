@@ -8,6 +8,7 @@ use fastsecdec_qmc::QmcPartial;
 
 fn manifest() -> KernelResultManifest {
     KernelResultManifest {
+        source_selection: None,
         kernel_content_id: "scientific-parent".into(),
         orders: vec![0],
         components: vec![CoefficientComponent::Real],
@@ -23,6 +24,32 @@ fn selected(ids: Vec<u64>, exact_policy: ExactContributionPolicy) -> ResultScope
         sector_ids: ids,
         exact_policy,
     }
+}
+
+#[test]
+fn generated_subset_qualification_keeps_all_arbitrarily_ordered_native_ids() {
+    let mut parent = manifest();
+    parent.source_selection = Some(
+        serde_json::from_value(serde_json::json!({
+            "original_source_count": 5, "source_sectors": [1,3]
+        }))
+        .unwrap(),
+    );
+    assert_eq!(
+        parent.canonical_scope(&ResultScope::FullIntegral).unwrap(),
+        selected(vec![7, 42, 99], ExactContributionPolicy::IncludeAll)
+    );
+    let projected = parent
+        .integration_problem(&ResultScope::FullIntegral, "partial-original")
+        .unwrap();
+    assert_eq!(
+        projected
+            .sectors
+            .iter()
+            .map(|sector| sector.id)
+            .collect::<Vec<_>>(),
+        [7, 99, 42]
+    );
 }
 
 #[test]

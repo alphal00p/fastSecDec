@@ -52,8 +52,14 @@ symbolic endpoint IBP and Laurent expansion, a symbolic contour Jacobian,
 SymJIT O2, and initial relative series width 1. The two runtime cards retain
 the full Laurent vector, Pilot16 admission, 50 caller-owned worker threads,
 and the independently selected fixed strength `lambda=1e-6`. Generation and
-integration remain separate actions. From the repository root, with the
-native `fastsecdec` executable on `PATH`:
+integration remain separate actions.
+
+These historical generation cards explicitly request `horner_iterations = 0`
+to reproduce the published programs. New generation defaults to **10**. Remove
+that override, or set it to 10, for a new production generation; the saved
+historical kernels used by the cap study are not retroactively reoptimized.
+
+From the repository root, with the native `fastsecdec` executable on `PATH`:
 
 ```sh
 fastsecdec generate examples/contour/gghh_double_box_1000/benchmark-generation.toml \

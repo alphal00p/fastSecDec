@@ -3,6 +3,21 @@ use fastsecdec::generation::{CoefficientExpansionMethod, CoefficientExpansionOpt
 use fastsecdec::parametric::FamilyPreparationPolicy;
 
 #[test]
+fn maintained_kite_card_uses_native_input_and_horner_ten_with_optional_source_subset() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/contour/scalar_benchmarks/kite.toml");
+    let loaded = crate::input::load(&path).unwrap();
+    assert_eq!(loaded.loops, Some(2));
+    assert_eq!(loaded.propagators, 5);
+    assert_eq!(loaded.integrand.parameters().len(), 5);
+    assert_eq!(loaded.card.generation.evaluator.horner_iterations, 10);
+    assert_eq!(loaded.card.generation.source_sectors, None);
+    let selected: GenerationInput = toml::from_str("source_sectors=[7,0]").unwrap();
+    assert_eq!(selected.source_sectors, Some(vec![7, 0]));
+    assert!(toml::from_str::<GenerationInput>("source_sectors=[-1]").is_err());
+}
+
+#[test]
 fn execution_defaults_preserve_omitted_round_limit_through_artifacts_and_overlays() {
     use super::IntegrationInput;
     let mut settings: IntegrationInput = toml::from_str("").unwrap();

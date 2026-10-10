@@ -23,6 +23,8 @@ pub(super) use prepared::{PreparedData, read_prepared, write_prepared};
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Options {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_sectors: Option<Vec<usize>>,
     mode: GenerationMode,
     #[serde(
         default,
@@ -43,6 +45,7 @@ pub(super) struct Options {
 impl From<&GenerationOptions> for Options {
     fn from(x: &GenerationOptions) -> Self {
         Self {
+            source_sectors: x.source_sectors.clone(),
             mode: x.mode,
             contour_jacobian: x.contour_jacobian,
             assume_no_threshold: x.assume_no_threshold,
@@ -61,6 +64,7 @@ impl From<&GenerationOptions> for Options {
 impl From<Options> for GenerationOptions {
     fn from(x: Options) -> Self {
         Self {
+            source_sectors: x.source_sectors,
             mode: x.mode,
             contour_jacobian: x.contour_jacobian,
             assume_no_threshold: x.assume_no_threshold,
@@ -150,6 +154,8 @@ struct Term {
 }
 #[derive(Serialize, Deserialize)]
 struct Source {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_scope: Option<crate::generation::GenerationSourceScope>,
     source_identity: String,
     parameters: usize,
     targets: usize,
@@ -160,6 +166,7 @@ struct Source {
     options: Options,
 }
 pub(super) struct Context {
+    pub source_scope: Option<crate::generation::GenerationSourceScope>,
     pub source_identity: String,
     pub input: ParametricIntegrand,
     pub targets: Vec<Symbol>,
@@ -172,6 +179,7 @@ pub(super) fn write_source(
     input: &ParametricIntegrand,
     targets: &[Symbol],
     options: &GenerationOptions,
+    source_scope: Option<&crate::generation::GenerationSourceScope>,
     runtime: &[Symbol],
     constraints: &[crate::kernel::RuntimeMassConstraint],
 ) -> Result<(RecordRef, String), StreamingError> {
@@ -195,6 +203,7 @@ pub(super) fn write_source(
         })
         .collect();
     let source = Source {
+        source_scope: source_scope.cloned(),
         source_identity: crate::generation::source_identity(input, runtime, constraints)?,
         parameters: input.parameters().len(),
         targets: targets.len(),
@@ -228,6 +237,21 @@ pub(super) fn write_source(
 }
 pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context, StreamingError> {
     let (source, atoms, symbols): (Source, _, _) = codec::read(root, reference, "source")?;
+    if let Some(scope) = &source.source_scope {
+        scope.validate(scope.selection().source_sectors().len())?;
+        if scope.chart_source_sectors() != scope.selection().source_sectors() {
+            return Err(invalid(
+                "source context must retain the complete requested subset",
+            ));
+        }
+        let mut requested = source.options.source_sectors.clone().unwrap_or_default();
+        requested.sort_unstable();
+        if requested != scope.selection().source_sectors() {
+            return Err(invalid(
+                "source selection differs from recorded generation options",
+            ));
+        }
+    }
     if symbols.len() != source.parameters + 1 + source.targets + source.runtime_parameters {
         return Err(invalid("source symbol layout mismatch"));
     }
@@ -284,6 +308,7 @@ pub(super) fn read_source(root: &Path, reference: &RecordRef) -> Result<Context,
         })
         .collect::<Result<_, StreamingError>>()?;
     Ok(Context {
+        source_scope: source.source_scope,
         source_identity: source.source_identity,
         input,
         targets: symbols[source.parameters + 1..runtime_start].to_vec(),

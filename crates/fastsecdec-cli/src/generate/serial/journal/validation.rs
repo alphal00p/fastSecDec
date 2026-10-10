@@ -236,6 +236,12 @@ fn validate_provenance(input: &Path, provenance: &crate::artifact::Provenance) -
 }
 
 fn validate_preparation(prepared: &native::Preparation, root: &Path) -> CliResult<()> {
+    if let Some(scope) = &prepared.source_scope {
+        scope.validate(prepared.charts.len())?;
+        if scope.chart_source_sectors() != scope.selection().source_sectors() {
+            return Err("prepared source selection is incomplete".into());
+        }
+    }
     if prepared.source_identity.len() != 64
         || !prepared
             .source_identity

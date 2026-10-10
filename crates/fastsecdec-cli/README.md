@@ -109,6 +109,35 @@ private Jacobian entry is rejected explicitly; select Symbolic-J for that case.
 Exact-only contributions retain native symbolic materialization. Unsupported
 requests never switch endpoint mode or Jacobian construction silently.
 
+To generate only selected original geometry charts, add a nonempty list:
+
+```toml
+[generation]
+source_sectors = [2, 5]
+```
+
+These zero-based IDs refer to the complete native decomposition before symmetry,
+endpoint reduction and subtraction. They are not the IDs of numerical kernels
+shown by integration. Geometry is constructed once; only selected charts enter
+mapping, symmetry and compilation. Equivalent selected charts retain their own
+multiplicity. Both ordinary generation and `--serial`/`--resume` support the
+option. Duplicate or out-of-range IDs fail; changing the selection invalidates a
+generation resume. Omit the field for the complete geometry. An explicit complete
+set is equivalent to omission and retains the existing complete artifact format.
+
+The saved native artifact records the original chart count, selected original
+IDs and each retained chart's original ID, including exact-only contributions.
+`inspect`, integration reports and saved result manifests identify partial
+original-integral scope. Integrating all numerical records of such an artifact
+remains a partial original integral; a later runtime sector selection is a
+separate restriction. Aggregate exact setup owners retain this provenance when
+their rich chart bodies have been released, but contain only the exact offset.
+
+The evaluator's omitted `horner_iterations` default is 10 in native, CLI and
+Python interfaces. Set `[generation.evaluator] horner_iterations = 0` explicitly
+only when that is the intended compiler setting; historical reproduction cards
+retain their declared values.
+
 Integration uses evaluator batches of 256 points by default. Set
 `--evaluation-batch-size N` (alias `--batch-size`), or `evaluation_batch_size = N`
 in runtime integration settings, to change this operational chunk size. It is

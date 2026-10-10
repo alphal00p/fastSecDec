@@ -31,8 +31,7 @@ impl From<&Atom> for StoredAtom {
     }
 }
 
-#[derive(Serialize, Deserialize, bincode::Encode, bincode::Decode)]
-#[bincode(decode_context = "StateMap")]
+#[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 /// The same canonical semantic record used in portable kernel artifacts.
 /// This is a transport/presentation value; native computation continues to use
@@ -41,6 +40,37 @@ impl From<&Atom> for StoredAtom {
 pub struct PortableMetadata {
     domain: domain::PortableAssessment,
     charts: Vec<chart::PortableChart>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_scope: Option<crate::generation::GenerationSourceScope>,
+}
+// Preserve every historical nested bincode layout. The subset-only v14
+// envelope transports scope separately and attaches it before admission.
+impl bincode::Encode for PortableMetadata {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        bincode::Encode::encode(&self.domain, encoder)?;
+        bincode::Encode::encode(&self.charts, encoder)
+    }
+}
+impl bincode::Decode<StateMap> for PortableMetadata {
+    fn decode<D: bincode::de::Decoder<Context = StateMap>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        Ok(Self {
+            domain: bincode::Decode::decode(decoder)?,
+            charts: bincode::Decode::decode(decoder)?,
+            source_scope: None,
+        })
+    }
+}
+impl<'de> bincode::BorrowDecode<'de, StateMap> for PortableMetadata {
+    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = StateMap>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        bincode::Decode::decode(decoder)
+    }
 }
 #[derive(bincode::Encode, bincode::Decode)]
 #[bincode(decode_context = "StateMap")]
@@ -53,6 +83,7 @@ impl From<LegacyMetadata> for PortableMetadata {
         Self {
             domain: value.domain,
             charts: value.charts.into_iter().map(Into::into).collect(),
+            source_scope: None,
         }
     }
 }
@@ -66,6 +97,24 @@ impl From<PortableMetadata> for LegacyMetadata {
     }
 }
 impl PortableMetadata {
+    pub(in crate::kernel) fn charts_len(&self) -> usize {
+        self.charts.len()
+    }
+    pub(in crate::kernel) fn take_source_scope(
+        &mut self,
+    ) -> Option<crate::generation::GenerationSourceScope> {
+        self.source_scope.take()
+    }
+    pub(in crate::kernel) fn attach_source_scope(
+        &mut self,
+        scope: crate::generation::GenerationSourceScope,
+    ) -> Result<(), KernelError> {
+        scope
+            .validate(self.charts.len())
+            .map_err(|error| invalid(error.to_string()))?;
+        self.source_scope = Some(scope);
+        Ok(())
+    }
     /// Record-local chart indices, never physical source identifiers. Definitions
     /// remain native StateMap-coded data in the explicitly versioned sidecar.
     pub(in crate::kernel) fn take_contour_definitions(
@@ -111,6 +160,20 @@ impl PortableMetadata {
     /// ordinals stay intact; the selected kernel has local ordinal zero.
     pub(in crate::kernel) fn for_sector(value: &GenerationMetadata, index: usize) -> Self {
         Self {
+            source_scope: value.source_scope.as_ref().map(|scope| {
+                scope
+                    .for_charts(
+                        &value
+                            .charts()
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(local, chart)| {
+                                (chart.kernel_sector() == Some(index)).then_some(local)
+                            })
+                            .collect::<Vec<_>>(),
+                    )
+                    .expect("validated metadata chart indices")
+            }),
             domain: domain::PortableAssessment::from_native(value.domain_assessment()),
             charts: value
                 .charts()
@@ -123,6 +186,7 @@ impl PortableMetadata {
 
     pub fn from_native(value: &GenerationMetadata) -> Self {
         Self {
+            source_scope: value.source_scope.clone(),
             domain: domain::PortableAssessment::from_native(value.domain_assessment()),
             charts: value
                 .charts()
@@ -150,6 +214,11 @@ impl PortableMetadata {
         sectors: &[Vec<Symbol>],
         validate: bool,
     ) -> Result<GenerationMetadata, KernelError> {
+        if let Some(scope) = &self.source_scope {
+            scope
+                .validate(self.charts.len())
+                .map_err(|error| invalid(error.to_string()))?;
+        }
         let domain = self.domain.into_native(validate)?;
         let charts = self
             .charts
@@ -191,10 +260,14 @@ impl PortableMetadata {
         if covered.iter().any(|value| !value) {
             return Err(invalid("kernel sector has no retained chart"));
         }
-        Ok(GenerationMetadata { domain, charts })
+        Ok(GenerationMetadata {
+            domain,
+            charts,
+            source_scope: self.source_scope,
+        })
     }
 }
-fn invalid(message: &str) -> KernelError {
+fn invalid(message: impl Into<String>) -> KernelError {
     KernelError::Artifact(message.into())
 }
 fn atom(value: StoredAtom) -> Result<Atom, KernelError> {

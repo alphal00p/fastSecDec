@@ -129,6 +129,17 @@ impl KernelSet {
     pub fn to_bytes(&self) -> Result<Vec<u8>, KernelError> {
         match self.portable_artifact.as_deref() {
             Some(bytes) => Ok(bytes.to_vec()),
+            // Exact setup deliberately releases chart bodies. Its retained
+            // generation scope is valid native metadata, but is not a complete
+            // indexed chart catalogue. Save that exact owner directly rather
+            // than manufacturing missing source-chart receipts.
+            None if self.sectors.is_empty()
+                && self.metadata.as_ref().is_some_and(|metadata| {
+                    metadata.charts.is_empty() && metadata.source_scope.is_some()
+                }) =>
+            {
+                binary::compiled(self).map(|(_, bytes)| bytes)
+            }
             None => indexed::to_bytes(self).map(|(bytes, _)| bytes),
         }
     }

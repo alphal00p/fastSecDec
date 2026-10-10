@@ -95,6 +95,135 @@ fn close(actual: &[f64], expected: &[f64]) {
 }
 
 #[test]
+fn original_source_subset_roundtrips_normal_serial_and_rejects_changed_resume() {
+    let directory = tempfile::tempdir().unwrap();
+    for mode in ["symbolic", "numerical_dual"] {
+        let input = directory.path().join(format!("subset-{mode}.toml"));
+        card(&input, mode);
+        let selected_card = fs::read_to_string(&input)
+            .unwrap()
+            .replace("[generation]", "[generation]\nsource_sectors=[1]");
+        fs::write(&input, &selected_card).unwrap();
+        let ordinary = directory.path().join(format!("selected-{mode}.fsd"));
+        success(
+            cli()
+                .arg("generate")
+                .arg(&input)
+                .arg("--output")
+                .arg(&ordinary)
+                .output()
+                .unwrap(),
+        );
+        let normal = load(&ordinary);
+        let scope = normal
+            .generation_metadata()
+            .unwrap()
+            .source_scope()
+            .unwrap();
+        assert_eq!(scope.selection().original_source_count(), 2);
+        assert_eq!(scope.selection().source_sectors(), [1]);
+        assert_eq!(scope.chart_source_sectors(), [1]);
+        assert_eq!(
+            normal.generation_metadata().unwrap().charts()[0].source_index(),
+            0
+        );
+        let reference = sample(normal);
+        let streamed = directory.path().join(format!("selected-{mode}-serial.fsd"));
+        success(
+            cli()
+                .arg("generate")
+                .arg(&input)
+                .args(["--serial", "--workers", "2", "--output"])
+                .arg(&streamed)
+                .output()
+                .unwrap(),
+        );
+        let resident = load(&streamed);
+        assert_eq!(
+            resident
+                .generation_metadata()
+                .unwrap()
+                .source_scope()
+                .unwrap()
+                .selection()
+                .source_sectors(),
+            [1]
+        );
+        close(&sample(resident), &reference);
+        assert_eq!(
+            manifest(&ordinary)["content_id"],
+            manifest(&streamed)["content_id"]
+        );
+        let inspected = success(cli().arg("inspect").arg(&streamed).output().unwrap());
+        assert_eq!(
+            inspected["source_selection"]["source_sectors"],
+            serde_json::json!([1])
+        );
+        let deep = success(
+            cli()
+                .arg("inspect")
+                .arg(&streamed)
+                .args(["--deep", "--sector", "0"])
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(
+            deep["source_selection"]["source_sectors"],
+            serde_json::json!([1])
+        );
+        let integrated = success(
+            cli()
+                .arg("integrate")
+                .arg(&streamed)
+                .args([
+                    "--full-integral",
+                    "--points",
+                    "1024",
+                    "--shifts",
+                    "2",
+                    "--max-rounds",
+                    "1",
+                    "--workers",
+                    "1",
+                ])
+                .output()
+                .unwrap(),
+        );
+        assert_eq!(
+            integrated["source_selection"]["source_sectors"],
+            serde_json::json!([1])
+        );
+        assert!(integrated["scope"].get("SelectedSectors").is_some());
+        assert_eq!(integrated["converged"], false);
+        success(
+            cli()
+                .arg("generate")
+                .arg(&input)
+                .args(["--resume", "--output"])
+                .arg(&streamed)
+                .output()
+                .unwrap(),
+        );
+        fs::write(
+            &input,
+            selected_card.replace("source_sectors=[1]", "source_sectors=[0]"),
+        )
+        .unwrap();
+        let changed = cli()
+            .arg("generate")
+            .arg(&input)
+            .args(["--resume", "--output"])
+            .arg(&streamed)
+            .output()
+            .unwrap();
+        assert!(
+            !changed.status.success(),
+            "resume accepted a different original source selection"
+        );
+    }
+}
+
+#[test]
 fn normal_and_streamed_native_processes_preserve_the_complete_laurent_vector() {
     let directory = tempfile::tempdir().unwrap();
     for mode in ["symbolic", "numerical_dual"] {

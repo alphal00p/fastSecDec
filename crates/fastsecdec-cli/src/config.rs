@@ -143,6 +143,8 @@ impl Default for IntegralInput {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct GenerationInput {
+    /// Original geometry-chart ordinals, before symmetry grouping or IBP.
+    pub source_sectors: Option<Vec<usize>>,
     /// Complete and persist one sector per recyclable worker process.
     pub serial: bool,
     /// Generate every contour capability, defaulting to undeformed execution.
@@ -200,6 +202,7 @@ impl GenerationInput {
 impl Default for GenerationInput {
     fn default() -> Self {
         Self {
+            source_sectors: None,
             serial: false,
             contour: false,
             recipe: None,

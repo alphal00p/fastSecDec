@@ -173,6 +173,16 @@ pub(super) fn render(
         ],
         ["Loaded in".into(), duration(artifact.loading_seconds)],
     ];
+    if let Some(selection) = &kernels.source_selection {
+        facts.push([
+            "Generation extent".into(),
+            format!(
+                "Partial original integral · source charts {:?} of {}",
+                selection.source_sectors(),
+                selection.original_source_count()
+            ),
+        ]);
+    }
     if let Some(programs) = &artifact.programs {
         facts.push([
             "Archive ID (short)".into(),

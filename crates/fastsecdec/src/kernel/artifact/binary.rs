@@ -24,6 +24,7 @@ pub(super) const MAGIC: &[u8] = b"FastSecDec\0binserde\x09";
 const MAGIC_V10: &[u8] = b"FastSecDec\0binserde\x0a";
 const MAGIC_V11: &[u8] = b"FastSecDec\0binserde\x0b";
 const MAGIC_V12: &[u8] = b"FastSecDec\0binserde\x0c";
+const MAGIC_V14: &[u8] = b"FastSecDec\0binserde\x0e";
 const MAGIC_V8: &[u8] = b"FastSecDec\0binserde\x08";
 const MAGIC_V7: &[u8] = b"FastSecDec\0binserde\x07";
 const MAGIC_V6: &[u8] = b"FastSecDec\0binserde\x06";
@@ -88,6 +89,15 @@ struct PayloadV12 {
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
     contour_definitions: Vec<(usize, crate::contour::ContourDefinitions)>,
+}
+
+/// A proper source subset retains the unchanged native payload and definitions.
+/// Scope is semantic metadata; optional v13 primary caches can wrap this record.
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV14 {
+    base: PayloadV12,
+    scope: crate::generation::GenerationSourceScope,
 }
 
 #[derive(Encode, Decode)]
@@ -417,6 +427,15 @@ fn encode_with_requests(
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
 ) -> Result<(String, Vec<u8>), KernelError> {
+    let source_scope = payload
+        .metadata
+        .as_mut()
+        .and_then(PortableMetadata::take_source_scope);
+    if let Some(scope) = &source_scope {
+        scope
+            .validate(payload.metadata.as_ref().unwrap().charts_len())
+            .map_err(failure)?;
+    }
     let mut content_id = match &descriptor {
         Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
         None => {
@@ -457,7 +476,25 @@ fn encode_with_requests(
         .metadata
         .as_mut()
         .map_or_else(Vec::new, PortableMetadata::take_contour_definitions);
-    let (magic, payload) = if !contour_definitions.is_empty() {
+    let (magic, payload) = if let Some(scope) = source_scope {
+        content_id = semantic_id_v14(&content_id, &scope)?;
+        (
+            MAGIC_V14,
+            bincode::encode_to_vec(
+                PayloadV14 {
+                    base: PayloadV12 {
+                        base: payload,
+                        descriptor,
+                        exact_requests,
+                        contour_definitions,
+                    },
+                    scope,
+                },
+                bincode::config::standard(),
+            )
+            .map_err(failure)?,
+        )
+    } else if !contour_definitions.is_empty() {
         content_id = semantic_id_v12(&content_id);
         (
             MAGIC_V12,
@@ -520,6 +557,16 @@ fn semantic_id_v12(base_identity: &str) -> String {
     hash.update(b"fastsecdec-native-semantic-v12\0");
     hash.update(base_identity.as_bytes());
     hash.finalize().to_hex().to_string()
+}
+fn semantic_id_v14(
+    base_identity: &str,
+    scope: &crate::generation::GenerationSourceScope,
+) -> Result<String, KernelError> {
+    let mut hash = blake3::Hasher::new();
+    hash.update(b"fastsecdec-native-semantic-v14\0");
+    hash.update(base_identity.as_bytes());
+    serde_json::to_writer(&mut hash, scope)?;
+    Ok(hash.finalize().to_hex().to_string())
 }
 pub(super) fn compiled(kernels: &KernelSet) -> Result<(String, Vec<u8>), KernelError> {
     let (id, bytes) = encode_with_requests(
@@ -594,6 +641,7 @@ pub(super) fn partition(
         .as_ref()
         .map(|metadata| {
             let mut local = crate::generation::GenerationMetadata {
+                source_scope: None,
                 domain: metadata.domain.clone(),
                 charts: metadata
                     .charts
@@ -607,6 +655,12 @@ pub(super) fn partition(
                 .iter()
                 .map(|chart| chart.source_index)
                 .collect();
+            local.source_scope = metadata
+                .source_scope
+                .as_ref()
+                .map(|scope| scope.for_charts(&source_indices))
+                .transpose()
+                .map_err(|error| failure(error.to_string()))?;
             let indices = source_indices
                 .iter()
                 .enumerate()
@@ -620,7 +674,8 @@ pub(super) fn partition(
                 chart.kernel_sector = index.map(|_| 0);
             }
             Ok::<_, KernelError>(
-                (!local.charts.is_empty()).then(|| PortableMetadata::from_native(&local)),
+                (!local.charts.is_empty() || local.source_scope.is_some())
+                    .then(|| PortableMetadata::from_native(&local)),
             )
         })
         .transpose()?
@@ -801,7 +856,9 @@ pub(super) fn load_with_primary(
     retain: bool,
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
 ) -> Result<KernelSet, KernelError> {
-    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V12) {
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V14) {
+        (wire, MAGIC_V14, 14)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V12) {
         (wire, MAGIC_V12, 12)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V11) {
         (wire, MAGIC_V11, 11)
@@ -848,7 +905,30 @@ pub(super) fn load_with_primary(
     }
     let mut saved_descriptor = None;
     let mut exact_requests = Vec::new();
-    let (payload, used): (Payload, usize) = if version == 12 {
+    let mut source_scope = None;
+    let (mut payload, used): (Payload, usize) = if version == 14 {
+        let (mut payload, used): (PayloadV14, usize) = bincode::decode_from_slice_with_context(
+            envelope.payload,
+            bincode::config::standard(),
+            context,
+        )
+        .map_err(failure)?;
+        let metadata = payload
+            .base
+            .base
+            .metadata
+            .as_mut()
+            .ok_or_else(|| failure("source subset lacks retained native metadata"))?;
+        payload
+            .scope
+            .validate(metadata.charts_len())
+            .map_err(failure)?;
+        metadata.attach_contour_definitions(payload.base.contour_definitions)?;
+        source_scope = Some(payload.scope);
+        saved_descriptor = payload.base.descriptor;
+        exact_requests = payload.base.exact_requests;
+        (payload.base.base, used)
+    } else if version == 12 {
         let (mut payload, used): (PayloadV12, usize) = bincode::decode_from_slice_with_context(
             envelope.payload,
             bincode::config::standard(),
@@ -924,9 +1004,11 @@ pub(super) fn load_with_primary(
     let actual_id = if options.validate {
         let identity = match &saved_descriptor {
             Some(descriptor) => descriptor.identity(&payload, &exact_requests)?,
-            None => semantic_id(&payload, version)?,
+            None => semantic_id(&payload, if version == 14 { 9 } else { version })?,
         };
-        Some(if version == 12 {
+        Some(if let Some(scope) = &source_scope {
+            semantic_id_v14(&identity, scope)?
+        } else if version == 12 {
             semantic_id_v12(&identity)
         } else {
             identity
@@ -936,6 +1018,13 @@ pub(super) fn load_with_primary(
     };
     if actual_id.is_some_and(|id| id != envelope.content_id) {
         return Err(failure("semantic content identity mismatch"));
+    }
+    if let Some(scope) = source_scope {
+        payload
+            .metadata
+            .as_mut()
+            .unwrap()
+            .attach_source_scope(scope)?;
     }
     if version >= 11 {
         let canonical =

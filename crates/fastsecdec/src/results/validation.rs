@@ -16,6 +16,10 @@ fn require(ok: bool, message: &str) -> Result<()> {
 impl SavedIntegrationResult {
     pub fn validate(&self) -> Result<()> {
         self.manifest.validate()?;
+        require(
+            self.manifest.source_selection.is_none() || !self.scope.is_full_integral(),
+            "a generated source subset cannot be reported as the full original integral",
+        )?;
         self.provenance.validate()?;
         if let crate::reference::ReferenceValidation::Checked { evidence } = &self.validation {
             require(

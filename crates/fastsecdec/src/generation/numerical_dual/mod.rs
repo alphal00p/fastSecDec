@@ -124,7 +124,11 @@ pub(super) fn finish(
             .collect(),
         orders,
         sectors,
-        metadata: GenerationMetadata { domain, charts },
+        metadata: GenerationMetadata {
+            domain,
+            charts,
+            source_scope: None,
+        },
     })
 }
 

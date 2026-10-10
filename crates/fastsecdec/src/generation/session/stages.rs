@@ -22,7 +22,8 @@ impl GenerationSession {
                     .preserve_empty_recipe(
                         self.options.program_recipe,
                         self.options.contour_jacobian,
-                    )?;
+                    )?
+                    .with_source_scope(self.source_scope.take())?;
                     let _ = progress(
                         &GenerationProgress::Complete {
                             sectors: result.sectors().len(),
@@ -45,6 +46,10 @@ impl GenerationSession {
                     .into(),
                 );
                 if self.input.terms().is_empty() {
+                    super::super::selection::SourceSectorSelection::resolve(
+                        self.options.source_sectors.as_deref(),
+                        0,
+                    )?;
                     Stage::Finish
                 } else {
                     let mut supports = Vec::new();
@@ -170,8 +175,13 @@ impl GenerationSession {
                         ControlFlow::Continue(())
                     },
                 )?;
-                self.chart_count = result.sectors.len();
-                let dimension = result.sectors.first().map_or(0, SectorMap::dimension);
+                let (maps, scope) = super::super::selection::select_maps(
+                    result.sectors,
+                    self.options.source_sectors.as_deref(),
+                )?;
+                self.source_scope = scope;
+                self.chart_count = maps.len();
+                let dimension = maps.first().map_or(0, SectorMap::dimension);
                 let parameters = super::super::mapping::target_parameters(&self.input, dimension);
                 let _ = progress(
                     &GenerationProgress::PhaseTiming {
@@ -191,12 +201,12 @@ impl GenerationSession {
                                     progress,
                                 )?,
                             ),
-                            result.sectors,
+                            maps,
                         ),
                     ))
                 } else {
                     Stage::Mapping {
-                        maps: result.sectors.into(),
+                        maps: maps.into(),
                         parameters,
                     }
                 }
@@ -382,7 +392,8 @@ impl GenerationSession {
                     .preserve_empty_recipe(
                         self.options.program_recipe,
                         self.options.contour_jacobian,
-                    )?;
+                    )?
+                    .with_source_scope(self.source_scope.take())?;
                 let _ = progress(
                     &GenerationProgress::Complete {
                         sectors: result.sectors().len(),

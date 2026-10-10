@@ -16,7 +16,8 @@ use std::{ops::ControlFlow, path::Path, sync::Arc};
 /// before returning a descriptor to the coordinator, then release the process.
 pub struct GeneratedUnit {
     pub generated: GeneratedIntegral,
-    /// Local chart ordinal -> original source chart ordinal.
+    /// Local chart ordinal -> compact chart ordinal in this generation.
+    /// Original pre-selection ordinals are retained in generated metadata.
     pub source_indices: Vec<usize>,
     pub runtime_parameters: Vec<symbolica::atom::Symbol>,
     pub runtime_mass_constraints: Vec<crate::kernel::RuntimeMassConstraint>,
@@ -64,7 +65,12 @@ pub fn generate_sector(
     if data.index != job.index || data.source_id != job.source.blake3 {
         return Err(invalid("representative chart index or source mismatch"));
     }
-    let source_indices = job.charts.iter().map(|c| c.chart.index).collect();
+    let source_indices = job.charts.iter().map(|c| c.chart.index).collect::<Vec<_>>();
+    let source_scope = context
+        .source_scope
+        .as_ref()
+        .map(|scope| scope.for_charts(&source_indices))
+        .transpose()?;
     let generated = if context.options.mode == GenerationMode::Symbolic {
         if data.deferred.is_some() || job.formula.is_some() {
             return Err(invalid("symbolic sector contains deferred formula"));
@@ -188,10 +194,12 @@ pub fn generate_sector(
         prepared.chart.representative = 0;
         numerical_dual::finish(domain, vec![prepared], context.options.max_order)?
     };
-    let generated = generated.preserve_empty_recipe(
-        context.options.program_recipe,
-        context.options.contour_jacobian,
-    )?;
+    let generated = generated
+        .preserve_empty_recipe(
+            context.options.program_recipe,
+            context.options.contour_jacobian,
+        )?
+        .with_source_scope(source_scope)?;
     if generated.sectors().len() > 1 {
         return Err(generation::GenerationError::Invariant(
             "one streamed representative produced multiple kernels".into(),

@@ -59,3 +59,8 @@ required-features = ["native"]
 name = "contour_scalar_benchmark"
 path = "examples/contour_scalar_benchmark.rs"
 required-features = ["native"]
+
+[[example]]
+name = "contour_cap_study"
+path = "examples/contour_cap_study.rs"
+required-features = ["native"]

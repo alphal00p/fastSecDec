@@ -8,6 +8,26 @@ use fastsecdec::{
 };
 use std::ops::ControlFlow;
 
+pub(super) fn compilation_settings(
+    jacobian: ContourJacobian,
+    args: &[String],
+) -> CliResult<CompilationSettings> {
+    let mut settings = CompilationSettings {
+        backend: EvaluatorBackend::Symjit,
+        contour_jacobian: jacobian,
+        ..Default::default()
+    };
+    match args {
+        [] => {}
+        [flag, value] if flag == "--horner-iterations" => {
+            settings.horner_iterations = value.parse()?;
+        }
+        _ => return Err("expected optional --horner-iterations N".into()),
+    }
+    settings.validate()?;
+    Ok(settings)
+}
+
 pub(super) fn prepare(out: &Path) -> CliResult<()> {
     let start = Instant::now();
     // Kite admission is deliberately first; failures do not authorize replacing it.
@@ -40,6 +60,7 @@ pub(super) fn generate(
     recipe: ProgramRecipe,
     jacobian: ContourJacobian,
     out: &Path,
+    compilation: CompilationSettings,
 ) -> CliResult<()> {
     let start = Instant::now();
     let fixture = fixtures::build(name)?;
@@ -57,15 +78,6 @@ pub(super) fn generate(
             initial_relative_width: 2,
             ..Default::default()
         },
-        ..Default::default()
-    };
-    let compilation = CompilationSettings {
-        backend: EvaluatorBackend::Symjit,
-        contour_jacobian: jacobian,
-        horner_iterations: 0,
-        cpe_rounds: Some(1000),
-        cores: 1,
-        direct_translation: true,
         ..Default::default()
     };
     let generation_settings = json!({"mode":"symbolic","contour_jacobian":jacobian,"program_recipe":recipe,"max_order":0,"subtraction":"integrate_by_parts","coefficient_expansion":options.coefficient_expansion});
@@ -140,4 +152,30 @@ pub(super) fn generate(
             "actual_generated_endpoint_modes":generated.sectors().iter().map(|s|s.generation_mode()).collect::<Vec<_>>()}),
     };
     save(&out.join("saved.json"), &saved)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn horner_inherits_native_default_and_requires_explicit_override() {
+        for jacobian in [ContourJacobian::Symbolic, ContourJacobian::Dual] {
+            let settings = compilation_settings(jacobian, &[]).unwrap();
+            assert_eq!(settings.horner_iterations, 10);
+            assert_eq!(settings.contour_jacobian, jacobian);
+            assert_eq!(settings.cpe_rounds, Some(1000));
+            let explicit =
+                compilation_settings(jacobian, &["--horner-iterations".into(), "0".into()])
+                    .unwrap();
+            assert_eq!(explicit.horner_iterations, 0);
+        }
+        for args in [
+            vec!["--horner-iterations".into()],
+            vec!["--horner-iterations".into(), "-1".into()],
+            vec!["--unknown".into(), "0".into()],
+        ] {
+            assert!(compilation_settings(ContourJacobian::Symbolic, &args).is_err());
+        }
+    }
 }

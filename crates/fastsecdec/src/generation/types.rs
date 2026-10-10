@@ -6,6 +6,9 @@ use symbolica::atom::{AliasedAtom, Atom, Symbol};
 
 #[derive(Clone, Debug)]
 pub struct GenerationOptions {
+    /// Original native decomposition-chart ordinals, before symmetry or IBP.
+    /// Omission generates all charts; a supplied set must be nonempty/distinct.
+    pub source_sectors: Option<Vec<usize>>,
     /// How sector maps and endpoint derivatives enter evaluator construction.
     pub mode: GenerationMode,
     /// Compute the contour determinant symbolically or through native map jets.
@@ -150,6 +153,7 @@ impl SubtractionStrategy {
 impl Default for GenerationOptions {
     fn default() -> Self {
         Self {
+            source_sectors: None,
             mode: GenerationMode::default(),
             contour_jacobian: Default::default(),
             program_recipe: crate::kernel::indexed::ProgramRecipe::UndeformedV1,
@@ -378,6 +382,16 @@ pub struct GeneratedIntegral {
 }
 
 impl GeneratedIntegral {
+    pub(super) fn with_source_scope(
+        mut self,
+        scope: Option<super::GenerationSourceScope>,
+    ) -> Result<Self, GenerationError> {
+        if let Some(scope) = &scope {
+            scope.validate(self.metadata.charts.len())?;
+        }
+        self.metadata.source_scope = scope;
+        Ok(self)
+    }
     /// Computational construction retained from generation, independent of
     /// runtime deformation strength and validation settings.
     pub fn contour_jacobian(&self) -> crate::contour::ContourJacobian {
@@ -447,6 +461,8 @@ impl GeneratedIntegral {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GenerationError {
+    #[error("generation source selection: {0}")]
+    SourceSelection(String),
     #[error("contour deformation: {0}")]
     Contour(String),
     #[error(

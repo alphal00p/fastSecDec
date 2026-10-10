@@ -75,6 +75,14 @@ impl SavedIntegrationResult {
             "Saved integration result: {}",
             self.manifest.kernel_content_id
         )?;
+        if let Some(selection) = &self.manifest.source_selection {
+            writeln!(
+                f,
+                "Generation extent: original source charts {:?} of {}; partial original integral",
+                selection.source_sectors(),
+                selection.original_source_count()
+            )?;
+        }
         match &self.scope {
             ResultScope::FullIntegral => {
                 writeln!(f, "Scope: full integral, including all exact contributions")?

@@ -57,6 +57,7 @@ pub(super) fn inspect(
                 "binary_loaded":true,"loaded_sectors":1,
                 "binary_validated":options.validate,"validation_scope":"selected_sector_record",
                 "metadata_identity_validated":artifact.validation.metadata_identity,
+                "source_selection":kernels.generation_metadata().and_then(|metadata| metadata.source_scope()).map(|scope|scope.selection()),
                 "generation":artifact.generation,"generation_timings":artifact.generation_timings,
                 "sectors":catalogue.sector_count(),"orders":catalogue.orders,"components":catalogue.components,
                 "runtime_parameters":catalogue.runtime_parameters,"parameters_bound":kernels.parameters_bound(),

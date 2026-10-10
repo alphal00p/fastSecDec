@@ -84,6 +84,12 @@ pub struct ProgramRecipeCatalogue {
     pub records: Vec<RecordDescriptor>,
 }
 impl ProgramRecipeCatalogue {
+    pub fn source_selection(&self) -> Option<&crate::generation::SourceSectorSelection> {
+        self.records
+            .first()
+            .and_then(|record| record.receipt.source_scope.as_ref())
+            .map(|scope| scope.selection())
+    }
     pub fn runtime_parameters(&self) -> Vec<String> {
         self.runtime_parameters.clone()
     }
@@ -291,11 +297,17 @@ impl ProgramArchiveCatalogue {
         super::super::super::validate_content_id(source)?;
         super::super::super::validate_content_id(&self.content_id)?;
         let mut unique = BTreeSet::new();
+        let source_selection = self.recipes[0].source_selection();
         for recipe in &self.recipes {
             if !unique.insert(recipe.recipe) {
                 return Err(failure("duplicate archive recipe"));
             }
             recipe.validate(source, integrity)?;
+            if recipe.source_selection() != source_selection {
+                return Err(failure(
+                    "archive recipes have different original source selections",
+                ));
+            }
         }
         if self.recipes.windows(2).any(|w| w[0].recipe >= w[1].recipe) {
             return Err(failure("noncanonical recipe ordering"));

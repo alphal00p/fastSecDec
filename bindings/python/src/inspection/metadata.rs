@@ -21,6 +21,30 @@ pub(crate) struct PyGenerationMetadata {
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]
 impl PyGenerationMetadata {
+    /// Original decomposition extent for a partial generation; None means full scope.
+    #[getter]
+    fn original_source_count(&self) -> Option<usize> {
+        self.owner
+            .metadata()
+            .source_scope()
+            .map(|scope| scope.selection().original_source_count())
+    }
+    /// Original decomposition charts selected before symmetry and endpoint subtraction.
+    #[getter]
+    fn source_sectors(&self) -> Option<Vec<usize>> {
+        self.owner
+            .metadata()
+            .source_scope()
+            .map(|scope| scope.selection().source_sectors().to_vec())
+    }
+    /// Original source ID for each entry of charts, including record-local owners.
+    #[getter]
+    fn chart_source_sectors(&self) -> Option<Vec<usize>> {
+        self.owner
+            .metadata()
+            .source_scope()
+            .map(|scope| scope.chart_source_sectors().to_vec())
+    }
     #[getter]
     fn domain(&self) -> PyDomainAssessment {
         PyDomainAssessment {
@@ -38,7 +62,8 @@ impl PyGenerationMetadata {
     }
 }
 
-/// Original chart ordinals and their retained native representative/kernel association.
+/// Compact chart ordinals and their retained native representative/kernel association.
+/// Partial generations expose original geometry IDs through GenerationMetadata.
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     frozen,

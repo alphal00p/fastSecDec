@@ -68,6 +68,7 @@ pub(super) fn document(
         "selected_recipe":artifact.selected_recipe(),
         "available_recipes":artifact.programs.as_ref().map(|p|p.catalogue.recipes.iter().map(|r|r.recipe).collect::<Vec<_>>()),
         "provenance":artifact.provenance, "sectors":summary.sectors,
+        "source_selection":summary.source_selection,
         "orders":summary.orders, "components":summary.components,
         "runtime_parameters":summary.runtime_parameters,
         "parameters_bound":summary.runtime_parameters.as_ref().map(|p|p.is_empty()),

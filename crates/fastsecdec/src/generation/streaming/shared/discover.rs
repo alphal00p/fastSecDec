@@ -24,6 +24,11 @@ pub fn discover_prepared(
         return Err(invalid("foreign prepared chart source receipt"));
     }
     let context = records::read_source(root, &preparation.source)?;
+    if context.source_scope != preparation.source_scope {
+        return Err(invalid(
+            "prepared source selection differs from its native context",
+        ));
+    }
     let data = records::read_prepared(root, &source.record)?;
     let (map, _, _): (records::Map, _, _) = codec::read(root, &source.map, "map")?;
     let map = map.native()?;

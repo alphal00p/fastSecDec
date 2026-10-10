@@ -17,6 +17,7 @@ use fastsecdec::{
 
 fn fixture(selected: bool) -> SavedIntegrationResult {
     let manifest = KernelResultManifest {
+        source_selection: None,
         kernel_content_id: "inner-kernel-id".into(),
         orders: vec![-1, 0, 0],
         components: vec![Real, Real, Imag],

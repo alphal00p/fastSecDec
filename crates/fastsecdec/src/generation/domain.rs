@@ -26,6 +26,9 @@ pub(super) fn check_options(
     input: &ParametricIntegrand,
     options: &super::GenerationOptions,
 ) -> Result<DomainAssessment, GenerationError> {
+    if let Some(requested) = &options.source_sectors {
+        super::selection::validate_request(requested)?;
+    }
     let mut assessment = check(input, options.assume_no_threshold)?;
     if !options.contour_enabled() {
         return Ok(assessment);

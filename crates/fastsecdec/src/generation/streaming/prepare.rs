@@ -87,6 +87,7 @@ pub fn discover(
     }
     let context = records::read_source(root, &preparation.source)?;
     if context.options.mode != preparation.mode
+        || context.source_scope != preparation.source_scope
         || context.options.program_recipe != preparation.program_recipe
         || context.source_identity != preparation.source_identity
     {
@@ -107,6 +108,7 @@ pub(super) fn discover_loaded(
     mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
 ) -> Result<DiscoveredSector, StreamingError> {
     if context.options.mode != preparation.mode
+        || context.source_scope != preparation.source_scope
         || context.options.program_recipe != preparation.program_recipe
         || context.source_identity != preparation.source_identity
         || context.targets.len() != preparation.dimension

@@ -193,7 +193,11 @@ impl Assembly {
             contour_jacobian: self.program.contour_jacobian,
             program_descriptor: self.program.descriptor,
             dynamic_check_sources: self.program.checks,
-            metadata: GenerationMetadata { domain, charts },
+            metadata: GenerationMetadata {
+                domain,
+                charts,
+                source_scope: None,
+            },
             orders,
             sectors,
             exact_coefficients,

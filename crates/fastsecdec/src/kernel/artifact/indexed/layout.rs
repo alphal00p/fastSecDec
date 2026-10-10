@@ -98,9 +98,36 @@ pub(super) fn validate_records(
         return Err(failure("empty native recipe"));
     }
     let mut sources = BTreeSet::new();
+    let selection = records[0]
+        .receipt
+        .source_scope
+        .as_ref()
+        .map(|scope| scope.selection());
+    let mut original_sources = std::collections::BTreeMap::new();
     let mut next_sector = 0;
     for record in records {
         record.receipt.validate()?;
+        if record
+            .receipt
+            .source_scope
+            .as_ref()
+            .map(|scope| scope.selection())
+            != selection
+        {
+            return Err(failure("inconsistent indexed generation source selection"));
+        }
+        if let Some(scope) = &record.receipt.source_scope {
+            for (local, original) in record
+                .receipt
+                .source_indices
+                .iter()
+                .zip(scope.chart_source_sectors())
+            {
+                if original_sources.insert(*local, *original).is_some() {
+                    return Err(failure("duplicate indexed source lineage"));
+                }
+            }
+        }
         if record.receipt.runtime_parameters != runtime_parameters
             || record.output_indices.len() != record.receipt.orders.len()
             || record
@@ -137,6 +164,13 @@ pub(super) fn validate_records(
         .any(|(expected, actual)| expected != actual)
     {
         return Err(failure("incomplete original source-chart coverage"));
+    }
+    if selection.is_some_and(|selection| {
+        original_sources.into_values().collect::<Vec<_>>() != selection.source_sectors()
+    }) {
+        return Err(failure(
+            "indexed records do not cover their declared original source subset",
+        ));
     }
     Ok(())
 }

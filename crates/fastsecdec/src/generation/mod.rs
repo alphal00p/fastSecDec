@@ -4,7 +4,9 @@
 //! This module owns the integral-specific order of these operations.
 mod assembly;
 pub(crate) use assembly::normalize_exact_coefficient;
+mod selection;
 mod session;
+pub use selection::{GenerationSourceScope, SourceSectorSelection};
 pub use session::{GenerationSession, GenerationSessionState};
 mod coefficient_first;
 mod coefficients;
@@ -173,7 +175,6 @@ fn generate_inner(
             &mut progress,
         )?)
     };
-    let total = decomposition.as_ref().map_or(0, Geometry::len);
     emit(
         &mut progress,
         GenerationProgress::PhaseTiming {
@@ -190,6 +191,8 @@ fn generate_inner(
         .flat_map(Geometry::maps)
         .map(|map| map.into_owned())
         .collect::<Vec<_>>();
+    let (maps, source_scope) = selection::select_maps(maps, options.source_sectors.as_deref())?;
+    let total = maps.len();
     let parameters =
         mapping::target_parameters(input, maps.first().map_or(0, |map| map.dimension()));
     if options.mode == GenerationMode::NumericalDual {
@@ -205,7 +208,8 @@ fn generate_inner(
             symbolic_dispatch,
             &mut progress,
         )?
-        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian);
+        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian)?
+        .with_source_scope(source_scope);
     }
     let mut maps = maps.into_iter();
     let mut prepared_charts = if let Some(dispatch) = symbolic_dispatch.as_deref_mut() {
@@ -389,7 +393,8 @@ fn generate_inner(
     laurent::profiling::reject_uncaptured_result()?;
     let result = assembly
         .finish(domain, charts, options.max_order)
-        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian)?;
+        .preserve_empty_recipe(options.program_recipe, options.contour_jacobian)?
+        .with_source_scope(source_scope)?;
     emit(
         &mut progress,
         GenerationProgress::Complete {

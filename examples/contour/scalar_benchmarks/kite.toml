@@ -1,0 +1,60 @@
+# Connected two-loop scalar kite, m^2=1 and p^2=3/1000.
+# New generation uses the public Horner default (10).
+[generation]
+mode = "symbolic"
+subtraction = "integrate_by_parts"
+order = 0
+recipe = "dynamic-polynomial-v1"
+contour_jacobian = "symbolic"
+# Optional original decomposition-chart IDs, before symmetry and subtraction:
+# source_sectors = [2, 5]
+
+[generation.coefficient_expansion]
+method = "coefficient_series"
+initial_relative_width = 2
+
+[generation.evaluator]
+backend = "symjit"
+cpe_rounds = 1000
+cores = 1
+
+[input]
+graph = "kite.dot"
+model = "model.json"
+model_parameters = "fixed"
+
+[parameters]
+"UFO::mt" = "1"
+
+[integral]
+dimension = "4-2*eps"
+regulator = "eps"
+measure_multiplier = "-1"
+
+[[kinematics.products]]
+left = 0
+right = 0
+value = "3/1000"
+
+[integration]
+method = "qmc"
+workers = 1
+points = 4096
+shifts = 8
+package_points = 1024
+lattice = "kuo33002"
+periodization = "korobov3"
+max_rounds = 1
+seed = 202610105101
+accuracy_target = { target = "laurent_order", order = 0 }
+
+[integration.contour.validation]
+policy = "pilot"
+pilot_points = 16
+
+[integration.contour.deformation]
+mode = "dynamical"
+construction = "polynomial"
+safety_fraction = 0.8
+lambda_cap = 1.0
+displacement_cap = 1.0

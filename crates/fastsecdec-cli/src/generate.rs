@@ -136,6 +136,7 @@ pub(crate) fn generate_with_resident_recipe(
     status.elapsed_seconds = started.elapsed().as_secs_f64();
     dashboard.generation(&status)?;
     let mut options = GenerationOptions {
+        source_sectors: loaded.card.generation.source_sectors.clone(),
         max_order: loaded.card.generation.order,
         mode: loaded.card.generation.mode,
         contour_jacobian: loaded.card.generation.contour_jacobian,

@@ -33,6 +33,7 @@ pub fn prepare_chart_source(
             || recipe.source_identity != recipes.source_identity
             || recipe.mode != first.mode
             || recipe.dimension != first.dimension
+            || recipe.source_scope != first.source_scope
             || recipe.charts.len() != first.charts.len()
             || recipe
                 .charts
@@ -46,6 +47,7 @@ pub fn prepare_chart_source(
     // every compact catalogue here would make N independent jobs O(N²).
     let context = records::read_source(root, &first.source)?;
     if context.source_identity != recipes.source_identity
+        || context.source_scope != first.source_scope
         || context.options.mode != first.mode
         || context.options.program_recipe != first.program_recipe
         || context.targets.len() != first.dimension

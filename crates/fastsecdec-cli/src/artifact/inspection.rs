@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KernelSummary {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_selection: Option<fastsecdec::generation::SourceSectorSelection>,
     pub sectors: usize,
     pub orders: Vec<i32>,
     pub components: Vec<CoefficientComponent>,
@@ -24,6 +26,10 @@ pub struct KernelSummary {
 impl KernelSummary {
     pub fn from_kernels(kernels: &KernelSet) -> Self {
         Self {
+            source_selection: kernels
+                .generation_metadata()
+                .and_then(|metadata| metadata.source_scope())
+                .map(|scope| scope.selection().clone()),
             sectors: kernels.sectors().len(),
             orders: kernels.orders().to_vec(),
             components: kernels.components().to_vec(),

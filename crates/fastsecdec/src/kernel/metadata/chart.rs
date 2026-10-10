@@ -258,7 +258,7 @@ impl PortableChart {
         let coordinates = if validate {
             geometry
                 .validate(domain)
-                .map_err(|error| invalid(&error.to_string()))?;
+                .map_err(|error| invalid(error.to_string()))?;
             let coordinates = coordinates_from_parts(&source, domain, &geometry, &target);
             if images != coordinates.images() || measure_jacobian != *coordinates.measure_jacobian()
             {

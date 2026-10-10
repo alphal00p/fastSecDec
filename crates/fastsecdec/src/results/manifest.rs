@@ -25,6 +25,10 @@ impl KernelResultManifest {
     /// the native manifest directly with their own stable sector identities.
     pub fn from_kernels(kernels: &crate::kernel::KernelSet) -> Self {
         Self {
+            source_selection: kernels
+                .generation_metadata()
+                .and_then(|metadata| metadata.source_scope())
+                .map(|scope| scope.selection().clone()),
             kernel_content_id: kernels.content_id().into(),
             orders: kernels.orders().to_vec(),
             components: kernels.components().to_vec(),
@@ -42,6 +46,11 @@ impl KernelResultManifest {
     }
 
     pub fn validate(&self) -> Result<()> {
+        if let Some(selection) = &self.source_selection {
+            selection
+                .validate()
+                .map_err(|error| ResultError::Invalid(error.to_string()))?;
+        }
         IntegrationProblem::new_with_components(
             self.kernel_content_id.clone(),
             self.orders.clone(),
@@ -58,7 +67,20 @@ impl KernelResultManifest {
     pub fn canonical_scope(&self, scope: &ResultScope) -> Result<ResultScope> {
         self.validate()?;
         match scope {
-            ResultScope::FullIntegral => Ok(ResultScope::FullIntegral),
+            ResultScope::FullIntegral => Ok(if self.source_selection.is_some() {
+                let mut sector_ids = self
+                    .sectors
+                    .iter()
+                    .map(|sector| sector.id)
+                    .collect::<Vec<_>>();
+                sector_ids.sort_unstable();
+                ResultScope::SelectedSectors {
+                    sector_ids,
+                    exact_policy: ExactContributionPolicy::IncludeAll,
+                }
+            } else {
+                ResultScope::FullIntegral
+            }),
             ResultScope::SelectedSectors {
                 sector_ids,
                 exact_policy,

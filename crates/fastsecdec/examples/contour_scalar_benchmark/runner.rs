@@ -192,13 +192,22 @@ fn jacobian(name: &str) -> CliResult<ContourJacobian> {
 
 pub(super) fn execute() -> CliResult<()> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let usage = "actions: prepare OUT | generate CASE {fixed|polynomial|sign-aware} {symbolic|dual} OUT | admit SAVED_JSON OUT | select OUT ADMISSION_JSON... (six) | sample SAVED_JSON COMMON_CAP_JSON SEED OUT";
+    let usage = "actions: prepare OUT | generate CASE {fixed|polynomial|sign-aware} {symbolic|dual} OUT [--horner-iterations N] | admit SAVED_JSON OUT | select OUT ADMISSION_JSON... (six) | sample SAVED_JSON COMMON_CAP_JSON SEED OUT";
     let out = match args.as_slice() {
         [a, o] if a == "prepare" => PathBuf::from(o),
-        [a, _, _, _, o] if a == "generate" || a == "sample" => PathBuf::from(o),
+        [a, _, _, _, o, ..] if a == "generate" => PathBuf::from(o),
+        [a, _, _, _, o] if a == "sample" => PathBuf::from(o),
         [a, _, o] if a == "admit" => PathBuf::from(o),
         [a, o, rest @ ..] if a == "select" && rest.len() == 6 => PathBuf::from(o),
         _ => return Err(usage.into()),
+    };
+    let compilation = if args[0] == "generate" {
+        Some(generate::compilation_settings(
+            jacobian(&args[3])?,
+            &args[5..],
+        )?)
+    } else {
+        None
     };
     fs::create_dir(&out)?;
     save(
@@ -207,7 +216,13 @@ pub(super) fn execute() -> CliResult<()> {
     )?;
     let result = match args[0].as_str() {
         "prepare" => generate::prepare(&out),
-        "generate" => generate::generate(&args[1], recipe(&args[2])?, jacobian(&args[3])?, &out),
+        "generate" => generate::generate(
+            &args[1],
+            recipe(&args[2])?,
+            jacobian(&args[3])?,
+            &out,
+            compilation.expect("validated generation settings"),
+        ),
         "admit" => sampling::admit(Path::new(&args[1]), &out),
         "select" => sampling::select(&args[2..], &out),
         "sample" => sampling::sample(

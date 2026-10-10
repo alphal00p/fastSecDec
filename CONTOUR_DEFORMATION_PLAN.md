@@ -521,3 +521,56 @@ This completes the user's immediate benchmark/reporting checkpoint. Publish
 the validated results, then pause the active goal and stop as instructed. The
 broader Phase B acceptance programme remains unfinished; this checkpoint does
 not authorize marking that goal complete.
+
+## Dynamic-cap and deformation-shape investigation (2026-10-10)
+
+### New user instruction, verbatim
+
+Ok, so I want the default value of horner to be 10, not 0.
+
+Then do some study as to why the dynamic deformation did not improve the variance. In particular the main advantage is that since we now have guaranteed causality by construction, we can let it depart much further away than the normal fixed deformation, so what was the cap in lambda max? Did you make it large enough? Using existing output for the double-box, can you increase it and verify if it improves the variance?
+
+Also can you look into one simpler two-loop scalar example that generate and run faster and do a similar study (that you should report as well in benchmark.pdf) where you try and see how the dynamical deformation performs and see if it improves over fix, also with a large cap. And if it doesn't maybe study behaviour around the max weight points and see if you can spot some additional hyperparameter of the functional form ansatz of the deformation that you could add parametrically at generation time and then try to change explicitly at run time to various values to see if there is a sensitivity.
+Also consider doing these generation and runtime tests for different ansatzes of the simpler examples (or even double-box later) by generating and running for a single or couple of sectors (picking the dominant ones for example), so you can get much faster turn-around signal for the improvements from your changes.
+Also make sure there is a user-friendly way of doing these generations for specific user-defined subset of sector in the toml input card.
+
+### Investigation and delivery
+
+This request authorizes new work after the preceding paused checkpoint. Keep
+the public Horner default at ten and remove unintended diagnostic overrides
+from current example workflows. Historical zero-Horner measurements and saved
+programs retain their true settings. Distinguish native direct translation's
+zero-Horner early return from separate composition and SymJIT optimizations.
+
+Reuse the existing 1000 GeV D05 artifacts for a bounded cap sweep. First rank
+dominant sectors from existing native variance contributions, then use matched
+sampling coordinates for rapid subset comparisons. Record actual strength,
+displacement, root work, envelope-term contributions and the largest weighted
+finite-vector samples. Increasing the cap alone can saturate another smooth
+bound: investigate the existing displacement and safety parameters separately.
+Retain fresh confirmation seeds and distinguish sector-subset observations
+from a complete physical integral. Do not relabel existing zero-Horner kernels
+as newly optimized kernels.
+
+Use the native mixed-mass two-loop kite as the faster scalar control, with new
+Horner-ten generation and its independent published reference. Compare fixed,
+polynomial dynamic and sign-aware dynamic prescriptions over useful larger
+caps, with parameter selection separated from confirmation samples. If larger
+caps do not help, inspect the dominant weighted points and their neighbourhoods
+before introducing a new smooth runtime shape parameter. Any new parameter
+must preserve face behaviour, full Jacobian/implicit derivatives and the causal
+proof. Reuse Symbolica facilities; no parallel CAS, AD engine or sampler.
+
+Expose a documented TOML generation-sector selection using existing native
+sector/source identities. Preserve selected multiplicities and exact terms,
+explicit partial-result scope, normal/serial behavior and artifact identities.
+Use selected generation for rapid follow-up experiments where appropriate.
+
+Delegate interfaces, runtime studies and independent mathematical/statistical
+review. Retain the 100 GB aggregate resource limit and caller-owned execution.
+Publish green milestones on `contour_deformation`, and extend the maintained
+benchmark report with generation, RAM, sampling, variance, active-bound and
+large-weight evidence, including unsuccessful parameter choices and limitations.
+The existing `docs/contour-deformation.pdf` remains the report's maintained
+output; provide `docs/benchmark.pdf` as an entry point to the same report
+requested in this follow-up, compiled from the same Typst source.

@@ -170,8 +170,14 @@ impl ChartRecord {
 pub struct GenerationMetadata {
     pub(crate) domain: DomainAssessment,
     pub(crate) charts: Vec<ChartRecord>,
+    pub(crate) source_scope: Option<super::GenerationSourceScope>,
 }
 impl GenerationMetadata {
+    /// A proper subset of the original native geometry, retained through saving.
+    /// Chart IDs remain compact and index `chart_source_sectors()` in this owner.
+    pub fn source_scope(&self) -> Option<&super::GenerationSourceScope> {
+        self.source_scope.as_ref()
+    }
     pub fn domain_assessment(&self) -> &DomainAssessment {
         &self.domain
     }

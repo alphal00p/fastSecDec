@@ -36,6 +36,14 @@ Preserve independent tuning/production identities and full complex covariance;
 do not infer a variance advantage from deformation magnitude alone. See the
 verbatim extension at the end of `CONTOUR_DEFORMATION_PLAN.md`.
 
+The subsequent dynamic-cap investigation resumes authorized work after that
+checkpoint: retain Horner ten as the user-facing default, study larger runtime
+caps on existing double-box outputs and a faster scalar two-loop case, inspect
+large-weight points and smooth shape parameters, and expose explicit TOML
+generation-sector selection. The latest verbatim instruction and investigation
+scope are recorded at the end of the contour plan. Historical benchmark
+settings and partial-sector scope must remain explicit.
+
 ## Complete one-loop ggHH helicity reproduction (2026-10-08)
 
 Build `example/gg_hh_one_loop_ME/` with separate `fastsecdec/`, `hepkit/`

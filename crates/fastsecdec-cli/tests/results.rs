@@ -239,6 +239,7 @@ fn numerical_fixture(selected: bool) -> SavedIntegrationResult {
     }
     SavedIntegrationResult {
         manifest: KernelResultManifest {
+            source_selection: None,
             kernel_content_id: "parent-kernel".into(),
             orders: vec![0],
             components: vec![CoefficientComponent::Real],

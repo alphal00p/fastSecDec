@@ -8,6 +8,8 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct IntegrationReport {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_selection: Option<fastsecdec::generation::SourceSectorSelection>,
     /// Independent validation evidence and actual worker-owned check counters.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contour: Option<fastsecdec::status::ContourRunReport>,
@@ -109,6 +111,9 @@ pub(crate) fn finish(
     };
     snapshot.stop_reason = Some(stop);
     Ok(IntegrationReport {
+        source_selection: artifact
+            .catalogue()
+            .and_then(|catalogue| catalogue.source_selection().cloned()),
         contour: None,
         stability_mode: outcome.stability_mode,
         process_cpu_seconds: None,

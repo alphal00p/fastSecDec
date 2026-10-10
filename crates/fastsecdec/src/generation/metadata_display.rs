@@ -26,6 +26,15 @@ impl fmt::Display for MetadataView<'_> {
             domain.domain(),
             domain.branch_policy()
         )?;
+        if let Some(scope) = self.metadata.source_scope() {
+            writeln!(
+                f,
+                "Partial original integral: source charts {:?} of {}; retained chart lineage {:?}",
+                scope.selection().source_sectors(),
+                scope.selection().original_source_count(),
+                scope.chart_source_sectors()
+            )?;
+        }
         if domain.branch_policy() == super::BranchPolicy::UserResponsible {
             writeln!(
                 f,

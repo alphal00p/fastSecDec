@@ -110,9 +110,13 @@ once. A failed or timed-out action remains a failed/censored result; do not
 replace it with zero or silently change its settings. The shell stops on that
 failure, preserving every completed output for review.
 
-All six generation arms use Symbolic endpoint IBP through order zero, native
-named coefficient expansion with initial relative width two, SymJIT O2,
-Horner iterations zero, CPE cap 1000 and one compiler core. Cap admission uses
+All six current generation arms use Symbolic endpoint IBP through order zero,
+native named coefficient expansion with initial relative width two, SymJIT O2,
+the public Horner default of ten, CPE cap 1000 and one compiler core. The initial
+published comparison used an explicit zero-Horner diagnostic setting; reproduce
+that historical setting by appending `--horner-iterations 0` after the output
+directory of each `generate` command. Existing measurements are not relabelled
+as Horner-ten runs. Cap admission uses
 the frozen ladder `0.1, 0.03, 0.01, 0.003`; both dynamic recipes use `S=0.8`
 and `R=1`. Selection requires native admission of all six owners at a common
 cap and never consults production values or the reference.
@@ -131,3 +135,48 @@ supervisor must retain process/RSS observations, enforce the overall
 90-minute allocation and 100,000,000,000-byte aggregate RSS limit, and run at
 most two arms concurrently. These commands require no ignored Python wrapper,
 but do not themselves measure or enforce an aggregate RSS limit.
+
+## CLI card and runtime cap studies
+
+[kite.toml](kite.toml) supplies the same physical graph, scalar numerator,
+normalization, masses and invariant directly through the ordinary CLI. It uses
+Horner ten by default and selects one contour recipe to keep turnaround short.
+The native CLI's original decomposition-chart identifiers can be selected with
+`generation.source_sectors`; those are distinct from residual kernel IDs after
+symmetry and endpoint subtraction. The resulting artifact retains its
+partial-source scope and original identifiers.
+
+For example, uncomment `source_sectors = [2, 5]` under `[generation]` in the
+card. These two original charts form one symmetry-weighted numerical kernel
+in this kite. The original decomposition has 22 charts and 11 numerical
+kernels; kernel 2 in a full artifact is not original chart 2 alone. Native
+inspection retains that mapping. Omit `source_sectors` for the complete
+integral; empty, duplicate and out-of-range selections are rejected.
+
+```sh
+fastsecdec generate examples/contour/scalar_benchmarks/kite.toml \
+    --serial --workers 1 -o target/kite.fsd
+fastsecdec inspect target/kite.fsd --sector 0 --expressions
+fastsecdec integrate target/kite.fsd --workers 1 \
+    --contour dynamical=0.8 --lambda-cap 1 --displacement-cap 0.25 \
+    --contour-validation pilot
+```
+
+Each command is independent. Both normal and serial generation honor the
+selection, and saved partial results are labelled as selected contributions.
+They must not be compared to the reference for the complete integral.
+
+The cap investigation varies the existing runtime `lambda_cap`,
+`displacement_cap` and `safety_fraction` on saved evaluators. A larger lambda cap
+does not necessarily produce a larger displacement: causal, positive-factor
+and displacement bounds can dominate. Separate pilot, parameter-selection and
+confirmation work is required before describing a setting as an improvement.
+
+The follow-up in [benchmark.pdf](../../../docs/benchmark.pdf) uses Horner ten,
+scans caps through 10, inspects matched largest-weight points, and confirms
+settings on two fresh seeds. For this kite, `L=1, R=.25, S=.8` reduces variance
+relative to tuned fixed `lambda=.4`, while the additional evaluator cost
+prevents a demonstrated sampling-time gain. It is a measured setting for this
+fixture, not a new universal default. The cap-study Rust example restores
+existing native artifacts; its diagnostics introduce no new integration
+observations.

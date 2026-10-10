@@ -292,6 +292,7 @@ fn execute(path: PathBuf, emit: &mut dyn FnMut(Progress) -> std::io::Result<()>)
                     .record_contour_runtime(fastsecdec::status::IntegrationStage::Pilot, &report)?;
             }
             let manifest = KernelResultManifest {
+                source_selection: catalogue.source_selection().cloned(),
                 kernel_content_id: exact.content_id().into(),
                 orders: catalogue.orders.clone(),
                 components: catalogue.components.clone(),

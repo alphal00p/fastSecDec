@@ -12,6 +12,7 @@ pub(super) fn run(
     let loaded = input::load_observed_with_overrides(input, overrides, |_| Ok(()))?;
     let settings = &loaded.card.generation;
     let mut options = generation::GenerationOptions {
+        source_sectors: settings.source_sectors.clone(),
         max_order: settings.order,
         mode: settings.mode,
         contour_jacobian: settings.contour_jacobian,

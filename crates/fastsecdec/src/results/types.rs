@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KernelResultManifest {
+    /// Partial original geometry extent, independent of numerical sector IDs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_selection: Option<crate::generation::SourceSectorSelection>,
     pub kernel_content_id: String,
     pub orders: Vec<i32>,
     pub components: Vec<CoefficientComponent>,

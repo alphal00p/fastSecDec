@@ -28,6 +28,9 @@ use serde::{Deserialize, Serialize};
 /// Immutable source context and the geometry jobs to discover independently.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Preparation {
+    /// Partial original geometry extent; numerical/staging chart IDs stay local.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_scope: Option<super::GenerationSourceScope>,
     /// Canonical physical source identity, independent of the selected recipe.
     pub source_identity: String,
     /// Selected mathematical recipe; never inferred from an old staging payload.
