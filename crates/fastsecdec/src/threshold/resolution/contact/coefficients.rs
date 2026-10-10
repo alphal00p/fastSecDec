@@ -1,3 +1,4 @@
+use super::super::differential::relative_differential_ideal;
 use super::super::{Budget, Error, EtaleFrame, Ideal, MarkedIdeal};
 use super::{ContactJet, restrict};
 type Result<T> = std::result::Result<T, Error>;
@@ -49,33 +50,17 @@ pub(crate) fn build(
         if j + 1 == d {
             break;
         }
-        let axes = match kind {
-            Differentiation::Normal(i) => vec![i],
-            Differentiation::FullInclusive => (0..graph.free_axes().len()).collect(),
-        };
-        let inclusive = matches!(kind, Differentiation::FullInclusive);
-        let factor = axes
-            .len()
-            .checked_add(usize::from(inclusive))
-            .ok_or(Error::ResourceIncomplete("coefficient derivative axes"))?;
-        budget.reserve_slots(
-            layer
-                .generators()
-                .len()
-                .checked_mul(factor)
-                .ok_or(Error::ResourceIncomplete("coefficient derivative count"))?,
-        )?;
-        let mut next = if inclusive {
-            layer.generators().to_vec()
-        } else {
-            Vec::new()
-        };
-        for p in layer.generators() {
-            for i in &axes {
-                next.push(graph.derivative(*i, p, budget)?);
+        layer = match kind {
+            Differentiation::FullInclusive => relative_differential_ideal(graph, &layer, budget)?,
+            Differentiation::Normal(index) => {
+                budget.reserve_slots(layer.generators().len())?;
+                let mut next = Vec::new();
+                for p in layer.generators() {
+                    next.push(graph.derivative(index, p, budget)?);
+                }
+                Ideal::new(ring.clone(), next, budget)?
             }
-        }
-        layer = Ideal::new(ring.clone(), next, budget)?;
+        };
     }
     result.ok_or(Error::Invalid("empty coefficient construction"))
 }

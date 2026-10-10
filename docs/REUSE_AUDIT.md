@@ -3399,3 +3399,17 @@ positive-scale certificate retains the real-log branch of `c^(a+b*epsilon)`.
 These changes require no owner dependency update. Native floating-value
 conversion has separate successful probes but is not admitted by this
 milestone; fixed-fiber positivity does not authorize general parameter rebinding.
+
+## Local threshold residual and companion construction (2026-10-10)
+
+The [local companion audit](reviews/no-deformation-local-companion.md) records
+native polynomial division, F4 elimination/reduction, exact localized ideal
+membership, relative differentiation and mixed ideal powers. A quotient found
+with temporary saturation is independently checked in the original ring;
+no new domain guard is inferred. One shared inclusive derivative helper
+serves ordinary contact, coefficient construction and residual-order discovery.
+
+Checked SNC/contact/history owners bind every successful result. Constructors
+distinguish whole-equation extraction from componentwise BM maximality, and
+local companion arithmetic from complete resolution. No owner-library patch
+or duplicate CAS is required for this slice.

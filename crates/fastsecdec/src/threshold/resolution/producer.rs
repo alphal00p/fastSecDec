@@ -1,3 +1,4 @@
+use super::differential::relative_differential_ideal;
 use super::localized::Result;
 use super::{Budget, Error, Ideal, Poly};
 use super::{EtaleFrame, OpenCoverCertificate, VerifiedOpenCover};
@@ -225,25 +226,7 @@ fn produce(
         if order == budget.limits.max_mark {
             break;
         }
-        let count = current
-            .generators()
-            .len()
-            .checked_mul(
-                frame
-                    .free_axes()
-                    .len()
-                    .checked_add(1)
-                    .ok_or(Error::ResourceIncomplete("derivative axis count"))?,
-            )
-            .ok_or(Error::ResourceIncomplete("derivative ideal count"))?;
-        budget.reserve_slots(count)?;
-        let mut next = current.generators().to_vec();
-        for f in current.generators() {
-            for index in 0..frame.free_axes().len() {
-                next.push(frame.derivative(index, f, budget)?);
-            }
-        }
-        let next = Arc::new(Ideal::new(current.ring().clone(), next, budget)?);
+        let next = Arc::new(relative_differential_ideal(frame, &current, budget)?);
         budget.reserve_slots(1)?;
         progress.stages.push(DerivativeStage {
             order: order + 1,

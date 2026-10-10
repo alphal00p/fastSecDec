@@ -10,8 +10,10 @@
 mod algebra;
 mod blowup;
 mod chart;
+mod companion;
 mod contact;
 mod cover;
+mod differential;
 mod etale;
 mod geometry;
 mod iteration;
@@ -27,6 +29,14 @@ pub use blowup::{
     MonomialBlowupChart, ResolutionHistory, produce_adapted_cover, produce_monomial_blowup,
 };
 pub use chart::{Boundary, Chart, FrameCertificate, Guard, Map, VerifiedFrame};
+pub use companion::{
+    CartierDivision, FactorProduction, FactorProgress, OldBoundaryCoefficient,
+    OldBoundaryProduction, OldBoundaryProgress, OldIncidence, QuotientMethod, RelativeOrderLayer,
+    ResidualOrderProduction, ResidualOrderProgress, RestrictedResidualOrder,
+    VerifiedCartierQuotient, WholeCartierFactorization, divide_cartier,
+    factor_whole_cartier_equations, produce_old_boundary_coefficient,
+    produce_restricted_residual_order,
+};
 pub use contact::{
     ContactJet, ContactProduction, ContactProgress, ContactQuotient, RingExtension, UnitClearing,
     construct_contact_quotient,
