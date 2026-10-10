@@ -219,8 +219,68 @@ integral estimate.
 
 The matched polynomial contour-only Dual-J source0 began at
 `2026-10-10T10:59:43.008343Z`, native PID/PGID 1748578, with a 3,600-second
-allocation. It keeps candidate6, Symbolic endpoints and the same width-one
-starting policy. Its separate combined-memory guard includes the running full
-fixed generation and the earlier polynomial baseline, while its termination
-authority covers only the new Dual process group. This comparison remains in
-progress; no polynomial Dual generation or runtime benefit is yet claimed.
+allocation. It retained candidate6, Symbolic endpoints and the same width-one
+starting policy. It completed with exit zero, an empty process group and no
+resource limit. Its guard counted the concurrent fixed generation separately;
+the sampled combined peak was 49,430,777,856 B.
+
+| Polynomial source0 observation | Symbolic J | Contour-only Dual J |
+| --- | ---: | ---: |
+| Generation through symbolic coefficient expansion | 1,004.993 s | 506.307 s |
+| Compilation | 504.993 s | 287.072 s |
+| Monitor elapsed | 1,511.568 s | 794.947 s |
+| Sampled owned RSS peak | 28,441,194,496 B | 16,727,838,720 B |
+| Whole saved owner | 5,330,684 B | 1,676,683 B |
+| Exact evaluator IR | 294,022 B | 372,004 B |
+| SymJIT IR | 524,646 B | 519,988 B |
+| Surviving first-image partial input slots | Inapplicable | 11 |
+
+Both fresh restores reproduce their own 16 scalar components exactly. The
+cross-Jacobian maximum absolute difference is `1.1368683772161603e-13`, and the
+maximum scaled difference is `6.0126526211687044e-15`, below the unchanged
+`2e-10` tolerance. Coordinate schemas, layouts and admitted caps agree.
+`parity-polynomial.json` and `cost-handoff-polynomial.json` retain the pinned
+native owners, generation reports and independent restore evidence. The lower
+generation time and memory are observations from one source0 comparison, not
+an all-chart scaling result. Its exact evaluator IR is larger despite the
+smaller whole saved owner.
+
+Native Kuo `4096 × 2` sampling at `S=0.8`, `L=1e-6`, `R=1` used identical
+8,192 coordinate/weight pairs in both arms. Each owner passed Pilot16/readiness,
+accepted 8,164 points in f64 and rescued 28 in double-double. Neither used
+arbitrary precision or optional production causal checks.
+
+| Native weighted evaluation cost | Symbolic J | Contour-only Dual J |
+| --- | ---: | ---: |
+| Evaluation elapsed, including precision retries | 0.308934 s | 0.245677 s |
+| Mean per assigned sample | 37.711716 µs | 29.989820 µs |
+
+The observed Dual/Symbolic cost ratio is `0.795239`. The timing scope is the
+same as the fixed comparison: all native evaluation attempts and first-use work
+are included; restore, binding, pilot, context construction and coordinate
+hashing are excluded. The monitor closed in 2.839 s at 67,579,904 B peak.
+The raw native timings, matching digests and precision counts are pinned by
+`target/contour-d05-1000-runtime/symbolic-endpoints/cost-polynomial-matched_4096x2/cost-120s/matched-cost-review.json`.
+This is source0 cost evidence, not an integral or final 50-worker result.
+
+## Full polynomial generation selection
+
+The source0 generation, parity and cost evidence supports selecting contour-only
+Dual J for polynomial deformation; fixed continues with Symbolic J. A fresh
+candidate7 journal began at `2026-10-10T11:20:38.041522Z`, PID/PGID 2862610,
+with two serial workers, a 7,200-second allocation and the combined
+100,000,000,000-byte guard. Symbolic endpoint IBP, SymJIT O2, Horner zero and
+CPE cap 1000 remain unchanged. Native coefficient expansion starts at relative
+width two, with the existing absolute-coverage check and retry logic.
+The candidate7 CLI SHA256 is
+`7b4563df8392e884267a9aed2a85fa9a37d04a4ede0142b31641af9ffdda9243`;
+its source archive SHA256 is
+`38222a65b58e6dcf9949d863771146808c74941c2b2f6e217f12c19281e744ab`.
+
+The earlier candidate7 full Symbolic-J attempt was deliberately cancelled
+through the native coordinator after the selection. Its mapped records, native
+cancellation status and resource observations remain intact; it produced no
+completed stochastic unit before cancellation. The new journal imports none
+of its receipts. Both attempts and the continuing full fixed campaign remain
+under their separate ignored directories. Full polynomial publication and
+all-chart physical admission are pending.

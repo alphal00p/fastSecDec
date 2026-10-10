@@ -220,16 +220,17 @@ four integral estimates remain in progress.]
   table.header([*Contour / Jacobian*], [*Time / peak RSS*], [*Exact / JIT IR*], [*Mean sample*]),
   [Fixed / symbolic], [559.9 s / 12.01 GB], [108.3 / 156.2 kB], [14.64 µs],
   [Fixed / dual], [566.9 s / 12.01 GB], [136.8 / 202.8 kB], [19.20 µs],
-  [Dynamic / symbolic], [1511.6 s / 28.44 GB], [294.0 / 524.6 kB], pending,
-  [Dynamic / dual], pending, pending, pending,
+  [Dynamic / symbolic], [1511.6 s / 28.44 GB], [294.0 / 524.6 kB], [37.71 µs],
+  [Dynamic / dual], [794.9 s / 16.73 GB], [372.0 / 520.0 kB], [29.99 µs],
 )
 Times include generation, compilation, saving and pointwise checks in separate
 processes; sizes describe evaluator IR, not the complete saved owner. Settings
-are SymJIT O2, Horner zero and common-pair cap 1000. Fixed costs use the same
-8,192 points at $lambda=10^(-6)$: both rescue 27 points in double-double.
-Fresh-process restoration and complete-vector parity pass. This fixed-sector
-test shows no dual-Jacobian speed advantage. Full fixed and dynamic generation
-use sector-at-a-time serial workers under a combined *100 GB* cap.
+are SymJIT O2, Horner zero and common-pair cap 1000. Each matched pair uses
+8,192 identical points: fixed $lambda=10^(-6)$ and dynamic $S=.8$, $L=10^(-6)$,
+$R=1$. Both fixed arms rescue 27 points in double-double; both dynamic arms
+rescue 28. Fresh-process restoration and complete-vector parity pass.
+This sector favors symbolic J for fixed mode and dual J for dynamic mode;
+the full runs use those choices with serial workers under a *100 GB* cap.
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -304,8 +305,9 @@ fixed and both dynamic prescriptions, saved programs, unused callbacks and
 private-input collisions. Public Symbolic IBP controls also pass with both
 implicit-radius prescriptions, complete complex Laurent vectors and restored
 programs. Conditional bodies requiring hoisted image inputs are explicitly
-unsupported by this opt-in route. The matched physical generation/RSS/program-size/
-sampling-cost comparison remains in progress.
+unsupported by this opt-in route. The matched source-sector comparison above
+includes generation, RSS, program sizes and sampling cost. Full-integral
+generation and convergence measurements remain in progress.
 No mathematical reordering, alternative CAS or AD implementation is introduced.
 An optional initial native Series width avoids a known discarded attempt; the
 strict absolute Laurent-remainder coverage check and checked retries remain
