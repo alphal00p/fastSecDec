@@ -26,3 +26,4 @@ mod tests;
 pub use component_order::{
     ComponentResidualOrder, ComponentResidualProduction, produce_component_residual_order,
 };
+pub(crate) use old_boundary::produce_old_boundary_coefficient_for_cycle;

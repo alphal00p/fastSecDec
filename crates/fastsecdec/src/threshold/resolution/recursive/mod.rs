@@ -1,5 +1,5 @@
-//! First-center recursion only: fixed parameters, empty boundary, one global
-//! contact open at each level. No global BM or real integration atlas authority.
+//! First-center recursion and its first carried cycle: fixed parameters,
+//! explicit contact opens/history owners. No full BM or real atlas authority.
 mod coordinate;
 mod lift;
 mod state;
@@ -79,3 +79,16 @@ impl LiftReceipt {
         &self.clearings
     }
 }
+
+mod companion;
+pub use companion::{CompanionCenter, CompanionCenterOutcome, CompanionFirstCenter};
+mod carry;
+pub use carry::{
+    CarriedFirstBlowup, CarriedFirstChart, ControlledGenerator, ResidualDrop, carry_first_blowup,
+    prove_first_residual_drop,
+};
+mod cycle;
+pub use cycle::CycleSnapshot;
+
+#[cfg(test)]
+mod continuation_tests;

@@ -28,6 +28,7 @@ pub enum CompanionCoefficientProduction {
     Coefficient(Box<CompanionCoefficientChart>),
     ContactPending {
         source: Arc<CompanionContactOpen>,
+        cycle: Option<Arc<super::super::recursive::CycleSnapshot>>,
         evidence: ContactProduction,
     },
     BoundaryPending {
@@ -44,11 +45,34 @@ pub fn construct_companion_coefficient(
     fresh: [Symbol; 2],
     budget: &mut Budget,
 ) -> Result<CompanionCoefficientProduction> {
+    construct(source, candidate, fresh, None, budget)
+}
+pub fn construct_companion_coefficient_for_cycle(
+    source: Arc<CompanionContactOpen>,
+    candidate: usize,
+    fresh: [Symbol; 2],
+    cycle: Arc<super::super::recursive::CycleSnapshot>,
+    budget: &mut Budget,
+) -> Result<CompanionCoefficientProduction> {
+    cycle.check_open(&source)?;
+    construct(source, candidate, fresh, Some(cycle), budget)
+}
+fn construct(
+    source: Arc<CompanionContactOpen>,
+    candidate: usize,
+    fresh: [Symbol; 2],
+    cycle: Option<Arc<super::super::recursive::CycleSnapshot>>,
+    budget: &mut Budget,
+) -> Result<CompanionCoefficientProduction> {
     let contact =
         match construct_contact_quotient(source.contact().clone(), candidate, fresh, budget)? {
             ContactProduction::Constructed(contact) => Arc::new(*contact),
             evidence => {
-                return Ok(CompanionCoefficientProduction::ContactPending { source, evidence });
+                return Ok(CompanionCoefficientProduction::ContactPending {
+                    source,
+                    cycle,
+                    evidence,
+                });
             }
         };
     // The existing owner gate rejects equality-only substitutes: this pointer
@@ -57,7 +81,16 @@ pub fn construct_companion_coefficient(
     if !Arc::ptr_eq(contact.source().frame(), history.ledger().frame()) {
         return Err(Error::Invalid("companion coefficient history owner"));
     }
-    match produce_old_boundary_coefficient(contact.clone(), history, budget)? {
+    let production = match cycle {
+        None => produce_old_boundary_coefficient(contact.clone(), history, budget)?,
+        Some(cycle) => super::super::companion::produce_old_boundary_coefficient_for_cycle(
+            contact.clone(),
+            history,
+            cycle,
+            budget,
+        )?,
+    };
+    match production {
         OldBoundaryProduction::Coefficient(coefficient) => Ok(
             CompanionCoefficientProduction::Coefficient(Box::new(CompanionCoefficientChart {
                 source,

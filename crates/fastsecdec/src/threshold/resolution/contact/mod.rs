@@ -25,6 +25,10 @@ pub struct ContactJet {
     pub order: usize,
     pub ambient: Ideal,
     pub restricted: MarkedIdeal,
+    /// Native exact equality in the actual contact localization, before powers.
+    pub restricted_normalization: Arc<super::VerifiedQuotientNormalization>,
+    /// Native exact reduction of the accumulated marked sum at this layer.
+    pub accumulated_normalization: Arc<super::VerifiedQuotientNormalization>,
 }
 #[derive(Clone, Debug, Default)]
 pub struct ContactProgress {

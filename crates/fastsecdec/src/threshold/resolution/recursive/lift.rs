@@ -17,7 +17,39 @@ pub(super) fn ascend(
     {
         return Err(Error::Invalid("recursive child/contact owner"));
     }
-    let old = level.frame.local();
+    let (ideal, normals, clearings) = lift_geometry(q, &level.frame, &level.source, &child, b)?;
+    b.reserve_slots(
+        child
+            .invariant
+            .len()
+            .checked_add(1)
+            .ok_or(Error::ResourceIncomplete("recursive invariant count"))?,
+    )?;
+    let mut invariant = vec![level.ratio.clone()];
+    invariant.extend(child.invariant.iter().cloned());
+    Ok(RecursiveCenter {
+        frame: level.frame.clone(),
+        source: level.source.clone(),
+        ideal,
+        normals,
+        invariant,
+        lift: Some(LiftReceipt {
+            level,
+            child,
+            clearings,
+        }),
+    })
+}
+
+// Wrappers verify their exact construction owners before calling this shared geometry.
+pub(super) fn lift_geometry(
+    q: &ContactQuotient,
+    parent_frame: &Arc<EtaleFrame>,
+    parent_source: &Arc<MarkedIdeal>,
+    child: &RecursiveCenter,
+    b: &mut Budget,
+) -> Result<(Ideal, Vec<Poly>, Vec<UnitClearing>)> {
+    let old = parent_frame.local();
     let ring = old.ring();
     let candidate = &q.source().candidates()[q.candidate_index()];
     let contact = clear_units(old, &candidate.equation, b)?;
@@ -30,7 +62,7 @@ pub(super) fn ascend(
     )?;
     let mut normals = vec![contact.numerator];
     let mut clearings = Vec::new();
-    for f in &child.normals {
+    for f in child.normals() {
         let c = clear_units(q.contact().local(), f, b)?;
         if (ring.len()..c.numerator.nvars())
             .any(|i| c.numerator.degree(i) > 0 || c.denominator.degree(i) > 0)
@@ -60,7 +92,7 @@ pub(super) fn ascend(
     }
     let pulled = q.extension().ideal(&ideal, b)?;
     let down = q.contact().local();
-    for (a, c) in [(&pulled, &child.ideal), (&child.ideal, &pulled)] {
+    for (a, c) in [(&pulled, child.ideal()), (child.ideal(), &pulled)] {
         let c = down.ideal().sum(c, b)?;
         for f in a.generators() {
             if !c.contains(f, down.unit_relations(), b)? {
@@ -71,36 +103,16 @@ pub(super) fn ascend(
     // Admissibility in the actual parent source, using the shared full relative
     // derivative engine. No differentiation in parameter directions.
     let center = old.ideal().sum(&ideal, b)?;
-    let mut layer = level.source.ideal().clone();
-    for j in 0..level.source.mark() {
+    let mut layer = parent_source.ideal().clone();
+    for j in 0..parent_source.mark() {
         for f in layer.generators() {
             if !center.contains(f, old.unit_relations(), b)? {
                 return Err(Error::Invalid("recursive parent source order below mark"));
             }
         }
-        if j + 1 < level.source.mark() {
-            layer = relative_differential_ideal(&level.frame, &layer, b)?;
+        if j + 1 < parent_source.mark() {
+            layer = relative_differential_ideal(parent_frame, &layer, b)?;
         }
     }
-    b.reserve_slots(
-        child
-            .invariant
-            .len()
-            .checked_add(1)
-            .ok_or(Error::ResourceIncomplete("recursive invariant count"))?,
-    )?;
-    let mut invariant = vec![level.ratio.clone()];
-    invariant.extend(child.invariant.iter().cloned());
-    Ok(RecursiveCenter {
-        frame: level.frame.clone(),
-        source: level.source.clone(),
-        ideal,
-        normals,
-        invariant,
-        lift: Some(LiftReceipt {
-            level,
-            child,
-            clearings,
-        }),
-    })
+    Ok((ideal, normals, clearings))
 }

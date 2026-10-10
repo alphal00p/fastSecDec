@@ -14,6 +14,10 @@ pub struct HistoryChartStep {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum HistoryStep {
     Blowup(HistoryChartStep),
+    CoordinateBlowup {
+        center: HistoryCenter,
+        pivot_axis: usize,
+    },
     PrincipalOpen {
         source_ring: Arc<Ring>,
         factor: Poly,
@@ -21,9 +25,18 @@ pub enum HistoryStep {
     },
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum HistoryCenter {
+    BoundaryIndices(Vec<BoundaryId>),
+    CoordinateIdeal {
+        source_ring: Arc<Ring>,
+        ideal: Ideal,
+        normal_axes: Vec<usize>,
+    },
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BirthContext {
     pub parent_chart_path: Vec<HistoryStep>,
-    pub center: Vec<BoundaryId>,
+    pub center: HistoryCenter,
 }
 #[derive(Clone, Debug)]
 struct HistoryRoot {
@@ -134,7 +147,7 @@ impl ResolutionHistory {
             new_id,
             BirthContext {
                 parent_chart_path: self.path.clone(),
-                center: step.center.clone(),
+                center: HistoryCenter::BoundaryIndices(step.center.clone()),
             },
         );
         let mut path = self.path.clone();
@@ -148,6 +161,129 @@ impl ResolutionHistory {
             next_id,
             path,
             birth_contexts,
+        }))
+    }
+
+    /// Only the verified first-coordinate producer uses this bridge. It does
+    /// not encode a nonmonomial center as invented boundary identities.
+    pub(crate) fn advanced_first_coordinate(
+        &self,
+        center: &super::super::recursive::RecursiveCenter,
+        extension: &RingExtension,
+        chart: &super::super::recursive::RecursiveBlowupChart,
+        ledger: Arc<VerifiedRelativeSnc>,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        let transform = chart.transform();
+        let (id, stage) = self.next_transition()?;
+        if self.stage != 0
+            || !self.path.is_empty()
+            || !self.ledger.divisors().is_empty()
+            || !Arc::ptr_eq(self.ledger.frame(), center.frame())
+            || extension.source() != center.frame().local().ring()
+            || !Arc::ptr_eq(ledger.frame(), chart.target_frame())
+            || transform.born_divisor()
+                != (
+                    id.0,
+                    usize::try_from(stage)
+                        .map_err(|_| Error::ResourceIncomplete("coordinate stage conversion"))?,
+                )
+            || extension.ideal(center.source().ideal(), budget)? != *transform.source().ideal()
+            || transform.source().mark() != center.source().mark()
+        {
+            return Err(Error::Invalid("first coordinate history owner"));
+        }
+        let source_axes = center.frame().free_axes();
+        let position = source_axes
+            .iter()
+            .position(|i| *i == chart.pivot_source_axis())
+            .ok_or(Error::Invalid("coordinate history pivot"))?;
+        let expected = extension
+            .target()
+            .coordinate(transform.map().target().axes()[position])?;
+        if ledger.divisors().len() != 1
+            || ledger.divisors()[0].id != id
+            || ledger.divisors()[0].equation != expected
+        {
+            return Err(Error::Invalid("coordinate history exceptional ledger"));
+        }
+        let normals = transform
+            .center()
+            .normal_axes()
+            .iter()
+            .map(|a| {
+                transform
+                    .center()
+                    .frame()
+                    .map()
+                    .target()
+                    .axes()
+                    .iter()
+                    .position(|i| i == a)
+                    .map(|i| source_axes[i])
+                    .ok_or(Error::Invalid("coordinate history center axes"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let expected_center = Ideal::new(
+            extension.source().clone(),
+            normals
+                .iter()
+                .map(|i| extension.source().coordinate(*i))
+                .collect::<Result<_>>()?,
+            budget,
+        )?;
+        for (a, z) in [
+            (center.ideal(), &expected_center),
+            (&expected_center, center.ideal()),
+        ] {
+            for f in a.generators() {
+                if !z.contains(f, &[], budget)? {
+                    return Err(Error::Invalid(
+                        "coordinate history original center identity",
+                    ));
+                }
+            }
+        }
+        let provenance = HistoryCenter::CoordinateIdeal {
+            source_ring: extension.source().clone(),
+            ideal: center.ideal().clone(),
+            normal_axes: normals,
+        };
+        let mut births = self.births.clone();
+        if births.insert(id, stage).is_some() {
+            return Err(Error::Invalid("duplicate coordinate birth"));
+        }
+        let mut contexts = self.birth_contexts.clone();
+        contexts.insert(
+            id,
+            BirthContext {
+                parent_chart_path: self.path.clone(),
+                center: provenance.clone(),
+            },
+        );
+        budget.reserve_slots(
+            self.path
+                .len()
+                .checked_add(1)
+                .ok_or(Error::ResourceIncomplete("coordinate ancestry count"))?,
+        )?;
+        let mut path = self.path.clone();
+        path.push(HistoryStep::CoordinateBlowup {
+            center: provenance,
+            pivot_axis: chart.pivot_source_axis(),
+        });
+        Ok(Arc::new(Self {
+            root: self.root.clone(),
+            ledger,
+            stage,
+            births,
+            old_snapshot: self.old_snapshot.clone(),
+            next_id: BoundaryId(
+                id.0.checked_add(1)
+                    .ok_or(Error::ResourceIncomplete("coordinate divisor exhaustion"))?,
+            ),
+            path,
+            birth_contexts: contexts,
         }))
     }
 

@@ -135,15 +135,14 @@ fn contact_draft_plane_cusp_and_actual_recursive_descent() {
         &mut b,
     )
     .unwrap();
-    // The unnormalized representation is intentionally not mistaken for an
-    // unbounded algorithm: its marked mixed powers exceed this finite budget.
-    assert!(matches!(
-        raw_next,
-        ContactProduction::Incomplete {
-            reason: "generator budget",
-            ..
-        }
-    ));
+    // Native quotient normalization now removes relation-zero/redundant terms
+    // before marked powers, so the formerly bounded incomplete path completes.
+    let ContactProduction::Constructed(raw_next) = raw_next else {
+        panic!("normalized recursive contact did not complete: {raw_next:?}");
+    };
+    for f in raw_next.differential_coefficient().ideal().generators() {
+        assert!(raw_next.contact().local().zero(f, &mut b).unwrap());
+    }
     // assert_coefficient above independently proves equality on the contact
     // quotient with the compact native generating set <y^3>. Keep the original
     // marked weight 2 in q; this call is only the next ordinary local operation.
@@ -327,19 +326,14 @@ fn contact_draft_existing_etale_system_and_terminal_contact() {
             )
             .unwrap()
     );
-    assert!(
-        q.contact()
-            .local()
-            .zero(
-                q.differential_coefficient()
-                    .ideal()
-                    .generators()
-                    .first()
-                    .unwrap(),
-                &mut b
-            )
-            .unwrap()
-    );
+    assert!(q.differential_coefficient().ideal().generators().is_empty());
+    // The exact normalization receipt still ties this canonical zero ideal to
+    // every original restricted generator; no numerical zero inference.
+    for jet in &q.progress().completed_differential_layers {
+        for f in jet.restricted.ideal().generators() {
+            assert!(q.contact().local().zero(f, &mut b).unwrap());
+        }
+    }
 }
 #[test]
 fn contact_draft_empty_open_roles_and_resource_frontiers() {

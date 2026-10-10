@@ -31,7 +31,7 @@ mod transform;
 pub use algebra::{Budget, Error, Ideal, Limits, Poly, Ring};
 pub use blowup::{
     AdaptedCover, AdaptedOpen, AdaptedProduction, AdaptedProgress, BirthContext, BlowupProduction,
-    BlowupProgress, DivisorReceipt, EmptyAdaptedOpen, HistoryChartStep, HistoryStep,
+    BlowupProgress, DivisorReceipt, EmptyAdaptedOpen, HistoryCenter, HistoryChartStep, HistoryStep,
     MonomialBlowup, MonomialBlowupChart, ResolutionHistory, produce_adapted_cover,
     produce_monomial_blowup,
 };
@@ -48,7 +48,7 @@ pub use companion::{
 pub use companion_stage::{
     CompanionCoefficientChart, CompanionCoefficientProduction, CompanionContactOpen,
     CompanionOpenProduction, CompanionOpenProgress, construct_companion_coefficient,
-    produce_companion_open,
+    construct_companion_coefficient_for_cycle, produce_companion_open,
 };
 pub use component_factor::{
     BoundaryMaximality, CompletedComponentFactors, ComponentFactorCompletion,
@@ -94,8 +94,11 @@ pub use producer::{
     produce_ordinary_contact_cover,
 };
 pub use recursive::{
-    BoundaryFreeFirstCenter, FirstBlowup, LiftReceipt, RecursiveAdvance, RecursiveBlowupChart,
-    RecursiveCenter, RecursiveLevel, RecursiveOutcome, first_coordinate_blowup,
+    BoundaryFreeFirstCenter, CarriedFirstBlowup, CarriedFirstChart, CompanionCenter,
+    CompanionCenterOutcome, CompanionFirstCenter, ControlledGenerator, CycleSnapshot, FirstBlowup,
+    LiftReceipt, RecursiveAdvance, RecursiveBlowupChart, RecursiveCenter, RecursiveLevel,
+    RecursiveOutcome, ResidualDrop, carry_first_blowup, first_coordinate_blowup,
+    prove_first_residual_drop,
 };
 pub use transform::{ControlledTransformCertificate, DivisorTransform, VerifiedTransform};
 

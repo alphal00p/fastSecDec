@@ -3570,3 +3570,15 @@ Independent HEPKit review checked source extent, resident selection and the
 explicit distinction between certificate identities and global proof replay.
 Six inspection regressions pass, including a deleted-binary metadata control.
 See the [CLI review](reviews/no-deformation-cli.md).
+
+## Carried resolution cycles (2026-10-10)
+
+The [BM driver review](reviews/no-deformation-bm-driver.md) records the first
+coherent continuation: original coefficient/companion pullbacks, checked local
+history, residual-order decrease and the next cycle's lifted center. Root and
+an independent scientific reviewer checked that coefficient ideals are carried
+rather than recomputed and that cycle snapshots do not reset geometric history.
+Contact normalization reuses the existing exact quotient owner only after
+restriction; raw ambient derivatives and normalization receipts are retained.
+Six new groups and all 83 isolated resolver tests pass. This adds orchestration
+and certificate associations, not a second CAS or a complete global resolver.

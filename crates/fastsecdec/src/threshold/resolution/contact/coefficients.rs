@@ -1,6 +1,10 @@
 use super::super::differential::relative_differential_ideal;
-use super::super::{Budget, Error, EtaleFrame, Ideal, MarkedIdeal};
+use super::super::{
+    Budget, Error, EtaleFrame, Ideal, MarkedIdeal, NormalizationOutcome, QuotientNormalizer,
+    VerifiedQuotientNormalization,
+};
 use super::{ContactJet, restrict};
+use std::sync::Arc;
 type Result<T> = std::result::Result<T, Error>;
 pub(crate) enum Differentiation {
     Normal(usize),
@@ -20,6 +24,7 @@ pub(crate) fn build(
     budget: &mut Budget,
 ) -> Result<MarkedIdeal> {
     let ring = graph.local().ring();
+    let normalizer = QuotientNormalizer::prepare(contact.local().clone(), budget)?;
     let mut layer = initial.clone();
     let mut result: Option<MarkedIdeal> = None;
     for j in 0..d {
@@ -37,15 +42,21 @@ pub(crate) fn build(
             contact.local().supports(p)?;
         }
         let term = MarkedIdeal::new(restricted, d - j, budget)?;
+        let restricted_normalization = normalize(&normalizer, term.clone(), budget)?;
+        let normalized_term = restricted_normalization.normalized().as_ref().clone();
+        let combined = match result {
+            None => normalized_term,
+            Some(previous) => previous.sum(&normalized_term, budget)?,
+        };
+        let accumulated_normalization = normalize(&normalizer, combined, budget)?;
+        result = Some(accumulated_normalization.normalized().as_ref().clone());
         budget.reserve_slots(1)?;
         completed.push(ContactJet {
             order: j,
             ambient: layer.clone(),
-            restricted: term.clone(),
-        });
-        result = Some(match result {
-            None => term,
-            Some(previous) => previous.sum(&term, budget)?,
+            restricted: term,
+            restricted_normalization,
+            accumulated_normalization,
         });
         if j + 1 == d {
             break;
@@ -63,4 +74,15 @@ pub(crate) fn build(
         };
     }
     result.ok_or(Error::Invalid("empty coefficient construction"))
+}
+
+fn normalize(
+    normalizer: &Arc<QuotientNormalizer>,
+    source: MarkedIdeal,
+    budget: &mut Budget,
+) -> Result<Arc<VerifiedQuotientNormalization>> {
+    match normalizer.normalize(Arc::new(source), budget)? {
+        NormalizationOutcome::Complete(proof) => Ok(Arc::new(*proof)),
+        NormalizationOutcome::Incomplete { reason, .. } => Err(Error::ResourceIncomplete(reason)),
+    }
 }

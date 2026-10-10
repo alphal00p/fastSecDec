@@ -486,7 +486,7 @@ fn empty_exceptional_on_minor_open_is_not_an_active_divisor() {
         assert_eq!(c.history().chart_path().len(), 1);
         assert_eq!(
             c.history().birth_context(BoundaryId(1)).unwrap().center,
-            vec![BoundaryId(0)]
+            HistoryCenter::BoundaryIndices(vec![BoundaryId(0)])
         );
     }
 }

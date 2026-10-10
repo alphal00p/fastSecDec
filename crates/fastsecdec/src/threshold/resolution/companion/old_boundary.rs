@@ -21,6 +21,7 @@ pub struct OldBoundaryProgress {
 pub struct OldBoundaryCoefficient {
     contact: Arc<ContactQuotient>,
     history: Arc<ResolutionHistory>,
+    cycle: Option<Arc<super::super::recursive::CycleSnapshot>>,
     active_old: Vec<BoundaryId>,
     maximum_count: usize,
     boundary: Option<MarkedIdeal>,
@@ -33,6 +34,9 @@ impl OldBoundaryCoefficient {
     }
     pub fn history(&self) -> &Arc<ResolutionHistory> {
         &self.history
+    }
+    pub fn cycle(&self) -> Option<&Arc<super::super::recursive::CycleSnapshot>> {
+        self.cycle.as_ref()
     }
     pub fn active_old(&self) -> &[BoundaryId] {
         &self.active_old
@@ -56,6 +60,7 @@ pub enum OldBoundaryProduction {
     Incomplete {
         contact: Arc<ContactQuotient>,
         history: Arc<ResolutionHistory>,
+        cycle: Option<Arc<super::super::recursive::CycleSnapshot>>,
         reason: &'static str,
         progress: OldBoundaryProgress,
     },
@@ -69,11 +74,31 @@ pub fn produce_old_boundary_coefficient(
     history: Arc<ResolutionHistory>,
     budget: &mut Budget,
 ) -> Result<OldBoundaryProduction> {
+    produce(contact, history, None, budget)
+}
+pub(crate) fn produce_old_boundary_coefficient_for_cycle(
+    contact: Arc<ContactQuotient>,
+    history: Arc<ResolutionHistory>,
+    cycle: Arc<super::super::recursive::CycleSnapshot>,
+    budget: &mut Budget,
+) -> Result<OldBoundaryProduction> {
+    cycle.check_history(&history)?;
+    produce(contact, history, Some(cycle), budget)
+}
+fn produce(
+    contact: Arc<ContactQuotient>,
+    history: Arc<ResolutionHistory>,
+    cycle: Option<Arc<super::super::recursive::CycleSnapshot>>,
+    budget: &mut Budget,
+) -> Result<OldBoundaryProduction> {
     if !Arc::ptr_eq(contact.source().frame(), history.ledger().frame()) {
         return Err(Error::Invalid("old-boundary/contact source owner mismatch"));
     }
     let mut progress = OldBoundaryProgress::default();
-    let result = run(&contact, &history, budget, &mut progress);
+    let ids = cycle
+        .as_ref()
+        .map_or_else(|| history.old_snapshot(), |c| c.old_ids());
+    let result = run(&contact, &history, ids, budget, &mut progress);
     progress.operations = budget.operations();
     progress.ideal_slots = budget.ideal_slots();
     match result {
@@ -81,6 +106,7 @@ pub fn produce_old_boundary_coefficient(
             OldBoundaryProduction::Coefficient(Box::new(OldBoundaryCoefficient {
                 contact,
                 history,
+                cycle,
                 active_old,
                 maximum_count,
                 boundary,
@@ -91,6 +117,7 @@ pub fn produce_old_boundary_coefficient(
         Err(Error::ResourceIncomplete(reason)) => Ok(OldBoundaryProduction::Incomplete {
             contact,
             history,
+            cycle,
             reason,
             progress,
         }),
@@ -101,6 +128,7 @@ type Built = (Vec<BoundaryId>, usize, Option<MarkedIdeal>, MarkedIdeal);
 fn run(
     contact: &ContactQuotient,
     history: &ResolutionHistory,
+    old_ids: &[BoundaryId],
     budget: &mut Budget,
     progress: &mut OldBoundaryProgress,
 ) -> Result<Built> {
@@ -117,9 +145,8 @@ fn run(
         )
         .ok_or(Error::Invalid("missing checked contact cosupport"))?
         .ideal;
-    budget.reserve_slots(history.old_snapshot().len())?;
-    let old = history
-        .old_snapshot()
+    budget.reserve_slots(old_ids.len())?;
+    let old = old_ids
         .iter()
         .filter_map(|id| ledger.divisors().iter().find(|h| h.id == *id))
         .collect::<Vec<_>>();
