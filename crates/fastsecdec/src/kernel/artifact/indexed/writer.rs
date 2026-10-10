@@ -9,6 +9,11 @@ pub fn write_record(
     kernels: &KernelSet,
     source_indices: Vec<usize>,
 ) -> Result<RecordReceipt, KernelError> {
+    if kernels.threshold_metadata().is_some() {
+        return Err(failure(
+            "threshold indexed records require the future lineage-aware writer",
+        ));
+    }
     if kernels.sectors().len() > 1 {
         return Err(failure("a worker record must contain at most one sector"));
     }

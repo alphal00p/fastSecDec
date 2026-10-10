@@ -63,6 +63,11 @@ impl RecordReceipt {
             .unwrap_or_else(|| super::ProgramRecipe::legacy(&self.runtime_parameters))
     }
     pub(crate) fn validate(&self) -> Result<(), KernelError> {
+        if self.recipe == Some(super::programs::ProgramRecipe::ThresholdV1) {
+            return Err(failure(
+                "legacy source receipt cannot store threshold lineage",
+            ));
+        }
         if let Some(scope) = &self.source_scope {
             scope.validate(self.source_indices.len()).map_err(failure)?;
         }

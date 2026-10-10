@@ -13,3 +13,5 @@ pub mod regularization;
 pub mod resolution;
 
 pub use options::{ThresholdDecompositionOptions, ThresholdStrategy};
+
+pub(crate) mod records;

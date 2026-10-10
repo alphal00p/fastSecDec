@@ -26,6 +26,7 @@ fn label(recipe: ProgramRecipe) -> &'static str {
         ProgramRecipe::FixedV1 => "fixed",
         ProgramRecipe::DynamicPolynomialV1 => "polynomial",
         ProgramRecipe::DynamicSignAwareV1 => "sign_aware",
+        ProgramRecipe::ThresholdV1 => "threshold",
     }
 }
 

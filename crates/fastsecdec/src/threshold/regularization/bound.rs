@@ -2,6 +2,7 @@
 use super::*;
 
 pub struct BoundContinuation<'a> {
+    generation_options: GenerationOptions,
     certificate: &'a RegularizedFiber,
     expression: Atom,
     chart_expressions: Vec<Atom>,
@@ -40,6 +41,7 @@ impl<'a> ContinuedFiber<'a> {
             .map(|s| (*s, self.certificate.parameters[s].clone()))
             .collect();
         Ok(BoundContinuation {
+            generation_options: self.generation_options.clone(),
             certificate: self.certificate,
             expression,
             chart_expressions,
@@ -69,6 +71,9 @@ pub(super) fn no_physical_parameters(
     Ok(())
 }
 impl BoundContinuation<'_> {
+    pub(crate) fn generation_options(&self) -> &GenerationOptions {
+        &self.generation_options
+    }
     pub fn certificate(&self) -> &RegularizedFiber {
         self.certificate
     }

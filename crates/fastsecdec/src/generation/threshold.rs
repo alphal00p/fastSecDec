@@ -44,3 +44,18 @@ pub(crate) fn subtract(
         endpoint_profiles: output.endpoint_profiles,
     })
 }
+
+pub(crate) fn expand_vector(
+    expression: &Atom,
+    coordinates: &[Symbol],
+    epsilon: Symbol,
+    max_order: i32,
+) -> Result<std::collections::BTreeMap<i32, symbolica::atom::AliasedAtom>, GenerationError> {
+    super::laurent::expand(
+        expression,
+        coordinates,
+        epsilon,
+        max_order,
+        &mut Default::default(),
+    )
+}

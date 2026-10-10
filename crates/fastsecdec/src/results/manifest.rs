@@ -25,6 +25,7 @@ impl KernelResultManifest {
     /// the native manifest directly with their own stable sector identities.
     pub fn from_kernels(kernels: &crate::kernel::KernelSet) -> Self {
         Self {
+            threshold_scope: kernels.threshold_metadata().map(|m| m.result_scope()),
             source_selection: kernels
                 .generation_metadata()
                 .and_then(|metadata| metadata.source_scope())
@@ -46,6 +47,11 @@ impl KernelResultManifest {
     }
 
     pub fn validate(&self) -> Result<()> {
+        if let Some(scope) = &self.threshold_scope {
+            scope
+                .validate()
+                .map_err(|e| ResultError::Invalid(e.to_string()))?;
+        }
         if let Some(selection) = &self.source_selection {
             selection
                 .validate()
@@ -67,20 +73,27 @@ impl KernelResultManifest {
     pub fn canonical_scope(&self, scope: &ResultScope) -> Result<ResultScope> {
         self.validate()?;
         match scope {
-            ResultScope::FullIntegral => Ok(if self.source_selection.is_some() {
-                let mut sector_ids = self
-                    .sectors
-                    .iter()
-                    .map(|sector| sector.id)
-                    .collect::<Vec<_>>();
-                sector_ids.sort_unstable();
-                ResultScope::SelectedSectors {
-                    sector_ids,
-                    exact_policy: ExactContributionPolicy::IncludeAll,
-                }
-            } else {
-                ResultScope::FullIntegral
-            }),
+            ResultScope::FullIntegral => Ok(
+                if self.source_selection.is_some()
+                    || self
+                        .threshold_scope
+                        .as_ref()
+                        .is_some_and(|s| !s.is_full_original())
+                {
+                    let mut sector_ids = self
+                        .sectors
+                        .iter()
+                        .map(|sector| sector.id)
+                        .collect::<Vec<_>>();
+                    sector_ids.sort_unstable();
+                    ResultScope::SelectedSectors {
+                        sector_ids,
+                        exact_policy: ExactContributionPolicy::IncludeAll,
+                    }
+                } else {
+                    ResultScope::FullIntegral
+                },
+            ),
             ResultScope::SelectedSectors {
                 sector_ids,
                 exact_policy,
@@ -128,7 +141,7 @@ impl KernelResultManifest {
                     .collect(),
                 match exact_policy {
                     ExactContributionPolicy::IncludeAll => self.exact_coefficients.clone(),
-                    ExactContributionPolicy::ExcludeAll => vec![0.0; self.orders.len()],
+                    ExactContributionPolicy::ExcludeAll => vec![0.0; self.components.len()],
                 },
             ),
         };
@@ -139,5 +152,43 @@ impl KernelResultManifest {
             sectors,
             exact,
         )?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn complex_projection_retains_every_component_without_exact_offsets() {
+        use crate::{
+            integration::SectorSpec,
+            status::CoefficientComponent::{Imag, Real},
+        };
+        let manifest = KernelResultManifest {
+            source_selection: None,
+            threshold_scope: None,
+            kernel_content_id: "ordinary-complex".into(),
+            orders: vec![-1, -1, 0, 0],
+            components: vec![Real, Imag, Real, Imag],
+            sectors: vec![SectorSpec {
+                id: 99,
+                dimension: 1,
+            }],
+            exact_coefficients: vec![1., 2., 3., 4.],
+        };
+        for ids in [vec![99], vec![]] {
+            let scope = ResultScope::SelectedSectors {
+                sector_ids: ids.clone(),
+                exact_policy: ExactContributionPolicy::ExcludeAll,
+            };
+            let problem = manifest
+                .integration_problem(&scope, "selected-complex")
+                .unwrap();
+            assert_eq!(problem.orders, manifest.orders);
+            assert_eq!(problem.components, manifest.components);
+            assert_eq!(problem.exact_coefficients, vec![0.; 4]);
+            assert_eq!(problem.sectors.len(), ids.len());
+            assert!(!manifest.canonical_scope(&scope).unwrap().is_full_integral());
+        }
     }
 }

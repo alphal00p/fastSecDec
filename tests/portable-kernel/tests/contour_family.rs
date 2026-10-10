@@ -54,6 +54,9 @@ fn settings(recipe: ProgramRecipe) -> ContourSettings {
             construction: fastsecdec::contour::DynamicConstruction::Polynomial,
         },
         ProgramRecipe::DynamicSignAwareV1 => ContourMode::dynamical(0.8),
+        ProgramRecipe::ThresholdV1 => {
+            unreachable!("this fixture only generates the explicit contour recipe family")
+        }
     };
     ContourSettings {
         deformation,

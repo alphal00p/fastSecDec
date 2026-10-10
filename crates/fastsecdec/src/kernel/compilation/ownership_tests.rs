@@ -77,7 +77,7 @@ fn detached_compilation_job_retains_its_native_helper_owner() {
         owner: Arc::new(()),
         program_descriptor: Some(descriptor),
         index: 0,
-        sector,
+        input: CompilationInput::Generated(sector),
         runtime_parameters: Arc::new(Vec::new()),
         precision: PrecisionPolicy::default(),
         settings: CompilationSettings::default(),

@@ -16,10 +16,13 @@ pub enum ProgramRecipe {
     DynamicPolynomialV1,
     #[serde(rename = "dynamic-sign-aware-v1")]
     DynamicSignAwareV1,
+    #[serde(rename = "threshold-v1")]
+    ThresholdV1,
 }
 impl ProgramRecipe {
     pub fn name(self) -> &'static str {
         match self {
+            Self::ThresholdV1 => "threshold-v1",
             Self::UndeformedV1 => "undeformed-v1",
             Self::FixedV1 => "fixed-v1",
             Self::DynamicPolynomialV1 => "dynamic-polynomial-v1",
@@ -28,7 +31,7 @@ impl ProgramRecipe {
     }
     pub fn recipe_parameters(self) -> &'static [&'static str] {
         match self {
-            Self::UndeformedV1 => &[],
+            Self::UndeformedV1 | Self::ThresholdV1 => &[],
             Self::FixedV1 => &["fastsecdec::contour::lambda"],
             Self::DynamicPolynomialV1 | Self::DynamicSignAwareV1 => &[
                 "fastsecdec::contour::dynamic::safety_fraction",
@@ -379,5 +382,36 @@ impl ProgramArchiveCatalogue {
             records: recipe.records.clone(),
             records_end: self.records_end,
         })
+    }
+}
+
+#[cfg(test)]
+mod recipe_wire_tests {
+    use super::*;
+    #[test]
+    fn existing_recipe_ordinals_and_names_are_unchanged() {
+        let recipes = [
+            ProgramRecipe::UndeformedV1,
+            ProgramRecipe::FixedV1,
+            ProgramRecipe::DynamicPolynomialV1,
+            ProgramRecipe::DynamicSignAwareV1,
+            ProgramRecipe::ThresholdV1,
+        ];
+        let names = [
+            "undeformed-v1",
+            "fixed-v1",
+            "dynamic-polynomial-v1",
+            "dynamic-sign-aware-v1",
+            "threshold-v1",
+        ];
+        for (index, (recipe, name)) in recipes.into_iter().zip(names).enumerate() {
+            let bytes = bincode::serde::encode_to_vec(recipe, bincode::config::standard()).unwrap();
+            assert_eq!(bytes, vec![index as u8]);
+            let (restored, used): (ProgramRecipe, usize) =
+                bincode::serde::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+            assert_eq!(restored, recipe);
+            assert_eq!(used, bytes.len());
+            assert_eq!(serde_json::to_value(recipe).unwrap(), name);
+        }
     }
 }

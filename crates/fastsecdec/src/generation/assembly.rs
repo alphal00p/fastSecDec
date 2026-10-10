@@ -5,7 +5,7 @@ use super::{
 };
 use fastsecdec_sectors::SectorMap;
 use std::collections::BTreeMap;
-use symbolica::atom::{AliasedAtom, Atom, AtomCore, AtomView, Symbol};
+use symbolica::atom::{AliasedAtom, Atom, AtomCore, Symbol};
 
 /// Canonicalize numerical weights after summing exact contributions. Native
 /// addition alone leaves `a + b - (a + b)` uncollected. Distributing only
@@ -101,20 +101,10 @@ impl Assembly {
         if let Some(order) = coefficients.keys().next() {
             self.minimum = self.minimum.min(*order);
         }
-        if coefficients.values().all(|coefficient| {
-            let symbols = coefficient.get_root().get_all_symbols(true);
-            parameters.iter().all(|p| {
-                let parameter = Atom::var(*p);
-                !symbols.contains(p)
-                    && coefficient.get_aliases().iter().all(|(handle, body)| {
-                        let AtomView::Var(handle) = handle.as_view() else {
-                            unreachable!("Laurent images are native symbols")
-                        };
-                        !symbols.contains(&handle.get_symbol())
-                            || !body.contains(parameter.as_view())
-                    })
-            })
-        }) {
+        if coefficients
+            .values()
+            .all(|coefficient| super::coordinate_independent(coefficient, &parameters))
+        {
             for (order, coefficient) in coefficients {
                 let value = definitions
                     .materialize(&coefficient.into_inner())

@@ -125,7 +125,7 @@ impl CompilationSession {
                         .cloned(),
                     request_lookup: self.dynamic.as_ref().map(|value| value.lookup.clone()),
                     index,
-                    sector: self.generated.sectors()[index].clone(),
+                    input: CompilationInput::Generated(self.generated.sectors()[index].clone()),
                     runtime_parameters: self.runtime.clone(),
                     precision: self.precision.clone(),
                     settings: self.settings,

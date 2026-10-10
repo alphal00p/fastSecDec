@@ -468,3 +468,9 @@ pub(crate) fn captured_named_coefficients_with_faces(
         serde_json::json!({"coefficient_representation":"native_named", "resolution":if interleaved {"interleaved_faces"} else {"original"}, "attempts":attempts,"statistics":statistics}),
     ))
 }
+
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use threshold::expand_vector as threshold_expand_vector;
+
+mod constant;
+pub(crate) use constant::coordinate_independent;

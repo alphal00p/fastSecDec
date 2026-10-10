@@ -87,11 +87,19 @@ pub struct CompilationJob {
     program_descriptor: Option<std::sync::Arc<super::NativeProgramDescriptor>>,
     request_lookup: Option<std::sync::Arc<crate::contour::functions::dynamic::requests::Lookup>>,
     index: usize,
-    sector: crate::generation::GeneratedSector,
+    input: CompilationInput,
     runtime_parameters: std::sync::Arc<Vec<Symbol>>,
     precision: PrecisionPolicy,
     settings: CompilationSettings,
     use_complex: bool,
+}
+// Keep the existing directly owned legacy job; the optional lightweight
+// input must not introduce one additional heap allocation per legacy sector.
+#[allow(clippy::large_enum_variant)]
+enum CompilationInput {
+    Generated(crate::generation::GeneratedSector),
+    #[cfg(feature = "threshold-decomposition")]
+    Prepared(std::sync::Arc<program::PreparedCoefficientVector>),
 }
 pub struct CompilationCompletion {
     owner: std::sync::Arc<()>,
@@ -106,15 +114,31 @@ impl CompilationJob {
     pub fn run(self) -> Result<CompilationCompletion, KernelError> {
         let _preparing =
             super::NativeProgramDescriptor::enter_optional(self.program_descriptor.as_deref());
-        if let Some(descriptor) = &self.program_descriptor {
-            descriptor.validate_sources(self.sector.dynamic_check_sources(), None)?;
-        }
-        let program = program::build_sector_with_lowering(
-            &self.sector,
-            &self.runtime_parameters,
-            self.settings,
-            self.request_lookup.as_deref(),
-        )?;
+        let program = match &self.input {
+            CompilationInput::Generated(sector) => {
+                if let Some(descriptor) = &self.program_descriptor {
+                    descriptor.validate_sources(sector.dynamic_check_sources(), None)?;
+                }
+                program::build_sector_with_lowering(
+                    sector,
+                    &self.runtime_parameters,
+                    self.settings,
+                    self.request_lookup.as_deref(),
+                )?
+            }
+            #[cfg(feature = "threshold-decomposition")]
+            CompilationInput::Prepared(vector) => {
+                if self.program_descriptor.is_some()
+                    || self.request_lookup.is_some()
+                    || !self.runtime_parameters.is_empty()
+                {
+                    return Err(KernelError::Compilation(
+                        "prepared fixed-fiber vector received contour/runtime state".into(),
+                    ));
+                }
+                vector.build(self.settings)?
+            }
+        };
         let sector = SectorKernel::from_program_with_backend(
             program,
             &self.precision,
@@ -326,7 +350,7 @@ impl GeneratedIntegral {
                 program_descriptor: sector.program_descriptor().cloned(),
                 request_lookup: dynamic.as_ref().map(|value| value.lookup.clone()),
                 index,
-                sector: sector.clone(),
+                input: CompilationInput::Generated(sector.clone()),
                 runtime_parameters: std::sync::Arc::clone(&runtime),
                 precision: precision.clone(),
                 settings,
@@ -706,6 +730,7 @@ impl KernelSet {
         }
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
+            threshold: None,
             contour_checks: Vec::new(),
             program_descriptor: None,
             contour_binding: None,
@@ -768,3 +793,9 @@ fn emit(
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "threshold-decomposition"))]
+mod threshold_tests;
+
+#[cfg(feature = "threshold-decomposition")]
+mod threshold_factory;

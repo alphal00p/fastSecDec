@@ -341,7 +341,13 @@ impl LineageManifestV1 {
                 .iter()
                 .copied()
                 .collect::<BTreeSet<_>>()
-                != patch.map.geometry().coordinates.iter().copied().collect()
+                != patch
+                    .map
+                    .geometry()
+                    .coordinates
+                    .iter()
+                    .copied()
+                    .collect::<BTreeSet<_>>()
             {
                 return Err(invalid("cell coordinate permutation differs from patch"));
             }

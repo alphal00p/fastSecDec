@@ -132,9 +132,9 @@ pub(in crate::generation) fn build(
             retain_plan(&mut program, &mut map, parameters);
             Ok((map, program))
         }
-        ProgramRecipe::UndeformedV1 => Err(GenerationError::Invariant(
-            "undeformed recipe reached the contour map factory".into(),
-        )),
+        ProgramRecipe::ThresholdV1 | ProgramRecipe::UndeformedV1 => Err(
+            GenerationError::Invariant("non-contour recipe reached the contour map factory".into()),
+        ),
     }
 }
 

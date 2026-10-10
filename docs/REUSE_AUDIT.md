@@ -3413,3 +3413,25 @@ Checked SNC/contact/history owners bind every successful result. Constructors
 distinguish whole-equation extraction from componentwise BM maximality, and
 local companion arithmetic from complete resolution. No owner-library patch
 or duplicate CAS is required for this slice.
+
+## Native threshold artifact and compiler reuse (2026-10-10)
+
+The [threshold artifact review](reviews/no-deformation-threshold-artifacts.md)
+records the native path from a checked rational-fiber continuation through
+shared Laurent expansion, the existing Atom/State staging codec, native
+compilation jobs and backend restoration. A new geometry-neutral coefficient
+input shares the existing Symbolica function-map/evaluator builder, precision
+rescue, cancellation profile projection and kernel finalizer. It creates no
+synthetic sector map or independent evaluator, sampler, codec or worker pool.
+
+The v15 wrapper attaches immutable threshold lineage to the existing native
+program payload. Historical recipe tags remain stable. Threshold restoration
+does not require symGCAD; construction does. Semantic identity is independent
+of process-local symbol registration and transport bytes. Generic integration
+continues to use the existing complete-vector/covariance interfaces, including
+native QMC and the HEPKit/OneLOop bubble reference. An independent runtime
+review passed for these owner and data boundaries.
+
+Standalone v15 does not yet provide indexed/serial threshold publication or
+global proof replay. Those requests fail explicitly. The new Python recipe
+label is for inspection; native HEPKit generation remains a separate gate.

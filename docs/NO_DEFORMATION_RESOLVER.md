@@ -499,7 +499,7 @@ choice rather than an implemented interface.
 
 ## 13. Implementation milestones and current status
 
-Status after the local companion-construction milestone. Independently checked
+Status after the native rational-fiber artifact milestone. Independently checked
 local operations may be implemented before the complete general driver is
 accepted. Their narrower certificates do not close the open G0 adapters.
 
@@ -507,12 +507,12 @@ accepted. Their narrower certificates do not close the open G0 adapters.
 |---|---|---|
 | G0 | Freeze precise BM variant, real-atlas algorithm/termination argument, parameter specialization construction, projective common-family/convergence certificate, and regulator-restriction proof interface. Resolve the two open adapters identified above. | Design draft only; not accepted as a complete algorithm |
 | G1 | Execute the native API probe matrix; record actual missing operations and owner boundaries. | Native ideal, relative derivative, Puiseux, function-map, prepared-root and codec probes recorded in `REUSE_AUDIT.md`; further operations require their own probes |
-| G2 | Exact GCAD adapter, signed-factor associations, branch/tower and parameter predicates, persisted descendant lineage. | Verified caller-owned GCAD, request/solver staging, rational cell maps and structural one-to-many lineage implemented; full executable threshold artifacts and general branch towers pending |
+| G2 | Exact GCAD adapter, signed-factor associations, branch/tower and parameter predicates, persisted descendant lineage. | Verified caller-owned GCAD, request/solver staging, rational cell maps and structural one-to-many lineage implemented; standalone executable rational-fiber artifacts implemented, general branch towers pending |
 | G3 | Marked-ideal objects, native ideal recipes, coefficient/maximal-contact construction, invariant history, centers, transforms, and gluing. | Local exact algebra, relative contact/coefficient construction, SNC checks, all-pivot monomial blowups, terminating monomial frontier, checked whole-Cartier extraction and local companion/old-boundary arithmetic implemented; componentwise extraction, full BM invariant/driver and gluing pending |
 | G4 | AJ algebraic-series lift, ramification, real branch transport, and finite mixed jets with owner-level controls. | Not implemented |
 | G5 | Disjoint real atlas and all-closed-face normal-form certificate; independent checker with adversarial mutations. | Not implemented |
 | G6 | Multi-regulator symbolic endpoint engine, common-family assembly, certified auxiliary removal, and complete epsilon output. | Affine multi-regulator symbolic subtraction primitives and rational-fiber common-epsilon-strip continuation implemented; general auxiliary-family restriction/cancellation pending |
-| G7 | Native lazy evaluator composition and fresh-process artifact restoration; caller-owned serial/resident execution and resource accounting. | Rational composed numerator/evaluator and native codec probes pass; complete threshold artifact/execution path pending |
+| G7 | Native lazy evaluator composition and fresh-process artifact restoration; caller-owned serial/resident execution and resource accounting. | Native rational-fiber factory, composed numerator/evaluator and standalone v15 fresh-process restoration implemented; threshold indexed/serial publication, global proof replay and general root programs pending |
 | G8 | Scalar, literature/LTD-derived, and physical ggHH acceptance, including complex numerator, original-source selection, parametric strata, and exceptional failures. | Rational pole controls and above-threshold bubble match native OneLOop; required higher-dimensional/general algebraic and physical suite pending |
 | G9 | Bounded matched performance and five-minute 50-worker QMC/discrete-MC physical runs; report generation/RSS/full covariance without mandatory per-mille accuracy. | Not run |
 

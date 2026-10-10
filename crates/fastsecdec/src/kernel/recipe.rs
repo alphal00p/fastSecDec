@@ -193,9 +193,9 @@ impl NativeProgramDescriptor {
     }
 
     pub(crate) fn static_recipe(recipe: ProgramRecipe) -> Result<Self, KernelError> {
-        if recipe.is_dynamic() {
+        if recipe == ProgramRecipe::ThresholdV1 || recipe.is_dynamic() {
             return Err(invalid(
-                "dynamic recipes require their explicit native helper and chart descriptors",
+                "this recipe requires its explicit native provenance owner",
             ));
         }
         Ok(Self {
@@ -545,6 +545,9 @@ impl KernelSet {
 
     /// Explicit native v10 identity, or the established legacy v9 classifier.
     pub fn program_recipe(&self) -> ProgramRecipe {
+        if self.threshold.is_some() {
+            return ProgramRecipe::ThresholdV1;
+        }
         self.program_descriptor.as_ref().map_or_else(
             || {
                 if self

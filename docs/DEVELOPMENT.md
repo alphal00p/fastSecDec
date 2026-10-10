@@ -58,9 +58,12 @@ must supply matching source roots for their source-state fingerprints.
 
 ## Portable and Python consumers
 
-The native `fastsecdec/threshold-decomposition` feature currently exposes the
-verified geometry API in `fastsecdec::threshold::gcad`. It does not yet enable a
-complete threshold generation recipe. Its direct solver call is synchronous;
+The native `fastsecdec/threshold-decomposition` feature exposes verified GCAD,
+local resolution operations and certified rational-fiber continuation. The
+native `KernelSet::compile_threshold_fiber` factory compiles the currently
+admitted one-dimensional continuation into standalone v15 kernels. This is
+not yet the complete CLI/HEPKit threshold workflow or general algebraic
+resolver. Its direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:
 

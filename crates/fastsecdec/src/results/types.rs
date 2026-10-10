@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KernelResultManifest {
+    /// Separate threshold lineage qualification; absent for historical owners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub threshold_scope: Option<crate::kernel::ThresholdResultScope>,
     /// Partial original geometry extent, independent of numerical sector IDs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_selection: Option<crate::generation::SourceSectorSelection>,

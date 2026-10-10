@@ -103,6 +103,7 @@ fn build(
         .map(|recipe| {
             let mut kernels = reader.select(*recipe).unwrap().load_all().unwrap();
             let mode = match recipe {
+                ProgramRecipe::ThresholdV1 => panic!("threshold is not a contour family fixture"),
                 ProgramRecipe::UndeformedV1 => ContourMode::Off,
                 ProgramRecipe::FixedV1 => ContourMode::Fixed { lambda: 0.2 },
                 ProgramRecipe::DynamicPolynomialV1 => ContourMode::Dynamical {

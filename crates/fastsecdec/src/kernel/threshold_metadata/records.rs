@@ -54,7 +54,7 @@ impl StructureCheckedLineage<'_> {
                 }
             }
         }
-        let expected = self
+        let expected: BTreeSet<_> = self
             .manifest
             .contributions
             .iter()

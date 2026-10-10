@@ -26,6 +26,11 @@ pub(super) fn check_options(
     input: &ParametricIntegrand,
     options: &super::GenerationOptions,
 ) -> Result<DomainAssessment, GenerationError> {
+    if options.program_recipe == crate::kernel::ProgramRecipe::ThresholdV1 {
+        return Err(GenerationError::Invariant(
+            "threshold-v1 requires a native certified continuation factory".into(),
+        ));
+    }
     if let Some(requested) = &options.source_sectors {
         super::selection::validate_request(requested)?;
     }

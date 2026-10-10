@@ -30,8 +30,10 @@ mod model_constraints;
 /// Data-only threshold provenance. Structural admission does not certify the
 /// referenced mathematics or create an executable threshold artifact.
 pub mod threshold_metadata;
+mod threshold_owner;
 pub use metadata::PortableMetadata;
 pub use model_constraints::RuntimeMassConstraint;
+pub use threshold_owner::{ThresholdMetadata, ThresholdResultScope};
 mod precision;
 mod precision_cache;
 mod program;
@@ -549,6 +551,7 @@ impl SectorKernel {
 }
 
 pub struct KernelSet {
+    threshold: Option<std::sync::Arc<ThresholdMetadata>>,
     program_descriptor: Option<NativeProgramDescriptor>,
     contour_checks: Vec<contour::CheckProgram>,
     contour_binding: Option<contour::ContourBinding>,
@@ -579,6 +582,7 @@ impl KernelSet {
     /// counters are independent, and no symbolic recompilation is performed.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         let mut result = Self {
+            threshold: self.threshold.clone(),
             program_descriptor: self.program_descriptor.clone(),
             contour_checks: self.contour_checks.clone(),
             contour_binding: self.contour_binding.clone(),

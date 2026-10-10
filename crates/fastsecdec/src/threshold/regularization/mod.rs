@@ -176,6 +176,11 @@ pub struct IntervalChart {
     terms: Vec<NormalizedTerm>,
 }
 impl IntervalChart {
+    pub(crate) fn normalized_term(&self, index: usize) -> Option<(&Atom, &Atom, &Atom)> {
+        self.terms
+            .get(index)
+            .map(|t| (&t.prefactor, &t.regular, &t.power))
+    }
     pub fn admission(&self) -> &ParameterAdmission {
         &self.admission
     }
@@ -281,6 +286,7 @@ impl RegularizedFiber {
             profiles,
             functions: self.functions(options.max_subtractions_per_axis, false, &mut observer)?,
             derivative_order: options.max_subtractions_per_axis,
+            generation_options: options.clone(),
         })
     }
     fn definitions(
@@ -385,6 +391,7 @@ fn register_definitions(definitions: &[BoundDefinition]) -> Result<FunctionMap> 
 }
 
 pub struct ContinuedFiber<'a> {
+    generation_options: GenerationOptions,
     certificate: &'a RegularizedFiber,
     expression: Atom,
     chart_expressions: Vec<Atom>,

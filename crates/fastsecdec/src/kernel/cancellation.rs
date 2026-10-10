@@ -15,6 +15,27 @@ pub(super) struct Cancellation {
 }
 
 impl Cancellation {
+    #[cfg(feature = "threshold-decomposition")]
+    pub fn from_endpoint_profiles(
+        profiles: Vec<crate::generation::EndpointProfileRow>,
+        dimension: usize,
+    ) -> Result<Self, KernelError> {
+        let rows = Self::profile_rows(&profiles, dimension)?;
+        let rows = rows.into_iter().collect::<Vec<_>>();
+        let degree = rows
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .try_fold(0usize, |total, n| total.checked_add(*n))
+            })
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| KernelError::Artifact("cancellation degree overflow".into()))?
+            .into_iter()
+            .max()
+            .unwrap_or(0);
+        Self::new(degree, Some(rows), dimension)?.with_endpoint_profiles(profiles)
+    }
+
     pub fn new(
         degree: usize,
         terms: Option<Vec<Vec<usize>>>,
@@ -77,29 +98,7 @@ impl Cancellation {
         mut self,
         profiles: Vec<crate::generation::EndpointProfileRow>,
     ) -> Result<Self, KernelError> {
-        let mut projected = std::collections::BTreeSet::new();
-        for row in &profiles {
-            if row.axes.len() != self.dimension {
-                return Err(KernelError::Artifact(
-                    "endpoint profile dimension mismatch".into(),
-                ));
-            }
-            let mut orders = Vec::with_capacity(self.dimension);
-            for axis in &row.axes {
-                let mut maximum = 0;
-                for source in axis {
-                    super::stability::canonical_power(&source.original_power)?;
-                    if source.order == 0 {
-                        return Err(KernelError::Artifact(
-                            "zero-order endpoint cancellation source".into(),
-                        ));
-                    }
-                    maximum = maximum.max(source.order);
-                }
-                orders.push(maximum);
-            }
-            projected.insert(orders);
-        }
+        let projected = Self::profile_rows(&profiles, self.dimension)?;
         let expected = self
             .terms
             .as_ref()
@@ -118,6 +117,35 @@ impl Cancellation {
         Ok(self)
     }
 
+    fn profile_rows(
+        profiles: &[crate::generation::EndpointProfileRow],
+        dimension: usize,
+    ) -> Result<std::collections::BTreeSet<Vec<usize>>, KernelError> {
+        let mut projected = std::collections::BTreeSet::new();
+        for row in profiles {
+            if row.axes.len() != dimension {
+                return Err(KernelError::Artifact(
+                    "endpoint profile dimension mismatch".into(),
+                ));
+            }
+            let mut orders = Vec::with_capacity(dimension);
+            for axis in &row.axes {
+                let mut maximum = 0;
+                for source in axis {
+                    super::stability::canonical_power(&source.original_power)?;
+                    if source.order == 0 {
+                        return Err(KernelError::Artifact(
+                            "zero-order endpoint cancellation source".into(),
+                        ));
+                    }
+                    maximum = maximum.max(source.order);
+                }
+                orders.push(maximum);
+            }
+            projected.insert(orders);
+        }
+        Ok(projected)
+    }
     pub fn routing_rows(&self) -> Vec<Vec<usize>> {
         self.terms.clone().unwrap_or_else(|| {
             (0..self.dimension)

@@ -140,6 +140,7 @@ impl KernelSet {
             {
                 binary::compiled(self).map(|(_, bytes)| bytes)
             }
+            None if self.threshold.is_some() => binary::compiled(self).map(|(_, bytes)| bytes),
             None => indexed::to_bytes(self).map(|(bytes, _)| bytes),
         }
     }

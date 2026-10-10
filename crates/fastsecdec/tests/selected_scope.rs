@@ -8,6 +8,7 @@ use fastsecdec_qmc::QmcPartial;
 
 fn manifest() -> KernelResultManifest {
     KernelResultManifest {
+        threshold_scope: None,
         source_selection: None,
         kernel_content_id: "scientific-parent".into(),
         orders: vec![0],

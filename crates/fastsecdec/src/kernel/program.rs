@@ -1,5 +1,9 @@
 //! Native symbolic-to-numeric boundary. One exact program owns every numeric path.
 mod callbacks;
+#[cfg(feature = "threshold-decomposition")]
+mod prepared;
+#[cfg(feature = "threshold-decomposition")]
+pub(crate) use prepared::PreparedCoefficientVector;
 mod contour_jacobian;
 pub(in crate::kernel) use callbacks::{Callback, callbacks};
 #[cfg(test)]
@@ -171,19 +175,7 @@ fn build_with_lowering(
             "duplicate coordinate or runtime parameter".into(),
         ));
     }
-    let aliases = coefficients
-        .iter()
-        .map(AliasedAtom::get_aliases)
-        .find(|aliases| !aliases.is_empty());
-    if let Some(aliases) = aliases
-        && coefficients.iter().any(|coefficient| {
-            !coefficient.get_aliases().is_empty() && coefficient.get_aliases() != aliases
-        })
-    {
-        return Err(KernelError::Compilation(
-            "coefficient vector has inconsistent native alias definitions".into(),
-        ));
-    }
+    let aliases = shared_aliases(coefficients)?;
     let original_roots = coefficients
         .iter()
         .map(AliasedAtom::get_root)
@@ -214,18 +206,17 @@ fn build_with_lowering(
         .collect::<Vec<_>>();
     let mut ordered_aliases = aliases
         .into_iter()
-        .flat_map(|aliases| aliases.iter())
         .map(|(handle, body)| {
             let body = match lookup {
                 Some(lookup) => lookup
                     .lower(
-                        body,
+                        &body,
                         crate::contour::functions::dynamic::requested::symbol(),
                     )
                     .map_err(KernelError::Compilation)?,
-                None => body.clone(),
+                None => body,
             };
-            Ok((handle.clone(), body))
+            Ok((handle, body))
         })
         .collect::<Result<Vec<_>, KernelError>>()?;
     ordered_aliases.sort_by(|a, b| a.0.cmp(&b.0));
@@ -259,13 +250,8 @@ fn build_with_lowering(
                     .chain(ordered_aliases.iter().map(|(_, body)| body)),
             )
             .map_err(KernelError::Compilation)?;
-        let program = Atom::evaluator_multiple(&roots, &variables)
-            .function_map(functions)
-            .optimization_settings(settings.native())
-            .add_aliases(ordered_aliases)
-            .map_err(|error| KernelError::Compilation(error.to_string()))?
-            .build()
-            .map_err(|error| KernelError::Compilation(error.to_string()))?;
+        let program =
+            build_expression_program(&roots, &variables, functions, ordered_aliases, settings)?;
         (program, None)
     };
     let real_coefficients = coefficients
@@ -510,4 +496,42 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ExactProgram, KernelError> {
         ));
     }
     Ok(program)
+}
+
+fn shared_aliases(coefficients: &[AliasedAtom]) -> Result<Vec<(Atom, Atom)>, KernelError> {
+    let aliases = coefficients
+        .iter()
+        .map(AliasedAtom::get_aliases)
+        .find(|a| !a.is_empty());
+    if let Some(aliases) = aliases
+        && coefficients
+            .iter()
+            .any(|c| !c.get_aliases().is_empty() && c.get_aliases() != aliases)
+    {
+        return Err(KernelError::Compilation(
+            "coefficient vector has inconsistent native alias definitions".into(),
+        ));
+    }
+    let mut values = aliases
+        .into_iter()
+        .flat_map(|a| a.iter())
+        .map(|(a, b)| (a.clone(), b.clone()))
+        .collect::<Vec<_>>();
+    values.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(values)
+}
+fn build_expression_program(
+    roots: &[&Atom],
+    variables: &[Atom],
+    functions: symbolica::evaluate::FunctionMap,
+    aliases: Vec<(Atom, Atom)>,
+    settings: CompilationSettings,
+) -> Result<ExactProgram, KernelError> {
+    Atom::evaluator_multiple(roots, variables)
+        .function_map(functions)
+        .optimization_settings(settings.native())
+        .add_aliases(aliases)
+        .map_err(|e| KernelError::Compilation(e.to_string()))?
+        .build()
+        .map_err(|e| KernelError::Compilation(e.to_string()))
 }
