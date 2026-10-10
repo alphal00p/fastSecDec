@@ -1,5 +1,22 @@
 # Ecosystem reuse evidence
 
+## No-contour foundation and consolidation (2026-10-10)
+
+The [consolidation review](reviews/no-deformation-consolidation.md) records
+the published contour checkpoint and preserved native graph exporter.
+The [resolver specification](NO_DEFORMATION_RESOLVER.md) and
+[proof addendum](NO_DEFORMATION_RESOLVER_PROOFS.md) distinguish native algebra
+and root facilities from the new resolution/certification orchestration.
+They retain explicit unimplemented general-algorithm obligations. Source/API
+inspection is not substituted for the required executable reuse probes.
+
+Threshold geometry must reuse HEPKit's admitted parametric objects and symGCAD's
+native solver/verifier; no second graph, CAD or algebra representation is
+authorized. Projection-factor normalization cannot replace the original signed
+physical factors when constructing causal phases. A `CompleteGeneric` result
+still requires independent verification and later closed-face endpoint and
+analytic-continuation certificates before integral publication.
+
 ## Original source-chart selection and native partial-result scope (2026-10-10)
 
 The [independent source-selection review](reviews/source-sector-selection.md)
