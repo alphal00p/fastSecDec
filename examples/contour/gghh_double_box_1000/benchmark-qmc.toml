@@ -1,0 +1,28 @@
+# Genuine Symbolic endpoint IBP and selected Symbolic Jacobian.
+# Fresh selection1901/1902 only; reserved independent final seed supplied on CLI.
+# Fixed prescription selected independently; allocation prepared from measured fixed costs.
+# This fixed row is frozen independently of later dynamic selection; concurrent timing explicitly permitted by user.
+# Recipe, strength/cap, seed and the native 1000GeV parameter card are CLI arguments.
+[integration]
+method = "qmc"
+workers = 50
+points = 4096
+shifts = 64
+package_points = 4096
+evaluation_batch_size = 256
+lattice = "kuo33002"
+periodization = "korobov3"
+double_points = false
+max_rounds = 20
+accuracy_target = { target = "laurent_order", order = 0 }
+relative_tolerance = 1e-30
+absolute_tolerance = 1e-30
+contour_diagnostics = "disabled"
+
+[integration.contour.validation]
+policy = "pilot"
+pilot_points = 16
+
+[integration.contour.deformation]
+mode = "fixed"
+lambda = 1e-6

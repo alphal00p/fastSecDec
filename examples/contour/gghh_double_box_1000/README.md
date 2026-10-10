@@ -46,3 +46,48 @@ integration are separate actions. This fixture alone establishes no accepted
 strength/cap, convergence, variance gain or independent double-box reference.
 Saved families may contain undeformed capability, but physical integration at
 this point must explicitly select an admitted fixed or dynamic prescription.
+
+The maintained benchmark cards reproduce the corrected fixed-contour campaign:
+symbolic endpoint IBP and Laurent expansion, a symbolic contour Jacobian,
+SymJIT O2, and initial relative series width 1. The two runtime cards retain
+the full Laurent vector, Pilot16 admission, 50 caller-owned worker threads,
+and the independently selected fixed strength `lambda=1e-6`. Generation and
+integration remain separate actions. From the repository root, with the
+native `fastsecdec` executable on `PATH`:
+
+```sh
+fastsecdec generate examples/contour/gghh_double_box_1000/benchmark-generation.toml \
+  --recipe fixed-v1 --contour-jacobian symbolic --serial --workers 6 \
+  --output target/gghh-double-box-1000-fixed.fsd
+
+fastsecdec --plain --json --status-json integrate target/gghh-double-box-1000-fixed.fsd \
+  --parameters examples/contour/gghh_double_box_1000/point.toml --full-integral \
+  --integration-settings examples/contour/gghh_double_box_1000/benchmark-qmc.toml \
+  --seed 202610102001 --checkpoint target/gghh-double-box-1000-qmc.checkpoint.json \
+  --save-result target/gghh-double-box-1000-qmc.result.json
+
+fastsecdec --plain --json --status-json integrate target/gghh-double-box-1000-fixed.fsd \
+  --parameters examples/contour/gghh_double_box_1000/point.toml --full-integral \
+  --integration-settings examples/contour/gghh_double_box_1000/benchmark-discrete-mc.toml \
+  --seed 202610102003 --checkpoint target/gghh-double-box-1000-mc.checkpoint.json \
+  --save-result target/gghh-double-box-1000-mc.result.json
+```
+
+The cards specify allocations, not a wall timer. The measured runs sent `SIGINT`
+to the native coordinator when its integration `elapsed_seconds` reached 300,
+then allowed up to 120 seconds for outstanding work, checkpoint and result
+writing. This clock includes worker/context setup and Havana adaptation;
+artifact loading and the initial causal pilot are reported separately. A
+caller can reproduce that boundary using `--status-json`; using shell `timeout`
+from process start would include loading and could kill the final flush.
+Select 50 distinct physical cores with the host's affinity tooling if matching
+the campaign's CPU allocation. The shown seeds reproduce existing runs; use
+fresh seeds for independent evidence.
+
+The polynomial campaign uses the same **symbolic endpoint** route with
+`--contour-jacobian dual` and initial relative width 2. That choice dualizes
+contour-image derivatives only; it does not select numerical-dual endpoint
+reduction. Its full-artifact cap selection and final runtime cards remain
+pending. Width changes the first native series attempt, while the same native
+remainder-coverage test still determines acceptance. The original `run.toml`
+and exporter-produced identities are unchanged.

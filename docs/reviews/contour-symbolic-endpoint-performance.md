@@ -177,7 +177,7 @@ in 3.396 s with 39,952,384 B sampled peak. Its complete native metrics and hashe
 are in
 `target/contour-d05-1000-runtime/symbolic-endpoints/cost-fixed-matched_4096x2/cost-120s/matched-cost-review.json`.
 
-## Full fixed generation in progress
+## Complete fixed generation
 
 The source0 evidence supports choosing Symbolic J for the complete fixed
 artifact. A fresh native serial journal began at
@@ -189,15 +189,33 @@ Settings remain Symbolic endpoint IBP, Symbolic J, coefficient series starting
 at the existing width-one default, SymJIT O2, Horner zero and CPE cap 1000.
 Source0 receipts were not grafted into the fresh journal.
 
-The monitor accounts for the concurrently active, PID/start-time-pinned
-polynomial source0 probe and its monitors, but can terminate only this full
-generation's owned group. Own-group and combined RSS are recorded separately.
-The native geometry still contains 30 source charts; eventual residual counts
-and dimensions will come from the generated catalogue. Raw plans, authorization,
-status and resource evidence remain under
+The monitor accounted for the concurrently active, PID/start-time-pinned
+polynomial source0 probe and its monitors, but could terminate only this full
+generation's owned group. The generation closed successfully in 2,614.446 s,
+with an empty owned group and no resource limit. Sampled own-group peak RSS was
+54,088,585,216 B; the separately recorded combined peak was 66,329,157,632 B.
+The native catalogue contains 30 six-dimensional stochastic records and 30 exact
+records, covering original sources 0 through 29. Every retained source chart
+reports Symbolic endpoint mode. Complete pole/finite real/imaginary components
+and all 19 physical bindings are retained.
+
+The indexed data file is 70,405,743 B, SHA256
+`13d97ce393918da0453bbe3dc30312f5fbc2a118eb7cf53fcd7c0d936063cdc5`;
+the manifest SHA256 is
+`438220d54bbe44b8f232c33f222294f86de10c06262c5133af7f5f25a59f950a`.
+The native catalogue content identity is
+`4961936cfde999df10efc0690b622591abf81ade3fd2a06643a117c705dd1f9b`.
+The publication check verifies the native indexed header, whole-file digest
+and contiguous physical record spans through the catalogue's `records_end`.
+Its initial harness assertion incorrectly assumed zero-offset records in
+catalogue order; that failed script was retained and corrected to account for
+the native header and completion-order placement. No artifact bytes changed.
+Native decoding, full admission and integration belong to the runtime gate.
+
+Raw plans, authorization, status, publication handoff and resource evidence remain under
 `target/contour-gghh-double-box-1000-symbolic-endpoints-full-fixed-c6/`.
-Full publication, physical admission and the four final integration runs remain
-pending.
+The complete artifact has been handed to runtime; generation completion alone
+does not establish physical admission or an integral result.
 
 ## Polynomial source0 qualification
 
@@ -281,9 +299,25 @@ The earlier candidate7 full Symbolic-J attempt was deliberately cancelled
 through the native coordinator after the selection. Its mapped records, native
 cancellation status and resource observations remain intact; it produced no
 completed stochastic unit before cancellation. The new journal imports none
-of its receipts. Both attempts and the continuing full fixed campaign remain
-under their separate ignored directories. Full polynomial publication and
-all-chart physical admission are pending.
+of its receipts. Both attempts remain under their separate ignored directories.
+
+After the fixed campaign closed and two polynomial units had durable native
+receipts, the two-worker coordinator was deliberately interrupted to increase
+scheduling capacity. That attempt closed after 1,116.343 s with an empty group,
+34,130,444,288 B sampled own-group peak and no resource-limit failure. Its
+nonzero cancellation exit is retained, not reported as a completed generation.
+All 30 mapped records and both completed evaluator receipts remain in the native
+journal.
+
+An explicitly authorized four-worker `--resume` began at
+`2026-10-10T11:39:40.505801Z`, PID/PGID 4016595, with the identical candidate7
+binary, mathematical settings and journal. It reused the saved mapping and
+completed units. The new 7,200-second allocation retains the 100 GB guard and
+reserves 20 GB for concurrent runtime/build work; that reservation is not a
+measured RSS observation. Final accounting will include both attempts' elapsed
+times and observed peaks. No receipts are imported from the discarded Symbolic-J
+campaign. The resume is still active; full polynomial publication and all-chart
+physical admission are pending.
 
 ## Definition registration follow-up
 

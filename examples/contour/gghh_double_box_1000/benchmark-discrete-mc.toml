@@ -1,0 +1,35 @@
+# Genuine Symbolic endpoint IBP and selected Symbolic Jacobian.
+# Fresh selection1901/1902 only; reserved independent final seed supplied on CLI.
+# Fixed prescription selected independently; allocation prepared from measured fixed costs.
+# This fixed row is frozen independently of later dynamic selection; concurrent timing explicitly permitted by user.
+# Fresh independent Havana adaptation belongs inside the five-minute budget.
+[integration]
+method = "discrete_mc"
+workers = 50
+points = 4096
+shifts = 200
+evaluation_batch_size = 256
+double_points = false
+max_rounds = 20
+accuracy_target = { target = "laurent_order", order = 0 }
+relative_tolerance = 1e-30
+absolute_tolerance = 1e-30
+contour_diagnostics = "disabled"
+
+[integration.contour.validation]
+policy = "pilot"
+pilot_points = 16
+
+[integration.discrete_mc]
+pilot_points = 128
+pilot_batches = 200
+pilot_iterations = 2
+bins = 32
+minimum_probability_density = 0.01
+maximum_sector_probability_ratio = 100.0
+discrete_learning_rate = 0.5
+continuous_learning_rate = 0.5
+
+[integration.contour.deformation]
+mode = "fixed"
+lambda = 1e-6

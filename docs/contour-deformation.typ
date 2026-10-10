@@ -212,8 +212,8 @@ This is not a complete diagram sum or a spin/colour averaged matrix element.
 
 #note[*Corrected scope.* Both Jacobian choices now use symbolic endpoint IBP.
 The measurements below cover one complete six-dimensional source sector,
-including its pole and finite components. Full-artifact generation and the
-four integral estimates remain in progress.]
+including its pole and finite components. Full fixed generation is complete;
+both fixed integral estimates are available. Dynamic generation is in progress.]
 
 == Generation and resident programs
 #table(columns: (1.3fr, 1fr, 1fr, .85fr), inset: 4pt, stroke: 0.4pt + rgb("cbd5e1"),
@@ -231,13 +231,17 @@ $R=1$. Both fixed arms rescue 27 points in double-double; both dynamic arms
 rescue 28. Fresh-process restoration and complete-vector parity pass.
 This sector favors symbolic J for fixed mode and dual J for dynamic mode;
 the full runs use those choices with serial workers under a *100 GB* cap.
+Full fixed generation produced 30 sampled sectors and 30 exact records in
+2614.4 s with six workers, peaking at 54.09 GB aggregate owned RSS. Its saved
+artifact is 70.41 MB. A separate all-sector cost probe measured 10.44 µs mean
+and 14.06 µs maximum sector mean, including precision rescues.
 
 == Five minutes on 50 physical cores
 #table(columns: (1.05fr, .9fr, 1.15fr, 1fr, 1fr), inset: 5pt, stroke: 0.4pt + rgb("cbd5e1"),
   table.header([*Method*], [*Contour*], [*Finite coefficient*], [*Joint variance*], [*Relative SE*]),
-  [QMC], [Fixed], pending, pending, pending,
+  [QMC], [Fixed], [$68.35+26.24 i$], [2.46049], [2.142%],
   [QMC], [Dynamic], pending, pending, pending,
-  [Discrete MC], [Fixed], pending, pending, pending,
+  [Discrete MC], [Fixed], [$69.07+24.93 i$], [0.256372], [0.690%],
   [Discrete MC], [Dynamic], pending, pending, pending,
 )
 For the finite complex estimate $hat I_0$, let $Sigma_0$ be its real–imaginary
@@ -245,6 +249,9 @@ covariance matrix. The reported joint estimator variance is
 $V=tr Sigma_0$ and relative joint standard error is $sqrt(V)/abs(hat I_0)$.
 This is not pointwise integrand variance. Retain both diagonal entries and
 the off-diagonal covariance in the accompanying reproducibility record.
+Fixed production uses $lambda=10^(-6)$, chosen with separate tuning seeds.
+Actual native times are 302.32 s (QMC) and 303.53 s (MC), including completion
+of dispatched work after cancellation; peak RSS is 1.94 and 4.13 GB.
 
 The 300-second budget uses native integration elapsed time, including worker
 context setup and Havana adaptation. Artifact restoration, runtime binding and
@@ -343,6 +350,23 @@ now drains dispatched results without repeating expensive observational
 reductions and checkpoint writes for every return; the final native checkpoint
 and report still include accepted returns. Deterministic cancellation and
 reordered, gapped-shift covariance/restoration controls cover these changes.
+
+== Persist the native primary evaluator
+The old artifact saved exact evaluator IR but discarded the compiled primary.
+The new record also saves Symbolica's native JIT payload. Compatible loads
+restore its lowered application and callback descriptors; the owner still emits
+machine code. Exact IR remains available for precision rescue and portable
+execution. Existing mathematical identities and caller-owned scheduling remain
+unchanged. Immutable exact templates and artifact buffers are shared across
+workers; mutable stacks and callback environments remain independent.
+
+On two preserved source-sector records, matched optimized cache-miss/cache-hit
+loads measured 0.1804/0.1437 s (fixed) and 0.3865/0.3025 s (polynomial).
+The optional cache adds 13.34% to those records. These are loader measurements
+on historical endpoint constructions, not new physical integration results.
+Changing dynamic validation factories also reuses the native primary instead
+of rebuilding it from exact IR. Optional byte-integrity checks remain optional;
+format, compatibility and native decoding checks are retained.
 
 Stream identities are coordinator-owned. Pilots, production replicas and
 retries keep separate identities; rejected, duplicate or stale work cannot
