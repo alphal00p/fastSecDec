@@ -887,6 +887,54 @@ fn threshold_detached_plan_releases_global_owner_and_preserves_v15_vectors() {
             );
             if !kernels.sectors().is_empty() {
                 let metadata = restored.threshold_metadata().unwrap();
+                use crate::kernel::threshold_metadata as m;
+                let records = metadata.record_lineage();
+                assert_eq!(records.len(), 1);
+                let m::RecordKind::Stochastic { coordinates } = &records[0].kind else {
+                    panic!("selected evaluator has non-stochastic lineage");
+                };
+                assert_eq!(
+                    coordinates
+                        .iter()
+                        .map(|id| metadata.native_symbol(*id).unwrap())
+                        .collect::<Vec<_>>(),
+                    restored.sectors()[0].parameters
+                );
+                assert!(
+                    metadata
+                        .native_symbol(m::NativeSymbolId(usize::MAX))
+                        .is_err()
+                );
+                let chart_id = metadata
+                    .lineage()
+                    .contributions
+                    .iter()
+                    .find(|c| records[0].contributions.contains(&c.id))
+                    .unwrap()
+                    .chart;
+                let geometry = metadata
+                    .lineage()
+                    .endpoint_charts
+                    .iter()
+                    .find(|c| c.id == chart_id)
+                    .unwrap()
+                    .map
+                    .geometry();
+                assert!(
+                    metadata
+                        .native_atom(&geometry.expressions, geometry.positive_measure)
+                        .is_ok()
+                );
+                assert!(
+                    metadata
+                        .native_atom(&geometry.expressions, m::NativeAtomId(usize::MAX))
+                        .is_err()
+                );
+                assert!(
+                    metadata
+                        .native_atom(&m::Digest("absent".into()), geometry.positive_measure)
+                        .is_err()
+                );
                 let missing = metadata
                     .lineage()
                     .endpoint_charts

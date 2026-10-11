@@ -77,6 +77,19 @@ impl ThresholdMetadata {
     pub fn resident(&self) -> &m::ResidentLineageV1 {
         &self.resident
     }
+    /// Scientific record associations retained by this resident owner.
+    /// The parent lineage may describe additional, unloaded contributions.
+    pub fn record_lineage(&self) -> &[m::RecordLineageV1] {
+        &self.records
+    }
+    /// Resolve a role in the saved native symbol table without parsing a name.
+    /// Symbols are compact parent metadata, including roles of unloaded charts.
+    pub fn native_symbol(&self, id: m::NativeSymbolId) -> Result<Symbol, KernelError> {
+        self.symbols
+            .get(id.0)
+            .copied()
+            .ok_or_else(|| invalid("native symbol index"))
+    }
     pub fn coefficient_orders(&self) -> &[i32] {
         &self.orders
     }

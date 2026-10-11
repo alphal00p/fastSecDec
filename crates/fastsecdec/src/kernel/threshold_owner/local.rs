@@ -126,7 +126,11 @@ impl ThresholdMetadata {
     pub(crate) fn is_local(&self) -> bool {
         self.local.is_some()
     }
-    pub(crate) fn native_atom(
+    /// Borrow a saved expression from a resident native table.
+    /// This performs no file access, symbolic work or evaluator compilation.
+    /// A parent descriptor can name a table that this selected owner has not
+    /// loaded; requesting it returns an error rather than importing more data.
+    pub fn native_atom(
         &self,
         table: &m::Digest,
         id: m::NativeAtomId,

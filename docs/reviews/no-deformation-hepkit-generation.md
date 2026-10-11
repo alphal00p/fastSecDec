@@ -97,5 +97,15 @@ Remaining interface work is explicit: the existing diagram/family
 `sector_decompose` entry should return an honest prepared threshold owner with
 a separate compile action; numerical Float input should reuse the established
 represented-value owner and its authoritative source identity; native lineage
-inspection should expose existing immutable native Atom/table views. None is
-claimed implemented by this session milestone.
+inspection should wrap existing immutable native Atom/table views. These Python
+convenience layers are not claimed by the session milestone.
+
+The native inspection seam is available through
+`ThresholdMetadata::{native_atom,native_symbol,record_lineage}`. It borrows saved
+expressions, returns native symbols and distinguishes resident scientific records
+from the compact parent lineage. Missing/nonresident tables fail without loading
+more records; the getters confer no global proof authority. Independent HEPKit
+source review passes. The existing detached-owner restoration gate now checks
+native symbol/kernel-coordinate associations, loaded maps and invalid/absent
+tables for both eager and SymJIT (0.23s); strict native library/test Clippy and
+formatting pass (17.20s lint build).

@@ -3596,3 +3596,11 @@ embedded HEPKit host passes the physical bubble, cancellation and archive contro
 registered native build and portable feature checks pass. This accepts the exact,
 fixed, one-dimensional path only. General algebraic generation and the full
 diagram/family convenience workflow remain separate acceptance gates.
+
+Native inspection now exposes the saved expression lookup and compact symbol
+table through immutable getters, alongside resident record lineage. These return
+the existing Symbolica Atom/Symbol values; no name parsing, algebra, file reads or
+evaluator construction occurs. A selected owner refuses unloaded expression
+tables even when the parent catalogue names them. Independent HEPKit source
+review passes, as does the detached eager/SymJIT restoration control with map,
+symbol and residency checks (0.23s); native strict Clippy and formatting pass.
