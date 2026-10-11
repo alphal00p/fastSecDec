@@ -3730,3 +3730,16 @@ root isolation and polynomial division. It supports the proposed extension to
 multiple roots without radicals; it does not yet issue an endpoint family.
 Neither slice adds a graph parser, CAS, AD, RNG, estimator or worker pool.
 Detached callbacks, general resolution and physical integration remain pending.
+
+## Detached root arithmetic probes (2026-10-11)
+
+The [callback preparation review](reviews/no-deformation-algebraic-callbacks.md)
+records native tracked-domain and genuinely fresh-process codec probes. The
+child restores distinct branches of one degree-six polynomial without GCAD or
+Horner construction. Symbolica owns root refinement, implicit differentiation,
+error propagation and serialization; FastSecDec supplies scoped branch ownership
+and failure reporting. Root verified all frozen evidence hashes and joined the
+independent source/math review. These probes establish the arithmetic reuse
+path, including fixed-argument and masked failures. Complete kernel integration,
+precision-policy rescue, indexed artifacts and sampling remain pending; no
+general endpoint or high-precision certification is inferred.
