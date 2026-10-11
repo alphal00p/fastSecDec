@@ -3678,3 +3678,12 @@ current consumer graph, including distinct float precisions and callback
 failure. Root and an independent agent reviewed the API; ValentinHirschi opened
 the PR with benruijl requested. It is not yet adopted by the FastSecDec lockfiles,
 and the registered Python threshold entry still accepts exact fixed inputs.
+
+The [regular-section review](reviews/no-deformation-regular-sections.md) records
+the subsequent native map owner: symGCAD verifies domain/root evidence and
+Symbolica owns composition, root refinement, symbolic derivatives and codecs.
+Root and an independent reviewer checked closed-margin hypotheses, actual root
+selectors, full coefficient chain rules, clone ownership and each interval
+width. Seven isolated groups pass, including nested higher-degree sections and
+three precision domains. General endpoint density, runtime parameter chambers
+and detached artifact residency remain explicitly separate acceptance gates.

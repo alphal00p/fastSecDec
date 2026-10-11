@@ -1,4 +1,4 @@
-//! Verified open-cell map descriptions and a finite linear-bound lowering.
+//! Verified open-cell descriptions, linear lowering, and checked regular sections.
 //!
 //! The exact native selectors remain attached to the proof owner. Executable
 //! nonlinear sections, endpoint regularity and full-integral continuation are
@@ -6,6 +6,7 @@
 
 mod linear;
 mod program;
+pub mod regular;
 
 use std::{collections::BTreeSet, sync::Arc};
 use symbolica::atom::{AtomCore, Symbol};
