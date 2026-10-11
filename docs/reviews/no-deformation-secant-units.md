@@ -108,3 +108,34 @@ and symGCAD `a1132d4`. Root authored the construction; the independent runtime
 agent checked both orientations, width factors, Jacobian powers, closed-margin
 hypotheses and native API reuse. The numerical root/selector evidence remains
 separate from these polynomial-identity checks.
+
+## Complete two-cell symbolic-continuation probe
+
+A subsequent native diagnostic connects the actual verified GCAD cells for
+`F(x,y)=y^5+y-x` on the unit square to these identities. It rechecks the
+derivative cylinder through `y=1`, preserving the complete neighboring cells,
+their original causal signs and the common section. For `q=-1-epsilon`, the
+lower endpoint powers are `[-epsilon,q]` after reflection and the upper powers
+are `[0,q]`; the common convergence domain is `Re(epsilon)<0`.
+
+The existing Symbolica-based subtraction and Laurent modules, copied byte for
+byte into the isolated harness, produce the complete vector through epsilon
+one. Taylor and IBP agree. Each cell has a nonzero pole coefficient, while the
+coherent pole cancels exactly. The finite imaginary density agrees pointwise
+with `pi/P_y(x,r(x))`, whose integral is `pi*r(1)`. This checks the causal phase
+and symbolic subtraction without asserting a numerical integration result.
+
+At 25 points the imaginary-density error is at most `4.44089e-16`. Native f64,
+DoubleFloat and 192-bit Float evaluations agree within the stated comparison
+tolerances; the maximum scaled difference after conversion to f64 is
+`9.46271e-13`. This comparison does not certify 106- or 192-bit accuracy.
+The frozen execution takes approximately 0.21 seconds natively, 1.429 seconds
+under supervision, with 35,942,400 bytes observed RSS at 100 ms sampling. Strict
+isolated Clippy passes in 26.22 seconds. Root verified all source/evidence pins
+and independently reran the frozen executable successfully.
+
+These remain diagnostic normalized tuples. A checked dimension-generic family
+constructor, additional-factor admission, root-aware exact contributions,
+fresh-process callback restoration, complete numerical precision rescue and
+kernel publication are still required. No production endpoint certificate is
+inferred merely from the successful symbolic control.

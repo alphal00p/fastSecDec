@@ -3687,3 +3687,12 @@ selectors, full coefficient chain rules, clone ownership and each interval
 width. Seven isolated groups pass, including nested higher-degree sections and
 three precision domains. General endpoint density, runtime parameter chambers
 and detached artifact residency remain explicitly separate acceptance gates.
+
+The subsequent complete two-cell quintic diagnostic reuses the existing native
+subtraction and Laurent modules without edits. Actual verified cells and the
+whole-segment derivative proof yield exact seam-pole cancellation and the
+independent finite-imaginary formula, with full-vector checks through epsilon
+one. Root verified the pinned sources and independently reran the probe; the
+[secant review](reviews/no-deformation-secant-units.md) records the numerical
+scope. This is reuse evidence for a general-dimensional continuation owner,
+not authority to bypass its all-face and common-family admission.
