@@ -1,3 +1,5 @@
+mod two_sections;
+
 use super::*;
 use crate::{
     parametric::{

@@ -2,6 +2,7 @@
 mod atlas;
 mod bound;
 pub mod meromorphic;
+pub mod secant;
 pub use bound::BoundContinuation;
 mod normalize;
 

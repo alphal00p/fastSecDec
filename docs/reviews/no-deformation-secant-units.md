@@ -1,8 +1,8 @@
 # Regular algebraic sections: exact secants as endpoint units
 
-Status: independently reviewed construction and native API probe. This adds
-no production owner and does not complete the general resolver or an integration
-artifact. It extends
+Status: independently reviewed construction and native API probes, now used by
+the restricted [checked secant family](no-deformation-secant-family.md). This
+does not complete the general resolver or an integration artifact. It extends
 the typed regular-section work with a degree-independent normalization seam.
 
 ## Preconditions and authority
@@ -139,3 +139,52 @@ constructor, additional-factor admission, root-aware exact contributions,
 fresh-process callback restoration, complete numerical precision rescue and
 kernel publication are still required. No production endpoint certificate is
 inferred merely from the successful symbolic control.
+
+## Cells between two regular sections
+
+A different sufficient construction applies between two distinct selected roots
+`a(x)<b(x)` of the same full polynomial. Each section has its own certified root
+cylinder and derivative margin; a derivative bound over the interval between
+two roots is impossible. Define the second polynomial secant by native exact
+division:
+
+    Q1(y,a)   = (P(y)-P(a))/(y-a),
+    Q2(y,a,b) = (Q1(y,a)-Q1(b,a))/(y-b).
+
+The retained exact identity is
+
+    (b-a) P(y) = (b-y) P(a) + (y-a) P(b)
+                  + (b-a)(y-a)(y-b) Q2(y,a,b).
+
+On the actual selected branches and `phi=a+(b-a)t`, this gives
+`P(phi)=-(b-a)^2*t*(1-t)*Q2(phi,a,b)`. Its positive measure is `b-a`.
+Thus the density has width power `2q+1`, endpoint powers `q` at both ends,
+and the original regulator-dependent causal phase. Native polynomial evaluation
+of `Q2` includes its diagonal limit `P_yy/2`; it avoids cancellation from
+numerical divided differences.
+
+Admission additionally requires a closed signed-unit certificate for `Q2`
+and a width normal form. Regular roots alone prove neither. A first sufficient
+class uses separate rational cylinders enclosing the selected branches, a
+uniform gap, and a signed-unit proof on a rational box containing the entire
+cell. That larger box may reject otherwise valid cases. Colliding roots still
+need resolution and ramification. An exact half-interval partition and reflection
+can subsequently put both endpoints into the existing subtraction engine; this
+paragraph does not claim an implemented two-root continuation owner.
+
+The native control `actual_degree_six_cell_has_two_regular_sections_and_closed_unit`
+uses `P(x,y)=y^6-y+(1+x)/16` on the unit square. GCAD solves and independently
+verifies all three cells. The middle cell's actual selectors admit the separate
+brackets `[1/32,1/4]` and `[3/4,1]`. Existing domain certificates prove `Q2>1/4`
+and `b-a>1/4` on the closed enclosing box. Both prepared callbacks agree with
+exact fiber isolation and independent implicit first derivatives at five rational
+prefix points, including both faces. No radical formula or quadratic reduction
+is used. A separate exact-identity probe covers degrees 2, 3, 5, 7, 11 and 17,
+including shifts, varying coefficients, negative orientation and diagonal limits.
+This is geometry and normalization evidence, not an integral estimate.
+
+The registered degree-six control passes in 0.04 seconds and has an independent
+source/math review. It also passes in the joined 193-test threshold suite; strict
+library/test Clippy and formatting pass. These checks preserve the existing
+regular-section behavior while adding a regression for distinct high-degree
+branches of the same polynomial.

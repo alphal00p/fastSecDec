@@ -3709,3 +3709,24 @@ and the separation of local marked completion from physical integration.
 The native 96-test resolver gate and strict lint pass; no new CAS, AD, graph,
 numerical estimator or library-owned execution pool is introduced. In-memory
 local evidence and incomplete global BM/atlas work remain explicit limitations.
+
+
+## Checked high-degree endpoint families (2026-10-11)
+
+The [secant-family review](reviews/no-deformation-secant-family.md) records a
+native checked bridge from a complete two-cell decomposition to symbolic
+subtraction and complete Laurent vectors. It reuses the existing convergence
+strip, meromorphic admission, causal phases, Symbolica function maps and finite
+symbolic derivatives. Root and an independent resolver reviewer checked the
+all-face units, width powers, complex numerators, source ownership and exact
+seam cancellation while retaining genuine corner poles. The private eight-group
+gate and strict lint pass; registration reuses the existing internal exports.
+The joined threshold suite passes 193 tests with one existing ignore, and strict
+library/all-test Clippy, formatting and diff checks pass.
+
+A separate degree-six, three-cell geometry control verifies two distinct root
+selectors and closed second-secant/gap bounds with native domain certificates,
+root isolation and polynomial division. It supports the proposed extension to
+multiple roots without radicals; it does not yet issue an endpoint family.
+Neither slice adds a graph parser, CAS, AD, RNG, estimator or worker pool.
+Detached callbacks, general resolution and physical integration remain pending.
