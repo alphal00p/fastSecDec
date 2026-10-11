@@ -40,6 +40,7 @@ impl CompanionCenter {
 #[derive(Clone, Debug)]
 pub enum CompanionCenterOutcome {
     Pending,
+    ChildComponentOpensRequired(Arc<RecursiveComponentCover>),
     Center(Arc<CompanionCenter>),
     ChildNeedsMoreOpens(RecursiveOutcome),
     EmptyChild(RecursiveOutcome),
@@ -80,6 +81,14 @@ impl CompanionFirstCenter {
         self.child.accepted_steps()
     }
     pub fn advance(&mut self, b: &mut Budget) -> Result<RecursiveAdvance> {
+        if matches!(
+            self.outcome,
+            CompanionCenterOutcome::ChildComponentOpensRequired(_)
+        ) {
+            return Ok(RecursiveAdvance::Incomplete {
+                reason: super::components::COMPONENT_REASON,
+            });
+        }
         if !matches!(self.outcome, CompanionCenterOutcome::Pending) {
             return Ok(RecursiveAdvance::Complete);
         }
@@ -96,7 +105,13 @@ impl CompanionFirstCenter {
     fn step(&mut self, b: &mut Budget) -> Result<RecursiveAdvance> {
         match self.child.advance(b)? {
             RecursiveAdvance::Progress => return Ok(RecursiveAdvance::Progress),
-            incomplete @ RecursiveAdvance::Incomplete { .. } => return Ok(incomplete),
+            incomplete @ RecursiveAdvance::Incomplete { .. } => {
+                if let RecursiveOutcome::ComponentOpensRequired(cover) = self.child.outcome() {
+                    self.outcome =
+                        CompanionCenterOutcome::ChildComponentOpensRequired(cover.clone());
+                }
+                return Ok(incomplete);
+            }
             RecursiveAdvance::Complete => {}
         }
         let center = match self.child.outcome() {
@@ -128,6 +143,11 @@ impl CompanionFirstCenter {
             out @ RecursiveOutcome::EmptyMarkedCosupport { .. } => {
                 self.outcome = CompanionCenterOutcome::EmptyChild(out.clone());
                 return Ok(RecursiveAdvance::Complete);
+            }
+            RecursiveOutcome::ComponentOpensRequired(_) => {
+                return Err(Error::Invalid(
+                    "completed child has unresolved component cover",
+                ));
             }
             RecursiveOutcome::Pending => {
                 return Err(Error::Invalid("completed companion child pending"));

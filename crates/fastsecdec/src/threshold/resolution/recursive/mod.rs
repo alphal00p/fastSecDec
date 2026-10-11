@@ -1,8 +1,10 @@
 //! First-center recursion and its first carried cycle: fixed parameters,
 //! explicit contact opens/history owners. No full BM or real atlas authority.
+mod components;
 mod coordinate;
 mod lift;
 mod state;
+pub use components::RecursiveComponentCover;
 pub use coordinate::*;
 pub use state::*;
 #[cfg(test)]
@@ -100,3 +102,9 @@ pub use problem_recursion::{
 mod continuation_tests;
 
 pub(crate) use lift::lift_embedded_geometry;
+
+mod supported_drop;
+pub use supported_drop::{SupportedDropInventory, SupportedDropRecord, SupportedResidualDrop};
+
+#[cfg(test)]
+mod component_tests;

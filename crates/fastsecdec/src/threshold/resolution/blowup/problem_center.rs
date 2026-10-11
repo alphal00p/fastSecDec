@@ -60,6 +60,7 @@ impl EmbeddedProblemCenter {
 #[derive(Clone, Debug)]
 pub enum EmbeddedProblemProduction {
     Center(Arc<EmbeddedProblemCenter>),
+    OriginalCenter(Arc<super::original_problem::OriginalProblemCenter>),
     NeedsPhysicalLocalization {
         prepared: Arc<PreparedProblemCenter>,
     },
@@ -72,7 +73,7 @@ pub(crate) fn produce_embedded_problem_center(
     b: &mut Budget,
 ) -> Result<EmbeddedProblemProduction> {
     let ProblemConstruction::IncidenceRedefinition(drop) = prepared.problem().construction() else {
-        return Ok(EmbeddedProblemProduction::OriginalEmbeddingRequired { prepared });
+        return super::original_problem::produce_original_problem_center(prepared, b);
     };
     let source = drop.presentation();
     if !Arc::ptr_eq(source.incidence_sum(), prepared.problem().source())

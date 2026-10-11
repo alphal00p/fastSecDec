@@ -3793,3 +3793,16 @@ solving again and numerical artifact reload after preparation-owner release.
 Representation choices remain explicit. General algebraic preparation,
 represented-family provenance and Float graph payload mapping are not supplied
 by this bridge, nor does this test update a running installed host.
+
+## Nested original hierarchy and physical continuation (2026-10-11)
+
+The [nested-continuation review](reviews/no-deformation-bm-nested-continuation.md)
+records the native API/source/probe evidence for carrying the actual original
+coefficient hierarchy through a supported residual-order drop and its next
+physical blow-up. Shared boundary/history transport, native saturation and
+full-ideal/minor admission replace duplicated orchestration; no new algebra
+engine is introduced. Exact component splitting handles a disconnected
+zero-dimensional terminal contact without inventing a global zero centre.
+All ambient charts, pending localizations and recursive levels remain owned.
+Generation-agent and coordinator reviews accept this local boundary, with the
+general driver, physical localization and real atlas still incomplete.

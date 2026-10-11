@@ -26,84 +26,15 @@ impl ResolutionHistory {
                 "repeated embedded history actual source/transition owner",
             ));
         }
-        let local = open.ledger.frame().local();
-        if !local
-            .ideal()
-            .sum(open.center.target().ideal(), b)?
-            .contains(&local.ring().one(), local.unit_relations(), b)?
+        if !Arc::ptr_eq(&open.boundary.prior, owner.source().history())
+            || !Arc::ptr_eq(&open.boundary.chart, owner.chart())
+            || !Arc::ptr_eq(&open.boundary.support, owner.support())
+            || !Arc::ptr_eq(&open.boundary.center, &open.center)
+            || !Arc::ptr_eq(&open.boundary.ledger, &open.ledger)
+            || open.boundary.born != open.born
         {
-            return Err(Error::Invalid("repeated lower center principal pullback"));
+            return Err(Error::Invalid("embedded shared boundary owner"));
         }
-        for (old, receipt) in self.ledger.divisors().iter().zip(&open.divisors) {
-            let actual = open.ledger.divisors().iter().find(|d| d.id == old.id);
-            if receipt.id != old.id
-                || receipt.absent != actual.is_none()
-                || actual.is_some_and(|d| d.equation != receipt.strict_equation)
-            {
-                return Err(Error::Invalid("repeated lower strict divisor inventory"));
-            }
-        }
-        let provenance = HistoryCenter::RelativeIdeal {
-            source_ring: self.ledger.frame().local().ring().clone(),
-            ideal: owner.lower_center.clone(),
-            normals: owner.lower_normals.clone(),
-        };
-        let mut births = self.births.clone();
-        let mut contexts = self.birth_contexts.clone();
-        let (stage, next_id) = if let Some((id, stage)) = open.born {
-            if (id, stage) != self.next_transition()? || births.insert(id, stage).is_some() {
-                return Err(Error::Invalid("repeated lower birth frontier"));
-            }
-            contexts.insert(
-                id,
-                BirthContext {
-                    parent_chart_path: self.path.clone(),
-                    center: provenance.clone(),
-                },
-            );
-            (
-                stage,
-                BoundaryId(id.0.checked_add(1).ok_or(Error::ResourceIncomplete(
-                    "repeated lower identity exhaustion",
-                ))?),
-            )
-        } else {
-            (self.stage, self.next_id)
-        };
-        if open
-            .ledger
-            .divisors()
-            .iter()
-            .any(|d| !births.contains_key(&d.id))
-        {
-            return Err(Error::Invalid("repeated lower unissued divisor"));
-        }
-        b.reserve_slots(
-            self.path
-                .len()
-                .checked_add(1)
-                .ok_or(Error::ResourceIncomplete("repeated lower ancestry count"))?,
-        )?;
-        let mut path = self.path.clone();
-        let geometry = owner.chart().geometry();
-        let support = open.center.open();
-        path.push(HistoryStep::EmbeddedBlowup {
-            center: provenance,
-            ambient_path: owner.chart().history().chart_path().to_vec(),
-            source_open: geometry.open().source_open().clone(),
-            pivot_normal: geometry.pivot_normal(),
-            support_equations: support.chosen_equations().to_vec(),
-            support_columns: support.columns().to_vec(),
-        });
-        Ok(Arc::new(Self {
-            root: self.root.clone(),
-            ledger: open.ledger.clone(),
-            stage,
-            births,
-            old_snapshot: self.old_snapshot.clone(),
-            next_id,
-            path,
-            birth_contexts: contexts,
-        }))
+        self.advanced_lower_boundary(&open.boundary, b)
     }
 }

@@ -16,6 +16,8 @@ pub enum RecursiveCenterOrigin {
     CarriedMonomial(Arc<super::induced::CarriedMonomialCenter>),
     EmbeddedMonomial(Arc<super::embedded_center::EmbeddedMonomialCenter>),
     EmbeddedProblem(Arc<super::problem_center::EmbeddedProblemCenter>),
+    OriginalProblem(Arc<super::original_problem::OriginalProblemCenter>),
+    SupportedProblem(Arc<super::continued_problem::ContinuedSupportedCenter>),
 }
 #[derive(Clone, Debug)]
 pub struct CheckedRecursiveCenter {
@@ -76,6 +78,20 @@ impl CheckedRecursiveCenter {
                 center.normals(),
             ),
             RecursiveCenterOrigin::EmbeddedProblem(center) => (
+                center.frame(),
+                center.history(),
+                center.source(),
+                center.ideal(),
+                center.normals(),
+            ),
+            RecursiveCenterOrigin::OriginalProblem(center) => (
+                center.frame(),
+                center.history(),
+                center.source(),
+                center.ideal(),
+                center.normals(),
+            ),
+            RecursiveCenterOrigin::SupportedProblem(center) => (
                 center.frame(),
                 center.history(),
                 center.source(),

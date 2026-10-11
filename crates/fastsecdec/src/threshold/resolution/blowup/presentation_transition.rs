@@ -2,7 +2,7 @@
 use super::super::*;
 use super::{
     coefficient::*, embedding::SupportEmbedding, general::RecursiveCenterOrigin,
-    general_transform::controlled_marked, helpers::unit, presentation::*, support::*,
+    general_transform::controlled_marked, presentation::*, support::*,
 };
 use std::sync::Arc;
 type Result<T> = std::result::Result<T, Error>;
@@ -15,6 +15,7 @@ pub struct EmbeddedTransitionOpen {
     pub(crate) divisors: Vec<DivisorReceipt>,
     pub(crate) ledger: Arc<VerifiedRelativeSnc>,
     pub(crate) born: Option<(BoundaryId, u64)>,
+    pub(super) boundary: Arc<super::lower_boundary::LowerBoundaryTransform>,
 }
 #[derive(Clone, Debug)]
 pub struct EmbeddedTransition {
@@ -23,7 +24,6 @@ pub struct EmbeddedTransition {
     pub(crate) support: Arc<StrictContactSupport>,
     pub(crate) companion: Arc<RelativeMarkedTransform>,
     pub(crate) lower_center: Ideal,
-    pub(crate) lower_normals: Vec<Poly>,
     pub(crate) opens: Vec<Arc<EmbeddedTransitionOpen>>,
 }
 impl EmbeddedTransition {
@@ -73,6 +73,30 @@ impl EmbeddedTransition {
                     if Arc::ptr_eq(c.presentation(), &source) =>
                 {
                     (c.lower_ideal().clone(), c.lower_normals().to_vec())
+                }
+                (RecursiveCenterOrigin::SupportedProblem(c), _)
+                    if c.ancestors().iter().any(|p| Arc::ptr_eq(p, &source)) =>
+                {
+                    let embedding = SupportEmbedding::strict(
+                        source.support().clone(),
+                        source.open().clone(),
+                        b,
+                    )?;
+                    let lower = embedding.extension().ideal(c.ideal(), b)?;
+                    for marked in [source.coefficient(), source.incidence_sum()] {
+                        super::lower_boundary::verify_marked_center(
+                            embedding.frame(),
+                            marked,
+                            &lower,
+                            b,
+                        )?;
+                    }
+                    let normals = c
+                        .normals()
+                        .iter()
+                        .map(|f| embedding.extension().pull(f, b))
+                        .collect::<Result<Vec<_>>>()?;
+                    (lower, normals)
                 }
                 _ => {
                     return Err(Error::Invalid(
@@ -137,73 +161,18 @@ impl EmbeddedTransition {
                     "complete lower center is not exceptional times unit",
                 ));
             }
-            let prior = source.history();
-            let born = chart
-                .geometry()
-                .exceptional()
-                .map(|_| prior.next_transition())
-                .transpose()?;
-            let mut divisors = Vec::new();
-            let mut active = Vec::new();
-            b.reserve_slots(prior.ledger().divisors().len())?;
-            for (di, div) in prior.ledger().divisors().iter().enumerate() {
-                let old = prior.ledger().frame().local();
-                let contained = old.ideal().sum(&lower_center, b)?.contains(
-                    &div.equation,
-                    old.unit_relations(),
-                    b,
-                )?;
-                let power = usize::from(born.is_some() && contained);
-                let one = Arc::new(MarkedIdeal::new(
-                    Ideal::new(old.ring().clone(), vec![div.equation.clone()], b)?,
-                    1,
-                    b,
-                )?);
-                let pulled = transform_supported(
-                    support.clone(),
-                    open.clone(),
-                    one,
-                    power,
-                    &format!("{namespace}_old{i}_{di}"),
-                    b,
-                )?;
-                if pulled.generators().len() != 1 {
-                    return Err(Error::Invalid("strict divisor generator association"));
-                }
-                let g = &pulled.generators()[0];
-                let absent = unit(local, &g.quotient, b)?;
-                if !absent {
-                    active.push(InitialDivisor {
-                        id: div.id,
-                        equation: g.quotient.clone(),
-                    });
-                }
-                divisors.push(DivisorReceipt {
-                    id: div.id,
-                    total: g.total.clone(),
-                    exceptional_power: power,
-                    strict_equation: g.quotient.clone(),
-                    unit: local.ring().one(),
-                    absent,
-                });
-            }
-            if let (Some(e), Some((id, _))) = (chart.geometry().exceptional(), born) {
-                let e = open.extension().pull(e, b)?;
-                if !unit(local, &e, b)? {
-                    active.push(InitialDivisor { id, equation: e });
-                }
-            }
-            let ledger = match verify_initial_relative_snc(open.frame().clone(), active, b)? {
-                SncProduction::Verified(l) => l,
-                SncProduction::Incomplete { reason, .. } => {
-                    return Err(Error::ResourceIncomplete(reason));
-                }
-                SncProduction::Unresolved { .. } => {
-                    return Err(Error::ResourceIncomplete(
-                        "repeated lower boundary needs SNC refinement",
-                    ));
-                }
-            };
+            let boundary = super::lower_boundary::LowerBoundaryTransform::prepare(
+                source.history().clone(),
+                chart.clone(),
+                support.clone(),
+                center.clone(),
+                lower_normals.clone(),
+                &format!("{namespace}_boundary{i}"),
+                b,
+            )?;
+            let divisors = boundary.divisors.clone();
+            let ledger = boundary.ledger.clone();
+            let born = boundary.born;
             opens.push(Arc::new(EmbeddedTransitionOpen {
                 coefficient: c,
                 incidence_sum: j,
@@ -211,6 +180,7 @@ impl EmbeddedTransition {
                 divisors,
                 ledger,
                 born,
+                boundary,
             }));
         }
         Ok(Arc::new(Self {
@@ -219,7 +189,6 @@ impl EmbeddedTransition {
             support,
             companion,
             lower_center,
-            lower_normals,
             opens,
         }))
     }

@@ -3,6 +3,7 @@ use symbolica::symbol;
 #[derive(Clone, Debug)]
 pub enum RecursiveOutcome {
     Pending,
+    ComponentOpensRequired(Arc<RecursiveComponentCover>),
     Center(Arc<RecursiveCenter>),
     EmptyMarkedCosupport {
         frame: Arc<EtaleFrame>,
@@ -72,6 +73,11 @@ impl BoundaryFreeFirstCenter {
     /// Caller-stepped, atomic accepted state. An incomplete native operation is
     /// retried from this state; it is not a durable or inner-work checkpoint.
     pub fn advance(&mut self, b: &mut Budget) -> Result<RecursiveAdvance> {
+        if matches!(self.outcome, RecursiveOutcome::ComponentOpensRequired(_)) {
+            return Ok(RecursiveAdvance::Incomplete {
+                reason: super::components::COMPONENT_REASON,
+            });
+        }
         if self.pending.is_none() {
             return Ok(RecursiveAdvance::Complete);
         }
@@ -83,11 +89,17 @@ impl BoundaryFreeFirstCenter {
                     .checked_add(1)
                     .ok_or(Error::ResourceIncomplete("recursive step counter"))?;
                 *self = proposed;
-                Ok(if self.pending.is_none() {
-                    RecursiveAdvance::Complete
-                } else {
-                    RecursiveAdvance::Progress
-                })
+                Ok(
+                    if matches!(self.outcome, RecursiveOutcome::ComponentOpensRequired(_)) {
+                        RecursiveAdvance::Incomplete {
+                            reason: super::components::COMPONENT_REASON,
+                        }
+                    } else if self.pending.is_none() {
+                        RecursiveAdvance::Complete
+                    } else {
+                        RecursiveAdvance::Progress
+                    },
+                )
             }
             Err(Error::ResourceIncomplete(reason)) => Ok(RecursiveAdvance::Incomplete { reason }),
             Err(e) => Err(e),
@@ -140,7 +152,16 @@ impl BoundaryFreeFirstCenter {
                     }
                     OrderProduction::UnitIdeal { .. } => self.empty(frame, source)?,
                     OrderProduction::TerminalParameterLocus { .. } => {
-                        return Err(Error::Invalid("fixed-parameter terminal proper ideal"));
+                        let cover = RecursiveComponentCover::prepare(
+                            frame,
+                            source,
+                            normalization,
+                            &self.stack,
+                            &format!("{}_terminal_components", self.namespace),
+                            b,
+                        )?;
+                        self.pending = None;
+                        self.outcome = RecursiveOutcome::ComponentOpensRequired(cover);
                     }
                     OrderProduction::Incomplete { reason, .. } => {
                         return Err(Error::ResourceIncomplete(reason));

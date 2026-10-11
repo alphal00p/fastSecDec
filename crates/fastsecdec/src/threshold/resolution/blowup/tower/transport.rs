@@ -99,6 +99,7 @@ impl OriginalLevelPullback {
 #[derive(Clone, Debug)]
 pub struct OriginalTreePullback {
     original: Arc<OriginalRecursionTree>,
+    anchor: Option<Arc<AnchoredOriginalTree>>,
     chart: Arc<RelativeRecursiveChart>,
     levels: Vec<Arc<OriginalLevelPullback>>,
     refinements: Vec<Arc<RefinedSupportCover>>,
@@ -118,12 +119,32 @@ impl OriginalTreePullback {
                 ));
             }
         }
+        Self::prepare_inner(original, None, chart, namespace, b)
+    }
+    pub(super) fn prepare_anchored(
+        anchor: Arc<AnchoredOriginalTree>,
+        chart: Arc<RelativeRecursiveChart>,
+        namespace: &str,
+        b: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        anchor.check_chart(&chart)?;
+        Self::prepare_inner(anchor.original().clone(), Some(anchor), chart, namespace, b)
+    }
+    fn prepare_inner(
+        original: Arc<OriginalRecursionTree>,
+        anchor: Option<Arc<AnchoredOriginalTree>>,
+        chart: Arc<RelativeRecursiveChart>,
+        namespace: &str,
+        b: &mut Budget,
+    ) -> Result<Arc<Self>> {
         b.reserve_slots(original.levels().len())?;
         let mut levels = Vec::new();
         for (i, level) in original.levels().iter().enumerate() {
             let support = transport_embedding(
                 chart.geometry().clone(),
-                level.embedding().clone(),
+                anchor
+                    .as_ref()
+                    .map_or_else(|| level.embedding().clone(), |a| a.embeddings()[i].clone()),
                 &format!("{namespace}_support{i}"),
                 b,
             )?;
@@ -191,6 +212,7 @@ impl OriginalTreePullback {
         }
         Ok(Arc::new(Self {
             original,
+            anchor,
             chart,
             levels,
             refinements,
@@ -215,11 +237,24 @@ impl OriginalTreePullback {
         {
             return Err(Error::Invalid("original hierarchy complete inventory"));
         }
+        if let Some(anchor) = &self.anchor {
+            anchor.check_chart(&self.chart)?;
+            if !Arc::ptr_eq(anchor.original(), &self.original)
+                || anchor.embeddings().len() != self.levels.len()
+            {
+                return Err(Error::Invalid("anchored hierarchy inventory/source owner"));
+            }
+        }
         b.reserve_slots(self.levels.len())?;
         let mut out = Vec::new();
         for (i, level) in self.levels.iter().enumerate() {
             if !Arc::ptr_eq(&level.original, &self.original.levels[i])
-                || !Arc::ptr_eq(level.support.embedding(), level.original.embedding())
+                || !Arc::ptr_eq(
+                    level.support.embedding(),
+                    self.anchor
+                        .as_ref()
+                        .map_or(level.original.embedding(), |a| &a.embeddings()[i]),
+                )
                 || !Arc::ptr_eq(level.support.geometry(), self.chart.geometry())
                 || level.opens.len() != level.support.opens().len()
             {

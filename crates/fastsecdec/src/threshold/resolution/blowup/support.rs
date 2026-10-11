@@ -35,6 +35,39 @@ impl StrictSupportOpen {
         &self.columns
     }
 }
+/// A nonempty attempted minor open whose selected regular equations do not
+/// generate the complete localized strict-support ideal. This is not an empty
+/// physical chart or a certificate of singularity. Only a separately verified
+/// full cover by admitted frames permits the support producer to complete.
+#[derive(Clone, Debug)]
+pub struct UnresolvedSupportFrame {
+    extension: RingExtension,
+    chosen_equations: Vec<usize>,
+    columns: Vec<usize>,
+    relations: Ideal,
+    selected: Arc<LocalizedAlgebra>,
+    missing_relation: Poly,
+}
+impl UnresolvedSupportFrame {
+    pub fn extension(&self) -> &RingExtension {
+        &self.extension
+    }
+    pub fn chosen_equations(&self) -> &[usize] {
+        &self.chosen_equations
+    }
+    pub fn columns(&self) -> &[usize] {
+        &self.columns
+    }
+    pub fn relations(&self) -> &Ideal {
+        &self.relations
+    }
+    pub fn selected(&self) -> &Arc<LocalizedAlgebra> {
+        &self.selected
+    }
+    pub fn missing_relation(&self) -> &Poly {
+        &self.missing_relation
+    }
+}
 #[derive(Clone, Debug)]
 pub struct StrictContactSupport {
     geometry: Arc<RelativeBlowupGeometry>,
@@ -44,6 +77,7 @@ pub struct StrictContactSupport {
     source_units: Vec<Poly>,
     opens: Vec<Arc<StrictSupportOpen>>,
     empty_opens: Vec<EmptyAdaptedOpen>,
+    unresolved_frames: Vec<UnresolvedSupportFrame>,
     cover: VerifiedOpenCover,
 }
 impl StrictContactSupport {
@@ -70,6 +104,9 @@ impl StrictContactSupport {
     }
     pub fn empty_opens(&self) -> &[EmptyAdaptedOpen] {
         &self.empty_opens
+    }
+    pub fn unresolved_frames(&self) -> &[UnresolvedSupportFrame] {
+        &self.unresolved_frames
     }
     pub fn cover(&self) -> &VerifiedOpenCover {
         &self.cover
@@ -103,28 +140,6 @@ pub(crate) fn transport_embedding(
     }
     let target = geometry.frame();
     let local = target.local();
-    // A contact presentation may be defined on a further derivative open.
-    // Never replace that locally closed source by its unrestricted closure.
-    // This path accepts only units already certified on the target ambient;
-    // other source opens require an explicit additional localization owner.
-    let mut source_units = Vec::new();
-    b.reserve_slots(embedding.frame().local().guards().len())?;
-    for g in embedding.frame().local().guards() {
-        if (embedding.extension().source().len()..g.factor.nvars()).any(|i| g.factor.degree(i) > 0)
-        {
-            return Err(Error::ResourceIncomplete(
-                "strict support needs source guard lift",
-            ));
-        }
-        let factor = super::super::elimination::remap(&g.factor, ambient.local().ring(), b)?;
-        let pulled = geometry.pull(&factor, b)?;
-        if !unit(local, &pulled, b)? {
-            return Err(Error::ResourceIncomplete(
-                "strict support needs original contact localization",
-            ));
-        }
-        source_units.push(pulled);
-    }
     let pulled = Arc::new(Ideal::new(local.ring().clone(), totals, b)?);
     let factor = geometry
         .exceptional()
@@ -137,6 +152,31 @@ pub(crate) fn transport_embedding(
         &format!("{namespace}_sat"),
         b,
     )?;
+    // A contact presentation can require a further derivative open. For a
+    // nonempty strict support, never enlarge that source open to its closure.
+    // An exactly empty saturated support has no inverse-coordinate map to
+    // construct; retain its empty receipt and the entire ambient chart instead.
+    let mut source_units = Vec::new();
+    if !saturation.empty() {
+        b.reserve_slots(embedding.frame().local().guards().len())?;
+        for g in embedding.frame().local().guards() {
+            if (embedding.extension().source().len()..g.factor.nvars())
+                .any(|i| g.factor.degree(i) > 0)
+            {
+                return Err(Error::ResourceIncomplete(
+                    "strict support needs source guard lift",
+                ));
+            }
+            let factor = super::super::elimination::remap(&g.factor, ambient.local().ring(), b)?;
+            let pulled = geometry.pull(&factor, b)?;
+            if !unit(local, &pulled, b)? {
+                return Err(Error::ResourceIncomplete(
+                    "strict support needs original contact localization",
+                ));
+            }
+            source_units.push(pulled);
+        }
+    }
     let codim = embedding.codimension();
     if codim == 0 || codim > target.free_axes().len() {
         return Err(Error::Invalid("embedded support relative codimension"));
@@ -149,6 +189,7 @@ pub(crate) fn transport_embedding(
         .collect::<Result<Vec<_>>>()?;
     let mut opens = Vec::new();
     let mut empty_opens = Vec::new();
+    let mut unresolved_frames = Vec::new();
     if !saturation.empty() {
         for chosen in combinations(clearings.len(), codim, b)? {
             for columns in combinations(target.free_axes().len(), codim, b)? {
@@ -217,6 +258,34 @@ pub(crate) fn transport_embedding(
                         .map(|i| extension.pull(&clearings[*i].numerator, b))
                         .collect::<Result<Vec<_>>>()?,
                 );
+                // A nonzero minor is insufficient: selected equations may
+                // retain extra components away from the actual support. Check
+                // the full localized ideal before admitting any Etale frame.
+                let selected_local = LocalizedAlgebra::new(
+                    Ideal::new(ring.clone(), selected.clone(), b)?,
+                    local.axes().to_vec(),
+                    probe_guards.clone(),
+                    b,
+                )?;
+                let mut missing = None;
+                for f in relations.generators() {
+                    if !selected_local.zero(f, b)? {
+                        missing = Some(f.clone());
+                        break;
+                    }
+                }
+                if let Some(missing_relation) = missing {
+                    b.reserve_slots(1)?;
+                    unresolved_frames.push(UnresolvedSupportFrame {
+                        extension,
+                        chosen_equations: chosen.clone(),
+                        columns,
+                        relations,
+                        selected: selected_local,
+                        missing_relation,
+                    });
+                    continue;
+                }
                 let mut dependent = target.dependent_axes().to_vec();
                 dependent.extend(columns.iter().map(|j| target.free_axes()[*j]));
                 let free = target
@@ -270,6 +339,7 @@ pub(crate) fn transport_embedding(
         source_units,
         opens,
         empty_opens,
+        unresolved_frames,
         cover,
     }))
 }

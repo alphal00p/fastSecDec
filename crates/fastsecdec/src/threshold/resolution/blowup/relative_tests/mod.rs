@@ -140,3 +140,6 @@ pub(crate) mod nonmonomial_probe;
 mod map_probe;
 
 mod problem_probe;
+
+mod nested_probe;
+mod original_probe;

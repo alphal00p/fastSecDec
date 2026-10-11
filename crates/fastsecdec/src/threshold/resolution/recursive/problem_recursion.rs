@@ -104,6 +104,17 @@ impl InitialProblemRecursion {
     pub fn unresolved_zero_ideal_component(&self) -> bool {
         matches!(self.stage, ProblemStage::UnresolvedZeroIdealComponent)
     }
+    /// A verified disconnected lower source is retained until one physical
+    /// component localization can be carried through every ancestor level.
+    pub fn unresolved_component_cover(&self) -> Option<&Arc<RecursiveComponentCover>> {
+        if let ProblemStage::Child { driver, .. } = &self.stage
+            && let CompanionCenterOutcome::ChildComponentOpensRequired(cover) = driver.outcome()
+        {
+            Some(cover)
+        } else {
+            None
+        }
+    }
     pub fn accepted_steps(&self) -> usize {
         self.accepted_steps
     }
@@ -114,6 +125,11 @@ impl InitialProblemRecursion {
         limits: &ComponentFactorLimits,
         b: &mut Budget,
     ) -> Result<RecursiveAdvance> {
+        if self.unresolved_component_cover().is_some() {
+            return Ok(RecursiveAdvance::Incomplete {
+                reason: super::components::COMPONENT_REASON,
+            });
+        }
         if self.unresolved_zero_ideal_component() {
             return Ok(RecursiveAdvance::Incomplete {
                 reason: "unresolved zero-ideal component with retained factor inventory",
@@ -130,7 +146,11 @@ impl InitialProblemRecursion {
                     .checked_add(1)
                     .ok_or(Error::ResourceIncomplete("initial problem step count"))?;
                 *self = proposed;
-                Ok(if self.unresolved_zero_ideal_component() {
+                Ok(if self.unresolved_component_cover().is_some() {
+                    RecursiveAdvance::Incomplete {
+                        reason: super::components::COMPONENT_REASON,
+                    }
+                } else if self.unresolved_zero_ideal_component() {
                     RecursiveAdvance::Incomplete {
                         reason: "unresolved zero-ideal component with retained factor inventory",
                     }
@@ -310,7 +330,20 @@ impl InitialProblemRecursion {
                     }
                 }
                 RecursiveAdvance::Incomplete { reason } => {
-                    return Err(Error::ResourceIncomplete(reason));
+                    if matches!(
+                        driver.outcome(),
+                        CompanionCenterOutcome::ChildComponentOpensRequired(_)
+                    ) {
+                        self.stage = ProblemStage::Child {
+                            leaf,
+                            index,
+                            order,
+                            cycle,
+                            driver,
+                        };
+                    } else {
+                        return Err(Error::ResourceIncomplete(reason));
+                    }
                 }
                 RecursiveAdvance::Complete => {
                     match driver.outcome() {

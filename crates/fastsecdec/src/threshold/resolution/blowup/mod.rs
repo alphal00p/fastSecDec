@@ -36,7 +36,9 @@ pub use incidence::{
 pub use presentation::EmbeddedPresentation;
 pub use presentation_transition::{EmbeddedTransition, EmbeddedTransitionOpen};
 pub use saturation::SaturatedSupport;
-pub use support::{StrictContactSupport, StrictSupportOpen, transport_contact_support};
+pub use support::{
+    StrictContactSupport, StrictSupportOpen, UnresolvedSupportFrame, transport_contact_support,
+};
 mod history;
 mod transform;
 pub use adapted::{
@@ -87,6 +89,27 @@ pub use refinement::{
     EmptySupportRefinement, RefinedSupportCover, RefinedSupportOpen, SupportFrameMap,
 };
 pub use tower::{
-    OriginalLevelOpen, OriginalLevelPullback, OriginalLowerLevel, OriginalRecursionTree,
-    OriginalTreePullback,
+    AnchoredOriginalTree, OriginalAnchorCenter, OriginalLevelOpen, OriginalLevelPullback,
+    OriginalLowerLevel, OriginalRecursionTree, OriginalTreePullback,
+};
+
+mod original_problem;
+pub use original_problem::OriginalProblemCenter;
+
+mod lower_boundary;
+
+mod supported_problem;
+pub use supported_problem::{
+    SupportedProblemAncestor, SupportedProblemChart, SupportedProblemOpen,
+};
+
+mod continued_problem;
+pub use continued_problem::{
+    ContinuedSupportedCenter, ContinuedSupportedChart, ContinuedSupportedProduction,
+};
+
+mod continued_frontier;
+pub use continued_frontier::{
+    CompletedContinuedCharts, ContinuedChartAdvance, ContinuedChartState,
+    ContinuedFrontierCompletion, ContinuedSupportedFrontier,
 };

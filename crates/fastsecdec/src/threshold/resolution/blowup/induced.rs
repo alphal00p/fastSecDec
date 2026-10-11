@@ -94,11 +94,13 @@ pub fn induce_child_chart(
         .get(index)
         .ok_or(Error::Invalid("induced support open"))?
         .clone();
-    let source = Arc::new(MarkedIdeal::new(
-        origin.center().child().ideal().clone(),
-        1,
-        b,
-    )?);
+    // The source belongs to the original coefficient construction. The actual
+    // admissible physical center may differ from its earlier local candidate.
+    let embedding = ambient.support().embedding();
+    let lower = embedding
+        .extension()
+        .ideal(ambient.chart().geometry().center().ideal(), b)?;
+    let source = Arc::new(MarkedIdeal::new(lower, 1, b)?);
     let center_pullback = controlled_supported(
         ambient.support().clone(),
         support.incidence_sum().open().clone(),

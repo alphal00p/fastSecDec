@@ -101,12 +101,15 @@ pub fn carry_companion_chart(
     namespace: &str,
     b: &mut Budget,
 ) -> Result<Arc<CarriedCompanionChart>> {
-    let RecursiveCenterOrigin::Companion(center) = chart.geometry().center().origin() else {
-        return Err(Error::Invalid(
-            "carried companion needs actual companion center",
-        ));
+    let center = match chart.geometry().center().origin() {
+        RecursiveCenterOrigin::Companion(c) => c.clone(),
+        RecursiveCenterOrigin::OriginalProblem(c) => c.origin().center().clone(),
+        _ => {
+            return Err(Error::Invalid(
+                "carried companion needs actual companion construction",
+            ));
+        }
     };
-    let center = center.clone();
     let q = center.coefficient().contact();
     if !Arc::ptr_eq(
         q.source().frame(),

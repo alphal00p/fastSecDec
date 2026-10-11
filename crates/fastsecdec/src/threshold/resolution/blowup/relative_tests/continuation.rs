@@ -463,7 +463,37 @@ fn relative_transition_induced_history_rejects_owner_substitution_and_birth_rese
         assert_eq!(induced.history().births().get(&BoundaryId(0)), Some(&1));
         let forged = ResolutionHistory::initial(induced.history().ledger().clone()).unwrap();
         assert!(!forged.same_root(cycle.initial_history()));
-        assert_eq!(forged.births().get(&BoundaryId(0)), Some(&0));
+        // Birth authority is independent of the currently active SNC ledger:
+        // the exceptional may already be a unit on this lower support.
+        if induced
+            .history()
+            .ledger()
+            .divisors()
+            .iter()
+            .any(|d| d.id == BoundaryId(0))
+        {
+            assert_eq!(forged.births().get(&BoundaryId(0)), Some(&0));
+        } else {
+            let exceptional = induced.ambient().chart().geometry().exceptional().unwrap();
+            let pulled = induced
+                .support()
+                .incidence_sum()
+                .open()
+                .extension()
+                .pull(exceptional, &mut b)
+                .unwrap();
+            assert!(
+                super::super::helpers::unit(
+                    induced.history().ledger().frame().local(),
+                    &pulled,
+                    &mut b
+                )
+                .unwrap()
+            );
+            assert_eq!(forged.births().get(&BoundaryId(0)), None);
+        }
+        // The legitimately issued transition keeps its birth even when absent.
+        assert_eq!(induced.history().births().get(&BoundaryId(0)), Some(&1));
         let mut ff = ComponentFactorFrontier::new(
             forged,
             induced.support().incidence_sum().target().clone(),

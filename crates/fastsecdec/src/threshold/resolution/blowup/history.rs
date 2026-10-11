@@ -161,14 +161,14 @@ impl ResolutionHistory {
         }))
     }
     pub(crate) fn advanced_induced(
-        &self,
+        self: &Arc<Self>,
         origin: &super::induced::EmbeddedChildCycle,
         ambient: &super::coefficient::CarriedCompanionChart,
         support: &super::coefficient::CarriedCompanionSupport,
         center_pullback: &super::coefficient::SupportedMarkedTransform,
         b: &mut Budget,
     ) -> Result<Arc<Self>> {
-        if !std::ptr::eq(self, origin.initial_history().as_ref())
+        if !Arc::ptr_eq(self, origin.initial_history())
             || !Arc::ptr_eq(origin.center(), ambient.center())
             || self.stage != 0
             || !self.path.is_empty()
@@ -188,12 +188,64 @@ impl ResolutionHistory {
         {
             return Err(Error::Invalid("induced history original J association"));
         }
-        self.advance_first_embedded(child, ambient.chart(), j, center_pullback, b)
+        if !Arc::ptr_eq(j.support(), ambient.support())
+            || !Arc::ptr_eq(j.open(), center_pullback.open())
+            || !Arc::ptr_eq(j.support(), center_pullback.support())
+        {
+            return Err(Error::Invalid("original source induced transform owner"));
+        }
+        match ambient.chart().geometry().center().origin() {
+            RecursiveCenterOrigin::Companion(c) if Arc::ptr_eq(c, origin.center()) => {}
+            RecursiveCenterOrigin::OriginalProblem(c)
+                if std::ptr::eq(c.origin().as_ref(), origin) => {}
+            _ => {
+                return Err(Error::Invalid(
+                    "original lower J actual checked ascent origin",
+                ));
+            }
+        }
+        for source in [
+            child.source().clone(),
+            Arc::new(
+                origin
+                    .center()
+                    .coefficient()
+                    .contact()
+                    .differential_coefficient()
+                    .clone(),
+            ),
+        ] {
+            super::lower_boundary::verify_marked_center(
+                self.ledger.frame(),
+                &source,
+                center_pullback.source().ideal(),
+                b,
+            )?;
+        }
+        let extension = j.support().embedding().extension();
+        let normals = ambient
+            .chart()
+            .geometry()
+            .center()
+            .normals()
+            .iter()
+            .map(|f| extension.pull(f, b))
+            .collect::<Result<Vec<_>>>()?;
+        let boundary = super::lower_boundary::LowerBoundaryTransform::prepare(
+            self.clone(),
+            ambient.chart().clone(),
+            j.support().clone(),
+            Arc::new(center_pullback.clone()),
+            normals,
+            "original_source_boundary",
+            b,
+        )?;
+        self.advanced_lower_boundary(&boundary, b)
     }
     /// Shared first induced transition; callers must consume the actual original
     /// coefficient/recursion construction owner before invoking it.
     pub(crate) fn advance_first_embedded(
-        &self,
+        self: &Arc<Self>,
         child: &Arc<RecursiveCenter>,
         chart: &Arc<RelativeRecursiveChart>,
         j: &super::coefficient::SupportedMarkedTransform,
@@ -214,8 +266,6 @@ impl ResolutionHistory {
                 "first induced hierarchy original source/history ownership",
             ));
         }
-        let geometry = chart.geometry();
-        let frame = j.open().frame();
         if !Arc::ptr_eq(center_pullback.support(), j.support())
             || !Arc::ptr_eq(center_pullback.open(), j.open())
             || center_pullback.source().ideal() != child.ideal()
@@ -223,87 +273,16 @@ impl ResolutionHistory {
         {
             return Err(Error::Invalid("induced center pullback construction owner"));
         }
-        let local = frame.local();
-        if !local
-            .ideal()
-            .sum(center_pullback.target().ideal(), b)?
-            .contains(&local.ring().one(), local.unit_relations(), b)?
-        {
-            return Err(Error::Invalid(
-                "induced center pullback not exceptional principal",
-            ));
-        }
-        let mut births = self.births.clone();
-        let mut contexts = self.birth_contexts.clone();
-        let provenance = HistoryCenter::RelativeIdeal {
-            source_ring: self.ledger.frame().local().ring().clone(),
-            ideal: child.ideal().clone(),
-            normals: child.normals().to_vec(),
-        };
-        let (ledger, stage, next_id) = if let Some(e) = geometry.exceptional() {
-            let (id, stage) = self.next_transition()?;
-            let equation = j.open().extension().pull(e, b)?;
-            let ledger = match verify_initial_relative_snc(
-                frame.clone(),
-                vec![InitialDivisor { id, equation }],
-                b,
-            )? {
-                SncProduction::Verified(v) => v,
-                SncProduction::Incomplete { reason, .. } => {
-                    return Err(Error::ResourceIncomplete(reason));
-                }
-                SncProduction::Unresolved { .. } => {
-                    return Err(Error::Invalid("induced exceptional SNC"));
-                }
-            };
-            births.insert(id, stage);
-            contexts.insert(
-                id,
-                BirthContext {
-                    parent_chart_path: self.path.clone(),
-                    center: provenance.clone(),
-                },
-            );
-            (
-                ledger,
-                stage,
-                BoundaryId(
-                    id.0.checked_add(1)
-                        .ok_or(Error::ResourceIncomplete("induced birth exhaustion"))?,
-                ),
-            )
-        } else {
-            let ledger = match verify_initial_relative_snc(frame.clone(), vec![], b)? {
-                SncProduction::Verified(v) => v,
-                SncProduction::Incomplete { reason, .. } => {
-                    return Err(Error::ResourceIncomplete(reason));
-                }
-                SncProduction::Unresolved { .. } => {
-                    return Err(Error::Invalid("induced empty SNC"));
-                }
-            };
-            (ledger, self.stage, self.next_id)
-        };
-        b.reserve_slots(1)?;
-        let mut path = self.path.clone();
-        path.push(HistoryStep::EmbeddedBlowup {
-            center: provenance,
-            ambient_path: chart.history().chart_path().to_vec(),
-            source_open: geometry.open().source_open().clone(),
-            pivot_normal: geometry.pivot_normal(),
-            support_equations: j.open().chosen_equations().to_vec(),
-            support_columns: j.open().columns().to_vec(),
-        });
-        Ok(Arc::new(Self {
-            root: self.root.clone(),
-            ledger,
-            stage,
-            births,
-            old_snapshot: self.old_snapshot.clone(),
-            next_id,
-            path,
-            birth_contexts: contexts,
-        }))
+        let boundary = super::lower_boundary::LowerBoundaryTransform::prepare(
+            self.clone(),
+            chart.clone(),
+            j.support().clone(),
+            Arc::new(center_pullback.clone()),
+            child.normals().to_vec(),
+            "original_lower_boundary",
+            b,
+        )?;
+        self.advanced_lower_boundary(&boundary, b)
     }
     pub fn initial(ledger: Arc<VerifiedRelativeSnc>) -> Result<Arc<Self>> {
         let next = ledger
@@ -620,3 +599,5 @@ impl ResolutionHistory {
 }
 
 mod embedded;
+
+mod lower;
