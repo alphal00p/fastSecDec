@@ -124,7 +124,9 @@ impl MapDescriptor {
             .try_for_each(|id| atom(*id, &g.expressions, tables))?;
         atom(g.positive_measure, &g.expressions, tables)?;
         g.certificate.validate()?;
-        if let Self::AlgebraicSectionsV1 { sections, .. } = self {
+        if let Self::AlgebraicSectionsV1 { sections, .. } | Self::RegularSecantV1 { sections, .. } =
+            self
+        {
             if sections.is_empty() {
                 return Err(invalid("algebraic map has no sections"));
             }
@@ -143,6 +145,41 @@ impl MapDescriptor {
                     return Err(invalid("algebraic section order or root variable"));
                 }
                 section.branch_certificate.validate()?;
+            }
+        }
+        if let Self::RegularSecantV1 { endpoint, .. } = self {
+            symbol(endpoint.regulator, tables)?;
+            endpoint.continuation_policy.validate()?;
+            endpoint.common_domain.validate()?;
+            endpoint.numerator_functions.validate()?;
+            budget.nodes(endpoint.terms.len())?;
+            budget.refs(endpoint.root_helpers.len())?;
+            if endpoint.terms.is_empty() || endpoint.root_helpers.is_empty() {
+                return Err(invalid("empty regular-section endpoint record"));
+            }
+            for d in &endpoint.root_helpers {
+                d.validate()?;
+            }
+            ordered(&endpoint.root_helpers, "root helper identities")?;
+            for term in &endpoint.terms {
+                if term.powers.len() != g.coordinates.len() {
+                    return Err(invalid("endpoint power dimension"));
+                }
+                budget.refs(term.powers.len() + 2)?;
+                atom(term.prefactor, &g.expressions, tables)?;
+                atom(term.regular, &g.expressions, tables)?;
+                for p in &term.powers {
+                    atom(*p, &g.expressions, tables)?;
+                }
+                budget.nodes(term.factors.len())?;
+                for f in &term.factors {
+                    if f.source_term != term.source_term {
+                        return Err(invalid("factor source-term association"));
+                    }
+                    atom(f.source, &g.expressions, tables)?;
+                    atom(f.exponent, &g.expressions, tables)?;
+                    f.certificate.validate()?;
+                }
             }
         }
         Ok(())
@@ -219,7 +256,13 @@ impl LineageManifestV1 {
                     "map coordinate captures a regulator or physical parameter",
                 ));
             }
-            if let MapDescriptor::AlgebraicSectionsV1 { sections, .. } = map
+            if let MapDescriptor::RegularSecantV1 { endpoint, .. } = map
+                && endpoint.regulator != p.regulator
+            {
+                return Err(invalid("normalized endpoint regulator differs from source"));
+            }
+            if let MapDescriptor::AlgebraicSectionsV1 { sections, .. }
+            | MapDescriptor::RegularSecantV1 { sections, .. } = map
                 && sections.iter().any(|s| {
                     s.root_variable == p.regulator
                         || p.fiber.physical_parameters.contains(&s.root_variable)
@@ -479,6 +522,34 @@ impl LineageManifestV1 {
             .any(|m| !matches!(m, MapDescriptor::RationalV1 { .. }))
         {
             return Err(Error::Unsupported("algebraic moving sections".into()));
+        }
+        if self
+            .continuation_groups
+            .iter()
+            .any(|g| !matches!(g.continuation, Continuation::EpsilonStripV1 { .. }))
+        {
+            return Err(Error::Unsupported("auxiliary integral cancellation".into()));
+        }
+        Ok(())
+    }
+
+    /// Arithmetic schema fence for the sealed native factories. This accepts
+    /// only the issued fixed regular-section successor, never the generic future
+    /// algebraic/auxiliary descriptors. It is still not proof revalidation.
+    pub(crate) fn validate_executable_schema_kinds(&self) -> Result<()> {
+        if self
+            .patches
+            .iter()
+            .map(|p| &p.map)
+            .chain(self.endpoint_charts.iter().map(|p| &p.map))
+            .any(|m| {
+                !matches!(
+                    m,
+                    MapDescriptor::RationalV1 { .. } | MapDescriptor::RegularSecantV1 { .. }
+                )
+            })
+        {
+            return Err(Error::Unsupported("unissued algebraic map recipe".into()));
         }
         if self
             .continuation_groups

@@ -1,0 +1,404 @@
+//! Immutable, detached helper ownership and native IR codec. No optimizer runs
+//! on restore. The contract digest binds the branch, not just polynomial degree.
+use super::Error;
+#[cfg(feature = "threshold-decomposition")]
+use super::numeric::ROOT;
+use std::{cell::RefCell, collections::BTreeMap, sync::Arc};
+#[cfg(feature = "threshold-decomposition")]
+use symbolica::evaluate::OptimizationSettings;
+use symbolica::{
+    atom::{Atom, AtomCore, AtomView, Symbol},
+    domains::{float::Complex, rational::Rational},
+    evaluate::{ExpressionEvaluator, Instruction},
+    symbol,
+};
+type Exact = ExpressionEvaluator<Complex<Rational>>;
+type Result<T> = std::result::Result<T, Error>;
+const CONTRACT: &str = "fastsecdec::algebraic::contract_v1_";
+#[derive(Debug)]
+pub struct RootProgram {
+    pub(super) exact: Exact,
+    pub(super) lower: Rational,
+    pub(super) upper: Rational,
+    pub(super) degree: usize,
+    tag: Symbol,
+    #[cfg(feature = "threshold-decomposition")]
+    semantic: String,
+    bytes: Vec<u8>,
+}
+// Explicit transport limits. They bound decoded vectors and scalar literals;
+// native evaluator preparation/normalization still needs caller process limits.
+pub(super) const MAX_HELPER_BYTES: usize = 8 * 1024 * 1024;
+const MAX_CONTRACT_BYTES: usize = 1024 * 1024;
+const MAX_SCALAR_BYTES: usize = 4096;
+pub(super) const MAX_DEGREE: usize = 4096;
+const MAX_RATIONAL_BITS: u64 = 8192;
+#[derive(bincode::Encode, bincode::BorrowDecode)]
+pub(super) struct Wire<'a> {
+    pub(super) version: u32,
+    pub(super) degree: usize,
+    pub(super) contract: &'a [u8],
+    pub(super) bracket: &'a [u8],
+    pub(super) exact: &'a [u8],
+}
+struct Saved {
+    version: u32,
+    contract: Vec<u8>,
+    lower: Rational,
+    upper: Rational,
+    degree: usize,
+    exact: Exact,
+}
+fn scalar_admission(q: &Rational) -> bool {
+    q.numerator_ref().significant_bits() <= MAX_RATIONAL_BITS
+        && q.denominator_ref().significant_bits() <= MAX_RATIONAL_BITS
+}
+fn header_admission(
+    degree: usize,
+    contract: &[u8],
+    lower: &Rational,
+    upper: &Rational,
+) -> Result<()> {
+    if degree == 0
+        || degree > MAX_DEGREE
+        || contract.is_empty()
+        || contract.len() > MAX_CONTRACT_BYTES
+        || lower >= upper
+        || !scalar_admission(lower)
+        || !scalar_admission(upper)
+    {
+        return Err(Error::Invalid(
+            "root helper bounded preparation schema".into(),
+        ));
+    }
+    // This first arithmetic recipe enters through f64. Its static numerical
+    // bracket must survive that mapping exactly; an arbitrary rational rounded
+    // inward could exclude an actual closed-face endpoint root. No padding or
+    // unproved bracket widening is performed. Geometry may retain a broader
+    // rational certificate for a future precision-specific numerical recipe.
+    for endpoint in [lower, upper] {
+        let value = endpoint.to_f64();
+        if !value.is_finite() || Rational::try_from(value).ok().as_ref() != Some(endpoint) {
+            return Err(Error::Unsupported(
+                "static root bracket is not exactly representable in the primary f64 domain".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+impl RootProgram {
+    #[cfg(feature = "threshold-decomposition")]
+    pub(crate) fn prepare_from_certificate(
+        degree: usize,
+        lower: Rational,
+        upper: Rational,
+        contract: Vec<u8>,
+        settings: OptimizationSettings,
+    ) -> Result<Arc<Self>> {
+        header_admission(degree, &contract, &lower, &upper)?;
+        let z = symbol!("fastsecdec::algebraic::root_argument");
+        let mut inputs = vec![Atom::var(z)];
+        let mut polynomial = Atom::zero();
+        for i in 0..=degree {
+            let c = Atom::var(symbol!(&format!("fastsecdec::algebraic::coefficient_{i}")));
+            polynomial += &c * Atom::var(z).pow(i as i64);
+            inputs.push(c);
+        }
+        let exact =
+            Atom::evaluator_multiple(&[polynomial.clone(), polynomial.derivative(z)], &inputs)
+                .optimization_settings(settings)
+                .build()
+                .map_err(|e| Error::Native(e.to_string()))?;
+        let saved = Saved {
+            version: 1,
+            contract,
+            lower,
+            upper,
+            degree,
+            exact,
+        };
+        let bracket = bincode::serde::encode_to_vec(
+            (&saved.lower, &saved.upper),
+            bincode::config::standard(),
+        )
+        .map_err(|e| Error::Native(e.to_string()))?;
+        let exact = bincode::serde::encode_to_vec(&saved.exact, bincode::config::standard())
+            .map_err(|e| Error::Native(e.to_string()))?;
+        let bytes = bincode::encode_to_vec(
+            Wire {
+                version: 1,
+                degree,
+                contract: &saved.contract,
+                bracket: &bracket,
+                exact: &exact,
+            },
+            bincode::config::standard(),
+        )
+        .map_err(|e| Error::Native(e.to_string()))?;
+        if bytes.len() > MAX_HELPER_BYTES {
+            return Err(Error::Invalid(
+                "root helper exceeds transport byte limit".into(),
+            ));
+        }
+        Self::admit(saved, bytes)
+    }
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Arc<Self>> {
+        if bytes.len() > MAX_HELPER_BYTES {
+            return Err(Error::Invalid(
+                "root helper exceeds transport byte limit".into(),
+            ));
+        }
+        // Borrow lengths/metadata first: degree, coefficient count and byte
+        // limits are checked BEFORE allocating native evaluator vectors.
+        let (wire, read): (Wire<'_>, usize) = bincode::borrow_decode_from_slice(
+            bytes,
+            bincode::config::standard().with_limit::<MAX_HELPER_BYTES>(),
+        )
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+        if read != bytes.len()
+            || wire.version != 1
+            || wire.degree == 0
+            || wire.degree > MAX_DEGREE
+            || wire.contract.is_empty()
+            || wire.contract.len() > MAX_CONTRACT_BYTES
+            || wire.bracket.len() > MAX_SCALAR_BYTES
+        {
+            return Err(Error::Invalid("root helper bounded wire schema".into()));
+        }
+        let ((lower, upper), read): ((Rational, Rational), usize) =
+            bincode::serde::decode_from_slice(
+                wire.bracket,
+                bincode::config::standard().with_limit::<MAX_SCALAR_BYTES>(),
+            )
+            .map_err(|e| Error::Invalid(e.to_string()))?;
+        if read != wire.bracket.len() {
+            return Err(Error::Invalid("trailing root bracket bytes".into()));
+        }
+        header_admission(wire.degree, wire.contract, &lower, &upper)?;
+        let (exact, read): (Exact, usize) = bincode::serde::decode_from_slice(
+            wire.exact,
+            bincode::config::standard().with_limit::<MAX_HELPER_BYTES>(),
+        )
+        .map_err(|e| Error::Invalid(e.to_string()))?;
+        if read != wire.exact.len() {
+            return Err(Error::Invalid("trailing root IR bytes".into()));
+        }
+        Self::admit(
+            Saved {
+                version: 1,
+                contract: wire.contract.to_vec(),
+                lower,
+                upper,
+                degree: wire.degree,
+                exact,
+            },
+            bytes.to_vec(),
+        )
+    }
+    fn admit(saved: Saved, bytes: Vec<u8>) -> Result<Arc<Self>> {
+        if saved.version != 1
+            || saved.degree == 0
+            || saved.degree > MAX_DEGREE
+            || saved.degree.checked_add(2) != Some(saved.exact.get_input_len())
+            || saved.exact.get_output_len() != 2
+            || saved.lower >= saved.upper
+            || saved.contract.is_empty()
+        {
+            return Err(Error::Invalid("root helper schema".into()));
+        }
+        let code = saved.exact.export_instructions();
+        if !code.constant_functions.is_empty()
+            || !code.sub_evaluators.is_empty()
+            || code.constants.iter().any(|c| c.im != 0)
+            || code.instructions.iter().any(|i| {
+                !matches!(
+                    i,
+                    Instruction::Add(..)
+                        | Instruction::Mul(..)
+                        | Instruction::Assign(..)
+                        | Instruction::Pow(_, _, 0.., _)
+                )
+            })
+        {
+            return Err(Error::Invalid(
+                "root helper must be native real polynomial arithmetic".into(),
+            ));
+        }
+        // Includes complete native IR, preparation recipe and branch contract. No
+        // process-local Symbol IDs or global registry are used for owner selection.
+        let digest = blake3::hash(&bytes).to_hex().to_string();
+        // Arithmetic transport includes optimized IR. Mathematical association
+        // includes only the selected polynomial/branch and numeric recipe.
+        #[cfg(feature = "threshold-decomposition")]
+        let semantic = {
+            let identity = serde_json::to_vec(&(
+                "fastsecdec-selected-root-mathematics-v1",
+                saved.version,
+                saved.degree,
+                &saved.contract,
+                saved.lower.to_string(),
+                saved.upper.to_string(),
+            ))
+            .map_err(|e| Error::Invalid(e.to_string()))?;
+            blake3::hash(&identity).to_hex().to_string()
+        };
+        Ok(Arc::new(Self {
+            exact: saved.exact,
+            lower: saved.lower,
+            upper: saved.upper,
+            degree: saved.degree,
+            tag: symbol!(&format!("{CONTRACT}{digest}")),
+            #[cfg(feature = "threshold-decomposition")]
+            semantic,
+            bytes,
+        }))
+    }
+    #[cfg(feature = "threshold-decomposition")]
+    pub(crate) fn semantic_identity(&self) -> &str {
+        &self.semantic
+    }
+    #[cfg(feature = "threshold-decomposition")]
+    pub(crate) fn transport_symbol(&self) -> Symbol {
+        self.tag
+    }
+    #[cfg(feature = "threshold-decomposition")]
+    pub fn call(&self, tag: Symbol, coefficients: &[Atom]) -> Result<Atom> {
+        if coefficients.len() != self.degree + 1 {
+            return Err(Error::Invalid("root coefficient shape".into()));
+        }
+        Ok(ROOT.call_args(
+            [Atom::num(self.degree), Atom::var(tag), Atom::var(self.tag)]
+                .into_iter()
+                .chain(coefficients.iter().cloned()),
+        ))
+    }
+    pub(crate) fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+}
+#[derive(Clone, Default)]
+pub struct Scope(BTreeMap<(Symbol, Symbol), Arc<RootProgram>>);
+thread_local! { static PREPARING: RefCell<Option<(Scope, u32)>> = const { RefCell::new(None) }; }
+impl Scope {
+    pub fn insert(&mut self, tag: Symbol, program: Arc<RootProgram>) -> Result<()> {
+        match self.0.entry((tag, program.tag)) {
+            std::collections::btree_map::Entry::Vacant(slot) => {
+                slot.insert(program);
+                Ok(())
+            }
+            std::collections::btree_map::Entry::Occupied(_) => {
+                Err(Error::Invalid("duplicate root owner tag".into()))
+            }
+        }
+    }
+    pub fn enter<R>(&self, bits: u32, run: impl FnOnce() -> R) -> R {
+        if self.0.is_empty() {
+            return run();
+        }
+        struct Restore(Option<(Scope, u32)>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                PREPARING.replace(self.0.take());
+            }
+        }
+        let _restore = Restore(PREPARING.replace(Some((self.clone(), bits))));
+        run()
+    }
+    pub(in crate::kernel) fn capture_for(
+        callbacks: &[crate::kernel::program::Callback],
+    ) -> std::result::Result<Self, String> {
+        let mut selected = Self::default();
+        for callback in callbacks.iter().filter(|c| super::is_root(c.symbol)) {
+            let tags = callback.tags.iter().map(Atom::as_view).collect::<Vec<_>>();
+            let (owner, _) = resolve(&tags)?;
+            let tag = tags[1].as_var_view().unwrap().get_symbol();
+            if let Some(prior) = selected.0.insert((tag, owner.tag), owner.clone())
+                && prior.tag != owner.tag
+            {
+                return Err("incompatible root owners share a tag".into());
+            }
+        }
+        Ok(selected)
+    }
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    pub(crate) fn owners(&self) -> impl Iterator<Item = (Symbol, &Arc<RootProgram>)> {
+        self.0.iter().map(|((tag, _), v)| (*tag, v))
+    }
+
+    pub(crate) fn merged<'a>(scopes: impl Iterator<Item = &'a Scope>) -> Result<Self> {
+        let mut result = Self::default();
+        for scope in scopes {
+            for (key, owner) in &scope.0 {
+                if let Some(old) = result.0.insert(*key, owner.clone())
+                    && old.bytes() != owner.bytes()
+                {
+                    return Err(Error::Invalid(
+                        "conflicting algebraic helper identity".into(),
+                    ));
+                }
+            }
+        }
+        Ok(result)
+    }
+    pub(crate) fn saved(&self) -> Vec<(Symbol, Vec<u8>)> {
+        let mut rows = self
+            .owners()
+            .map(|(tag, owner)| (tag, owner.bytes().to_vec()))
+            .collect::<Vec<_>>();
+        rows.sort_by_cached_key(|(tag, bytes)| {
+            (
+                tag.get_name().to_owned(),
+                blake3::hash(bytes).to_hex().to_string(),
+            )
+        });
+        rows
+    }
+    pub(crate) fn restore(rows: Vec<(Symbol, Vec<u8>)>) -> Result<Self> {
+        let mut result = Self::default();
+        for (tag, bytes) in rows {
+            result.insert(tag, RootProgram::from_bytes(&bytes)?)?;
+        }
+        Ok(result)
+    }
+    #[cfg(test)]
+    pub fn native_roundtrip(&self) -> Result<Self> {
+        let mut scope = Self::default();
+        for ((tag, _), owner) in &self.0 {
+            scope.insert(*tag, RootProgram::from_bytes(owner.bytes())?)?;
+        }
+        Ok(scope)
+    }
+}
+pub(super) fn resolve(
+    tags: &[AtomView<'_>],
+) -> std::result::Result<(Arc<RootProgram>, u32), String> {
+    if tags.len() != 3 {
+        return Err("root callback requires degree, owner and branch-contract tags".into());
+    }
+    let tag = tags[1]
+        .as_var_view()
+        .ok_or("root owner tag must be a symbol")?
+        .get_symbol();
+    PREPARING.with_borrow(|active| {
+        let (scope, bits) = active
+            .as_ref()
+            .ok_or("root callback requires its selected preparation scope")?;
+        let contract = tags[2]
+            .as_var_view()
+            .ok_or("root contract tag must be a symbol")?
+            .get_symbol();
+        let owner = scope
+            .0
+            .get(&(tag, contract))
+            .ok_or("root callback owner absent from selected scope")?;
+        if tags[0] != Atom::num(owner.degree).as_view() || tags[2] != Atom::var(owner.tag).as_view()
+        {
+            return Err(
+                "root callback degree/branch contract differs from its selected owner".into(),
+            );
+        }
+        Ok((owner.clone(), *bits))
+    })
+}

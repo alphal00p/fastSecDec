@@ -334,7 +334,31 @@ impl Routing {
     }
 }
 
+/// Native arithmetic recipe supported by the current detached root helper.
+/// This reports execution requirements; it does not certify a geometric chart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlgebraicCallbackRecipe {
+    /// Static rational bracket endpoints are exactly representable as finite
+    /// f64 values. Roots may be irrational and of arbitrary admitted degree.
+    /// Requires Validated whole-vector checks; native tracking has finite
+    /// representable error range and may return precision failure.
+    StaticExactF64BracketV1,
+}
+
 impl super::KernelSet {
+    /// Inspect the arithmetic recipe without evaluating or replaying proofs.
+    pub fn algebraic_callback_recipe(&self) -> Option<AlgebraicCallbackRecipe> {
+        self.requires_validated_algebraic_callbacks()
+            .then_some(AlgebraicCallbackRecipe::StaticExactF64BracketV1)
+    }
+    /// Algebraic roots currently require native tracked whole-vector validation.
+    /// Distance/cutoff policies lack a branch-cancellation acceptance gate.
+    pub fn requires_validated_algebraic_callbacks(&self) -> bool {
+        self.sectors
+            .iter()
+            .any(|sector| !sector.algebraic.is_empty())
+    }
     pub fn stability_settings(&self) -> &StabilitySettings {
         &self.stability
     }
@@ -344,6 +368,15 @@ impl super::KernelSet {
         settings: &StabilitySettings,
     ) -> Result<(), KernelError> {
         settings.validate()?;
+        if self.requires_validated_algebraic_callbacks()
+            && (settings.mode != StabilityMode::Validated
+                || settings.unstable_cutoff.is_some()
+                || !settings.unstable_power_thresholds.is_empty())
+        {
+            return Err(invalid(
+                "algebraic-root kernels require validated stability without cutoff zeros",
+            ));
+        }
         let routings = self
             .sectors
             .iter()

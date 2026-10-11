@@ -198,7 +198,7 @@ fn masked_constant_callback_failure_is_an_explicit_mapping_error() {
         dynamic::failure("outer preparation".into());
         assert!(matches!(
             real(&exact, backend),
-            Err(KernelError::Compilation(reason)) if reason.contains("dynamic callback preparation failed")
+            Err(KernelError::Compilation(reason)) if reason.contains("native callback preparation failed")
         ));
         assert_eq!(
             dynamic::take_failure().as_deref(),
@@ -206,7 +206,7 @@ fn masked_constant_callback_failure_is_an_explicit_mapping_error() {
         );
         assert!(matches!(
             complex(&exact, backend),
-            Err(KernelError::Compilation(reason)) if reason.contains("dynamic callback preparation failed")
+            Err(KernelError::Compilation(reason)) if reason.contains("native callback preparation failed")
         ));
     }
     // The underlying mathematical constant remains valid in native MP. This

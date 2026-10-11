@@ -93,23 +93,24 @@ impl<T: EvaluationDomain + Real> PrecisionCache<T> {
             self.requirements.diagnostics_configuration(),
             Phase::Evaluation,
             || {
-                if let Some(validation) = &mut self.validation {
-                    if !validation.evaluate(point, || {
-                        entry.evaluator.evaluate(&entry.input, &mut entry.output)
-                    }) {
-                        self.last_dynamic_error = validation.last_error.clone();
-                        entry.output.fill(number(f64::NAN));
+                let mut modes = self.requirements.callback_modes();
+                if self.validation.is_some() {
+                    modes.contour = false;
+                }
+                let (valid, failure) = modes.isolated(|| {
+                    if let Some(validation) = &mut self.validation {
+                        validation.evaluate(point, || {
+                            entry.evaluator.evaluate(&entry.input, &mut entry.output)
+                        })
+                    } else {
+                        entry.evaluator.evaluate(&entry.input, &mut entry.output);
+                        true
                     }
-                } else if self.requirements.has_dynamic_callbacks() {
-                    let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
-                        entry.evaluator.evaluate(&entry.input, &mut entry.output)
-                    });
-                    self.last_dynamic_error = failure;
-                    if self.last_dynamic_error.is_some() {
-                        entry.output.fill(number(f64::NAN));
-                    }
-                } else {
-                    entry.evaluator.evaluate(&entry.input, &mut entry.output);
+                });
+                self.last_dynamic_error =
+                    failure.or_else(|| self.validation.as_ref().and_then(|v| v.last_error.clone()));
+                if !valid || self.last_dynamic_error.is_some() {
+                    entry.output.fill(number(f64::NAN));
                 }
             },
         );

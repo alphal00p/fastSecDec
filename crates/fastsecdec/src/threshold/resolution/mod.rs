@@ -99,12 +99,15 @@ pub use producer::{
     produce_ordinary_contact_cover,
 };
 pub use recursive::{
-    BoundaryFreeFirstCenter, CarriedFirstBlowup, CarriedFirstChart, CompanionCenter,
-    CompanionCenterOutcome, CompanionFirstCenter, ControlledGenerator, CycleOrigin, CycleSnapshot,
-    FirstBlowup, InitialProblem, InitialProblemRecursion, LiftReceipt, PreparedProblemCenter,
-    ProblemConstruction, ProblemRecursionRecord, RecursiveAdvance, RecursiveBlowupChart,
-    RecursiveCenter, RecursiveComponentCover, RecursiveLevel, RecursiveOutcome, ResidualDrop,
-    carry_first_blowup, first_coordinate_blowup, prove_first_residual_drop,
+    AuxiliaryRecursionOrigin, BoundaryFreeFirstCenter, CarriedFirstBlowup, CarriedFirstChart,
+    CompanionCenter, CompanionCenterOutcome, CompanionFirstCenter, ComponentLocalization,
+    ComponentLocalizationAdvance, ComponentLocalizationFrontier, ComponentLocalizationState,
+    ControlledGenerator, CycleOrigin, CycleSnapshot, FirstBlowup, InitialProblem,
+    InitialProblemRecursion, LiftReceipt, LocalizedComponentCenter, LocalizedComponentSources,
+    PreparedProblemCenter, ProblemConstruction, ProblemRecursionRecord, RecursiveAdvance,
+    RecursiveBlowupChart, RecursiveCenter, RecursiveComponentCover, RecursiveLevel,
+    RecursiveOutcome, ResidualDrop, carry_first_blowup, first_coordinate_blowup,
+    prove_first_residual_drop,
 };
 pub use transform::{ControlledTransformCertificate, DivisorTransform, VerifiedTransform};
 

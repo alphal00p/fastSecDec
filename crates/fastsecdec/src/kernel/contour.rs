@@ -295,7 +295,7 @@ impl super::SectorKernel {
             .as_ref()
             .map(SectorValidation::report)
             .or_else(|| {
-                self.has_dynamic_callbacks()
+                self.has_contour_callbacks()
                     .then_some(ContourProductionReport {
                         policy: crate::contour::ContourValidation::Off,
                         checked_arguments: 0,

@@ -18,7 +18,7 @@ pub(in crate::kernel) struct Conditioning<T> {
 #[derive(Clone)]
 pub(in crate::kernel) struct ConditioningEvaluator<T> {
     evaluator: ExpressionEvaluator<T>,
-    dynamic: bool,
+    modes: crate::kernel::callback_attempt::Modes,
     validation: Option<crate::kernel::contour::dynamic::validation::Validation>,
     last_error: Option<String>,
     configuration: Configuration,
@@ -36,21 +36,21 @@ impl<T: symbolica::domains::float::Real> ConditioningEvaluator<T> {
         self.last_error = None;
         self.diagnostics
             .measure(self.configuration, Phase::Conditioning, || {
-                if let Some(validation) = &mut self.validation {
-                    let valid =
-                        validation.evaluate(point, || self.evaluator.evaluate(input, output));
-                    self.last_error = validation.last_error.clone();
-                    !valid
-                } else if self.dynamic {
-                    let (_, failure) = crate::contour::functions::dynamic::isolated_attempt(|| {
-                        self.evaluator.evaluate(input, output)
-                    });
-                    self.last_error = failure;
-                    self.last_error.is_some()
-                } else {
-                    self.evaluator.evaluate(input, output);
-                    false
+                let mut modes = self.modes;
+                if self.validation.is_some() {
+                    modes.contour = false;
                 }
+                let (valid, failure) = modes.isolated(|| {
+                    if let Some(validation) = &mut self.validation {
+                        validation.evaluate(point, || self.evaluator.evaluate(input, output))
+                    } else {
+                        self.evaluator.evaluate(input, output);
+                        true
+                    }
+                });
+                self.last_error =
+                    failure.or_else(|| self.validation.as_ref().and_then(|v| v.last_error.clone()));
+                !valid || self.last_error.is_some()
             })
     }
 }
@@ -123,7 +123,7 @@ impl<T: EvaluationDomain> Conditioning<T> {
                     .ok()
                     .map(|evaluator| ConditioningEvaluator {
                         evaluator,
-                        dynamic: self.requirements.has_dynamic_callbacks(),
+                        modes: self.requirements.callback_modes(),
                         validation: self.requirements.validation(),
                         last_error: None,
                         configuration: self.requirements.diagnostics_configuration(),

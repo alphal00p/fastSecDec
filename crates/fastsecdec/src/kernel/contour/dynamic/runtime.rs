@@ -27,12 +27,13 @@ pub(in crate::kernel) enum Remapping {
     Complex(evaluator::ComplexEvaluator, Arc<MappingRequirements>),
 }
 impl SectorKernel {
-    pub(in crate::kernel) fn has_dynamic_callbacks(&self) -> bool {
+    pub(in crate::kernel) fn has_contour_callbacks(&self) -> bool {
         match &self.backend {
-            Backend::Real(kernel) => kernel.evaluator.has_dynamic_callbacks(),
-            Backend::Complex(kernel) => kernel.has_dynamic_callbacks(),
+            Backend::Real(kernel) => kernel.evaluator.has_contour_callbacks(),
+            Backend::Complex(kernel) => kernel.has_contour_callbacks(),
         }
     }
+
     pub(in crate::kernel) fn prepare_dynamic_mapping(
         &self,
         specification: Option<Arc<Specification>>,

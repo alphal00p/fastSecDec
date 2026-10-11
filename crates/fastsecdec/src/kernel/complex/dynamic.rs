@@ -35,9 +35,7 @@ impl ComplexKernel {
     pub(in crate::kernel) fn execution_backend(&self) -> crate::kernel::EvaluatorBackend {
         self.evaluator.execution_backend()
     }
-    pub(in crate::kernel) fn has_dynamic_callbacks(&self) -> bool {
-        self.evaluator.has_dynamic_callbacks()
-    }
+
     pub(in crate::kernel) fn dynamic_validation(&self) -> Option<&Validation> {
         self.evaluator.validation()
     }

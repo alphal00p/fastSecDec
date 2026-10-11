@@ -8,7 +8,8 @@ use crate::{
             codec::{self, Atoms, invalid},
         },
     },
-    threshold::regularization::BoundContinuation,
+    kernel::algebraic,
+    threshold::continued::ContinuedSource,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -21,6 +22,10 @@ use symbolica::{
 };
 
 const KIND: &str = "threshold-local-laurent-v1";
+const ALGEBRAIC_KIND: &str = "threshold-algebraic-local-laurent-v1";
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 type Result<T> = std::result::Result<T, StreamingError>;
 
 #[derive(Serialize, Deserialize)]
@@ -37,6 +42,10 @@ struct Definition {
     formals: Vec<usize>,
     body: usize,
     derivative_order: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    mixed_orders: Option<Vec<usize>>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    always_inline: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -56,6 +65,8 @@ struct Stored {
     coefficients: Vec<(i32, Aliased)>,
     definitions: Vec<Definition>,
     profiles: Vec<generation::EndpointProfileRow>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    roots: Vec<(usize, Vec<u8>)>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -65,8 +76,11 @@ pub(crate) struct StagedVector {
     pub minimum: i32,
     pub maximum: i32,
     pub kind: VectorKind,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub algebraic: bool,
 }
 pub(crate) struct LocalVector {
+    pub roots: algebraic::Scope,
     pub coordinates: Vec<Symbol>,
     pub coefficients: BTreeMap<i32, AliasedAtom>,
     pub functions: FunctionMap,
@@ -97,28 +111,31 @@ fn alias(value: &AliasedAtom, atoms: &mut Atoms) -> Aliased {
 pub(crate) fn write(
     root: &Path,
     parent: &str,
-    bound: &BoundContinuation<'_>,
+    source: ContinuedSource<'_>,
     chart: usize,
     maximum: i32,
 ) -> Result<StagedVector> {
-    let expression = bound
-        .chart_expressions()
+    let expression = source
+        .charts()
         .get(chart)
         .ok_or_else(|| invalid("continued chart index"))?;
     let mut coefficients = generation::threshold_expand_vector(
         expression,
-        &bound.coordinates(),
-        bound.regulators()[0],
+        &source.coordinates(),
+        source.regulators()[0],
         maximum,
     )?;
     let kind = if coefficients.is_empty() {
         VectorKind::ZeroInLayout {}
-    } else if coefficients
-        .values()
-        .all(|c| generation::coordinate_independent(c, &bound.coordinates()))
+    } else if source.rational().is_some()
+        && coefficients
+            .values()
+            .all(|c| generation::coordinate_independent(c, &source.coordinates()))
     {
         for coefficient in coefficients.values_mut() {
-            let materialized = bound
+            let materialized = source
+                .rational()
+                .expect("rational source checked")
                 .materialize_exact(&coefficient.clone().into_inner())
                 .map_err(invalid)?;
             *coefficient = AliasedAtom::from(materialized);
@@ -135,7 +152,7 @@ pub(crate) fn write(
         .min(maximum.min(0));
     let mut atoms = Atoms::default();
     let mut symbols = Vec::new();
-    let coordinates = bound
+    let coordinates = source
         .coordinates()
         .iter()
         .map(|s| symbol_index(&mut symbols, *s))
@@ -146,24 +163,39 @@ pub(crate) fn write(
         .collect();
     let mut definitions = Vec::new();
     if kind == (VectorKind::Stochastic {}) {
-        for definition in bound.definitions() {
+        for definition in source.definitions() {
             definitions.push(Definition {
-                head: symbol_index(&mut symbols, definition.head()),
-                tags: definition.tags().iter().map(|a| atoms.push(a)).collect(),
+                head: symbol_index(&mut symbols, definition.head),
+                tags: definition.tags.iter().map(|a| atoms.push(a)).collect(),
                 formals: definition
-                    .formals()
+                    .formals
                     .iter()
                     .map(|s| symbol_index(&mut symbols, *s))
                     .collect(),
-                body: atoms.push(definition.body()),
-                derivative_order: definition.derivative_order(),
+                body: atoms.push(&definition.body),
+                derivative_order: source
+                    .rational()
+                    .and_then(|_| definition.orders.as_ref().map(|o| o[1])),
+                mixed_orders: if source.rational().is_none() {
+                    definition.orders
+                } else {
+                    None
+                },
+                always_inline: source.rational().is_none() && definition.always_inline,
             });
         }
     }
+    let algebraic = source.rational().is_none();
+    let roots = source
+        .roots()
+        .saved()
+        .into_iter()
+        .map(|(tag, bytes)| (symbol_index(&mut symbols, tag), bytes))
+        .collect();
     let record = codec::write(
         root,
         &format!("threshold-chart-{chart}"),
-        KIND,
+        if algebraic { ALGEBRAIC_KIND } else { KIND },
         &Stored {
             parent: parent.into(),
             chart,
@@ -172,7 +204,8 @@ pub(crate) fn write(
             kind,
             coefficients,
             definitions,
-            profiles: bound
+            roots,
+            profiles: source
                 .profiles()
                 .get(chart)
                 .ok_or_else(|| invalid("continued chart profiles"))?
@@ -187,6 +220,7 @@ pub(crate) fn write(
         minimum,
         maximum,
         kind,
+        algebraic,
     })
 }
 
@@ -199,7 +233,27 @@ pub(crate) fn read(
     if record.record.bytes > maximum_bytes {
         return Err(invalid("local vector transport limit"));
     }
-    let (stored, atoms, symbols): (Stored, _, _) = codec::read(root, &record.record, KIND)?;
+    if record.algebraic {
+        algebraic::register();
+    }
+    let (stored, atoms, symbols): (Stored, _, _) = codec::read(
+        root,
+        &record.record,
+        if record.algebraic {
+            ALGEBRAIC_KIND
+        } else {
+            KIND
+        },
+    )?;
+    if !record.algebraic
+        && (!stored.roots.is_empty()
+            || stored
+                .definitions
+                .iter()
+                .any(|d| d.mixed_orders.is_some() || d.always_inline))
+    {
+        return Err(invalid("algebraic helpers in historical rational record"));
+    }
     if stored.parent != parent
         || stored.chart != record.chart
         || stored.maximum != record.maximum
@@ -213,6 +267,14 @@ pub(crate) fn read(
             .copied()
             .ok_or_else(|| invalid("local vector symbol index"))
     };
+    let roots = algebraic::Scope::restore(
+        stored
+            .roots
+            .into_iter()
+            .map(|(tag, bytes)| symbol(tag).map(|tag| (tag, bytes)))
+            .collect::<Result<Vec<_>>>()?,
+    )
+    .map_err(invalid)?;
     let coordinates = stored
         .coordinates
         .into_iter()
@@ -271,7 +333,29 @@ pub(crate) fn read(
             .map(symbol)
             .collect::<Result<Vec<_>>>()?;
         let body = atoms.take(definition.body)?;
-        if let Some(order) = definition.derivative_order {
+        if definition.derivative_order.is_some() && definition.mixed_orders.is_some() {
+            return Err(invalid("mixed derivative schema versions"));
+        }
+        if let Some(orders) = definition.mixed_orders {
+            if head != Symbol::DERIVATIVE
+                || orders.len() != formals.len() + 1
+                || orders.first() != Some(&0)
+                || !orders.iter().any(|n| *n > 0)
+                || tags.len() != orders.len() + 2
+                || tags.iter().zip(&orders).any(|(a, n)| a != &Atom::num(*n))
+            {
+                return Err(invalid("mixed derivative definition signature"));
+            }
+            functions
+                .add_tagged_function_with_options(
+                    head,
+                    tags,
+                    formals,
+                    body,
+                    FunctionRegistrationOptions::new().inlining(InliningPolicy::Always),
+                )
+                .map_err(invalid)?;
+        } else if let Some(order) = definition.derivative_order {
             if head != Symbol::DERIVATIVE
                 || order == 0
                 || tags.len() != 4
@@ -291,11 +375,22 @@ pub(crate) fn read(
                 .map_err(invalid)?;
         } else {
             functions
-                .add_tagged_function(head, tags, formals, body)
+                .add_tagged_function_with_options(
+                    head,
+                    tags,
+                    formals,
+                    body,
+                    if definition.always_inline {
+                        FunctionRegistrationOptions::new().inlining(InliningPolicy::Always)
+                    } else {
+                        FunctionRegistrationOptions::new()
+                    },
+                )
                 .map_err(invalid)?;
         }
     }
     Ok(LocalVector {
+        roots,
         coordinates,
         coefficients,
         functions,
@@ -333,6 +428,7 @@ pub(crate) fn write_exact(
         coefficients: values,
         definitions: Vec::new(),
         profiles: Vec::new(),
+        roots: Vec::new(),
     };
     let record = codec::write(
         root,
@@ -348,5 +444,6 @@ pub(crate) fn write_exact(
         minimum,
         maximum,
         kind: VectorKind::Exact {},
+        algebraic: false,
     })
 }

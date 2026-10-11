@@ -25,6 +25,8 @@ const MAGIC_V10: &[u8] = b"FastSecDec\0binserde\x0a";
 const MAGIC_V11: &[u8] = b"FastSecDec\0binserde\x0b";
 const MAGIC_V12: &[u8] = b"FastSecDec\0binserde\x0c";
 const MAGIC_V15: &[u8] = b"FastSecDec\0binserde\x0f";
+const MAX_ROOT_RECORD_BYTES: usize = 256 * 1024 * 1024;
+const MAGIC_V17: &[u8] = b"FastSecDec\0binserde\x11";
 const MAGIC_V16: &[u8] = b"FastSecDec\0binserde\x10";
 const MAGIC_V14: &[u8] = b"FastSecDec\0binserde\x0e";
 const MAGIC_V8: &[u8] = b"FastSecDec\0binserde\x08";
@@ -116,6 +118,22 @@ struct PayloadV16 {
     threshold: crate::kernel::threshold_owner::SavedV16,
 }
 
+/// Selected-root arithmetic transport, with an explicit validated-policy capability.
+/// Helper IR and branch association are trusted execution, not proof import.
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+struct PayloadV17 {
+    base: PayloadV12,
+    threshold: Option<SavedThreshold>,
+    roots: Vec<(Symbol, Vec<u8>)>,
+    validated_policy_version: u32,
+}
+#[derive(Encode, Decode)]
+#[bincode(decode_context = "StateMap")]
+enum SavedThreshold {
+    Global(crate::kernel::threshold_owner::Saved),
+    Local(crate::kernel::threshold_owner::SavedV16),
+}
 #[derive(Encode, Decode)]
 enum SavedDescriptor {
     V10(#[bincode(with_serde)] crate::kernel::recipe::SavedProgramDescriptor),
@@ -443,7 +461,14 @@ fn encode_with_requests(
     descriptor: Option<SavedDescriptor>,
     exact_requests: Vec<ExactRequest>,
 ) -> Result<(String, Vec<u8>), KernelError> {
-    encode_with_threshold(payload, descriptor, exact_requests, None, true)
+    encode_with_threshold(
+        payload,
+        descriptor,
+        exact_requests,
+        None,
+        true,
+        &crate::kernel::algebraic::Scope::default(),
+    )
 }
 fn encode_with_threshold(
     mut payload: Payload,
@@ -451,6 +476,7 @@ fn encode_with_threshold(
     exact_requests: Vec<ExactRequest>,
     threshold: Option<&crate::kernel::ThresholdMetadata>,
     inline_threshold_parent: bool,
+    roots: &crate::kernel::algebraic::Scope,
 ) -> Result<(String, Vec<u8>), KernelError> {
     let source_scope = payload
         .metadata
@@ -500,13 +526,67 @@ fn encode_with_threshold(
             symbols.extend(a.get_all_symbols(true));
         });
     }
+    symbols.extend(roots.owners().map(|(tag, _)| tag));
     let mut state = Vec::new();
     State::export_partial(&mut state, symbols).map_err(failure)?;
     let contour_definitions = payload
         .metadata
         .as_mut()
         .map_or_else(Vec::new, PortableMetadata::take_contour_definitions);
-    let (magic, payload) = if let Some(threshold) = threshold {
+    let (magic, payload) = if !roots.is_empty() {
+        if source_scope.is_some()
+            || payload.metadata.is_some()
+            || descriptor.is_some()
+            || !exact_requests.is_empty()
+            || !contour_definitions.is_empty()
+        {
+            return Err(failure(
+                "algebraic root format requires threshold or plain native vectors",
+            ));
+        }
+        let threshold = threshold
+            .map(|owner| -> Result<SavedThreshold, KernelError> {
+                owner.validate_algebraic_helpers(roots)?;
+                owner.validate_layout(
+                    &payload
+                        .sectors
+                        .iter()
+                        .map(|s| s.parameters.clone())
+                        .collect::<Vec<_>>(),
+                    &payload.orders,
+                    &payload.runtime_parameters,
+                )?;
+                content_id =
+                    owner.semantic_identity(&payload.compiler_policy, &payload.precision)?;
+                if owner.is_local() {
+                    Ok(SavedThreshold::Local(
+                        owner.save_v16_with_parent(inline_threshold_parent)?,
+                    ))
+                } else {
+                    Ok(SavedThreshold::Global(owner.save()?))
+                }
+            })
+            .transpose()?;
+        let base = PayloadV12 {
+            base: payload,
+            descriptor,
+            exact_requests,
+            contour_definitions,
+        };
+        (
+            MAGIC_V17,
+            bincode::encode_to_vec(
+                PayloadV17 {
+                    base,
+                    threshold,
+                    roots: roots.saved(),
+                    validated_policy_version: 1,
+                },
+                bincode::config::standard(),
+            )
+            .map_err(failure)?,
+        )
+    } else if let Some(threshold) = threshold {
         if source_scope.is_some()
             || payload.metadata.is_some()
             || descriptor.is_some()
@@ -699,6 +779,10 @@ pub(super) fn compiled_with_parent(
         kernels.exact_requests.clone(),
         kernels.threshold.as_deref(),
         inline_threshold_parent,
+        &crate::kernel::algebraic::Scope::merged(
+            kernels.sectors.iter().map(|sector| &sector.algebraic),
+        )
+        .map_err(failure)?,
     )?;
     let primaries = kernels
         .sectors
@@ -847,13 +931,19 @@ pub(super) fn partition(
             )
         })
         .transpose()?;
-    let (id, bytes) = encode_with_requests(
+    let roots =
+        crate::kernel::algebraic::Scope::merged(sector.into_iter().map(|sector| &sector.algebraic))
+            .map_err(failure)?;
+    let (id, bytes) = encode_with_threshold(
         payload,
         descriptor
             .as_ref()
             .map(SavedDescriptor::from_native)
             .transpose()?,
         exact_requests,
+        None,
+        true,
+        &roots,
     )?;
     let primaries = sector
         .into_iter()
@@ -969,7 +1059,9 @@ pub(super) fn load_with_primary_and_parent(
     progress: &mut impl FnMut(&crate::kernel::CompilationProgress) -> std::ops::ControlFlow<()>,
     threshold_parent: Option<&crate::kernel::ThresholdMetadata>,
 ) -> Result<KernelSet, KernelError> {
-    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V16) {
+    let (wire, magic, version) = if let Some(wire) = bytes.strip_prefix(MAGIC_V17) {
+        (wire, MAGIC_V17, 17)
+    } else if let Some(wire) = bytes.strip_prefix(MAGIC_V16) {
         (wire, MAGIC_V16, 16)
     } else if let Some(wire) = bytes.strip_prefix(MAGIC_V15) {
         (wire, MAGIC_V15, 15)
@@ -1010,10 +1102,21 @@ pub(super) fn load_with_primary_and_parent(
     {
         return Err(failure("content identity mismatch"));
     }
+    if version == 17
+        && (envelope.state.len() > MAX_ROOT_RECORD_BYTES
+            || envelope.payload.len() > MAX_ROOT_RECORD_BYTES)
+    {
+        return Err(failure(
+            "algebraic native record exceeds transport byte limit",
+        ));
+    }
     let _ = symbolica::transcendental::gamma();
     crate::contour::functions::register();
     if version >= 10 {
         crate::contour::functions::dynamic::register();
+    }
+    if version >= 17 {
+        crate::kernel::algebraic::register();
     }
     let mut state_source = envelope.state;
     let context = State::import(&mut state_source, None).map_err(failure)?;
@@ -1024,7 +1127,52 @@ pub(super) fn load_with_primary_and_parent(
     let mut exact_requests = Vec::new();
     let mut source_scope = None;
     let mut threshold = None;
-    let (mut payload, used): (Payload, usize) = if version == 15 || version == 16 {
+    let mut roots = crate::kernel::algebraic::Scope::default();
+    let (mut payload, used): (Payload, usize) = if version == 17 {
+        let (payload, used): (PayloadV17, usize) = bincode::decode_from_slice_with_context(
+            envelope.payload,
+            bincode::config::standard().with_limit::<MAX_ROOT_RECORD_BYTES>(),
+            context,
+        )
+        .map_err(failure)?;
+        if payload.validated_policy_version != 1
+            || payload.roots.is_empty()
+            || payload.base.base.metadata.is_some()
+            || payload.base.descriptor.is_some()
+            || !payload.base.exact_requests.is_empty()
+            || !payload.base.contour_definitions.is_empty()
+        {
+            return Err(failure("invalid selected-root transport schema"));
+        }
+        roots = crate::kernel::algebraic::Scope::restore(payload.roots).map_err(failure)?;
+        threshold = payload
+            .threshold
+            .map(|owner| match owner {
+                SavedThreshold::Global(saved) => crate::kernel::ThresholdMetadata::restore(saved),
+                SavedThreshold::Local(saved) => {
+                    crate::kernel::ThresholdMetadata::restore_v16_with_parent(
+                        saved,
+                        threshold_parent,
+                    )
+                }
+            })
+            .transpose()?;
+        if let Some(owner) = &threshold {
+            owner.validate_algebraic_helpers(&roots)?;
+            owner.validate_layout(
+                &payload
+                    .base
+                    .base
+                    .sectors
+                    .iter()
+                    .map(|s| s.parameters.clone())
+                    .collect::<Vec<_>>(),
+                &payload.base.base.orders,
+                &payload.base.base.runtime_parameters,
+            )?;
+        }
+        (payload.base.base, used)
+    } else if version == 15 || version == 16 {
         let (payload, owner, used) = if version == 15 {
             let (payload, used): (PayloadV15, usize) = bincode::decode_from_slice_with_context(
                 envelope.payload,
@@ -1265,6 +1413,14 @@ pub(super) fn load_with_primary_and_parent(
             return Err(failure("invalid sector coordinates"));
         }
         let program = program::decode(&sector.program)?;
+        if version < 17
+            && program::callbacks(&program)
+                .map_err(failure)?
+                .iter()
+                .any(|c| crate::kernel::algebraic::is_root(c.symbol))
+        {
+            return Err(failure("selected root helpers require native format17"));
+        }
         if version < 8 && !use_complex && program::legacy_real_branch(&program) {
             return Err(failure(
                 "historical real layout has an unproved branch domain; regenerate with the current compiler",
@@ -1324,20 +1480,30 @@ pub(super) fn load_with_primary_and_parent(
     {
         return Err(failure("complex exact offset in real output layout"));
     }
-    let mut kernels = KernelSet::from_programs_for_load_with_progress(
-        payload.orders,
-        programs,
-        payload.exact,
-        payload.precision,
-        metadata,
-        use_complex,
-        payload.runtime_parameters,
-        settings.expect("compiler policy validated"),
-        Some(encoded_programs),
-        primary_caches,
-        options.validate,
-        progress,
-    )?;
+    let mut kernels = roots.enter(53, || {
+        KernelSet::from_programs_for_load_with_progress(
+            payload.orders,
+            programs,
+            payload.exact,
+            payload.precision,
+            metadata,
+            use_complex,
+            payload.runtime_parameters,
+            settings.expect("compiler policy validated"),
+            Some(encoded_programs),
+            primary_caches,
+            options.validate,
+            progress,
+        )
+    })?;
+    if version == 17
+        && crate::kernel::algebraic::Scope::merged(kernels.sectors.iter().map(|s| &s.algebraic))
+            .map_err(failure)?
+            .saved()
+            != roots.saved()
+    {
+        return Err(failure("unused or missing algebraic helper inventory"));
+    }
     if let Some(threshold) = threshold {
         kernels.attach_threshold(threshold)?;
     }

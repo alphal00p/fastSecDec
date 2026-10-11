@@ -3821,3 +3821,35 @@ Independent source reviews and owner/native/portable/HEPKit/artifact controls
 pass. The coordinator checked the frozen six-file patch and its evidence before
 adoption. This fixes tracking range reporting, not certified arithmetic, general
 endpoint resolution or the separate algebraic-kernel acceptance boundary.
+
+## Native regular algebraic kernels (2026-10-11)
+
+The [kernel review](reviews/no-deformation-algebraic-kernels.md) records the
+sealed algebraic continuation route through existing Laurent construction,
+detached jobs, native evaluator codecs, indexed artifacts and QMC statistics.
+Symbolica owns selected-root refinement, implicit derivatives and composed
+evaluation. Numerica owns tracked uncertainty. No replacement solver, CAS, AD,
+estimator or scheduling loop is introduced.
+
+Independent generation, resolver and coordinator reviews checked source
+association, semantic identity, branch ownership, callback failures and whole-
+vector precision acceptance. Native maintained controls and a coherent
+quintic integral pass. Static exact-f64 brackets, the current one-root family,
+tracking range and measured rescue cost remain explicit limitations. General
+algebraic preparation and portable root execution are not supplied by this
+milestone.
+
+## Original-contact component localization (2026-10-11)
+
+The [localization review](reviews/no-deformation-component-localization.md)
+records a receipt-consuming restriction of an actual disconnected terminal
+through its original contact and full native open cover. Native ideal,
+localization, common-frame and standard blow-up operations are reused.
+Existing center validation and controlled transforms check the actual next
+auxiliary step; no new transform or center authority is introduced.
+
+The independent kernel reviewer and coordinator checked original source and
+history retention, full ambient inventory and caller-owned retry behavior.
+Native tests and the external consumer pass. Higher contact stacks, enclosing
+physical ascent, general gluing, durable recovery and measured memory bounds
+remain separate work.

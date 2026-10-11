@@ -99,3 +99,12 @@ impl Budget {
 }
 #[cfg(test)]
 mod tests;
+
+impl From<crate::kernel::algebraic::Error> for Error {
+    fn from(error: crate::kernel::algebraic::Error) -> Self {
+        match error {
+            crate::kernel::algebraic::Error::Unsupported(s) => Self::Unsupported(s),
+            error => Self::Native(error.to_string()),
+        }
+    }
+}

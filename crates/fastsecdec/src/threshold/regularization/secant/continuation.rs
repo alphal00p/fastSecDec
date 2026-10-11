@@ -10,6 +10,7 @@ pub struct ContinuedFamily<'a> {
     profiles: Vec<Vec<crate::generation::EndpointProfileRow>>,
     functions: FunctionMap,
     options: GenerationOptions,
+    definitions: Vec<crate::threshold::continued::Definition>,
 }
 impl NormalizedFamily {
     pub fn continue_symbolically(
@@ -44,7 +45,16 @@ impl NormalizedFamily {
         }
         let expression: Atom = charts.iter().cloned().sum();
         let mut functions = FunctionMap::new();
+        let mut definitions = Vec::new();
         for (index, body) in self.bodies.iter().enumerate() {
+            definitions.push(crate::threshold::continued::Definition {
+                head: self.numerator,
+                tags: vec![Atom::num(index)],
+                formals: self.formals.clone(),
+                body: body.clone(),
+                orders: None,
+                always_inline: true,
+            });
             functions
                 .add_tagged_function_with_options(
                     self.numerator,
@@ -116,11 +126,20 @@ impl NormalizedFamily {
                     body = body.derivative(*s);
                 }
             }
+            let derivative_orders = orders.clone();
             let tags = orders
                 .into_iter()
                 .map(Atom::num)
                 .chain([Atom::var(self.numerator), Atom::num(slot)])
                 .collect::<Vec<_>>();
+            definitions.push(crate::threshold::continued::Definition {
+                head: Symbol::DERIVATIVE,
+                tags: tags.clone(),
+                formals: self.formals.clone(),
+                body: body.clone(),
+                orders: Some(derivative_orders),
+                always_inline: true,
+            });
             functions
                 .add_tagged_function_with_options(
                     Symbol::DERIVATIVE,
@@ -138,10 +157,14 @@ impl NormalizedFamily {
             profiles,
             functions,
             options: options.clone(),
+            definitions,
         })
     }
 }
 impl ContinuedFamily<'_> {
+    pub(crate) fn definitions(&self) -> &[crate::threshold::continued::Definition] {
+        &self.definitions
+    }
     pub fn certificate(&self) -> &NormalizedFamily {
         self.certificate
     }

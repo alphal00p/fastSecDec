@@ -108,3 +108,8 @@ pub use supported_drop::{SupportedDropInventory, SupportedDropRecord, SupportedR
 
 #[cfg(test)]
 mod component_tests;
+
+mod auxiliary;
+pub use auxiliary::AuxiliaryRecursionOrigin;
+mod component_localization;
+pub use component_localization::*;

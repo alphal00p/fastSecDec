@@ -99,9 +99,16 @@ fn localize_map(
     atoms: &[Atom],
     tables: &mut BTreeMap<m::Digest, Arc<Vec<Atom>>>,
 ) -> Result<(), KernelError> {
-    let (geometry, sections) = match map {
-        m::MapDescriptor::RationalV1 { geometry } => (geometry, None),
-        m::MapDescriptor::AlgebraicSectionsV1 { geometry, sections } => (geometry, Some(sections)),
+    let (geometry, sections, endpoint) = match map {
+        m::MapDescriptor::RegularSecantV1 {
+            geometry,
+            sections,
+            endpoint,
+        } => (geometry, Some(sections), Some(endpoint)),
+        m::MapDescriptor::RationalV1 { geometry } => (geometry, None, None),
+        m::MapDescriptor::AlgebraicSectionsV1 { geometry, sections } => {
+            (geometry, Some(sections), None)
+        }
     };
     let mut values = Vec::new();
     let mut remap = BTreeMap::new();
@@ -118,6 +125,9 @@ fn localize_map(
         for section in sections {
             atom_id(atoms, &mut section.polynomial, &mut remap, &mut values)?;
         }
+    }
+    if let Some(endpoint) = endpoint {
+        endpoint.map_atoms(|id| atom_id(atoms, id, &mut remap, &mut values))?;
     }
     geometry.expressions = insert_table(values, tables)?;
     Ok(())

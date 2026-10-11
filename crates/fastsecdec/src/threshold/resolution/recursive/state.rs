@@ -33,6 +33,9 @@ pub struct BoundaryFreeFirstCenter {
     namespace: String,
     reverse_contacts: bool,
     accepted_steps: usize,
+    original_frame: Arc<EtaleFrame>,
+    original_source: Arc<MarkedIdeal>,
+    auxiliary_origin: Option<Arc<AuxiliaryRecursionOrigin>>,
 }
 #[derive(Clone, Debug)]
 pub enum RecursiveAdvance {
@@ -53,6 +56,9 @@ impl BoundaryFreeFirstCenter {
             return Err(Error::Invalid("first-center fixed-parameter source/frame"));
         }
         Ok(Self {
+            original_frame: frame.clone(),
+            original_source: source.clone(),
+            auxiliary_origin: None,
             stack: vec![],
             pending: Some(Pending::Descend { frame, source }),
             outcome: RecursiveOutcome::Pending,
@@ -122,6 +128,19 @@ impl BoundaryFreeFirstCenter {
                 }
             }
             Pending::Descend { frame, source } => {
+                if self.auxiliary_origin.is_none() {
+                    if !self.stack.is_empty()
+                        || !Arc::ptr_eq(&frame, &self.original_frame)
+                        || !Arc::ptr_eq(&source, &self.original_source)
+                    {
+                        return Err(Error::Invalid("late auxiliary recursion origin"));
+                    }
+                    self.auxiliary_origin = Some(AuxiliaryRecursionOrigin::prepare(
+                        frame.clone(),
+                        source.clone(),
+                        b,
+                    )?);
+                }
                 let normalizer = QuotientNormalizer::prepare(frame.local().clone(), b)?;
                 let normalization = match normalizer.normalize(source.clone(), b)? {
                     NormalizationOutcome::Complete(n) => Arc::new(*n),
@@ -153,6 +172,9 @@ impl BoundaryFreeFirstCenter {
                     OrderProduction::UnitIdeal { .. } => self.empty(frame, source)?,
                     OrderProduction::TerminalParameterLocus { .. } => {
                         let cover = RecursiveComponentCover::prepare(
+                            self.auxiliary_origin
+                                .clone()
+                                .ok_or(Error::Invalid("missing auxiliary origin"))?,
                             frame,
                             source,
                             normalization,

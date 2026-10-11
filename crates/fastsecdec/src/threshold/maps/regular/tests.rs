@@ -70,6 +70,15 @@ fn proposal() -> BracketProposal {
         derivative_margin: Rational::from((1, 2)),
     }
 }
+// Geometry admits rational endpoints such as 4/5. The static numerical V1
+// recipe requires exactly representable f64 endpoints, so runtime controls
+// obtain their own (wider) exact 7/8 certificate without rounding a saved one.
+fn runtime_proposal() -> BracketProposal {
+    BracketProposal {
+        upper: Rational::from((7, 8)),
+        ..proposal()
+    }
+}
 #[test]
 fn actual_native_sections_generic_degree_and_closed_margin() {
     for degree in [3, 5] {
@@ -261,7 +270,7 @@ fn composed_native_maps_derivatives_precisions_and_owned_clones() {
                         .degree(axis)
                         > 1
                     {
-                        proposal()
+                        runtime_proposal()
                     } else {
                         global.clone()
                     }
@@ -331,7 +340,7 @@ fn composed_native_maps_derivatives_precisions_and_owned_clones() {
         regular.clone(),
         1,
         SectionSide::Upper,
-        proposal(),
+        runtime_proposal(),
         &mut Budget::new(Limits::default()),
     )
     .unwrap();
@@ -434,7 +443,7 @@ fn nested_generic_sections_retain_every_native_cell() {
                         .degree(axis)
                         > 1
                     {
-                        proposal()
+                        runtime_proposal()
                     } else {
                         global.clone()
                     }
@@ -507,7 +516,7 @@ fn duplicate_scope_failure_preserves_original_and_native_substitution_semantics(
         map.clone(),
         1,
         SectionSide::Upper,
-        proposal(),
+        runtime_proposal(),
         &mut Budget::new(Limits::default()),
     )
     .unwrap();
@@ -527,25 +536,23 @@ fn duplicate_scope_failure_preserves_original_and_native_substitution_semantics(
     let tag = symbol!("regular_duplicate_scope");
     let mut scope = Scope::default();
     scope.insert(tag, helper.clone()).unwrap();
-    assert!(
-        scope
-            .insert(
-                tag,
-                RootProgram::prepare(&other, OptimizationSettings::default().cores(1)).unwrap()
-            )
-            .is_err()
-    );
+    // The detached protocol keys ownership by local tag AND branch transport
+    // tag, so independent records may reuse a local name without replacement.
+    assert!(scope.insert(tag, helper.clone()).is_err());
+    let other_helper =
+        RootProgram::prepare(&other, OptimizationSettings::default().cores(1)).unwrap();
+    scope.insert(tag, other_helper.clone()).unwrap();
+    assert_eq!(scope.owners().count(), 2);
     let call = helper.call(tag, section.coefficients()).unwrap();
-    let exact = call
-        .evaluator(&[Atom::var(map.axes()[0].symbol())])
+    let other_call = other_helper.call(tag, other.coefficients()).unwrap();
+    let exact = Atom::evaluator_multiple(&[call, other_call], &[Atom::var(map.axes()[0].symbol())])
         .build()
         .unwrap();
     let mut eval = scope.enter(53, || exact.map_coeff(&|c| c.re.to_f64()));
-    assert!(
-        attempt(|| eval.evaluate_single(&[0.4]))
-            .unwrap()
-            .is_finite()
-    );
+    let mut values = [0.; 2];
+    attempt(|| eval.evaluate(&[0.4], &mut values)).unwrap();
+    assert!((values[0].powi(5) + values[0] - 0.4).abs() < 1e-14);
+    assert_eq!(values[1], 0.);
     // Native source documents replace(n,value) as coefficient-field evaluation;
     // this executable control also retains the exact original variable map.
     let algebra = symgcad::algebra::Algebra::new(&["x".into(), "y".into()]).unwrap();

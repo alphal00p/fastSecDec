@@ -1,5 +1,7 @@
 //! Native O2 or portable interpreted vector kernels. Worker ownership is explicit.
+pub(crate) mod algebraic;
 mod artifact;
+mod callback_attempt;
 /// Sector-addressable native artifacts and synchronous caller-owned I/O.
 pub mod indexed {
     pub use super::artifact::indexed::*;
@@ -46,7 +48,8 @@ mod stability;
 mod statistics;
 mod timing;
 pub use stability::{
-    ARBITRARY_DECIMAL_DIGITS, PrecisionClass, StabilityLevel, StabilityMode, StabilitySettings,
+    ARBITRARY_DECIMAL_DIGITS, AlgebraicCallbackRecipe, PrecisionClass, StabilityLevel,
+    StabilityMode, StabilitySettings,
 };
 pub use statistics::{EvaluatorOperations, EvaluatorStatistics};
 pub use timing::{EvaluationTimings, EvaluatorTiming};
@@ -147,6 +150,7 @@ pub enum PrimaryEvaluatorRestoration {
 }
 
 pub struct SectorKernel {
+    algebraic: algebraic::Scope,
     contour_validation: Option<contour::SectorValidation>,
     dynamic_history: (usize, u32),
     runtime_diagnostics: crate::contour::functions::dynamic::diagnostics::Accumulator,
@@ -178,6 +182,7 @@ enum Backend {
 
 struct RealKernel {
     precision_cache: precision_cache::PrecisionCache<Float>,
+    root_precision: Option<Box<precision_cache::PrecisionCache<ErrorPropagatingFloat<Float>>>>,
     double_cache: precision_cache::PrecisionCache<DoubleFloat>,
     f64_timing: EvaluatorTiming,
     conditioning_timing: EvaluatorTiming,
@@ -219,6 +224,9 @@ impl SectorKernel {
                 kernel.evaluator.clear_dynamic_attempt();
                 kernel.double_cache.clear_dynamic_attempt();
                 kernel.precision_cache.clear_dynamic_attempt();
+                if let Some(cache) = &mut kernel.root_precision {
+                    cache.clear_dynamic_attempt();
+                }
                 kernel.conditioning.clear_dynamic_attempt();
             }
             Backend::Complex(kernel) => kernel.clear_dynamic_attempt(),
@@ -239,6 +247,12 @@ impl SectorKernel {
                 .precision_cache
                 .last_dynamic_error
                 .as_deref()
+                .or_else(|| {
+                    kernel
+                        .root_precision
+                        .as_ref()
+                        .and_then(|c| c.last_dynamic_error.as_deref())
+                })
                 .or(kernel.double_cache.last_dynamic_error.as_deref())
                 .or(kernel.evaluator.last_dynamic_error())
                 .or(kernel.conditioning.last_dynamic_error()),
@@ -255,6 +269,9 @@ impl SectorKernel {
             return KernelError::Contour(message);
         }
         match reason {
+            Some(reason) if reason.starts_with("algebraic callback:") => {
+                KernelError::PrecisionEvaluation(format!("{error}; {reason}"))
+            }
             Some(reason) => KernelError::Contour(format!("{error}; {reason}")),
             None => error,
         }
@@ -404,9 +421,10 @@ impl SectorKernel {
             *value *= weight;
         }
         let nonfinite = output.iter().any(|value| !value.is_finite());
-        let boundary = self
-            .cancellation
-            .needs_check(point, self.precision.boundary_threshold);
+        let boundary = !self.algebraic.is_empty()
+            || self
+                .cancellation
+                .needs_check(point, self.precision.boundary_threshold);
         if boundary
             && !nonfinite
             && !range_loss
@@ -436,6 +454,11 @@ impl SectorKernel {
                         let value = checked.to_f64() * weight;
                         let tolerance = self.precision.absolute_tolerance
                             + self.precision.relative_tolerance * value.abs();
+                        if !self.algebraic.is_empty() {
+                            return precision::accepts_weighted_primary(
+                                *checked, *compiled, weight, tolerance,
+                            );
+                        }
                         value.is_finite()
                             && checked.get_absolute_error() * weight <= tolerance
                             && (value - compiled).abs() <= tolerance
@@ -450,9 +473,12 @@ impl SectorKernel {
             }
         }
         if nonfinite || boundary || range_loss {
-            return precision::rescue(
+            return precision::rescue_with_roots(
                 &backend.exact_evaluator,
-                &mut backend.precision_cache,
+                (
+                    &mut backend.precision_cache,
+                    backend.root_precision.as_deref_mut(),
+                ),
                 point,
                 output,
                 &self.cancellation,
@@ -495,9 +521,12 @@ impl SectorKernel {
         let mut policy = self.precision.clone();
         policy.initial_bits = policy.initial_bits.max(minimum_bits);
         let result = match &mut self.backend {
-            Backend::Real(kernel) => precision::rescue(
+            Backend::Real(kernel) => precision::rescue_with_roots(
                 &kernel.exact_evaluator,
-                &mut kernel.precision_cache,
+                (
+                    &mut kernel.precision_cache,
+                    kernel.root_precision.as_deref_mut(),
+                ),
                 point,
                 output,
                 &self.cancellation,
@@ -512,6 +541,7 @@ impl SectorKernel {
     /// Clone native evaluator state and buffers for an independently owned worker.
     pub fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            algebraic: self.algebraic.clone(),
             dynamic_history: (0, 0),
             runtime_diagnostics: Default::default(),
             dynamic_failure: self.dynamic_failure.clone(),
@@ -536,6 +566,10 @@ impl SectorKernel {
                 Backend::Complex(kernel) => Backend::Complex(kernel.try_clone()?),
                 Backend::Real(kernel) => Backend::Real(RealKernel {
                     precision_cache: kernel.precision_cache.empty_clone(),
+                    root_precision: kernel
+                        .root_precision
+                        .as_ref()
+                        .map(|c| Box::new(c.empty_clone())),
                     double_cache: kernel.double_cache.empty_clone(),
                     f64_timing: Default::default(),
                     conditioning_timing: Default::default(),
@@ -787,3 +821,6 @@ pub use compilation::{
     ThresholdCompilationWork, ThresholdJobKind, ThresholdPublicationDescriptor,
     ThresholdPublicationPlan, ThresholdWorkReceipt,
 };
+
+#[cfg(all(test, feature = "threshold-decomposition"))]
+mod algebraic_tests;

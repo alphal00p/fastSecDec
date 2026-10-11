@@ -96,22 +96,55 @@ impl ThresholdCompilationPlan {
         precision: PrecisionPolicy,
         settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
+        Self::prepare_source(
+            crate::threshold::continued::ContinuedSource::Rational(bound),
+            staging,
+            maximum,
+            precision,
+            settings,
+        )
+    }
+    /// Compile/prepare a complete fixed regular-section family through the same
+    /// native local records and caller-owned jobs. Requires Validated root policy.
+    pub fn prepare_family(
+        bound: &crate::threshold::regularization::secant::ContinuedFamily<'_>,
+        staging: &Path,
+        maximum: i32,
+        precision: PrecisionPolicy,
+        settings: CompilationSettings,
+    ) -> Result<Self, KernelError> {
+        Self::prepare_source(
+            crate::threshold::continued::ContinuedSource::Algebraic(bound),
+            staging,
+            maximum,
+            precision,
+            settings,
+        )
+    }
+    fn prepare_source(
+        source: crate::threshold::continued::ContinuedSource<'_>,
+        staging: &Path,
+        maximum: i32,
+        precision: PrecisionPolicy,
+        settings: CompilationSettings,
+    ) -> Result<Self, KernelError> {
         precision.validate()?;
         settings.validate()?;
-        if bound.generation_options().mode != generation::GenerationMode::Symbolic
-            || maximum > bound.generation_options().max_order
+        if source.options().mode != generation::GenerationMode::Symbolic
+            || maximum > source.options().max_order
         {
             return Err(failure("requested continuation mode/range unavailable"));
         }
         if staging.read_dir().map_err(failure)?.next().is_some() {
             return Err(failure("staging directory must be empty"));
         }
-        let request = bound.certificate().decomposition().request();
+        let request = source.request();
         let parent = request.source_identity().map_err(failure)?;
         let mut records = Vec::new();
         let mut exact = BTreeMap::<i32, Atom>::new();
-        for chart in 0..bound.chart_expressions().len() {
-            let staged = record::write(staging, &parent, bound, chart, maximum).map_err(failure)?;
+        for chart in 0..source.charts().len() {
+            let staged =
+                record::write(staging, &parent, source, chart, maximum).map_err(failure)?;
             if matches!(staged.kind, record::VectorKind::Exact {}) {
                 let local = record::read(staging, &staged, &parent, u64::MAX).map_err(failure)?;
                 for (order, coefficient) in local.coefficients {
@@ -129,8 +162,8 @@ impl ThresholdCompilationPlan {
             .min()
             .unwrap_or(maximum)
             .min(maximum.min(0));
-        let metadata = super::super::threshold_owner::ThresholdMetadata::from_bound(
-            bound,
+        let metadata = super::super::threshold_owner::ThresholdMetadata::from_source(
+            source,
             &records,
             (minimum..=maximum).collect(),
         )?
@@ -153,7 +186,7 @@ impl ThresholdCompilationPlan {
                 *coefficient = generation::normalize_exact_coefficient(coefficient);
             }
             let vector =
-                record::write_exact(staging, &parent, &bound.coordinates(), &exact, maximum)
+                record::write_exact(staging, &parent, &source.coordinates(), &exact, maximum)
                     .map_err(failure)?;
             specifications.push(Specification {
                 kind: ThresholdJobKind::Exact {
@@ -331,24 +364,27 @@ impl ThresholdCompilationJob {
             }
             ThresholdJobKind::Stochastic { contribution } => {
                 let local = local.ok_or_else(|| failure("missing stochastic vector"))?;
+                let roots = local.roots;
                 let input = program::PreparedCoefficientVector {
                     coordinates: local.coordinates,
                     coefficients,
                     functions: Arc::new(local.functions),
                     endpoint_profiles: local.profiles,
                 };
-                let completion = CompilationJob {
-                    owner: prepared.token.clone(),
-                    program_descriptor: None,
-                    request_lookup: None,
-                    index: self.index,
-                    input: CompilationInput::Prepared(Arc::new(input)),
-                    runtime_parameters: Arc::new(Vec::new()),
-                    precision: prepared.precision.clone(),
-                    settings: prepared.settings,
-                    use_complex: true,
-                }
-                .run()?;
+                let completion = roots.enter(53, || {
+                    CompilationJob {
+                        owner: prepared.token.clone(),
+                        program_descriptor: None,
+                        request_lookup: None,
+                        index: self.index,
+                        input: CompilationInput::Prepared(Arc::new(input)),
+                        runtime_parameters: Arc::new(Vec::new()),
+                        precision: prepared.precision.clone(),
+                        settings: prepared.settings,
+                        use_complex: true,
+                    }
+                    .run()
+                })?;
                 if !Arc::ptr_eq(&completion.owner, &prepared.token)
                     || completion.index != self.index
                 {

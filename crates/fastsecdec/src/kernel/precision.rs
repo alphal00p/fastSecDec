@@ -1,7 +1,7 @@
 use super::{KernelError, cancellation::Cancellation, precision_cache::PrecisionCache};
 use symbolica::{
     domains::{
-        float::{Complex, Float, RealLike},
+        float::{Complex, ErrorPropagatingFloat, Float, RealLike},
         rational::Rational,
     },
     evaluate::ExpressionEvaluator,
@@ -129,6 +129,18 @@ fn converge(
     width: usize,
     mut evaluate: impl FnMut(u32) -> Result<Vec<f64>, KernelError>,
 ) -> Result<PrecisionReport, KernelError> {
+    converge_checked(point, output, cancellation, policy, width, |bits| {
+        evaluate(bits).map(|values| (values, true))
+    })
+}
+fn converge_checked(
+    point: &[f64],
+    output: &mut [f64],
+    cancellation: &Cancellation,
+    policy: &PrecisionPolicy,
+    width: usize,
+    mut evaluate: impl FnMut(u32) -> Result<(Vec<f64>, bool), KernelError>,
+) -> Result<PrecisionReport, KernelError> {
     // Taylor differences can lose degree * log2(1/x) bits. Account for this
     // before testing agreement, so two equally rounded zeros are not accepted.
     let lost_bits = cancellation.lost_bits(point).ceil();
@@ -141,24 +153,26 @@ fn converge(
         });
     }
     let mut bits = initial_tier(required, policy);
-    let mut previous = evaluate(bits)?;
+    let (mut previous, mut previous_accepted) = evaluate(bits)?;
     loop {
         bits = bits.saturating_mul(2).min(policy.max_bits);
-        let current = evaluate(bits)?;
-        if current
-            .chunks_exact(width)
-            .zip(previous.chunks_exact(width))
-            .all(|(a, b)| {
-                let scale = a
-                    .iter()
-                    .chain(b)
-                    .map(|value| value.abs())
-                    .fold(0.0, f64::max);
-                let tolerance = policy.absolute_tolerance + policy.relative_tolerance * scale;
-                a.iter()
-                    .zip(b)
-                    .all(|(a, b)| a.is_finite() && b.is_finite() && (a - b).abs() <= tolerance)
-            })
+        let (current, current_accepted) = evaluate(bits)?;
+        if current_accepted
+            && previous_accepted
+            && current
+                .chunks_exact(width)
+                .zip(previous.chunks_exact(width))
+                .all(|(a, b)| {
+                    let scale = a
+                        .iter()
+                        .chain(b)
+                        .map(|value| value.abs())
+                        .fold(0.0, f64::max);
+                    let tolerance = policy.absolute_tolerance + policy.relative_tolerance * scale;
+                    a.iter()
+                        .zip(b)
+                        .all(|(a, b)| a.is_finite() && b.is_finite() && (a - b).abs() <= tolerance)
+                })
         {
             output.copy_from_slice(&current);
             return Ok(PrecisionReport {
@@ -173,6 +187,7 @@ fn converge(
             return Err(KernelError::PrecisionExhausted { bits });
         }
         previous = current;
+        previous_accepted = current_accepted;
     }
 }
 
@@ -204,3 +219,8 @@ mod tests {
         assert_eq!(initial_tier(129, &policy), 160);
     }
 }
+
+mod algebraic;
+pub(super) use algebraic::{
+    accepts_weighted_primary, rescue_complex_with_roots, rescue_with_roots,
+};

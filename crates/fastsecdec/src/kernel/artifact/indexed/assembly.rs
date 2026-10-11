@@ -291,6 +291,9 @@ impl ResidentAssembly {
         };
         combined.content_id = content_id;
         combined.template_content_id = None;
+        if combined.requires_validated_algebraic_callbacks() {
+            combined.set_stability_settings(&crate::kernel::StabilitySettings::validated())?;
+        }
         Ok(combined)
     }
 }

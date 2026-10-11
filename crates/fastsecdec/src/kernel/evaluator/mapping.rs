@@ -17,6 +17,7 @@ pub(in crate::kernel) struct MappingRequirements(
     bool,
     Option<Arc<Specification>>,
     crate::contour::functions::dynamic::diagnostics::Configuration,
+    crate::kernel::algebraic::Scope,
 );
 
 impl MappingRequirements {
@@ -29,7 +30,13 @@ impl MappingRequirements {
     /// preparing the evaluator. Ordinary and fixed programs never enter its
     /// thread-local attempt machinery while sampling.
     pub(in crate::kernel) fn has_dynamic_callbacks(&self) -> bool {
-        self.3
+        self.3 || !self.6.is_empty()
+    }
+    pub(in crate::kernel) fn callback_modes(&self) -> crate::kernel::callback_attempt::Modes {
+        crate::kernel::callback_attempt::Modes {
+            contour: self.3,
+            algebraic: !self.6.is_empty(),
+        }
     }
     pub(in crate::kernel) fn validation(&self) -> Option<Validation> {
         self.4.clone().map(Validation::new)
@@ -44,18 +51,27 @@ impl MappingRequirements {
         &self,
         prepare: impl FnOnce() -> Result<T, String>,
     ) -> Result<T, String> {
-        let _diagnostics = self.5.enter();
-        let _preparing = self.1.enter();
-        let _observing = self.2.enter();
-        let _checking = validation::enter_optional(self.4.clone());
-        if !self.3 {
-            return prepare();
-        }
-        let (result, failure) = crate::contour::functions::dynamic::isolated_attempt(prepare);
-        match failure {
-            Some(error) => Err(format!("dynamic callback preparation failed: {error}")),
-            None => result,
-        }
+        self.prepare_at(53, prepare)
+    }
+    fn prepare_at<T>(
+        &self,
+        bits: u32,
+        prepare: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        self.6.enter(bits, || {
+            let _diagnostics = self.5.enter();
+            let _preparing = self.1.enter();
+            let _observing = self.2.enter();
+            let _checking = validation::enter_optional(self.4.clone());
+            if !self.has_dynamic_callbacks() {
+                return prepare();
+            }
+            let (result, failure) = self.callback_modes().isolated(prepare);
+            match failure {
+                Some(error) => Err(format!("native callback preparation failed: {error}")),
+                None => result,
+            }
+        })
     }
 
     /// Called while constructing the kernel, before caller-owned workers start.
@@ -68,6 +84,7 @@ impl MappingRequirements {
             false,
             validation::capture(),
             crate::contour::functions::dynamic::diagnostics::Configuration::capture(),
+            Default::default(),
         );
         if let Some(specification) = &requirements.4 {
             specification.admit_callbacks(&requirements.0)?;
@@ -90,6 +107,7 @@ impl MappingRequirements {
                     .flat_map(|tag| tag.get_all_symbols(true))
             }),
         )?;
+        requirements.6 = crate::kernel::algebraic::Scope::capture_for(&requirements.0)?;
         Ok(Arc::new(requirements))
     }
 
@@ -99,7 +117,7 @@ impl MappingRequirements {
         coefficient: impl Fn(&Complex<Rational>) -> T,
         bits: u32,
     ) -> Result<ExpressionEvaluator<T>, String> {
-        self.prepare(|| {
+        self.prepare_at(bits, || {
             crate::contour::functions::dynamic::with_precision(bits, || {
                 for requirement in &self.0 {
                     let info = requirement.symbol.get_evaluation_info().ok_or_else(|| {

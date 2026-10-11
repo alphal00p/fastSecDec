@@ -106,6 +106,16 @@ full native basis and scalar-point checks. Represented integral-family inputs
 still require their own provenance owner and are refused. See the
 [HEPKit represented-input review](reviews/no-deformation-hepkit-represented.md)
 for validation timing, progress, recovery and selected-result serialization.
+The separate `KernelSet::compile_threshold_family` factory accepts an issued
+regular algebraic secant family. It shares detached compilation and indexed
+publication, saving record-local root helpers in native v17. This path keeps
+full defining polynomials and Symbolica implicit derivatives, with the current
+`StaticExactF64BracketV1` numerical admission and validated stability policy.
+Default native consumers restore it without GCAD; portable root-bearing
+records remain unsupported. It does not yet extend CLI or HEPKit preparation
+to arbitrary algebraic inputs. See the
+[algebraic-kernel review](reviews/no-deformation-algebraic-kernels.md).
+
 The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:

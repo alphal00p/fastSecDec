@@ -8,12 +8,18 @@ impl SectorKernel {
     pub fn evaluation_metrics(&self) -> EvaluationTimings {
         match &self.backend {
             Backend::Complex(kernel) => kernel.evaluation_metrics(),
-            Backend::Real(kernel) => EvaluationTimings {
-                f64: kernel.f64_timing,
-                double_float: kernel.double_cache.timing,
-                arbitrary: kernel.precision_cache.timing,
-                conditioning: kernel.conditioning_timing,
-            },
+            Backend::Real(kernel) => {
+                let mut conditioning = kernel.conditioning_timing;
+                if let Some(cache) = &kernel.root_precision {
+                    conditioning.add(cache.timing);
+                }
+                EvaluationTimings {
+                    f64: kernel.f64_timing,
+                    double_float: kernel.double_cache.timing,
+                    arbitrary: kernel.precision_cache.timing,
+                    conditioning,
+                }
+            }
         }
     }
 
@@ -23,6 +29,11 @@ impl SectorKernel {
         weight: f64,
         mut class: PrecisionClass,
     ) -> Result<PrecisionReport, KernelError> {
+        if !self.algebraic.is_empty() {
+            return Err(KernelError::Stability(
+                "algebraic-root kernels require validated stability without cutoff zeros".into(),
+            ));
+        }
         if self.projection.is_some() {
             return self.project_output(output, None, |kernel, values, _| {
                 kernel.evaluate_distance_class(values, weight, class)

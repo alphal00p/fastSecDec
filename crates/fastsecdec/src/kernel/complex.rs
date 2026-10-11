@@ -15,7 +15,10 @@ use symbolica::{
 };
 
 pub(super) struct ComplexKernel {
+    algebraic_conditioning: bool,
     precision_cache: super::precision_cache::PrecisionCache<Complex<Float>>,
+    root_precision:
+        Option<Box<super::precision_cache::PrecisionCache<Complex<ErrorPropagatingFloat<Float>>>>>,
     double_cache: super::precision_cache::PrecisionCache<Complex<DoubleFloat>>,
     f64_timing: super::EvaluatorTiming,
     conditioning_timing: super::EvaluatorTiming,
@@ -34,6 +37,10 @@ pub(super) struct ComplexKernel {
 }
 
 impl ComplexKernel {
+    pub(super) fn has_contour_callbacks(&self) -> bool {
+        self.evaluator.has_contour_callbacks()
+    }
+
     pub(super) fn clear_dynamic_attempt(&mut self) {
         if !self.evaluator.has_dynamic_callbacks() {
             return;
@@ -41,12 +48,20 @@ impl ComplexKernel {
         self.evaluator.clear_dynamic_attempt();
         self.double_cache.clear_dynamic_attempt();
         self.precision_cache.clear_dynamic_attempt();
+        if let Some(cache) = &mut self.root_precision {
+            cache.clear_dynamic_attempt();
+        }
         self.conditioning.clear_dynamic_attempt();
     }
     pub(super) fn last_dynamic_error(&self) -> Option<&str> {
         self.precision_cache
             .last_dynamic_error
             .as_deref()
+            .or_else(|| {
+                self.root_precision
+                    .as_ref()
+                    .and_then(|c| c.last_dynamic_error.as_deref())
+            })
             .or(self.double_cache.last_dynamic_error.as_deref())
             .or(self.evaluator.last_dynamic_error())
             .or(self.conditioning.last_dynamic_error())
@@ -82,11 +97,15 @@ impl ComplexKernel {
     }
 
     pub(super) fn evaluation_metrics(&self) -> super::EvaluationTimings {
+        let mut conditioning = self.conditioning_timing;
+        if let Some(cache) = &self.root_precision {
+            conditioning.add(cache.timing);
+        }
         super::EvaluationTimings {
             f64: self.f64_timing,
             double_float: self.double_cache.timing,
             arbitrary: self.precision_cache.timing,
-            conditioning: self.conditioning_timing,
+            conditioning,
         }
     }
 
@@ -227,6 +246,12 @@ impl ComplexKernel {
         let evaluator = evaluator::complex_prepared(&exact, backend, &requirements, primary)?;
         let conditioning = evaluator::Conditioning::new(requirements.clone());
         Ok(Self {
+            root_precision: requirements.callback_modes().algebraic.then(|| {
+                Box::new(super::precision_cache::PrecisionCache::new(
+                    requirements.clone(),
+                ))
+            }),
+            algebraic_conditioning: requirements.callback_modes().algebraic,
             double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
             f64_timing: Default::default(),
             conditioning_timing: Default::default(),
@@ -314,9 +339,10 @@ impl ComplexKernel {
             *value *= weight;
         }
         let nonfinite = output.iter().any(|value| !value.is_finite());
-        let boundary = self
-            .cancellation
-            .needs_check(point, self.precision.boundary_threshold);
+        let boundary = self.algebraic_conditioning
+            || self
+                .cancellation
+                .needs_check(point, self.precision.boundary_threshold);
         if boundary
             && !nonfinite
             && !range_loss
@@ -350,6 +376,14 @@ impl ComplexKernel {
                         [(checked.re, compiled.re), (checked.im, compiled.im)]
                             .iter()
                             .all(|(value, compiled)| {
+                                if self.algebraic_conditioning {
+                                    return precision::accepts_weighted_primary(
+                                        *value,
+                                        *compiled * weight,
+                                        weight,
+                                        tolerance,
+                                    );
+                                }
                                 value.to_f64().is_finite()
                                     && value.get_absolute_error() * weight <= tolerance
                                     && ((value.to_f64() - compiled) * weight).abs() <= tolerance
@@ -365,9 +399,12 @@ impl ComplexKernel {
             }
         }
         if nonfinite || boundary || range_loss {
-            return precision::rescue_complex(
+            return precision::rescue_complex_with_roots(
                 &self.exact,
-                &mut self.precision_cache,
+                (
+                    &mut self.precision_cache,
+                    self.root_precision.as_deref_mut(),
+                ),
                 point,
                 output,
                 &self.cancellation,
@@ -390,9 +427,12 @@ impl ComplexKernel {
         weight: f64,
         policy: &PrecisionPolicy,
     ) -> Result<PrecisionReport, KernelError> {
-        precision::rescue_complex(
+        precision::rescue_complex_with_roots(
             &self.exact,
-            &mut self.precision_cache,
+            (
+                &mut self.precision_cache,
+                self.root_precision.as_deref_mut(),
+            ),
             point,
             output,
             &self.cancellation,
@@ -403,7 +443,12 @@ impl ComplexKernel {
 
     pub(super) fn try_clone(&self) -> Result<Self, KernelError> {
         Ok(Self {
+            algebraic_conditioning: self.algebraic_conditioning,
             precision_cache: self.precision_cache.empty_clone(),
+            root_precision: self
+                .root_precision
+                .as_ref()
+                .map(|c| Box::new(c.empty_clone())),
             double_cache: self.double_cache.empty_clone(),
             f64_timing: Default::default(),
             conditioning_timing: Default::default(),

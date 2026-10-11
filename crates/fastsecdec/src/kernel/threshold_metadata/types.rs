@@ -118,9 +118,10 @@ pub enum RootDomain {
     Positive,
 }
 
-/// Exact selector data, never a sample-fiber isolation enclosure. A future
-/// executable algebraic implementation must admit the native polynomial and
-/// selector against its owner before constructing numeric callbacks.
+/// Exact selector data, never a sample-fiber isolation enclosure. Generation
+/// admits the native polynomial and selector against its geometric owner before
+/// constructing callbacks. Saved descriptors restore arithmetic association,
+/// without issuing a new geometric certificate.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RootSection {
@@ -154,12 +155,70 @@ pub enum MapDescriptor {
         geometry: MapGeometry,
         sections: Vec<RootSection>,
     },
+    /// A saved fixed regular-section continuation issued by the sealed native
+    /// factory. Loading this arithmetic record does not replay global proofs.
+    RegularSecantV1 {
+        geometry: MapGeometry,
+        sections: Vec<RootSection>,
+        endpoint: NormalizedEndpointV1,
+    },
 }
 impl MapDescriptor {
     pub fn geometry(&self) -> &MapGeometry {
         match self {
-            Self::RationalV1 { geometry } | Self::AlgebraicSectionsV1 { geometry, .. } => geometry,
+            Self::RationalV1 { geometry }
+            | Self::AlgebraicSectionsV1 { geometry, .. }
+            | Self::RegularSecantV1 { geometry, .. } => geometry,
         }
+    }
+}
+
+/// All Atom references belong to this chart's independently loadable map table.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NormalizedEndpointV1 {
+    pub regulator: NativeSymbolId,
+    pub terms: Vec<NormalizedTermV1>,
+    pub continuation_policy: Digest,
+    pub common_domain: Digest,
+    pub numerator_functions: Digest,
+    pub root_helpers: Vec<Digest>,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NormalizedTermV1 {
+    pub source_term: usize,
+    pub prefactor: NativeAtomId,
+    pub regular: NativeAtomId,
+    pub powers: Vec<NativeAtomId>,
+    pub factors: Vec<NormalizedFactorV1>,
+}
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NormalizedFactorV1 {
+    pub source_term: usize,
+    pub source_factor: usize,
+    pub source: NativeAtomId,
+    pub exponent: NativeAtomId,
+    pub certificate: Digest,
+}
+impl NormalizedEndpointV1 {
+    pub(crate) fn map_atoms<E>(
+        &mut self,
+        mut f: impl FnMut(&mut NativeAtomId) -> Result<(), E>,
+    ) -> Result<(), E> {
+        for term in &mut self.terms {
+            f(&mut term.prefactor)?;
+            f(&mut term.regular)?;
+            for power in &mut term.powers {
+                f(power)?;
+            }
+            for factor in &mut term.factors {
+                f(&mut factor.source)?;
+                f(&mut factor.exponent)?;
+            }
+        }
+        Ok(())
     }
 }
 

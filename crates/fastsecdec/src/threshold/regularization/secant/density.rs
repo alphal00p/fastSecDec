@@ -110,9 +110,11 @@ pub(super) fn admit(
         .iter()
         .map(|a| substitute(a, &source_coordinates, &unit_atoms))
         .collect::<Vec<_>>();
-    let root = helper.call(tag, &coefficients)?;
+    let root = helper
+        .call(tag, &coefficients)
+        .map_err(regular::Error::from)?;
     let mut scope = Scope::default();
-    scope.insert(tag, helper)?;
+    scope.insert(tag, helper).map_err(regular::Error::from)?;
     let algebra = Algebra::new(&owner.native_result().order).map_err(native)?;
     let constraints = owner
         .native_result()

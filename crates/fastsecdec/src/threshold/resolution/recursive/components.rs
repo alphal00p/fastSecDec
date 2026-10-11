@@ -3,6 +3,7 @@
 use super::*;
 #[derive(Clone, Debug)]
 pub struct RecursiveComponentCover {
+    origin: Arc<AuxiliaryRecursionOrigin>,
     frame: Arc<EtaleFrame>,
     source: Arc<MarkedIdeal>,
     normalization: Arc<VerifiedQuotientNormalization>,
@@ -10,6 +11,9 @@ pub struct RecursiveComponentCover {
     split: Arc<VerifiedComponentSplit>,
 }
 impl RecursiveComponentCover {
+    pub fn origin(&self) -> &Arc<AuxiliaryRecursionOrigin> {
+        &self.origin
+    }
     pub fn frame(&self) -> &Arc<EtaleFrame> {
         &self.frame
     }
@@ -26,6 +30,7 @@ impl RecursiveComponentCover {
         &self.split
     }
     pub(super) fn prepare(
+        origin: Arc<AuxiliaryRecursionOrigin>,
         frame: Arc<EtaleFrame>,
         source: Arc<MarkedIdeal>,
         normalization: Arc<VerifiedQuotientNormalization>,
@@ -58,6 +63,7 @@ impl RecursiveComponentCover {
         }
         b.reserve_slots(levels.len())?;
         Ok(Arc::new(Self {
+            origin,
             frame,
             source,
             normalization,
@@ -68,3 +74,12 @@ impl RecursiveComponentCover {
 }
 pub(super) const COMPONENT_REASON: &str =
     "verified terminal components need common physical localization";
+
+#[cfg(test)]
+impl RecursiveComponentCover {
+    pub(super) fn test_replaced_origin(&self, origin: Arc<AuxiliaryRecursionOrigin>) -> Arc<Self> {
+        let mut copy = self.clone();
+        copy.origin = origin;
+        Arc::new(copy)
+    }
+}

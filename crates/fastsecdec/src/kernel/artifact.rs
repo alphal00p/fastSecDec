@@ -245,3 +245,17 @@ impl KernelSet {
 pub(crate) fn compiler_policy_with_settings(settings: CompilationSettings) -> String {
     native::compiler_policy_with_settings(settings)
 }
+
+#[cfg(all(test, feature = "threshold-decomposition"))]
+pub(super) fn test_standalone(kernels: &KernelSet) -> Vec<u8> {
+    let (_, bytes) = binary::compiled(kernels).unwrap();
+    let restored = KernelSet::from_bytes(&bytes).unwrap();
+    assert_eq!(bytes, restored.to_bytes().unwrap());
+    let refreshed = cached::refresh(&restored).unwrap();
+    assert!(
+        KernelSet::from_bytes(&refreshed)
+            .unwrap()
+            .requires_validated_algebraic_callbacks()
+    );
+    bytes
+}

@@ -1,4 +1,5 @@
-//! Authoritative initial rational-fiber factory. All native jobs are caller-run;
+//! Shared factory for issued rational-fiber and regular-secant continuations.
+//! All native jobs are caller-run;
 //! this module creates no worker pool or numerical integration loop.
 use super::*;
 use crate::{
@@ -20,14 +21,46 @@ impl KernelSet {
         precision: PrecisionPolicy,
         settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
+        Self::compile_continued_source(
+            crate::threshold::continued::ContinuedSource::Rational(bound),
+            staging,
+            maximum,
+            precision,
+            settings,
+        )
+    }
+    /// Compile/prepare a complete fixed regular-section family through the same
+    /// native local records and caller-owned jobs. Requires Validated root policy.
+    pub fn compile_threshold_family(
+        bound: &crate::threshold::regularization::secant::ContinuedFamily<'_>,
+        staging: &Path,
+        maximum: i32,
+        precision: PrecisionPolicy,
+        settings: CompilationSettings,
+    ) -> Result<Self, KernelError> {
+        Self::compile_continued_source(
+            crate::threshold::continued::ContinuedSource::Algebraic(bound),
+            staging,
+            maximum,
+            precision,
+            settings,
+        )
+    }
+    fn compile_continued_source(
+        source: crate::threshold::continued::ContinuedSource<'_>,
+        staging: &Path,
+        maximum: i32,
+        precision: PrecisionPolicy,
+        settings: CompilationSettings,
+    ) -> Result<Self, KernelError> {
         precision.validate()?;
         settings.validate()?;
-        if bound.generation_options().mode != generation::GenerationMode::Symbolic {
+        if source.options().mode != generation::GenerationMode::Symbolic {
             return Err(KernelError::Artifact(
                 "threshold factory requires certified symbolic continuation".into(),
             ));
         }
-        if maximum > bound.generation_options().max_order {
+        if maximum > source.options().max_order {
             return Err(KernelError::Artifact(
                 "requested Laurent range exceeds the continued request".into(),
             ));
@@ -42,13 +75,13 @@ impl KernelSet {
                 "threshold staging directory must be empty".into(),
             ));
         }
-        let request = bound.certificate().decomposition().request();
+        let request = source.request();
         let parent = request
             .source_identity()
             .map_err(|e| KernelError::Artifact(e.to_string()))?;
-        let records = (0..bound.chart_expressions().len())
+        let records = (0..source.charts().len())
             .map(|chart| {
-                record::write(staging, &parent, bound, chart, maximum)
+                record::write(staging, &parent, source, chart, maximum)
                     .map_err(|e| KernelError::Artifact(e.to_string()))
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -59,8 +92,8 @@ impl KernelSet {
             .unwrap_or(maximum)
             .min(maximum.min(0));
         let orders = (minimum..=maximum).collect::<Vec<_>>();
-        let metadata = super::super::threshold_owner::ThresholdMetadata::from_bound(
-            bound,
+        let metadata = super::super::threshold_owner::ThresholdMetadata::from_source(
+            source,
             &records,
             orders.clone(),
         )?;
@@ -95,6 +128,7 @@ impl KernelSet {
                     }
                 }
                 record::VectorKind::Stochastic {} => {
+                    let roots = local.roots;
                     let input = program::PreparedCoefficientVector {
                         coordinates: local.coordinates,
                         coefficients,
@@ -112,7 +146,7 @@ impl KernelSet {
                         settings,
                         use_complex: true,
                     };
-                    let completion = job.run()?;
+                    let completion = roots.enter(53, || job.run())?;
                     if !Arc::ptr_eq(&completion.owner, &owner) || completion.index != sectors.len()
                     {
                         return Err(KernelError::Artifact(

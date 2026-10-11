@@ -509,6 +509,10 @@ impl SectorKernel {
                 None => super::PrimaryEvaluatorRestoration::Generated,
             }
         };
+        let algebraic = super::algebraic::Scope::capture_for(
+            &program::callbacks(&exact).map_err(KernelError::Compilation)?,
+        )
+        .map_err(KernelError::Compilation)?;
         let operations = exact.count_operations().into();
         let backend = if use_complex {
             Backend::Complex(complex::ComplexKernel::from_program_with_primary(
@@ -526,7 +530,13 @@ impl SectorKernel {
                 evaluator::MappingRequirements::new(&exact).map_err(KernelError::Compilation)?;
             let evaluator = evaluator::real_prepared(&exact, execution, &requirements, primary)?;
             let conditioning = evaluator::Conditioning::new(requirements.clone());
+            let root_precision = (!algebraic.is_empty()).then(|| {
+                Box::new(super::precision_cache::PrecisionCache::new(
+                    requirements.clone(),
+                ))
+            });
             Backend::Real(RealKernel {
+                root_precision,
                 double_cache: super::precision_cache::PrecisionCache::new(requirements.clone()),
                 f64_timing: Default::default(),
                 conditioning_timing: Default::default(),
@@ -558,7 +568,13 @@ impl SectorKernel {
             operations,
             symjit_ir_bytes,
         };
+        let stability = if algebraic.is_empty() {
+            super::StabilitySettings::default()
+        } else {
+            super::StabilitySettings::validated()
+        };
         Ok(Self {
+            algebraic,
             contour_validation: None,
             dynamic_history: (0, 0),
             runtime_diagnostics: Default::default(),
@@ -568,12 +584,8 @@ impl SectorKernel {
             parameters_bound: runtime_parameters.is_empty(),
             runtime_parameters,
             parameters,
-            routing: super::stability::Routing::new(
-                &cancellation,
-                &super::StabilitySettings::default(),
-                None,
-            )?,
-            stability: super::StabilitySettings::default(),
+            routing: super::stability::Routing::new(&cancellation, &stability, None)?,
+            stability,
             cancellation,
             precision: precision.clone(),
             exact_zero,
@@ -728,6 +740,11 @@ impl KernelSet {
         {
             return Err(KernelError::NonFinite);
         }
+        let stability = if sectors.iter().any(|s| !s.algebraic.is_empty()) {
+            super::StabilitySettings::validated()
+        } else {
+            super::StabilitySettings::default()
+        };
         use crate::status::CoefficientComponent::{Imag, Real};
         Ok(Self {
             threshold: None,
@@ -739,7 +756,7 @@ impl KernelSet {
             runtime_diagnostics: Default::default(),
             compilation_settings,
             runtime_parameters,
-            stability: super::StabilitySettings::default(),
+            stability,
             runtime_mass_constraints: Vec::new(),
             template_content_id: None,
             portable_artifact: None,

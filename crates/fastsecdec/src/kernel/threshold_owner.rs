@@ -136,7 +136,7 @@ impl ThresholdMetadata {
             .validate_structure(&self.tables(), m::Limits::default())
             .map_err(invalid)?;
         self.manifest
-            .validate_initial_schema_kinds()
+            .validate_executable_schema_kinds()
             .map_err(invalid)?;
         checked
             .validate_resident_records(
@@ -178,6 +178,42 @@ impl ThresholdMetadata {
             return Err(invalid("duplicate native role symbol"));
         }
         let _: serde_json::Value = serde_json::from_str(&self.semantic).map_err(invalid)?;
+        Ok(())
+    }
+    pub(crate) fn validate_algebraic_helpers(
+        &self,
+        roots: &super::algebraic::Scope,
+    ) -> Result<(), KernelError> {
+        let resident = self
+            .records
+            .iter()
+            .flat_map(|r| r.contributions.iter())
+            .collect::<std::collections::BTreeSet<_>>();
+        let charts = self
+            .manifest
+            .contributions
+            .iter()
+            .filter(|c| resident.contains(&c.id))
+            .map(|c| c.chart)
+            .collect::<std::collections::BTreeSet<_>>();
+        let admitted = self
+            .manifest
+            .endpoint_charts
+            .iter()
+            .filter(|c| charts.contains(&c.id))
+            .filter_map(|c| match &c.map {
+                m::MapDescriptor::RegularSecantV1 { endpoint, .. } => Some(&endpoint.root_helpers),
+                _ => None,
+            })
+            .flatten()
+            .collect::<std::collections::BTreeSet<_>>();
+        for (_, bytes) in roots.saved() {
+            if !admitted.contains(&m::Digest(blake3::hash(&bytes).to_hex().to_string())) {
+                return Err(invalid(
+                    "root helper differs from resident endpoint/branch association",
+                ));
+            }
+        }
         Ok(())
     }
     pub(crate) fn visit_atoms(&self, f: &mut impl FnMut(&Atom)) {
@@ -258,6 +294,10 @@ impl KernelSet {
                 .collect::<Vec<_>>(),
             &self.coefficient_orders,
             &self.runtime_parameters,
+        )?;
+        metadata.validate_algebraic_helpers(
+            &super::algebraic::Scope::merged(self.sectors.iter().map(|s| &s.algebraic))
+                .map_err(invalid)?,
         )?;
         self.threshold = Some(Arc::new(metadata));
         Ok(())
@@ -640,40 +680,7 @@ mod build {
                 }],
                 contributions,
             };
-            let descriptor = manifest.descriptor_digest().map_err(invalid)?;
-            let records = manifest
-                .contributions
-                .iter()
-                .filter_map(|c| {
-                    let kind = match &c.kind {
-                        m::ContributionKind::Stochastic { coordinates } => {
-                            m::RecordKind::Stochastic {
-                                coordinates: coordinates.clone(),
-                            }
-                        }
-                        m::ContributionKind::Exact => m::RecordKind::Exact,
-                        m::ContributionKind::CertifiedZero { .. } => return None,
-                    };
-                    Some(m::RecordLineageV1 {
-                        manifest: descriptor.clone(),
-                        contributions: vec![c.id],
-                        kind,
-                    })
-                })
-                .collect();
-            Ok(Self {
-                manifest: Arc::new(manifest),
-                atoms,
-                local: None,
-                symbols,
-                records,
-                resident: m::ResidentLineageV1 {
-                    manifest: descriptor,
-                    selection: m::ResidentSelection::Complete,
-                },
-                semantic: Arc::from(semantic),
-                orders: Arc::new(orders),
-            })
+            Self::issued(manifest, atoms, symbols, semantic, orders)
         }
     }
 }
@@ -716,3 +723,50 @@ mod local;
 pub(crate) use local::SavedV16;
 #[cfg(feature = "threshold-decomposition")]
 pub(crate) use local::{StagedTablePlan, StagedTables};
+
+#[cfg(feature = "threshold-decomposition")]
+mod algebraic;
+
+#[cfg(feature = "threshold-decomposition")]
+impl ThresholdMetadata {
+    fn issued(
+        manifest: m::LineageManifestV1,
+        atoms: Vec<Atom>,
+        symbols: Vec<Symbol>,
+        semantic: String,
+        orders: Vec<i32>,
+    ) -> Result<Self, KernelError> {
+        let descriptor = manifest.descriptor_digest().map_err(invalid)?;
+        let records = manifest
+            .contributions
+            .iter()
+            .filter_map(|c| {
+                let kind = match &c.kind {
+                    m::ContributionKind::Stochastic { coordinates } => m::RecordKind::Stochastic {
+                        coordinates: coordinates.clone(),
+                    },
+                    m::ContributionKind::Exact => m::RecordKind::Exact,
+                    m::ContributionKind::CertifiedZero { .. } => return None,
+                };
+                Some(m::RecordLineageV1 {
+                    manifest: descriptor.clone(),
+                    contributions: vec![c.id],
+                    kind,
+                })
+            })
+            .collect();
+        Ok(Self {
+            manifest: Arc::new(manifest),
+            atoms,
+            local: None,
+            symbols,
+            records,
+            resident: m::ResidentLineageV1 {
+                manifest: descriptor,
+                selection: m::ResidentSelection::Complete,
+            },
+            semantic: Arc::from(semantic),
+            orders: Arc::new(orders),
+        })
+    }
+}

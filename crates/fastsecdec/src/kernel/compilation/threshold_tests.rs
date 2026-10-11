@@ -1276,7 +1276,14 @@ fn threshold_indexed_historical_v15_projection_is_not_migrated_on_restore() {
         .unwrap();
         let records = (0..bound.chart_expressions().len())
             .map(|chart| {
-                crate::threshold::records::write(staging.path(), &source, bound, chart, 1).unwrap()
+                crate::threshold::records::write(
+                    staging.path(),
+                    &source,
+                    crate::threshold::continued::ContinuedSource::Rational(bound),
+                    chart,
+                    1,
+                )
+                .unwrap()
             })
             .collect::<Vec<_>>();
         let historical = crate::kernel::ThresholdMetadata::from_bound_historical_projection(

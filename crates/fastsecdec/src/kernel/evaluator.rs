@@ -21,7 +21,11 @@ macro_rules! evaluator {
             Eager(symbolica::evaluate::ExpressionEvaluator<$scalar>),
             /// A failed callback cannot become an accepted finite value merely
             /// because later arithmetic or an external consumer masks it.
-            Dynamic(Box<Self>, Option<String>),
+            Dynamic(
+                Box<Self>,
+                Option<String>,
+                crate::kernel::callback_attempt::Modes,
+            ),
             Checked(Box<checked::Checked<Self>>),
             Observed(Box<observed::Observed<Self>>),
         }
@@ -39,7 +43,7 @@ macro_rules! evaluator {
                             })
                     }
                     Self::Eager(_) => Ok(None),
-                    Self::Dynamic(evaluator, _) => evaluator.saved_primary(),
+                    Self::Dynamic(evaluator, _, _) => evaluator.saved_primary(),
                     Self::Checked(owner) => owner.evaluator.saved_primary(),
                     Self::Observed(owner) => owner.evaluator.saved_primary(),
                 }
@@ -66,11 +70,8 @@ macro_rules! evaluator {
                             output.fill($invalid);
                         }
                     }
-                    Self::Dynamic(evaluator, last_error) => {
-                        let (_, failure) =
-                            crate::contour::functions::dynamic::isolated_attempt(|| {
-                                evaluator.evaluate(input, output)
-                            });
+                    Self::Dynamic(evaluator, last_error, modes) => {
+                        let (_, failure) = modes.isolated(|| evaluator.evaluate(input, output));
                         *last_error = failure;
                         if last_error.is_some() {
                             output.fill($invalid);
@@ -117,11 +118,10 @@ macro_rules! evaluator {
                         }
                         timings
                     }
-                    Self::Dynamic(evaluator, last_error) => {
-                        let (timings, failure) =
-                            crate::contour::functions::dynamic::isolated_attempt(|| {
-                                evaluator.evaluate_batch(input, output, rows, inputs, outputs)
-                            });
+                    Self::Dynamic(evaluator, last_error, modes) => {
+                        let (timings, failure) = modes.isolated(|| {
+                            evaluator.evaluate_batch(input, output, rows, inputs, outputs)
+                        });
                         *last_error = failure;
                         if last_error.is_some() {
                             // The matrix owner does not expose the failing row.
@@ -138,15 +138,20 @@ macro_rules! evaluator {
                     #[cfg(feature = "native")]
                     Self::Symjit(evaluator) => Some(evaluator.as_bytes().len()),
                     Self::Eager(_) => None,
-                    Self::Dynamic(evaluator, _) => evaluator.symjit_ir_bytes(),
+                    Self::Dynamic(evaluator, _, _) => evaluator.symjit_ir_bytes(),
                     Self::Checked(checked) => checked.evaluator.symjit_ir_bytes(),
                     Self::Observed(owner) => owner.evaluator.symjit_ir_bytes(),
                 }
             }
             pub(super) fn last_dynamic_error(&self) -> Option<&str> {
                 match self {
-                    Self::Dynamic(_, error) => error.as_deref(),
-                    Self::Checked(checked) => checked.validation.last_error.as_deref(),
+                    Self::Dynamic(inner, error, _) => {
+                        error.as_deref().or_else(|| inner.last_dynamic_error())
+                    }
+                    Self::Checked(checked) => checked
+                        .evaluator
+                        .last_dynamic_error()
+                        .or(checked.validation.last_error.as_deref()),
                     Self::Observed(owner) => owner.evaluator.last_dynamic_error(),
                     _ => None,
                 }
@@ -157,20 +162,36 @@ macro_rules! evaluator {
                     Self::Dynamic(..) | Self::Checked(..) | Self::Observed(..)
                 )
             }
+            pub(super) fn has_contour_callbacks(&self) -> bool {
+                match self {
+                    Self::Dynamic(inner, _, modes) => {
+                        modes.contour || inner.has_contour_callbacks()
+                    }
+                    Self::Checked(_) => true,
+                    Self::Observed(owner) => owner.evaluator.has_contour_callbacks(),
+                    _ => false,
+                }
+            }
             pub(super) fn execution_backend(&self) -> EvaluatorBackend {
                 match self {
                     #[cfg(feature = "native")]
                     Self::Symjit(_) => EvaluatorBackend::Symjit,
                     Self::Eager(_) => EvaluatorBackend::Eager,
-                    Self::Dynamic(evaluator, _) => evaluator.execution_backend(),
+                    Self::Dynamic(evaluator, _, _) => evaluator.execution_backend(),
                     Self::Checked(checked) => checked.evaluator.execution_backend(),
                     Self::Observed(owner) => owner.evaluator.execution_backend(),
                 }
             }
             pub(super) fn clear_dynamic_attempt(&mut self) {
                 match self {
-                    Self::Dynamic(_, error) => *error = None,
-                    Self::Checked(checked) => checked.validation.clear_attempt(),
+                    Self::Dynamic(inner, error, _) => {
+                        *error = None;
+                        inner.clear_dynamic_attempt();
+                    }
+                    Self::Checked(checked) => {
+                        checked.validation.clear_attempt();
+                        checked.evaluator.clear_dynamic_attempt();
+                    }
                     Self::Observed(owner) => owner.evaluator.clear_dynamic_attempt(),
                     _ => {}
                 }
@@ -211,12 +232,18 @@ macro_rules! evaluator {
                 }
             }
             fn with_dynamic_fence(self, requirements: &MappingRequirements) -> Self {
-                let result = if let Some(specification) = requirements.specification() {
-                    Self::Checked(Box::new(checked::Checked::new(self, specification)))
-                } else if requirements.has_dynamic_callbacks() {
-                    Self::Dynamic(Box::new(self), None)
+                let modes = requirements.callback_modes();
+                let result = if modes.algebraic
+                    || (modes.contour && requirements.specification().is_none())
+                {
+                    Self::Dynamic(Box::new(self), None, modes)
                 } else {
                     self
+                };
+                let result = if let Some(specification) = requirements.specification() {
+                    Self::Checked(Box::new(checked::Checked::new(result, specification)))
+                } else {
+                    result
                 };
                 if requirements.has_dynamic_callbacks()
                     && requirements.diagnostics_configuration().enabled()
