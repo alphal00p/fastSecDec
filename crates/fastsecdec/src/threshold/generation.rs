@@ -1,6 +1,8 @@
 //! Caller-run admitted threshold preparation. The expensive native owners live
 //! only in this call; the returned descriptors contain no global CAD proof.
 mod configuration;
+mod graph;
+pub use graph::{prepare_graph, resume_graph, resume_graph_evidence};
 #[cfg(test)]
 mod tests;
 use super::{
@@ -96,6 +98,9 @@ pub struct EvidenceReceipts {
 #[serde(deny_unknown_fields)]
 pub struct Progress {
     pub stage: Stage,
+    /// Input conversion/parameterization detail; absent on legacy input paths.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph_input: Option<represented::graph::Progress>,
     pub completed: usize,
     pub total: Option<usize>,
     pub elapsed_seconds: f64,
@@ -160,6 +165,7 @@ struct Reporter<'a, F> {
     start: Instant,
     stage_start: Instant,
     stage: Stage,
+    graph_input: Option<represented::graph::Progress>,
     configuration: Option<crate::generation::streaming::RecordRef>,
     receipts: EvidenceReceipts,
     timings: Vec<Timing>,
@@ -172,6 +178,9 @@ impl<F: FnMut(&Progress) -> ControlFlow<()>> Reporter<'_, F> {
                 seconds: self.stage_start.elapsed().as_secs_f64(),
             });
             self.stage = stage;
+            if stage != Stage::Input {
+                self.graph_input = None;
+            }
             self.stage_start = Instant::now();
         }
         self.poll(completed, total)
@@ -179,6 +188,7 @@ impl<F: FnMut(&Progress) -> ControlFlow<()>> Reporter<'_, F> {
     fn poll(&mut self, completed: usize, total: Option<usize>) -> Result<()> {
         if (self.observer)(&Progress {
             stage: self.stage,
+            graph_input: self.graph_input,
             completed,
             total,
             elapsed_seconds: self.start.elapsed().as_secs_f64(),
@@ -236,40 +246,53 @@ pub fn prepare(
     root: &Path,
     mut observer: impl FnMut(&Progress) -> ControlFlow<()>,
 ) -> Result<PreparedThreshold> {
+    prepare_with(options, root, &mut observer, |options, reporter| {
+        Ok(Arc::new(
+            if let Some((meaning, limits)) = options.represented {
+                options.threshold.gcad_first_represented_request(
+                    input,
+                    &options.generation,
+                    meaning,
+                    limits,
+                    |n| {
+                        if reporter.poll(n, None).is_ok() {
+                            ControlFlow::Continue(())
+                        } else {
+                            ControlFlow::Break(())
+                        }
+                    },
+                )?
+            } else {
+                options
+                    .threshold
+                    .gcad_first_request(&input, &options.generation)?
+            },
+        ))
+    })
+}
+fn prepare_with<F: FnMut(&Progress) -> ControlFlow<()>>(
+    options: PreparationOptions,
+    root: &Path,
+    observer: &mut F,
+    request: impl FnOnce(&PreparationOptions, &mut Reporter<'_, F>) -> Result<Arc<gcad::GcadRequest>>,
+) -> Result<PreparedThreshold> {
     admission(&options)?;
     if root.read_dir()?.next().is_some() {
         return Err(Error::Association("preparation directory must be empty"));
     }
     let start = Instant::now();
     let mut reporter = Reporter {
-        observer: &mut observer,
+        observer,
         start,
         stage_start: start,
         stage: Stage::Input,
+        graph_input: None,
         configuration: None,
         receipts: Default::default(),
         timings: Vec::new(),
     };
     reporter.poll(0, None)?;
-    let request = Arc::new(if let Some((meaning, limits)) = options.represented {
-        options.threshold.gcad_first_represented_request(
-            input,
-            &options.generation,
-            meaning,
-            limits,
-            |n| {
-                if reporter.poll(n, None).is_ok() {
-                    ControlFlow::Continue(())
-                } else {
-                    ControlFlow::Break(())
-                }
-            },
-        )?
-    } else {
-        options
-            .threshold
-            .gcad_first_request(&input, &options.generation)?
-    });
+    let request = request(&options, &mut reporter)?;
     if request.domain().coordinates().len() != 1 {
         return Err(Error::Unsupported(
             "this complete factory currently requires one compact integration coordinate",
@@ -392,6 +415,7 @@ pub fn resume(
         expected_source,
         Some(expected_prepared),
         maximum_bytes,
+        None,
         &mut observer,
     )
 }
@@ -414,9 +438,11 @@ pub fn resume_evidence(
         expected_source,
         None,
         maximum_bytes,
+        None,
         &mut observer,
     )
 }
+#[allow(clippy::too_many_arguments)]
 fn recover<F: FnMut(&Progress) -> ControlFlow<()>>(
     root: &Path,
     checkpoint: &PreparationCheckpoint,
@@ -424,6 +450,7 @@ fn recover<F: FnMut(&Progress) -> ControlFlow<()>>(
     expected_source: &str,
     expected_prepared: Option<&str>,
     maximum_bytes: u64,
+    graph: Option<(Arc<represented::graph::GraphPoint>, represented::Limits)>,
     observer: &mut F,
 ) -> Result<PreparedThreshold> {
     let start = Instant::now();
@@ -432,6 +459,7 @@ fn recover<F: FnMut(&Progress) -> ControlFlow<()>>(
         start,
         stage_start: start,
         stage: Stage::Input,
+        graph_input: None,
         configuration: Some(checkpoint.configuration.clone()),
         receipts: EvidenceReceipts {
             request: Some(checkpoint.evidence.request.clone()),
@@ -455,14 +483,52 @@ fn recover<F: FnMut(&Progress) -> ControlFlow<()>>(
     let remaining = maximum_bytes
         .checked_sub(checkpoint.configuration.bytes)
         .ok_or(Error::Association("configuration transport limit"))?;
-    let options = configuration::read(root, &checkpoint.configuration, maximum_bytes)?;
+    let mut options = configuration::read(root, &checkpoint.configuration, maximum_bytes)?;
     admission(&options)?;
     let raw = &checkpoint.evidence;
     let request = &raw.request;
     if request.source_identity != expected_source {
         return Err(Error::Association("resume original source"));
     }
-    let staged = gcad::staging::StagedRequest::read(root, request, remaining)?;
+    let is_graph = graph.is_some();
+    let staged = if let Some((original, conversion_cap)) = graph {
+        graph::admission(&options)?;
+        gcad::staging::StagedRequest::read_with_original_graph(
+            root,
+            request,
+            remaining,
+            original,
+            conversion_cap,
+            |p| {
+                reporter.graph_input = Some(p);
+                if reporter.poll(p.converted_literals, None).is_ok() {
+                    ControlFlow::Continue(())
+                } else {
+                    ControlFlow::Break(())
+                }
+            },
+        )
+        .map_err(|error| match error {
+            gcad::staging::Error::Gcad(gcad::GcadError::Represented(
+                represented::Error::Cancelled,
+            )) => Error::Cancelled,
+            error => Error::Evidence(error),
+        })?
+    } else {
+        gcad::staging::StagedRequest::read(root, request, remaining)?
+    };
+    if is_graph {
+        graph::request_options(&options, staged.request())?;
+    } else if let Some(owner) = staged.request().represented_input() {
+        // Legacy v1 configurations did not repeat the parametric represented
+        // policy. Recover it only from the reconstructed native request owner;
+        // never from a new caller or by treating that request as exact-only.
+        let policy = (owner.meaning(), owner.limits());
+        if options.represented.is_some_and(|stored| stored != policy) {
+            return Err(Error::Association("represented policy/configuration"));
+        }
+        options.represented = Some(policy);
+    }
     if staged.request().domain().coordinates().len() != 1 {
         return Err(Error::Unsupported("resume integration dimension"));
     }

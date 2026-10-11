@@ -75,28 +75,44 @@ impl PyThresholdGenerationSession {
         }
         if !self.work.initialized() {
             crate::citations::mark_threshold_generation();
-            self.status.stage = GenerationStage::Parametrization;
-            self.status.detail = "Parametrizing the existing native HEPKit input".into();
-            let started = Instant::now();
-            let (input, runtime) = self.input.parametrize(py)?;
-            let seconds = started.elapsed().as_secs_f64();
-            self.status.timings.parametrization_seconds += seconds;
-            self.status.elapsed_seconds += seconds;
-            self.status.timings.total_seconds = self.status.elapsed_seconds;
-            if !runtime.parameters.is_empty() || !runtime.masses.is_empty() {
-                return Err(pyo3::exceptions::PyValueError::new_err(
-                    "threshold preparation currently requires fixed physical input; use model_parameters='fixed' and no runtime_parameters",
-                ));
+            if self.work.options.represented.is_some() {
+                let source = self.input.represented_graph_point(py)?;
+                self.work
+                    .initialize_graph(source)
+                    .map_err(|e| error::native(py, "threshold input", e))?;
+            } else {
+                self.status.stage = GenerationStage::Parametrization;
+                self.status.detail = "Parametrizing the existing native HEPKit input".into();
+                let started = Instant::now();
+                let (input, runtime) = self.input.parametrize(py)?;
+                let seconds = started.elapsed().as_secs_f64();
+                self.status.timings.parametrization_seconds += seconds;
+                self.status.elapsed_seconds += seconds;
+                self.status.timings.total_seconds = self.status.elapsed_seconds;
+                if !runtime.parameters.is_empty() || !runtime.masses.is_empty() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "threshold preparation currently requires fixed physical input; use model_parameters='fixed' and no runtime_parameters",
+                    ));
+                }
+                self.work
+                    .initialize(input)
+                    .map_err(|e| error::native(py, "threshold preparation", e))?;
             }
-            self.work
-                .initialize(input)
-                .map_err(|e| error::native(py, "threshold preparation", e))?;
         }
         let elapsed = self.status.elapsed_seconds;
         let started = Instant::now();
         let status = &mut self.status;
         let mut callback_error = None;
+        let mut graph_parametrization_started: Option<Instant> = None;
         let result = self.work.prepare(|native| {
+            let parameterizing = native.graph_input.is_some_and(|detail| {
+                detail.stage == fastsecdec::threshold::represented::graph::Stage::Parameterization
+            });
+            if parameterizing && graph_parametrization_started.is_none() {
+                graph_parametrization_started = Some(Instant::now());
+            } else if !parameterizing && let Some(started) = graph_parametrization_started.take() {
+                status.timings.parametrization_seconds += started.elapsed().as_secs_f64();
+            }
             update(status, native, elapsed + started.elapsed().as_secs_f64());
             match progress.observe(py, status) {
                 Ok(true) => ControlFlow::Continue(()),
@@ -107,6 +123,9 @@ impl PyThresholdGenerationSession {
                 }
             }
         });
+        if let Some(started) = graph_parametrization_started.take() {
+            self.status.timings.parametrization_seconds += started.elapsed().as_secs_f64();
+        }
         self.status.elapsed_seconds = elapsed + started.elapsed().as_secs_f64();
         self.status.timings.total_seconds = self.status.elapsed_seconds;
         if let Some(e) = callback_error {
@@ -239,7 +258,20 @@ fn update(status: &mut GenerationSnapshot, p: &Progress, elapsed: f64) {
     status.total = p.total;
     status.elapsed_seconds = elapsed;
     status.timings.total_seconds = elapsed;
-    status.detail = format!("Native threshold {:?}", p.stage);
+    status.detail = p.graph_input.map_or_else(
+        || format!("Native threshold {:?}", p.stage),
+        |detail| {
+            format!(
+                "Native graph {:?}; {} represented literals",
+                detail.stage, detail.converted_literals
+            )
+        },
+    );
+    if p.graph_input.is_some_and(|detail| {
+        detail.stage == fastsecdec::threshold::represented::graph::Stage::Parameterization
+    }) {
+        status.stage = GenerationStage::Parametrization;
+    }
 }
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pymethods)]
 #[pymethods]

@@ -10,6 +10,9 @@ use symbolica::{
     symbol,
 };
 
+#[path = "graph_tests.rs"]
+mod graph_tests;
+
 fn analytic() -> (Arc<ParametricIntegrand>, PreparationOptions) {
     let (x, a, eps, t) = symbol!(
         "preparation_adapter::x",

@@ -4,7 +4,7 @@ mod prepared;
 mod session;
 mod work;
 use crate::{error, input::PyIntegral, settings::PyCompilationSettings};
-use fastsecdec::threshold::{gcad, generation::PreparationOptions};
+use fastsecdec::threshold::{gcad, generation::PreparationOptions, represented};
 use pyo3::prelude::*;
 
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
@@ -19,6 +19,7 @@ pub(crate) struct PyThresholdSettings {
     limits: gcad::Limits,
     solver: gcad::SolverOptions,
     transport_bytes: u64,
+    represented: Option<(represented::NumericalMeaning, represented::Limits)>,
 }
 impl Default for PyThresholdSettings {
     fn default() -> Self {
@@ -26,6 +27,7 @@ impl Default for PyThresholdSettings {
             limits: gcad::GcadRequest::default_limits(),
             solver: Default::default(),
             transport_bytes: 1 << 30,
+            represented: None,
         }
     }
 }
@@ -35,13 +37,21 @@ impl PyThresholdSettings {
     /// Native GCAD JSON schemas, without a second settings implementation.
     /// limits.workers must remain one; schedule processes in the caller.
     /// Byte limits cover transport, not native decoded/compiler RSS.
+    /// numerical_meaning="represented_values" explicitly preserves the stored
+    /// Float values in fixed graph kinematics, scalar bindings and loop measure.
+    /// It uses the native pre-parametric provenance owner, without guessing
+    /// rationals or inferring uncertainty bounds. Graph numerator/projector
+    /// payloads and IntegralFamily inputs currently require exact expressions.
+    /// Omit numerical_meaning to retain the ordinary exact-input path.
     #[new]
-    #[pyo3(signature=(*, gcad_limits_json=None, solver_options_json=None, maximum_transport_bytes=1_073_741_824))]
+    #[pyo3(signature=(*, gcad_limits_json=None, solver_options_json=None, maximum_transport_bytes=1_073_741_824, numerical_meaning=None, represented_limits_json=None))]
     fn new(
         py: Python<'_>,
         gcad_limits_json: Option<&str>,
         solver_options_json: Option<&str>,
         maximum_transport_bytes: u64,
+        numerical_meaning: Option<&str>,
+        represented_limits_json: Option<&str>,
     ) -> PyResult<Self> {
         if maximum_transport_bytes == 0 {
             return Err(pyo3::exceptions::PyValueError::new_err(
@@ -68,6 +78,48 @@ impl PyThresholdSettings {
                 "native GCAD requires workers=1; schedule processes in the caller",
             ));
         }
+        let represented = match numerical_meaning {
+            None => {
+                if represented_limits_json.is_some() {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "represented_limits_json requires explicit numerical_meaning",
+                    ));
+                }
+                None
+            }
+            Some(value) => {
+                // Deserialize the existing native policy; no second numerical
+                // interpretation or Float-to-rational conversion lives here.
+                let meaning: represented::NumericalMeaning =
+                    serde_json::from_value(serde_json::Value::String(value.to_owned()))
+                        .map_err(|e| error::native(py, "represented input policy", e))?;
+                if meaning != represented::NumericalMeaning::RepresentedValues {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "uncertainty bounds require an interval/error contract; use represented_values only for the actual stored values",
+                    ));
+                }
+                let mut limits = serde_json::to_value(represented::Limits::default())
+                    .map_err(|e| error::native(py, "represented input limits", e))?;
+                if let Some(json) = represented_limits_json {
+                    let overrides: serde_json::Value = serde_json::from_str(json)
+                        .map_err(|e| error::native(py, "represented input limits", e))?;
+                    let values = overrides.as_object().ok_or_else(|| {
+                        pyo3::exceptions::PyValueError::new_err(
+                            "represented_limits_json must be an object",
+                        )
+                    })?;
+                    limits
+                        .as_object_mut()
+                        .expect("native represented limits object")
+                        .extend(values.clone());
+                }
+                Some((
+                    meaning,
+                    serde_json::from_value(limits)
+                        .map_err(|e| error::native(py, "represented input limits", e))?,
+                ))
+            }
+        };
         Ok(Self {
             limits,
             solver: solver_options_json
@@ -76,10 +128,11 @@ impl PyThresholdSettings {
                 .map_err(|e| error::native(py, "threshold settings", e))?
                 .unwrap_or_default(),
             transport_bytes: maximum_transport_bytes,
+            represented,
         })
     }
     fn to_json(&self) -> PyResult<String> {
-        serde_json::to_string(&serde_json::json!({"gcad_limits":self.limits,"solver_options":self.solver,"maximum_transport_bytes":self.transport_bytes}))
+        serde_json::to_string(&serde_json::json!({"gcad_limits":self.limits,"solver_options":self.solver,"maximum_transport_bytes":self.transport_bytes,"represented":self.represented}))
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
@@ -121,6 +174,7 @@ impl PyIntegral {
         let settings = threshold_settings.cloned().unwrap_or_default();
         options.threshold.gcad_limits = settings.limits;
         options.threshold.solver = settings.solver;
+        options.represented = settings.represented;
         Ok(session::PyThresholdGenerationSession::new(
             self.clone(),
             options,

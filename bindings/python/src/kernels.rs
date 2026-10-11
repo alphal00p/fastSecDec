@@ -116,13 +116,20 @@ impl PyKernels {
             inner: self.inner.stability_settings().clone(),
         }
     }
-    /// Persist the library's native portable program/metadata codec, excluding machine code.
+    /// Persist native programs, metadata and any retained compatible native cache.
+    /// Loaded standalone artifacts retain their original bytes; selected archive
+    /// owners use the same native serializer without requiring a retained copy.
     fn to_bytes<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyBytes>> {
+        // Native artifact_bytes() only borrows an Option<Vec<u8>>: its sole
+        // error means no retained bytes, not failed validation or corruption.
+        if let Ok(bytes) = self.inner.artifact_bytes() {
+            return Ok(PyBytes::new(py, bytes));
+        }
         let bytes = self
             .inner
-            .artifact_bytes()
+            .to_bytes()
             .map_err(|e| error::native(py, "artifact", e))?;
-        Ok(PyBytes::new(py, bytes))
+        Ok(PyBytes::new(py, &bytes))
     }
 
     /// Validate native programs and construct evaluators for the current host backend.

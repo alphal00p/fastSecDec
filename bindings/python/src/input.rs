@@ -1,14 +1,17 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use fastsecdec::{
-    Atom, EdgeId, IntegralFamily, Kinematics, Symbol,
+    Atom, EdgeId, FeynmanDiagram, IntegralFamily, Kinematics, Symbol,
     input::{GraphIntegral, RuntimeModelBindings, prepare_family_input},
     kernel::RuntimeMassConstraint,
     parametric::ParametricIntegrand,
 };
 use feynkit_py::{PyFeynmanDiagram, PyIntegralFamily, PyKinematics};
 use pyo3::{prelude::*, types::PyDict};
-use symbolica::{api::python::PythonExpression, atom::AtomView};
+use symbolica::{
+    api::python::PythonExpression,
+    atom::{AtomCore, AtomView},
+};
 
 use super::error;
 
@@ -46,8 +49,20 @@ pub(crate) fn with_diagram_expressions(
 
 #[derive(Clone)]
 enum IntegralInput {
-    Graph(Arc<GraphIntegral>),
+    Graph(Arc<GraphInput>),
     Family(Arc<FamilyInput>),
+}
+
+/// Original native graph point. Storing it performs no propagator-family
+/// arithmetic; exact and represented generation consume the same original roles.
+struct GraphInput {
+    diagram: Arc<FeynmanDiagram>,
+    kinematics: Arc<Kinematics>,
+    scalar_values: BTreeMap<Symbol, Atom>,
+    auxiliary_momenta: Vec<Atom>,
+    powers: BTreeMap<EdgeId, u32>,
+    propagator_edges: Vec<EdgeId>,
+    measure_multiplier: Atom,
 }
 
 /// Retained native data only. Specialization, projection and numerator algebra
@@ -63,6 +78,11 @@ struct FamilyInput {
 }
 
 /// Native diagram or integral family, assumptions and explicit loop measure.
+///
+/// Construction retains the original native input without propagator-family
+/// arithmetic. Native basis, width and scalar-point validation occurs on explicit
+/// generation/parametrization; type, symbol-role and graph-view checks remain
+/// immediate. Display and snapshots never parameterize or compile the input.
 #[cfg_attr(feature = "python_stubgen", pyo3_stub_gen::derive::gen_stub_pyclass)]
 #[pyclass(
     name = "Integral",
@@ -87,6 +107,40 @@ pub(crate) struct RuntimeInputs {
 }
 
 impl PyIntegral {
+    #[cfg(feature = "native")]
+    pub(crate) fn represented_graph_point(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<Arc<fastsecdec::threshold::represented::graph::GraphPoint>> {
+        if !self.runtime_parameters.is_empty() || self.runtime_model.is_some() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "represented threshold preparation requires model_parameters='fixed' and no runtime_parameters",
+            ));
+        }
+        let IntegralInput::Graph(source) = &self.input else {
+            return Err(error::native(
+                py,
+                "represented input",
+                "represented native family preparation requires its own original-family provenance owner and is not yet supported",
+            ));
+        };
+        Ok(Arc::new(
+            fastsecdec::threshold::represented::graph::GraphPoint {
+                diagram: source.diagram.clone(),
+                kinematics: source.kinematics.clone(),
+                scalar_values: source.scalar_values.clone(),
+                auxiliary_momenta: source.auxiliary_momenta.clone(),
+                powers: source.powers.clone(),
+                measure_multiplier: source.measure_multiplier.clone(),
+                coordinates: (0..source.propagator_edges.len())
+                    .map(|i| symbolica::symbol!(format!("fastsecdec::hepkit::x{i}")))
+                    .collect(),
+                regulator: self.regulator,
+                dimension: self.dimension.clone(),
+            },
+        ))
+    }
+
     pub(crate) fn parametrize(
         &self,
         py: Python<'_>,
@@ -97,12 +151,30 @@ impl PyIntegral {
                 .collect()
         };
         let input = match &self.input {
-            IntegralInput::Graph(graph) => ParametricIntegrand::from_graph(
-                graph,
-                parameters(graph.powers().len()),
-                self.regulator,
-                self.dimension.clone(),
-            ),
+            IntegralInput::Graph(source) => {
+                let mut declared = self.runtime_parameters.clone();
+                if let Some(model) = &self.runtime_model {
+                    declared.extend(model.symbols());
+                }
+                let graph = GraphIntegral::new_with_runtime_scalar_values(
+                    source.diagram.clone(),
+                    &source.kinematics,
+                    self.runtime_model
+                        .as_ref()
+                        .map_or(&source.scalar_values, RuntimeModelBindings::values),
+                    &declared,
+                )
+                .and_then(|g| g.with_auxiliary_external_momenta(&source.auxiliary_momenta))
+                .and_then(|g| g.with_powers(&source.powers))
+                .map_err(|e| error::native(py, "input", e))?
+                .with_measure_multiplier(source.measure_multiplier.clone());
+                ParametricIntegrand::from_graph(
+                    &graph,
+                    parameters(graph.powers().len()),
+                    self.regulator,
+                    self.dimension.clone(),
+                )
+            }
             IntegralInput::Family(source) => {
                 let (family, powers, numerator) = prepare_family_input(
                     &source.family,
@@ -214,34 +286,55 @@ impl PyIntegral {
                 ));
             }
         };
-        let mut declared = runtime_parameters.clone();
-        if let Some(model) = &runtime_model {
-            declared.extend(model.symbols());
+        // This role check needs no family construction and remains a constructor
+        // error. Full scalar-point/model/basis admission occurs at parametrization.
+        let tensor_dimension = kinematics.as_kinematics().dimension().to_symbolic();
+        if bindings
+            .keys()
+            .any(|key| tensor_dimension.contains(Atom::var(*key).as_view()))
+        {
+            return Err(error::native(
+                py,
+                "input",
+                "scalar bindings cannot replace the tensor dimension",
+            ));
         }
-        let graph = GraphIntegral::new_with_runtime_scalar_values(
-            diagram,
-            kinematics.as_kinematics(),
-            runtime_model
-                .as_ref()
-                .map_or(&bindings, RuntimeModelBindings::values),
-            &declared,
-        )
-        .map_err(|e| error::native(py, "input", e))?;
+        let propagator_edges = GraphIntegral::propagator_edge_ids(&diagram);
         let powers = powers
             .unwrap_or_default()
             .into_iter()
             .map(|(id, power)| (EdgeId(id), power))
-            .collect();
+            .collect::<BTreeMap<_, _>>();
         let momenta: Vec<_> = auxiliary_momenta
             .unwrap_or_default()
             .into_iter()
             .map(|v| v.expr)
             .collect();
-        let graph = graph
-            .with_auxiliary_external_momenta(&momenta)
-            .and_then(|g| g.with_powers(&powers))
-            .map_err(|e| error::native(py, "input", e))?
-            .with_measure_multiplier(measure_multiplier.map_or_else(Atom::one, |v| v.expr.clone()));
+        for (&edge, &power) in &powers {
+            if !propagator_edges.contains(&edge) {
+                return Err(error::native(
+                    py,
+                    "input",
+                    fastsecdec::Error::UnknownPropagator(edge),
+                ));
+            }
+            if power == 0 {
+                return Err(error::native(
+                    py,
+                    "input",
+                    fastsecdec::Error::InvalidPower { edge, power },
+                ));
+            }
+        }
+        let graph = GraphInput {
+            diagram,
+            kinematics: Arc::new(kinematics.as_kinematics().clone()),
+            scalar_values: bindings,
+            auxiliary_momenta: momenta,
+            powers,
+            propagator_edges,
+            measure_multiplier: measure_multiplier.map_or_else(Atom::one, |v| v.expr.clone()),
+        };
         Ok(Self {
             input: IntegralInput::Graph(Arc::new(graph)),
             regulator,
@@ -331,10 +424,9 @@ impl PyIntegral {
     fn powers(&self) -> Vec<(usize, i64)> {
         match &self.input {
             IntegralInput::Graph(graph) => graph
-                .propagator_edges()
+                .propagator_edges
                 .iter()
-                .zip(graph.powers())
-                .map(|(e, p)| (e.0, i64::from(*p)))
+                .map(|e| (e.0, i64::from(*graph.powers.get(e).unwrap_or(&1))))
                 .collect(),
             IntegralInput::Family(source) => source
                 .powers

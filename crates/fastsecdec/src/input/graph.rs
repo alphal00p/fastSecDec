@@ -23,6 +23,22 @@ pub struct GraphIntegral {
 }
 
 impl GraphIntegral {
+    /// Native propagator slots in the same order used by family preparation.
+    /// This structural view performs no scalar-product or family arithmetic and
+    /// does not certify model widths, routing or a numerical scalar point.
+    pub fn propagator_edge_ids(diagram: &FeynmanDiagram) -> Vec<EdgeId> {
+        diagram
+            .edges()
+            .filter(|(_, endpoints, edge)| {
+                endpoints.source.is_some()
+                    && endpoints.target.is_some()
+                    && edge.external.is_none()
+                    && !edge.is_dummy
+            })
+            .map(|(id, _, _)| id)
+            .collect()
+    }
+
     pub fn new(diagram: Arc<FeynmanDiagram>, kinematics: &Kinematics) -> Result<Self> {
         Self::new_with_scalar_values(diagram, kinematics, &BTreeMap::new())
     }
@@ -55,16 +71,7 @@ impl GraphIntegral {
         diagram.validate()?;
         super::validation::validate_denominators(&diagram, values, runtime_parameters)?;
         let family = diagram.propagator_family(kinematics)?;
-        let propagator_edges: Vec<_> = diagram
-            .edges()
-            .filter(|(_, endpoints, edge)| {
-                endpoints.source.is_some()
-                    && endpoints.target.is_some()
-                    && edge.external.is_none()
-                    && !edge.is_dummy
-            })
-            .map(|(id, _, _)| id)
-            .collect();
+        let propagator_edges = Self::propagator_edge_ids(&diagram);
         debug_assert_eq!(propagator_edges.len(), family.denominators().len());
         let powers = vec![1; propagator_edges.len()];
         let mut input = Self {

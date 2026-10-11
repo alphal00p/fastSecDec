@@ -3775,3 +3775,21 @@ native types, without a setup script. Embedded HEPKit, historical artifact and
 the newer upstream renderer closure and are documented; numerical consumers
 remain Python-free. Full community, installed-wheel and browser validation are
 not inferred from these gates.
+
+## HEPKit represented graph preparation and recovery (2026-10-11)
+
+The [binding review](reviews/no-deformation-hepkit-represented.md) records the
+existing graph entrypoints consuming the native original-input owner before
+family arithmetic. Exact and represented preparation share the native solver,
+verification, continuation, record and publication pipeline. The graph owner
+supplies propagator enumeration, and native serialization handles selected
+kernel export; neither operation is duplicated in Python.
+
+Independent runtime and root reviews checked ownership, deferred validation,
+live source authority, recovery policy and unchanged exact configuration
+bytes. The source-matched native HEPKit host passes a complete complex bubble
+control with represented masses/kinematics, interruption, raw recovery without
+solving again and numerical artifact reload after preparation-owner release.
+Representation choices remain explicit. General algebraic preparation,
+represented-family provenance and Float graph payload mapping are not supplied
+by this bridge, nor does this test update a running installed host.

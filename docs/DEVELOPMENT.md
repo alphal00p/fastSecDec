@@ -84,10 +84,10 @@ Both generation schedules publish the same indexed format for ordinary or serial
 integration. Native HEPKit inputs also expose this path through
 `Integral.generation_session(threshold_decomposition=True)`: explicit `step()`
 calls prepare and compile native records, returning the existing recipe archive.
-The initial binding accepts exact fixed inputs. Existing diagram/family
+The binding accepts exact fixed inputs. Existing diagram/family
 `sector_decompose(threshold_decomposition=True)` calls return a native prepared
-owner with a separate `compile()` action. Represented numerical inputs and the
-general algebraic resolver remain separate gates. See the
+owner with a separate `compile()` action. The general algebraic resolver remains
+a separate gate. See the
 [prepared-owner review](reviews/no-deformation-hepkit-prepared-owner.md).
 The native `threshold::represented::graph::ExactRepresentedGraphInput` owner
 now accepts supported represented floating-point kinematics, scalar bindings
@@ -95,9 +95,17 @@ and measure factors before native family arithmetic. It preserves the exact
 binary value, source association and numerical meaning; it does not guess
 simple rationals. Raw geometry replay requires the original graph point and
 re-verifies its evidence. Graph numerator/projector Float payloads and
-uncertainty-bearing input remain explicit refusals. This native facility does
-not yet enable represented inputs in the Python entrypoints; see the
+uncertainty-bearing input remain explicit refusals; see the
 [native graph review](reviews/no-deformation-preparametric-graph.md).
+The existing Python graph entrypoints now select this owner with
+`ThresholdSettings(numerical_meaning="represented_values")`. Native
+`prepare_graph`, `resume_graph` and `resume_graph_evidence` share the existing
+preparation and recovery pipeline. `Integral` retains the original graph point
+without family arithmetic; explicit generation/parametrization performs the
+full native basis and scalar-point checks. Represented integral-family inputs
+still require their own provenance owner and are refused. See the
+[HEPKit represented-input review](reviews/no-deformation-hepkit-represented.md)
+for validation timing, progress, recovery and selected-result serialization.
 The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:

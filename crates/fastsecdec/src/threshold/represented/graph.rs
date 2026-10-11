@@ -42,7 +42,8 @@ pub enum GraphLocation {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Stage {
     ExactPayload,
     Kinematics,
@@ -51,7 +52,8 @@ pub enum Stage {
     Parameterization,
     Complete,
 }
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Progress {
     pub stage: Stage,
     pub converted_literals: usize,
