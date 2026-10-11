@@ -193,7 +193,7 @@ impl PyRecipeArchive {
 
     /// Reuse the retained resident object or load only the requested native recipe.
     /// Selection does not bind kinematics or bypass dynamic numerical admission.
-    fn select(&self, py: Python<'_>, recipe: &str) -> PyResult<Py<PyKernels>> {
+    pub(crate) fn select(&self, py: Python<'_>, recipe: &str) -> PyResult<Py<PyKernels>> {
         py.check_signals()?;
         let recipe = super::archive_recipe(recipe)?;
         self.catalogue
@@ -223,6 +223,7 @@ impl PyRecipeArchive {
             return Err(error);
         }
         let kernels = selected.map_err(|e| error::native(py, "archive selection", e))?;
+        crate::citations::mark_kernels(&kernels);
         py.check_signals()?;
         let mut status = self.status.clone();
         status.sectors = kernels.sectors().len();

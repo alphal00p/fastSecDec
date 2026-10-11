@@ -74,9 +74,11 @@ Both generation schedules publish the same indexed format for ordinary or serial
 integration. Native HEPKit inputs also expose this path through
 `Integral.generation_session(threshold_decomposition=True)`: explicit `step()`
 calls prepare and compile native records, returning the existing recipe archive.
-The initial binding accepts exact fixed inputs; diagram/family convenience
-dispatch, represented numerical inputs and the general algebraic resolver remain
-separate gates. See the [binding review](reviews/no-deformation-hepkit-generation.md).
+The initial binding accepts exact fixed inputs. Existing diagram/family
+`sector_decompose(threshold_decomposition=True)` calls return a native prepared
+owner with a separate `compile()` action. Represented numerical inputs and the
+general algebraic resolver remain separate gates. See the
+[prepared-owner review](reviews/no-deformation-hepkit-prepared-owner.md).
 The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:

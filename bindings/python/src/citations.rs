@@ -4,25 +4,44 @@
 //! cone/triangulation and Taylor-subtraction implementations. They acknowledge
 //! mathematical foundations, not a dependency on the authors' software.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use symbolica::api::python::Citation;
 
-static SECTOR_DECOMPOSITION_USED: AtomicBool = AtomicBool::new(false);
+const SECTOR_DECOMPOSITION: u8 = 1;
+const THRESHOLD_DECOMPOSITION: u8 = 2;
+static METHODS_USED: AtomicU8 = AtomicU8::new(0);
 
 /// Called when native generation starts, or a generated kernel artifact loads.
 pub(crate) fn mark_generation() {
-    SECTOR_DECOMPOSITION_USED.store(true, Ordering::Relaxed);
+    METHODS_USED.fetch_or(SECTOR_DECOMPOSITION, Ordering::Relaxed);
+}
+
+pub(crate) fn mark_threshold_generation() {
+    METHODS_USED.fetch_or(
+        SECTOR_DECOMPOSITION | THRESHOLD_DECOMPOSITION,
+        Ordering::Relaxed,
+    );
+}
+
+/// Saved native recipes carry their method identity without replaying generation.
+pub(crate) fn mark_kernels(kernels: &fastsecdec::kernel::KernelSet) {
+    if kernels.threshold_metadata().is_some() {
+        mark_threshold_generation();
+    } else {
+        mark_generation();
+    }
 }
 
 /// Return references for FastSecDec computations used in this process.
 /// Importing the module alone does not count as use; querying never resets it.
 /// The community host merges these native records with the other HEPKit owners.
 pub fn get_citations() -> Vec<Citation> {
-    if !SECTOR_DECOMPOSITION_USED.load(Ordering::Relaxed) {
+    let used = METHODS_USED.load(Ordering::Relaxed);
+    if used == 0 {
         return Vec::new();
     }
-    vec![
+    let mut references = vec![
         Citation {
             id: "https://github.com/alphal00p/fastSecDec".into(),
             url: "https://github.com/alphal00p/fastSecDec".into(),
@@ -59,5 +78,37 @@ pub fn get_citations() -> Vec<Citation> {
             description: "Methodological foundation for separating endpoint poles from finite parameter integrals.".into(),
             relevance: None,
         },
-    ]
+    ];
+    if used & THRESHOLD_DECOMPOSITION != 0 {
+        references.extend([
+            Citation {
+                id: "arxiv:2506.24073".into(),
+                url: "https://arxiv.org/abs/2506.24073".into(),
+                reference: "S. Jones, A. Olsson and T. Stone. Positive Integrands from Feynman Integrals in the Minkowski Regime. arXiv:2506.24073 (2025).".into(),
+                bibtex: include_str!("../../../citations/jones-olsson-stone-2025.bib").trim().into(),
+                reasons: vec!["Threshold decomposition partitions causal Feynman-parameter densities into sign-definite regions with continued complex phases.".into()],
+                description: "Methodological reference; complex numerators need not yield positive amplitude integrands.".into(),
+                relevance: None,
+            },
+            Citation {
+                id: "arxiv:2603.05444".into(),
+                url: "https://arxiv.org/abs/2603.05444".into(),
+                reference: "S. P. Jones, A. Olsson and T. Stone. Accelerating Feynman Integral Evaluation by Avoiding Contour Deformation. arXiv:2603.05444 (2026).".into(),
+                bibtex: include_str!("../../../citations/jones-olsson-stone-2026.bib").trim().into(),
+                reasons: vec!["The threshold recipe uses verified generic cylindrical algebraic decomposition to separate causal signs.".into()],
+                description: "Reference for the GCAD construction; general algebraic endpoint resolution is separate FastSecDec work.".into(),
+                relevance: None,
+            },
+            Citation {
+                id: "https://github.com/alphal00p/symgcad".into(),
+                url: "https://github.com/alphal00p/symgcad".into(),
+                reference: "symGCAD contributors. symGCAD: Generic Cylindrical Algebraic Decomposition. https://github.com/alphal00p/symgcad.".into(),
+                bibtex: include_str!("../../../citations/symgcad.bib").trim().into(),
+                reasons: vec!["Native threshold preparation uses symGCAD solve and independent verification, or loads a saved recipe from that preparation.".into()],
+                description: "Software repository citation; no publication DOI is assigned here.".into(),
+                relevance: None,
+            },
+        ]);
+    }
+    references
 }

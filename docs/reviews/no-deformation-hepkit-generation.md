@@ -93,9 +93,9 @@ attempt without a Python executable on the nix-shell PATH failed at build
 configuration, before checking this binding. No installed-host or browser result
 is inferred from these build checks.
 
-Remaining interface work is explicit: the existing diagram/family
-`sector_decompose` entry should return an honest prepared threshold owner with
-a separate compile action; numerical Float input should reuse the established
+The subsequent [prepared-owner milestone](no-deformation-hepkit-prepared-owner.md)
+adds the existing diagram/family `sector_decompose` entry with a separate compile
+action. Remaining interface work is explicit: numerical Float input should reuse the established
 represented-value owner and its authoritative source identity; native lineage
 inspection should wrap existing immutable native Atom/table views. These Python
 convenience layers are not claimed by the session milestone.

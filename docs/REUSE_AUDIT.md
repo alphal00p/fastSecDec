@@ -3621,3 +3621,22 @@ engine, determinant, field or root solver. Adversarial and resource tests guard
 the one-way shortcut and fallback. The sparse étale preflight and smaller exact
 simple-root owner reduce avoidable expression growth without weakening original
 equation, guard, branch or budget admission.
+
+## Existing HEPKit diagram/family threshold entrypoints (2026-10-11)
+
+The [prepared-owner review](reviews/no-deformation-hepkit-prepared-owner.md)
+records reuse of existing FeynKit forwarding methods, native Integral validation,
+retained preparation and archive selection. It introduces no replacement graph,
+CAS, compiler or integration owner. Independent root/runtime source reviews and
+actual embedded-host controls cover all three entrypoints, full complex bubble
+agreement, callbacks and publication lifetime. Native stub rendering and Python
+syntax parsing pass; native/portable feature checks preserve capability boundaries.
+
+The existing cumulative bibliography collector now distinguishes threshold use,
+including native saved-kernel loading, through immutable recipe metadata. It
+adds the [2025 construction](https://arxiv.org/abs/2506.24073), the
+[2026 GCAD extension](https://arxiv.org/abs/2603.05444) and the symGCAD software
+reference. Paper metadata was checked against the primary arXiv records.
+Independent HEPKit review confirms import-only and invalid-load paths remain
+inert, existing FastSecDec/pySecDec citations remain, and no proof replay or
+claim of positive complex-amplitude integrands is implied.

@@ -51,6 +51,15 @@ impl PyThresholdGenerationSession {
             Ok(())
         }
     }
+    pub(super) fn compile_remaining(
+        &mut self,
+        py: Python<'_>,
+        observer: Option<Py<PyAny>>,
+        progress: Option<Py<PyAny>>,
+    ) -> PyResult<PyGenerationSnapshot> {
+        let remaining = self.work.jobs().saturating_sub(self.work.next).max(1);
+        self.compile_next(py, remaining, observer, progress)
+    }
     fn prepare_inner(
         &mut self,
         py: Python<'_>,
@@ -65,7 +74,7 @@ impl PyThresholdGenerationSession {
             return Ok(());
         }
         if !self.work.initialized() {
-            crate::citations::mark_generation();
+            crate::citations::mark_threshold_generation();
             self.status.stage = GenerationStage::Parametrization;
             self.status.detail = "Parametrizing the existing native HEPKit input".into();
             let started = Instant::now();
@@ -272,7 +281,7 @@ impl PyThresholdGenerationSession {
     /// Synchronous native work on this caller's thread. Cancellation occurs at
     /// native boundaries; an in-progress CAS call is not preemptible here.
     #[pyo3(signature=(*,observer=None,progress=Some(Python::attach(|py| PyString::new(py,"auto").into_any().unbind()))))]
-    fn prepare(
+    pub(super) fn prepare(
         &mut self,
         py: Python<'_>,
         observer: Option<Py<PyAny>>,
@@ -307,17 +316,23 @@ impl PyThresholdGenerationSession {
             .map(|()| self.snapshot());
         presentation.finish(py, result)
     }
-    fn snapshot(&self) -> PyGenerationSnapshot {
+    pub(super) fn snapshot(&self) -> PyGenerationSnapshot {
         PyGenerationSnapshot {
             inner: self.status.clone(),
         }
     }
     #[getter]
-    fn prepared(&self) -> bool {
+    pub(super) fn compilation_settings(&self) -> crate::settings::PyCompilationSettings {
+        crate::settings::PyCompilationSettings {
+            inner: self.work.options.compilation,
+        }
+    }
+    #[getter]
+    pub(super) fn prepared(&self) -> bool {
         self.work.receipt.is_some()
     }
     #[getter]
-    fn complete(&self) -> bool {
+    pub(super) fn complete(&self) -> bool {
         self.result.is_some()
     }
     #[getter]
@@ -325,7 +340,7 @@ impl PyThresholdGenerationSession {
         self.failed.clone()
     }
     #[getter]
-    fn result(&self, py: Python<'_>) -> Option<Py<PyRecipeArchive>> {
+    pub(super) fn result(&self, py: Python<'_>) -> Option<Py<PyRecipeArchive>> {
         self.result.as_ref().map(|r| r.clone_ref(py))
     }
     fn preparation_progress_json(&self) -> PyResult<Option<String>> {
@@ -336,7 +351,7 @@ impl PyThresholdGenerationSession {
             .transpose()
             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
-    fn preparation_receipt_json(&self) -> PyResult<Option<String>> {
+    pub(super) fn preparation_receipt_json(&self) -> PyResult<Option<String>> {
         self.work
             .receipt
             .as_ref()

@@ -1,5 +1,6 @@
 //! Native-only caller-owned threshold preparation and incremental compilation.
 //! No graph conversion, mathematical admission, estimator or worker pool here.
+mod prepared;
 mod session;
 mod work;
 use crate::{error, input::PyIntegral, settings::PyCompilationSettings};
@@ -129,6 +130,7 @@ impl PyIntegral {
 }
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<PyThresholdSettings>()?;
+    module.add_class::<prepared::PyPreparedThreshold>()?;
     module.add_class::<session::PyThresholdGenerationSession>()?;
     Ok(())
 }
@@ -150,4 +152,45 @@ class PyIntegral:
         """Create inert native threshold work; preparation and compilation are explicit."""
 "#
     }
+}
+
+/// Reuse the session admission and publication path, returning only a prepared
+/// owner. The ordinary convenience action's cancellation contract is unchanged.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepare_entry(
+    input: &PyIntegral,
+    py: Python<'_>,
+    max_order: i32,
+    coefficient_expansion: &str,
+    mode: &str,
+    subtraction: &str,
+    contour: bool,
+    contour_jacobian: &str,
+    settings: Option<&PyCompilationSettings>,
+    threshold_settings: Option<&Bound<'_, PyAny>>,
+    observer: Option<Py<PyAny>>,
+    progress: Option<Py<PyAny>>,
+) -> PyResult<Py<PyAny>> {
+    if mode != "symbolic" || contour || contour_jacobian != "symbolic" {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "threshold generation requires symbolic endpoints, contour off and symbolic Jacobian policy",
+        ));
+    }
+    let options = threshold_settings
+        .map(|s| s.extract::<PyRef<'_, PyThresholdSettings>>())
+        .transpose()?;
+    let mut session = input.threshold_generation_session(
+        py,
+        max_order,
+        coefficient_expansion,
+        subtraction,
+        settings,
+        options.as_deref(),
+    )?;
+    session.prepare(py, observer, progress)?;
+    Ok(Py::new(
+        py,
+        prepared::PyPreparedThreshold::from_prepared(py, session)?,
+    )?
+    .into_any())
 }

@@ -396,3 +396,40 @@ refused. `snapshot()`, preparation receipt/progress JSON and catalogue inspectio
 are inert. Saved certificate identities do not imply global proof replay.
 The archive owns its storage after the session is dropped. The existing portable
 archive reader is unchanged; this generation session is native-only.
+
+### Preparation through existing diagram and family methods
+
+```python
+prepared = diagram.sector_decompose(
+    regulator=eps, dimension=4-2*eps, kinematics=kinematics,
+    scalar_values=exact_values, model_parameters="fixed",
+    threshold_decomposition=True,
+    compilation_settings=sd.CompilationSettings(),  # immutable Horner 10 policy
+)
+# Preparation finished; no evaluators or integration have run.
+prepared.snapshot()                    # inert
+work = prepared.generation_session()   # identical retained session, inert
+kernels = prepared.compile()           # explicit compilation and resident loading
+archive = prepared.archive            # existing RecipeArchive
+# kernels.session(...) is another explicit integration action.
+```
+
+The same flag works with `sd.sector_decompose(diagram, ...)` and the existing
+family method, whose signed `powers` and weighted `numerator` remain explicit.
+It returns `PreparedThreshold`; ordinary calls still return `GeneratedIntegral`.
+The fixed-input and rational-geometry limits above apply. Compiler settings are
+chosen during preparation because the native plan identity binds them.
+
+`compile()` retains completed records after cancellation and caches the returned
+native `Kernels` object. `complete` means all records have been published to the
+archive; it does not promise that resident kernel loading succeeded. A failed
+load can be retried without discarding the accepted archive. Callers avoiding full
+resident loading may instead step the retained session with `compile_next()`, then
+use `prepared.archive` directly. Snapshot and representation methods only read
+status. Preparation and compilation callbacks preserve existing cancellation and
+exception behavior; resumable preparation uses `Integral.generation_session()`.
+
+This interface is native-only. The portable backend rejects threshold generation
+and its generated stubs exclude native-only classes. The pinned HEPKit owner
+methods already forward these keyword arguments at runtime; their older owner
+text signatures may omit them, while the backend stub describes the new options.

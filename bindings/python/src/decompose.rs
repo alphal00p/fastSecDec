@@ -10,7 +10,7 @@ use pyo3::{
 };
 use symbolica::api::python::PythonExpression;
 
-use super::{generation::PyGeneratedIntegral, input::PyIntegral};
+use super::{input::PyIntegral, settings::PyCompilationSettings};
 
 /// Generate Laurent integrands from a native FeynmanDiagram or IntegralFamily.
 ///
@@ -43,7 +43,7 @@ use super::{generation::PyGeneratedIntegral, input::PyIntegral};
 /// The result retains native metadata;
 /// compilation and numerical sessions remain separate explicit operations.
 #[cfg_attr(
-    feature = "python_stubgen",
+    all(feature = "python_stubgen", feature = "native"),
     pyo3_stub_gen::derive::gen_stub_pyfunction(
         module = "symbolica.community.hepkit.sector_decomposition",
         python = r#"
@@ -68,6 +68,56 @@ def sector_decompose(
     max_order: int = 0, coefficient_expansion: str = "full_expression",
     mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
     contour_jacobian: str = "symbolic",
+    threshold_decomposition: bool = False,
+    threshold_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.ThresholdSettings] = None,
+    compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
+    observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
+    progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
+) -> typing.Union[symbolica.community.hepkit.sector_decomposition.GeneratedIntegral, symbolica.community.hepkit.sector_decomposition.PreparedThreshold]:
+    """Generate from an existing native diagram or an explicitly weighted family.
+
+    Diagrams require kinematics, use their owned numerator/weights, and take an
+    optional positive-power mapping by stable edge ID. Families require a signed
+    power sequence in native denominator order and a weighted scalar numerator;
+    auxiliary slots never default to power one. Kinematics overrides must retain
+    original external products after scalar binding, but may add auxiliary data.
+    Dimension defaults to 4-2*regulator. Compilation and sessions are explicit.
+    progress="auto" shows HEPKit progress in marimo when observer is absent.
+    None disables display; a callable receives every snapshot after observer.
+    None/True continues, False cancels; original callback exceptions propagate.
+    """
+"#
+    )
+)]
+#[cfg_attr(
+    all(feature = "python_stubgen", not(feature = "native")),
+    pyo3_stub_gen::derive::gen_stub_pyfunction(
+        module = "symbolica.community.hepkit.sector_decomposition",
+        python = r#"
+import collections.abc
+import typing
+import symbolica
+import symbolica.community.hepkit
+import symbolica.community.hepkit.sector_decomposition
+
+def sector_decompose(
+    input: typing.Union[symbolica.community.hepkit.FeynmanDiagram, symbolica.community.hepkit.IntegralFamily],
+    *, regulator: symbolica.Expression,
+    kinematics: typing.Optional[symbolica.community.hepkit.Kinematics] = None,
+    dimension: typing.Optional[symbolica.Expression] = None,
+    powers: typing.Optional[typing.Union[collections.abc.Mapping[int, int], collections.abc.Sequence[int]]] = None,
+    numerator: typing.Optional[symbolica.Expression] = None,
+    scalar_values: typing.Optional[dict[symbolica.Expression, symbolica.Expression]] = None,
+    auxiliary_momenta: typing.Optional[collections.abc.Sequence[symbolica.Expression]] = None,
+    measure_multiplier: typing.Optional[symbolica.Expression] = None,
+    runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
+    model_parameters: str = "runtime",
+    max_order: int = 0, coefficient_expansion: str = "full_expression",
+    mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
+    contour_jacobian: str = "symbolic",
+    threshold_decomposition: bool = False,
+    threshold_settings: typing.Optional[typing.Any] = None,
+    compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
     progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
 ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:
@@ -87,9 +137,9 @@ def sector_decompose(
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", observer=None, threshold_decomposition=false, threshold_settings=None, compilation_settings=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
 #[pyo3(
-    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, contour_jacobian='symbolic', observer=None, progress='auto')"
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', contour=False, contour_jacobian='symbolic', observer=None, threshold_decomposition=False, threshold_settings=None, compilation_settings=None, progress='auto')"
 )]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
@@ -112,8 +162,11 @@ pub(crate) fn sector_decompose(
     contour: bool,
     contour_jacobian: &str,
     observer: Option<Py<PyAny>>,
+    threshold_decomposition: bool,
+    threshold_settings: Option<&Bound<'_, PyAny>>,
+    compilation_settings: Option<&PyCompilationSettings>,
     progress: Option<Py<PyAny>>,
-) -> PyResult<PyGeneratedIntegral> {
+) -> PyResult<Py<PyAny>> {
     if let Ok(diagram) = input.extract::<PyRef<'_, PyFeynmanDiagram>>() {
         let kinematics = kinematics.ok_or_else(|| {
             PyTypeError::new_err("a FeynmanDiagram requires explicit native kinematics")
@@ -126,7 +179,7 @@ pub(crate) fn sector_decompose(
         let powers = powers
             .map(|value| value.extract::<BTreeMap<usize, u32>>())
             .transpose()?;
-        return PyIntegral::new(
+        let native = PyIntegral::new(
             py,
             &diagram,
             kinematics,
@@ -138,8 +191,9 @@ pub(crate) fn sector_decompose(
             measure_multiplier,
             runtime_parameters,
             model_parameters,
-        )?
-        .generate(
+        )?;
+        return finish(
+            &native,
             py,
             max_order,
             coefficient_expansion,
@@ -147,6 +201,9 @@ pub(crate) fn sector_decompose(
             subtraction,
             contour,
             contour_jacobian,
+            threshold_decomposition,
+            threshold_settings,
+            compilation_settings,
             observer,
             progress,
         );
@@ -162,7 +219,7 @@ pub(crate) fn sector_decompose(
                 "an IntegralFamily requires an explicitly weighted scalar numerator",
             )
         })?;
-        return PyIntegral::from_family(
+        let native = PyIntegral::from_family(
             py,
             &family,
             regulator,
@@ -174,8 +231,73 @@ pub(crate) fn sector_decompose(
             auxiliary_momenta,
             measure_multiplier,
             runtime_parameters,
-        )?
-        .generate(
+        )?;
+        return finish(
+            &native,
+            py,
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            contour,
+            contour_jacobian,
+            threshold_decomposition,
+            threshold_settings,
+            compilation_settings,
+            observer,
+            progress,
+        );
+    }
+    Err(PyTypeError::new_err(
+        "input must be a native HEPKit FeynmanDiagram or IntegralFamily",
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    input: &PyIntegral,
+    py: Python<'_>,
+    max_order: i32,
+    coefficient_expansion: &str,
+    mode: &str,
+    subtraction: &str,
+    contour: bool,
+    contour_jacobian: &str,
+    threshold: bool,
+    threshold_settings: Option<&Bound<'_, PyAny>>,
+    settings: Option<&PyCompilationSettings>,
+    observer: Option<Py<PyAny>>,
+    progress: Option<Py<PyAny>>,
+) -> PyResult<Py<PyAny>> {
+    if threshold {
+        #[cfg(not(feature = "native"))]
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "threshold generation is native-only; portable saved archive paths remain separate",
+        ));
+        #[cfg(feature = "native")]
+        return crate::threshold::prepare_entry(
+            input,
+            py,
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            contour,
+            contour_jacobian,
+            settings,
+            threshold_settings,
+            observer,
+            progress,
+        );
+    }
+    if threshold_settings.is_some() || settings.is_some() {
+        return Err(pyo3::exceptions::PyValueError::new_err(
+            "threshold_settings and compilation_settings require threshold_decomposition=True; ordinary compilation settings belong to GeneratedIntegral.compile",
+        ));
+    }
+    Ok(Py::new(
+        py,
+        input.generate(
             py,
             max_order,
             coefficient_expansion,
@@ -185,9 +307,7 @@ pub(crate) fn sector_decompose(
             contour_jacobian,
             observer,
             progress,
-        );
-    }
-    Err(PyTypeError::new_err(
-        "input must be a native HEPKit FeynmanDiagram or IntegralFamily",
-    ))
+        )?,
+    )?
+    .into_any())
 }
