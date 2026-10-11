@@ -31,6 +31,8 @@ pub enum Error {
     Association,
     #[error("GCAD evidence records exceed the caller's transport-byte limit")]
     RecordLimit,
+    #[error("pre-parametric graph replay requires its original native GraphPoint owner")]
+    OriginalGraphRequired,
 }
 impl From<crate::generation::GenerationError> for Error {
     fn from(error: crate::generation::GenerationError) -> Self {
@@ -151,7 +153,40 @@ impl StagedRequest {
         preflight(root, &[&receipt.record], maximum_bytes)?;
         Ok(Self {
             receipt: receipt.clone(),
-            request: Arc::new(request::read(root, receipt, conversion_cap)?),
+            request: Arc::new(request::read(
+                root,
+                receipt,
+                conversion_cap,
+                None,
+                &mut |_| std::ops::ControlFlow::Continue(()),
+            )?),
+        })
+    }
+    /// Reconstruct a pre-parametric graph request from the original native point.
+    /// Complete original/conversion associations and exact density must agree.
+    /// This redoes bounded conversion and native parameterization, never GCAD solve;
+    /// saved raw evidence must still pass `verify_evidence` independently.
+    /// Integration artifact loading does not require this preparation owner.
+    pub fn read_with_original_graph(
+        root: &Path,
+        receipt: &RequestRecord,
+        maximum_bytes: u64,
+        original: Arc<crate::threshold::represented::graph::GraphPoint>,
+        conversion_cap: crate::threshold::represented::Limits,
+        mut observer: impl FnMut(
+            crate::threshold::represented::graph::Progress,
+        ) -> std::ops::ControlFlow<()>,
+    ) -> Result<Self> {
+        preflight(root, &[&receipt.record], maximum_bytes)?;
+        Ok(Self {
+            receipt: receipt.clone(),
+            request: Arc::new(request::read(
+                root,
+                receipt,
+                conversion_cap,
+                Some(original),
+                &mut observer,
+            )?),
         })
     }
     pub fn request(&self) -> &GcadRequest {

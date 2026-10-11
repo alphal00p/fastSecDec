@@ -44,6 +44,16 @@ tempfile = "3"
 symbolica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1ac765fd17e9273706d762b2afe450c3c5bd44f0" }
 numerica = { git = "https://github.com/ValentinHirschi/symbolica", rev = "1ac765fd17e9273706d762b2afe450c3c5bd44f0" }
 symjit = { git = "https://github.com/ValentinHirschi/symjit_changes_for_pyamplicol", rev = "d74993ffd76a6fc322a7bcf3963fa786783a38a8" }
-typst-library = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
-typst-svg = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit" }
+typst-library = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+typst-svg = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
+
+# Keep all incoming HEPKit types on the tested native owner, including transitive Git edges.
+[patch."https://github.com/alphal00p/gammaloop"]
+feynkit-graph = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+feynkit-kinematics = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+feynkit-model = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+feynkit-py = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+idenso = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+linnet = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }
+spenso = { git = "https://github.com/ValentinHirschi/gammaloop", rev = "c81fa32710316164a738cb14d274a39b53c4cd4a" }

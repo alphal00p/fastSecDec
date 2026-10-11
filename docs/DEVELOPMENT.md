@@ -43,7 +43,7 @@ must not be carried into ordinary-source checks.
 | Owner | Selected source |
 |---|---|
 | Symbolica | Public `community`-based fork revision `1ac765fd17e9273706d762b2afe450c3c5bd44f0`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation, independent callback environments and single-pass elimination of dependent duplicate instructions, plus [fractional-series, F4 and resultant corrections](reviews/no-deformation-dependencies.md); [upstream contour PRs](reviews/contour-upstream-prs.md) |
-| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` source, locked at `8e3a643f388b45939d6573a648ef3a509086835e` from [PR #128](https://github.com/alphal00p/gammaloop/pull/128), adding citation URLs for the current Symbolica API |
+| FeynKit / Linnet / Spenso ecosystem | Public fork revision `c81fa32710316164a738cb14d274a39b53c4cd4a`, combining the native kinematics mapper in [PR #131](https://github.com/alphal00p/gammaloop/pull/131) with the citation URLs in [PR #128](https://github.com/alphal00p/gammaloop/pull/128); [adoption evidence](reviews/no-deformation-preparametric-graph.md) |
 | Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
 | symGCAD | Optional native geometry dependency, public revision `a1132d4f4545c7784b3ec61239a05485e544b403` from [PR #1](https://github.com/alphal00p/symGCAD/pull/1); shares the consuming workspace's Symbolica identity |
 | Graphica | Registry 3.0.1 |
@@ -55,6 +55,16 @@ The CLI reads public Git revisions and registry checksums from its consuming
 workspace's resolved lockfile. No `FASTSECDEC_*_SOURCE_ROOT` variables are needed
 for normal builds. Developers deliberately selecting local path dependencies
 must supply matching source roots for their source-state fingerprints.
+
+The three FastSecDec consumer roots also select that public FeynKit revision
+through `[patch."https://github.com/alphal00p/gammaloop"]`. This keeps direct
+and transitive native graph, kinematic and algebra types on one owner; changing
+only a direct dependency to a revision would leave duplicate owners through
+other ecosystem crates. A downstream host must make the same selection in its
+own root manifest. No unpublished checkout or source-rewriting script is used.
+The newer upstream Python graph renderer adds rendering/font/image packages to
+the binding lockfile; the numerical and portable validation roots remain free
+of Python and that rendering stack.
 
 ## Portable and Python consumers
 
@@ -79,6 +89,15 @@ The initial binding accepts exact fixed inputs. Existing diagram/family
 owner with a separate `compile()` action. Represented numerical inputs and the
 general algebraic resolver remain separate gates. See the
 [prepared-owner review](reviews/no-deformation-hepkit-prepared-owner.md).
+The native `threshold::represented::graph::ExactRepresentedGraphInput` owner
+now accepts supported represented floating-point kinematics, scalar bindings
+and measure factors before native family arithmetic. It preserves the exact
+binary value, source association and numerical meaning; it does not guess
+simple rationals. Raw geometry replay requires the original graph point and
+re-verifies its evidence. Graph numerator/projector Float payloads and
+uncertainty-bearing input remain explicit refusals. This native facility does
+not yet enable represented inputs in the Python entrypoints; see the
+[native graph review](reviews/no-deformation-preparametric-graph.md).
 The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:

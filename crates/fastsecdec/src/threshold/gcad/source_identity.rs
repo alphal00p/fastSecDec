@@ -3,6 +3,9 @@ use super::{GcadError, GcadRequest, Result};
 use crate::generation::{self, identity::CanonicalAtom};
 impl GcadRequest {
     pub fn source_identity(&self) -> Result<String> {
+        if let Some(graph) = self.preparametric_graph_input() {
+            return Ok(graph.source_identity().to_owned());
+        }
         let original =
             generation::source_identity(self.input(), &self.kinematics().runtime_parameters, &[])
                 .map_err(|e| GcadError::Invalid(e.to_string()))?;

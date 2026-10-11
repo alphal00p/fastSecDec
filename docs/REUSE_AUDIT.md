@@ -3743,3 +3743,35 @@ independent source/math review. These probes establish the arithmetic reuse
 path, including fixed-argument and masked failures. Complete kernel integration,
 precision-policy rescue, indexed artifacts and sampling remain pending; no
 general endpoint or high-precision certification is inferred.
+
+## Construction-bound nonmonomial recursion (2026-10-11)
+
+The [local recursion review](reviews/no-deformation-nonmonomial-recursion.md)
+records exact physical covers, common frame maps and original coefficient
+hierarchies transported through one actual physical morphism. New cycles consume
+construction receipts, preserving existing source and exceptional history.
+The public API remains caller-stepped and uses native ideal, derivative,
+normalization and transform owners. Root and the independent runtime reviewer
+checked these boundaries, including an explicit unresolved zero-ideal outcome.
+Native tests, strict lint and a separately linked public-API consumer pass.
+Global resolution, durable evidence spooling and real integration coverage are
+not inferred from this local milestone.
+
+## Native represented graph owner and FeynKit adoption (2026-10-11)
+
+The [graph input review](reviews/no-deformation-preparametric-graph.md) records
+conversion before native parameterization, preserving supported Float values,
+original source associations and the numerical-meaning policy. Cold raw replay
+requires the original graph owner and re-verifies the saved evidence; numerical
+artifact loading does not. Native graph/kinematics objects, Symbolica literal
+conversion and owner serialization are reused. Unsupported Float numerator and
+projector payloads remain explicit, and Python represented-input support is
+still separate work.
+
+The tested public FeynKit owner combines the small native mapper PR #131 with
+the existing citation PR #128. Consumer-root source overrides prevent duplicate
+native types, without a setup script. Embedded HEPKit, historical artifact and
+88-test portable checks pass. The binding lock's 92 added packages come from
+the newer upstream renderer closure and are documented; numerical consumers
+remain Python-free. Full community, installed-wheel and browser validation are
+not inferred from these gates.

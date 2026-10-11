@@ -136,13 +136,22 @@ pub struct SignedFactor {
     pub semantics: FactorSemantics,
 }
 
+/// Mutually exclusive source interpretation. These immutable native owners
+/// record input meaning; they are not geometry or endpoint certificates.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceProvenance {
+    Exact,
+    ParametricRepresented(Arc<crate::threshold::represented::ExactRepresentedInput>),
+    PreparametricGraph(Arc<crate::threshold::represented::graph::ExactRepresentedGraphInput>),
+}
+
 /// Exact, typed request association carried with unverified native evidence.
 /// This includes density/domain/alias roles as well as native solver settings.
 #[derive(Clone, Debug)]
 pub struct RequestIdentity {
     input: Arc<ParametricIntegrand>,
     preparation: Option<Arc<AffineProjectivePreparation>>,
-    represented: Option<Arc<crate::threshold::represented::ExactRepresentedInput>>,
+    provenance: SourceProvenance,
     domain: PreparedDomain,
     kinematics: GcadKinematics,
     aliases: Vec<SymbolAlias>,
@@ -152,7 +161,7 @@ pub struct RequestIdentity {
 
 impl PartialEq for RequestIdentity {
     fn eq(&self, other: &Self) -> bool {
-        self.represented == other.represented
+        self.provenance == other.provenance
             && self.preparation == other.preparation
             && self.domain == other.domain
             && self.kinematics == other.kinematics
@@ -427,7 +436,7 @@ impl GcadRequest {
         let problem_bytes =
             serde_json::to_vec(&problem).map_err(|e| GcadError::Invalid(e.to_string()))?;
         let identity = RequestIdentity {
-            represented: None,
+            provenance: SourceProvenance::Exact,
             input,
             preparation,
             domain,
@@ -467,7 +476,9 @@ impl GcadRequest {
         mut self,
         represented: Arc<crate::threshold::represented::ExactRepresentedInput>,
     ) -> Result<Self> {
-        if self.identity.represented.is_some() || self.input() != represented.exact().as_ref() {
+        if !matches!(self.identity.provenance, SourceProvenance::Exact)
+            || self.input() != represented.exact().as_ref()
+        {
             return Err(GcadError::RequestMismatch);
         }
         // No altered source/policy identity for the benign already-exact path.
@@ -487,21 +498,73 @@ impl GcadRequest {
                 }
             };
         }
-        self.identity.represented = Some(represented);
+        self.identity.provenance = SourceProvenance::ParametricRepresented(represented);
         Ok(self)
+    }
+
+    /// Prepare a fixed native graph point after faithful scalar conversion and
+    /// native parameterization. No runtime parameter family is specialized here.
+    pub fn preparametric_projective(
+        represented: Arc<crate::threshold::represented::graph::ExactRepresentedGraphInput>,
+        eliminated_index: usize,
+        solver: SolverOptions,
+        limits: Limits,
+    ) -> Result<Self> {
+        let preparation =
+            AffineProjectivePreparation::eliminate(represented.exact(), eliminated_index)
+                .map_err(|e| GcadError::Invalid(e.to_string()))?;
+        Self::projective(preparation, GcadKinematics::default(), solver, limits)?
+            .retain_preparametric(represented)
+    }
+
+    pub(crate) fn retain_preparametric(
+        mut self,
+        represented: Arc<crate::threshold::represented::graph::ExactRepresentedGraphInput>,
+    ) -> Result<Self> {
+        if !matches!(self.identity.provenance, SourceProvenance::Exact)
+            || self.input() != represented.exact().as_ref()
+            || self.kinematics() != &GcadKinematics::default()
+            || self.projective_preparation().is_none()
+        {
+            return Err(GcadError::RequestMismatch);
+        }
+        self.identity.provenance = SourceProvenance::PreparametricGraph(represented);
+        Ok(self)
+    }
+
+    pub fn source_provenance(&self) -> &SourceProvenance {
+        &self.identity.provenance
+    }
+
+    /// Original native graph point and its pre-arithmetic conversion evidence.
+    /// `input()` is its exact parameterized density; no Float density is invented.
+    pub fn preparametric_graph_input(
+        &self,
+    ) -> Option<&crate::threshold::represented::graph::ExactRepresentedGraphInput> {
+        match &self.identity.provenance {
+            SourceProvenance::PreparametricGraph(owner) => Some(owner),
+            _ => None,
+        }
     }
 
     pub fn represented_input(
         &self,
     ) -> Option<&crate::threshold::represented::ExactRepresentedInput> {
-        self.identity.represented.as_deref()
+        match &self.identity.provenance {
+            SourceProvenance::ParametricRepresented(owner) => Some(owner),
+            _ => None,
+        }
     }
-    /// Exact represented density before geometric preparation. `input()` stays original.
+    /// Exact density before geometric preparation. Parametric-represented sources
+    /// retain their original density in `input()`; graph sources retain the
+    /// original native point separately in `preparametric_graph_input()`.
     pub fn exact_input(&self) -> &ParametricIntegrand {
         self.represented_input().map_or(self.input(), |r| r.exact())
     }
 
-    /// Original native density, before any typed projective preparation.
+    /// Native density before geometric preparation. For pre-parametric graph
+    /// sources this is the exact parameterization; the original numerical graph
+    /// remains available only through `preparametric_graph_input()`.
     pub fn input(&self) -> &ParametricIntegrand {
         &self.identity.input
     }

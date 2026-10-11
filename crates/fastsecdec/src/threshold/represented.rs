@@ -1,5 +1,6 @@
 //! Threshold-only faithful interpretation of finite represented coefficients.
 //! No geometry, branch, endpoint or convergence certificate is constructed.
+pub mod graph;
 #[cfg(test)]
 mod tests;
 use crate::parametric::{ParametricIntegrand, ParametricTerm, PolynomialFactor};
@@ -66,8 +67,8 @@ pub enum Location {
     FactorExponent { term: usize, factor: usize },
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LiteralConversion {
-    pub location: Location,
+pub struct LiteralConversion<L = Location> {
+    pub location: L,
     pub original: Atom,
     pub exact: Atom,
     pub precision_bits: [u32; 2],
@@ -105,21 +106,7 @@ impl ExactRepresentedInput {
         limits: Limits,
         mut observer: impl FnMut(usize) -> ControlFlow<()>,
     ) -> Result<Self> {
-        if meaning != NumericalMeaning::RepresentedValues {
-            return Err(Error::Unsupported(
-                "uncertainty-bearing values require an explicit interval/error contract",
-            ));
-        }
-        if limits.precision_bits == 0 || limits.rational_bits == 0 {
-            return Err(Error::Invalid("nonpositive coefficient limits".into()));
-        }
-        let mut work = Work {
-            limits,
-            nodes: 0,
-            input_bytes: 0,
-            output_bytes: 0,
-            conversions: Vec::new(),
-        };
+        let mut work = Work::new(meaning, limits)?;
         let mut terms = Vec::new();
         for (term_index, term) in original.terms().iter().enumerate() {
             if observer(term_index).is_break() {
@@ -200,15 +187,32 @@ impl ExactRepresentedInput {
         })
     }
 }
-struct Work {
+struct Work<L = Location> {
     limits: Limits,
     nodes: usize,
     input_bytes: usize,
     output_bytes: usize,
-    conversions: Vec<LiteralConversion>,
+    conversions: Vec<LiteralConversion<L>>,
 }
-impl Work {
-    fn atom(&mut self, original: &Atom, location: Location) -> Result<Atom> {
+impl<L: Clone> Work<L> {
+    fn new(meaning: NumericalMeaning, limits: Limits) -> Result<Self> {
+        if meaning != NumericalMeaning::RepresentedValues {
+            return Err(Error::Unsupported(
+                "uncertainty-bearing values require an explicit interval/error contract",
+            ));
+        }
+        if limits.precision_bits == 0 || limits.rational_bits == 0 {
+            return Err(Error::Invalid("nonpositive coefficient limits".into()));
+        }
+        Ok(Self {
+            limits,
+            nodes: 0,
+            input_bytes: 0,
+            output_bytes: 0,
+            conversions: Vec::new(),
+        })
+    }
+    fn atom(&mut self, original: &Atom, location: L) -> Result<Atom> {
         self.input_bytes = self
             .input_bytes
             .checked_add(original.as_view().get_byte_size())

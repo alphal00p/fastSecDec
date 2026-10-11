@@ -11,7 +11,7 @@ mod verified;
 
 pub use request::{
     AliasRole, DomainOrigin, GcadKinematics, GcadRequest, PreparedDomain, RequestIdentity,
-    SignedFactor, SymbolAlias,
+    SignedFactor, SourceProvenance, SymbolAlias,
 };
 pub use symgcad::{Limits, Problem, SolverOptions};
 pub use verified::{NativeDecomposition, VerifiedCell, VerifiedDecomposition};
