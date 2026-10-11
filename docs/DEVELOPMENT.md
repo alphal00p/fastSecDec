@@ -71,8 +71,13 @@ The CLI exposes this fixed, one-dimensional rational path through
 `--threshold-decomposition` and the corresponding run-card setting; see
 [`examples/no_deformation/README.md`](../examples/no_deformation/README.md).
 Both generation schedules publish the same indexed format for ordinary or serial
-integration. This is not yet the complete HEPKit threshold workflow or general
-algebraic resolver. The direct solver call is synchronous;
+integration. Native HEPKit inputs also expose this path through
+`Integral.generation_session(threshold_decomposition=True)`: explicit `step()`
+calls prepare and compile native records, returning the existing recipe archive.
+The initial binding accepts exact fixed inputs; diagram/family convenience
+dispatch, represented numerical inputs and the general algebraic resolver remain
+separate gates. See the [binding review](reviews/no-deformation-hepkit-generation.md).
+The direct solver call is synchronous;
 the caller owns scheduling and hard resource limits. No setup script or private
 checkout is required. The feature is excluded from portable consumers:
 

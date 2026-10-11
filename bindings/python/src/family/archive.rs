@@ -78,6 +78,36 @@ impl PyRecipeArchive {
         })
     }
 
+    /// Adopt a complete native threshold archive produced in this caller. This
+    /// does not construct a recipe family or imply global proof replay on reload.
+    #[cfg(feature = "native")]
+    pub(crate) fn threshold_generated(
+        py: Python<'_>,
+        storage: Rc<TempDir>,
+        path: PathBuf,
+        writer: File,
+        catalogue: ProgramArchiveCatalogue,
+        status: GenerationSnapshot,
+    ) -> PyResult<Self> {
+        writer
+            .sync_all()
+            .map_err(|e| error::native(py, "archive", e))?;
+        catalogue
+            .validate(true)
+            .map_err(|e| error::native(py, "archive", e))?;
+        catalogue
+            .recipe(ProgramRecipe::ThresholdV1)
+            .map_err(|e| error::native(py, "archive", e))?;
+        Ok(Self {
+            _storage: storage,
+            path,
+            catalogue,
+            default_recipe: Some(ProgramRecipe::ThresholdV1),
+            resident: None,
+            status,
+        })
+    }
+
     fn import(
         py: Python<'_>,
         mut input: impl io::Read,

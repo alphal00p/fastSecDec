@@ -349,3 +349,50 @@ Setting `CompilationSettings(contour_jacobian="dual")` cannot retrofit a
 Symbolic-J generated owner; select Dual-J during generation. Strengths, caps and
 validation are still bound separately at runtime. This is a computational choice,
 not an accuracy or speed guarantee.
+
+
+### Native threshold generation
+
+The existing input/session API also exposes the admitted rational threshold path:
+
+```python
+work = integral.generation_session(
+    threshold_decomposition=True, subtraction="integrate_by_parts",
+    compilation_settings=sd.CompilationSettings(),  # Horner 10
+    threshold_settings=sd.ThresholdSettings(),      # GCAD workers=1
+)
+# Construction is inert. Run this only from an explicit Generate/Resume action.
+while not work.complete:
+    work.step(max_units=1)
+archive = work.result
+kernels = archive.select("threshold")
+# Starting and advancing kernels.session(...) is a separate integration action.
+```
+
+This returns a `ThresholdGenerationSession`; the ordinary default continues to
+return `GenerationSession`. The explicit `integral.threshold_generation_session()`
+constructor is equivalent. Its `prepare()` and `compile_next()` methods allow
+separate phase control. Preparation counts as one indivisible `step()` unit;
+each subsequent unit compiles one local native record. No pool is created.
+False callbacks or callback exceptions pause at native boundaries, preserving
+completed records and raw evidence for native reverification. An indivisible CAS
+call cannot be interrupted by this wrapper. The caller owns hard process/RSS
+limits. Transport byte limits do not bound decoded native memory.
+
+This initial native binding requires exact fixed physical inputs
+(`model_parameters="fixed"`, no runtime physical parameters) and the existing
+certified one-dimensional rational-cell path, including the affine projective
+2-to-1 bubble. Unsupported geometry fails explicitly; the general algebraic
+resolver remains under development. The graph bubble controls use exact scalar
+expressions and rational kinematics. Numerical Float inputs are the next adapter
+step through the existing native represented-value owner, preserving original
+literals, conversion policy and authoritative source identity; no rational
+guessing or new input parser is planned. They are not supported by this slice.
+
+`ThresholdSettings(gcad_limits_json='{"memory_mib":1024}')` overlays the native
+one-worker defaults. The native solver JSON schema and transport limit are
+exposed without a second settings implementation; workers other than one are
+refused. `snapshot()`, preparation receipt/progress JSON and catalogue inspection
+are inert. Saved certificate identities do not imply global proof replay.
+The archive owns its storage after the session is dropped. The existing portable
+archive reader is unchanged; this generation session is native-only.

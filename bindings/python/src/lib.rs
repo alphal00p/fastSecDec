@@ -18,6 +18,8 @@ mod progress;
 mod session;
 mod settings;
 mod status;
+#[cfg(feature = "native")]
+mod threshold;
 
 use pyo3::{prelude::*, types::PyModule};
 
@@ -35,6 +37,8 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<settings::PyStabilitySettings>()?;
     contour::register(&module)?;
     family::register(&module)?;
+    #[cfg(feature = "native")]
+    threshold::register(&module)?;
     module.add_class::<session::PyQmcSettings>()?;
     module.add_class::<session::PyQmcSession>()?;
     module.add_class::<mc::PyHavanaDiscreteSettings>()?;

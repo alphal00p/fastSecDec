@@ -3582,3 +3582,17 @@ Contact normalization reuses the existing exact quotient owner only after
 restriction; raw ambient derivatives and normalization receipts are retained.
 Six new groups and all 83 isolated resolver tests pass. This adds orchestration
 and certificate associations, not a second CAS or a complete global resolver.
+
+## Native HEPKit threshold sessions (2026-10-10)
+
+The [binding review](reviews/no-deformation-hepkit-generation.md) records the
+caller-stepped adapter for existing native Integral inputs, preparation/recovery,
+compilation records and recipe archives. All mathematical and proof admission
+remains with the native owners; the binding supplies status, callbacks and
+explicit actions. It adds no graph converter, CAS, codec, pool or estimator.
+Independent runtime and root reviews checked cancellation, immutable source
+identity, transactional publication and complete-vector statistics. A matching
+embedded HEPKit host passes the physical bubble, cancellation and archive controls;
+registered native build and portable feature checks pass. This accepts the exact,
+fixed, one-dimensional path only. General algebraic generation and the full
+diagram/family convenience workflow remain separate acceptance gates.

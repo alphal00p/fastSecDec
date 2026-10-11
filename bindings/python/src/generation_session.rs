@@ -40,7 +40,7 @@ pub(crate) struct PyGenerationSession {
 #[pymethods]
 impl PyIntegral {
     /// Create inert retained work. Only step() performs parameterization, generation or compilation.
-    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", contour=false, contour_jacobian="symbolic", compilation_settings=None, runtime_parameters=None, threshold_decomposition=false, threshold_settings=None))]
     #[allow(clippy::too_many_arguments)]
     fn generation_session(
         &self,
@@ -53,7 +53,47 @@ impl PyIntegral {
         contour_jacobian: &str,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
-    ) -> PyResult<PyGenerationSession> {
+        threshold_decomposition: bool,
+        threshold_settings: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Py<PyAny>> {
+        if threshold_decomposition {
+            #[cfg(not(feature = "native"))]
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "threshold generation is native-only; portable saved archive paths remain separate",
+            ));
+            #[cfg(feature = "native")]
+            {
+                if mode != "symbolic" || contour || contour_jacobian != "symbolic" {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "threshold generation requires symbolic endpoints, contour off and symbolic Jacobian policy",
+                    ));
+                }
+                let mut input = self.clone();
+                if let Some(parameters) = runtime_parameters {
+                    input.runtime_parameters = parameters
+                        .iter()
+                        .map(|p| crate::input::symbol(py, p, "runtime parameter"))
+                        .collect::<PyResult<_>>()?;
+                }
+                let settings = threshold_settings
+                    .map(|s| s.extract::<PyRef<'_, crate::threshold::PyThresholdSettings>>())
+                    .transpose()?;
+                let owner = input.threshold_generation_session(
+                    py,
+                    max_order,
+                    coefficient_expansion,
+                    subtraction,
+                    compilation_settings,
+                    settings.as_deref(),
+                )?;
+                return Ok(Py::new(py, owner)?.into_any());
+            }
+        }
+        if threshold_settings.is_some() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "threshold_settings requires threshold_decomposition=True",
+            ));
+        }
         let options = crate::generation::options(
             max_order,
             coefficient_expansion,
@@ -78,31 +118,35 @@ impl PyIntegral {
                 .map(|p| crate::input::symbol(py, p, "runtime parameter"))
                 .collect::<PyResult<_>>()?;
         }
-        Ok(PyGenerationSession {
-            input: Some(input),
-            options,
-            settings,
-            generation: None,
-            compilation: None,
-            generated: None,
-            kernels: None,
-            runtime: Default::default(),
-            failed: None,
-            elapsed: 0.0,
-            parametrization_seconds: 0.0,
-            status: GenerationSnapshot {
-                stage: GenerationStage::Input,
-                completed: 0,
-                total: None,
-                sectors: 0,
-                kernels: 0,
-                elapsed_seconds: 0.0,
-                timings: GenerationTimings::default(),
-                coefficient_expansion: None,
-                formula_preparation: None,
-                detail: "Ready; call step to generate".into(),
+        Ok(Py::new(
+            py,
+            PyGenerationSession {
+                input: Some(input),
+                options,
+                settings,
+                generation: None,
+                compilation: None,
+                generated: None,
+                kernels: None,
+                runtime: Default::default(),
+                failed: None,
+                elapsed: 0.0,
+                parametrization_seconds: 0.0,
+                status: GenerationSnapshot {
+                    stage: GenerationStage::Input,
+                    completed: 0,
+                    total: None,
+                    sectors: 0,
+                    kernels: 0,
+                    elapsed_seconds: 0.0,
+                    timings: GenerationTimings::default(),
+                    coefficient_expansion: None,
+                    formula_preparation: None,
+                    detail: "Ready; call step to generate".into(),
+                },
             },
-        })
+        )?
+        .into_any())
     }
 }
 
@@ -340,7 +384,7 @@ impl PyGenerationSession {
     }
 }
 
-#[cfg(feature = "python_stubgen")]
+#[cfg(all(feature = "python_stubgen", feature = "native"))]
 pyo3_stub_gen::inventory::submit! {
     pyo3_stub_gen::derive::gen_methods_from_python! {
         r#"
@@ -354,6 +398,30 @@ class PyIntegral:
         contour_jacobian: str = "symbolic",
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
+        threshold_decomposition: bool = False,
+        threshold_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.ThresholdSettings] = None,
+    ) -> typing.Union[symbolica.community.hepkit.sector_decomposition.GenerationSession, symbolica.community.hepkit.sector_decomposition.ThresholdGenerationSession]:
+        """Create retained caller-stepped generation and compilation; construction performs no symbolic work."""
+"#
+    }
+}
+
+#[cfg(all(feature = "python_stubgen", not(feature = "native")))]
+pyo3_stub_gen::inventory::submit! {
+    pyo3_stub_gen::derive::gen_methods_from_python! {
+        r#"
+import typing
+import symbolica
+import symbolica.community.hepkit.sector_decomposition
+
+class PyIntegral:
+    def generation_session(self, max_order: int = 0, *, coefficient_expansion: str = "coefficient_series",
+        mode: str = "symbolic", subtraction: str = "taylor", contour: bool = False,
+        contour_jacobian: str = "symbolic",
+        compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
+        runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
+        threshold_decomposition: bool = False,
+        threshold_settings: typing.Optional[typing.Any] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.GenerationSession:
         """Create retained caller-stepped generation and compilation; construction performs no symbolic work."""
 "#

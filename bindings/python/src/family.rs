@@ -1,5 +1,5 @@
 //! Thin ownership of native, caller-stepped recipe-family generation.
-mod archive;
+pub(crate) mod archive;
 mod session;
 mod snapshot;
 

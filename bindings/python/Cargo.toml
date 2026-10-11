@@ -17,7 +17,7 @@ crate-type = ["rlib"]
 [features]
 default = ["native"]
 native = [
-    "fastsecdec/native", "feynkit-py/native", "symbolica/integer-gmp",
+    "fastsecdec/native", "fastsecdec/threshold-decomposition", "feynkit-py/native", "symbolica/integer-gmp",
     "symbolica/float-mpfr", "symbolica/native_code_generation",
 ]
 portable = ["fastsecdec/portable", "feynkit-py/wasm", "symbolica/wasm"]
