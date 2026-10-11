@@ -3806,3 +3806,18 @@ zero-dimensional terminal contact without inventing a global zero centre.
 All ambient charts, pending localizations and recursive levels remain owned.
 Generation-agent and coordinator reviews accept this local boundary, with the
 general driver, physical localization and real atlas still incomplete.
+
+## Native uncertainty-range adoption (2026-10-11)
+
+The [numerical-range review](reviews/no-deformation-numerical-range.md) records
+the native owner correction for uncertainty underflow found by generic
+algebraic-root probes. FastSecDec uses Numerica's existing tracked numeric
+domain; no alternate estimator or arithmetic implementation is introduced.
+Unrepresentable uncertainty is rejected rather than accepted as exact zero.
+The author-owned PR and combined public Symbolica consumer preserve a single
+dependency identity across native, portable and HEPKit roots.
+
+Independent source reviews and owner/native/portable/HEPKit/artifact controls
+pass. The coordinator checked the frozen six-file patch and its evidence before
+adoption. This fixes tracking range reporting, not certified arithmetic, general
+endpoint resolution or the separate algebraic-kernel acceptance boundary.

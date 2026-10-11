@@ -42,9 +42,9 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public `community`-based fork revision `1ac765fd17e9273706d762b2afe450c3c5bd44f0`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation, independent callback environments and single-pass elimination of dependent duplicate instructions, plus [fractional-series, F4 and resultant corrections](reviews/no-deformation-dependencies.md); [upstream contour PRs](reviews/contour-upstream-prs.md) |
+| Symbolica | Public `community`-based fork revision `ae0c82b7bda670fdb9f6229226bd47b13bb49a20`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation, independent callback environments and single-pass elimination of dependent duplicate instructions, plus [fractional-series, F4 and resultant corrections](reviews/no-deformation-dependencies.md) and [checked native uncertainty range](reviews/no-deformation-numerical-range.md); [upstream contour PRs](reviews/contour-upstream-prs.md) |
 | FeynKit / Linnet / Spenso ecosystem | Public fork revision `c81fa32710316164a738cb14d274a39b53c4cd4a`, combining the native kinematics mapper in [PR #131](https://github.com/alphal00p/gammaloop/pull/131) with the citation URLs in [PR #128](https://github.com/alphal00p/gammaloop/pull/128); [adoption evidence](reviews/no-deformation-preparametric-graph.md) |
-| Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot` and certified real-ball square-root fixes |
+| Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot`, certified real-ball square-root fixes and checked uncertainty range from [PR #9](https://github.com/symbolica-dev/numerica/pull/9) |
 | symGCAD | Optional native geometry dependency, public revision `a1132d4f4545c7784b3ec61239a05485e544b403` from [PR #1](https://github.com/alphal00p/symGCAD/pull/1); shares the consuming workspace's Symbolica identity |
 | Graphica | Registry 3.0.1 |
 | SymJIT | Compatible minimum `2.27.0`; public Git revision `d74993ffd76a6fc322a7bcf3963fa786783a38a8` supplies the complex callback fix, existing Rust API entrypoint and compatible long-label codec pending upstream release |
