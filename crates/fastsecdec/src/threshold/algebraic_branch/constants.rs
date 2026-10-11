@@ -27,7 +27,7 @@ pub struct FactorSeed {
     original_right: Vec<Atom>,
     resultant: AlgebraicNumber<Q>,
 }
-fn exact_source(
+pub(super) fn exact_source(
     atom: AtomView<'_>,
     symbols: bool,
     depth: usize,

@@ -5,6 +5,7 @@ mod polynomialization;
 mod prepare;
 use crate::threshold::resolution::{Budget, Error, EtaleFrame, Poly};
 pub use polynomialization::{ClearedPolynomial, Monicization};
+pub(super) use prepare::discriminant;
 pub use prepare::{Preparation, Progress, QuasiOrdinaryPolynomial, prepare};
 use std::sync::Arc;
 use symbolica::atom::{Atom, Symbol};

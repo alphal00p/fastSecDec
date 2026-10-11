@@ -103,3 +103,6 @@ fn native_basis_shape_and_spair_allocation_caps() {
         Err(Error::ResourceIncomplete("operation budget"))
     ));
 }
+
+#[path = "membership_tests.rs"]
+mod membership_tests;

@@ -2,10 +2,20 @@
 //! Reverse inclusion relies on F4's constructive combinations. This helper does
 //! not validate an arbitrary caller-supplied basis or expose alternative CAS.
 use super::{Budget, Error, Poly};
-use symbolica::poly::groebner::GroebnerBasis;
+use symbolica::{
+    domains::rational::RationalField,
+    poly::{MonomialOrder, groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
+};
+type OrderedPoly<O> = MultivariatePolynomial<RationalField, u16, O>;
 type Result<T> = std::result::Result<T, Error>;
 
 pub(super) fn checked(equations: &[Poly], budget: &mut Budget) -> Result<Vec<Poly>> {
+    checked_ordered(equations, budget)
+}
+pub(super) fn checked_ordered<O: MonomialOrder>(
+    equations: &[OrderedPoly<O>],
+    budget: &mut Budget,
+) -> Result<Vec<OrderedPoly<O>>> {
     budget.reserve_slots(equations.len())?;
     for f in equations {
         budget.poly(f)?;
@@ -39,7 +49,11 @@ pub(super) fn checked(equations: &[Poly], budget: &mut Budget) -> Result<Vec<Pol
     verify(&input, &result, budget)?;
     Ok(result)
 }
-fn verify(input: &[Poly], basis: &[Poly], budget: &mut Budget) -> Result<()> {
+fn verify<O: MonomialOrder>(
+    input: &[OrderedPoly<O>],
+    basis: &[OrderedPoly<O>],
+    budget: &mut Budget,
+) -> Result<()> {
     let n = basis.len();
     let pairs = n
         .checked_mul(n.saturating_sub(1))

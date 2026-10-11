@@ -3604,3 +3604,20 @@ evaluator construction occurs. A selected owner refuses unloaded expression
 tables even when the parent catalogue names them. Independent HEPKit source
 review passes, as does the detached eager/SymJIT restoration control with map,
 symbol and residency checks (0.23s); native strict Clippy and formatting pass.
+
+## Constructive local root recursion (2026-10-11)
+
+The [AJ review](reviews/no-deformation-aj-recursion.md) records computed
+ramification and factor-degree descent through existing Symbolica and native
+geometric owners. Public API/source checks and executable probes cover shifts,
+root fields, division, resultants and implicit differentiation. Generic-degree
+controls include quintics, nested exact constants and repeated clusters. Root
+and independent resolver-agent reviews accept this local scope; no real atlas
+or closed-face integration certificate follows from a germ alone.
+
+The measured membership optimization reuses native polynomial reduction and
+checked GrevLex F4 while preserving Lex elimination. It adds no alternate ideal
+engine, determinant, field or root solver. Adversarial and resource tests guard
+the one-way shortcut and fallback. The sparse étale preflight and smaller exact
+simple-root owner reduce avoidable expression growth without weakening original
+equation, guard, branch or budget admission.

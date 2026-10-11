@@ -21,6 +21,8 @@ pub struct FactorBranch {
     constant_axis: Option<usize>,
     fiber: Vec<AlgebraicNumber<Q>>,
     product_minor: Poly,
+    coefficient_clearings: Vec<crate::threshold::resolution::UnitClearing>,
+    row_scale: Poly,
 }
 pub struct FactorJet {
     owner: Arc<FactorBranch>,
@@ -131,6 +133,8 @@ impl FactorBranch {
             ring.one()
         };
         let mut product_equations = Vec::with_capacity(d);
+        let mut coefficient_clearings = Vec::with_capacity(d);
+        let mut row_scale = ring.one();
         for (i, p) in product.coefficients().iter().enumerate().take(d) {
             let equation = p - &extension.pull(&seed.polynomial.coefficients()[i], budget)?;
             budget.poly(&equation)?;
@@ -138,7 +142,17 @@ impl FactorBranch {
             dependent.push(n + i);
             axes.push(n + i);
             product_equations.push(equation.clone());
-            equations.push(equation);
+            let clearing = crate::threshold::resolution::clear_units(
+                base.local(),
+                &seed.polynomial.coefficients()[i],
+                budget,
+            )?;
+            let denominator = extension.pull(&clearing.denominator, budget)?;
+            let numerator = extension.pull(&clearing.numerator, budget)?;
+            let cleared_equation = budget.mul(&denominator, p)? - numerator;
+            row_scale = budget.mul(&row_scale, &denominator)?;
+            equations.push(cleared_equation);
+            coefficient_clearings.push(clearing);
         }
         let dim =
             u32::try_from(d).map_err(|_| Error::ResourceIncomplete("factor matrix dimension"))?;
@@ -160,7 +174,8 @@ impl FactorBranch {
         }
         let old_minor = extension.pull(base.determinant(), budget)?;
         let old_constant = budget.mul(&old_minor, &minimal_derivative)?;
-        let expected_minor = budget.mul(&old_constant, &minor)?;
+        let unscaled_minor = budget.mul(&old_constant, &minor)?;
+        let expected_minor = budget.mul(&unscaled_minor, &row_scale)?;
         let source = LocalizedAlgebra::new(
             Ideal::new(ring.clone(), equations, budget)?,
             axes,
@@ -222,6 +237,8 @@ impl FactorBranch {
             constant_axis,
             fiber,
             product_minor: minor,
+            coefficient_clearings,
+            row_scale,
         }))
     }
     pub fn seed(&self) -> &Arc<FactorSeed> {
@@ -236,11 +253,21 @@ impl FactorBranch {
     pub fn factors(&self) -> (&[Poly], &[Poly]) {
         (&self.left, &self.right)
     }
+    /// Exact images in the immutable seed's complete coefficient field.
+    pub fn fiber(&self) -> &[AlgebraicNumber<Q>] {
+        &self.fiber
+    }
     pub fn constant_axis(&self) -> Option<usize> {
         self.constant_axis
     }
     pub fn product_minor(&self) -> &Poly {
         &self.product_minor
+    }
+    pub fn coefficient_clearings(&self) -> &[crate::threshold::resolution::UnitClearing] {
+        &self.coefficient_clearings
+    }
+    pub fn row_scale(&self) -> &Poly {
+        &self.row_scale
     }
     pub fn jet(
         self: &Arc<Self>,

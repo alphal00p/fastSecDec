@@ -183,18 +183,46 @@ impl EtaleCertificate {
             .iter()
             .map(|i| &self.source.ideal().generators()[*i])
             .collect::<Vec<_>>();
-        // Conservative preflight for determinant/cleared-solution polynomial
-        // sizes; it is not an allocation guarantee for the native solver.
-        let max_terms = rows.iter().map(|p| p.nterms()).max().unwrap_or(1);
-        let mut term_bound = 1usize;
-        for k in 1..=n {
-            term_bound = term_bound
-                .checked_mul(k)
-                .and_then(|b| b.checked_mul(max_terms))
-                .ok_or(Error::ResourceIncomplete("Jacobian determinant bound"))?;
-            if term_bound > budget.limits.max_terms {
-                return Err(Error::ResourceIncomplete("Jacobian determinant bound"));
+        // Count native derivative terms rather than treating every entry as
+        // dense. The row-sum product bounds determinant expansion. Including
+        // the largest free-coordinate RHS term count per row also bounds every
+        // Cramer numerator. Native elimination intermediates still require
+        // caller-owned hard limits; this is an output-expression preflight.
+        let mut sparse_bound = Some(1usize);
+        for row in &rows {
+            let dependent_terms = self.dependent_axes.iter().try_fold(0usize, |sum, axis| {
+                sum.checked_add(row.derivative(*axis).nterms())
+            });
+            if dependent_terms == Some(0) {
+                return Err(Error::Invalid("singular selected relative minor"));
             }
+            let rhs_terms = self
+                .free_axes
+                .iter()
+                .map(|axis| row.derivative(*axis).nterms())
+                .max()
+                .unwrap_or(0);
+            sparse_bound = sparse_bound.and_then(|bound| {
+                dependent_terms
+                    .and_then(|terms| terms.checked_add(rhs_terms))
+                    .and_then(|terms| bound.checked_mul(terms))
+            });
+        }
+        // Retain the previous dense bound too: either independently valid
+        // bound can admit the operation; overflow of both refuses it.
+        let max_terms = rows.iter().map(|p| p.nterms()).max().unwrap_or(1);
+        let dense_bound = (1..=n).try_fold(1usize, |bound, k| {
+            bound
+                .checked_mul(k)
+                .and_then(|value| value.checked_mul(max_terms))
+        });
+        let term_bound = sparse_bound
+            .into_iter()
+            .chain(dense_bound)
+            .min()
+            .ok_or(Error::ResourceIncomplete("Jacobian determinant bound"))?;
+        if term_bound > budget.limits.max_terms {
+            return Err(Error::ResourceIncomplete("Jacobian determinant bound"));
         }
         for axis in 0..ring.len() {
             let degree = rows

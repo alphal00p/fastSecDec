@@ -18,6 +18,23 @@ impl MonicPolynomial {
         coefficients: Vec<Poly>,
         budget: &mut Budget,
     ) -> Result<Arc<Self>> {
+        Self::construct(frame, variable, coefficients, false, budget)
+    }
+    pub(super) fn from_regular_coefficients(
+        frame: Arc<EtaleFrame>,
+        variable: Symbol,
+        coefficients: Vec<Poly>,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        Self::construct(frame, variable, coefficients, true, budget)
+    }
+    fn construct(
+        frame: Arc<EtaleFrame>,
+        variable: Symbol,
+        coefficients: Vec<Poly>,
+        regular: bool,
+        budget: &mut Budget,
+    ) -> Result<Arc<Self>> {
         budget.reserve_slots(coefficients.len())?;
         if coefficients.len() < 3 {
             return Err(Error::Invalid("factor polynomial degree"));
@@ -38,7 +55,11 @@ impl MonicPolynomial {
             budget.poly(p)?;
             // Initial owner admits polynomial coefficients; fractions represented
             // by guard slots require a separate certified unit-clearing stage.
-            ring.supports(p, frame.local().axes())?;
+            if regular {
+                frame.local().supports(p)?;
+            } else {
+                ring.supports(p, frame.local().axes())?;
+            }
         }
         if coefficients.last() != Some(&ring.one()) {
             return Err(Error::Invalid("factor polynomial is not monic"));

@@ -106,8 +106,10 @@ pub fn prepare(
         result => result,
     }
 }
-fn discriminant(prepared: &Monicization, budget: &mut Budget) -> Result<Poly> {
-    let p = prepared.monic();
+pub(crate) fn discriminant(
+    p: &crate::threshold::algebraic_branch::MonicPolynomial,
+    budget: &mut Budget,
+) -> Result<Poly> {
     let n = p.degree();
     let n32 = u32::try_from(n).map_err(|_| Error::ResourceIncomplete("resultant degree"))?;
     let sum = p.coefficients().iter().try_fold(0usize, |s, c| {
@@ -201,7 +203,7 @@ fn run(
     let prepared = polynomialization::monic(cleared, leading_test, budget)?;
     progress.monicization = Some(prepared.clone());
     progress.stage = "native discriminant";
-    let disc = discriminant(&prepared, budget)?;
+    let disc = discriminant(prepared.monic(), budget)?;
     progress.discriminant = Some(disc.clone());
     if source.frame.local().zero(&disc, budget)? {
         return Ok(Preparation::Repeated {
