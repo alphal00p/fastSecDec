@@ -14,6 +14,7 @@ pub enum RecursiveCenterOrigin {
     },
     Companion(Arc<CompanionCenter>),
     CarriedMonomial(Arc<super::induced::CarriedMonomialCenter>),
+    EmbeddedMonomial(Arc<super::embedded_center::EmbeddedMonomialCenter>),
 }
 #[derive(Clone, Debug)]
 pub struct CheckedRecursiveCenter {
@@ -60,6 +61,13 @@ impl CheckedRecursiveCenter {
                 center.normals(),
             ),
             RecursiveCenterOrigin::CarriedMonomial(center) => (
+                center.frame(),
+                center.history(),
+                center.source(),
+                center.ideal(),
+                center.normals(),
+            ),
+            RecursiveCenterOrigin::EmbeddedMonomial(center) => (
                 center.frame(),
                 center.history(),
                 center.source(),

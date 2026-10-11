@@ -1,5 +1,5 @@
 use super::*;
-fn actual_second_centers(kind: usize, b: &mut Budget) -> Vec<Arc<CompanionCenter>> {
+pub(super) fn actual_second_centers(kind: usize, b: &mut Budget) -> Vec<Arc<CompanionCenter>> {
     let ns = [
         "next_api_repeat_cusp",
         "next_api_repeat_nonprincipal",
@@ -388,7 +388,13 @@ fn relative_transition_reusable_caller_stepped_continuation_to_snc_terminals() {
             }
             match state.try_complete().unwrap() {
                 ContinuationCompletion::Complete(done) => {
-                    assert_ne!(kind, 1, "harder nonprincipal control must remain explicit");
+                    if kind == 1 {
+                        assert!(
+                            done.nodes()
+                                .values()
+                                .any(|n| n.chart().history().stage() >= 6)
+                        );
+                    }
                     assert!(
                         done.nodes()
                             .values()
@@ -402,18 +408,14 @@ fn relative_transition_reusable_caller_stepped_continuation_to_snc_terminals() {
                     );
                 }
                 ContinuationCompletion::Incomplete(state) => {
-                    assert_eq!(
-                        kind,
-                        1,
-                        "cusp/monomial driver unresolved: {:?}",
+                    panic!(
+                        "local carried driver unresolved: {:?}",
                         state
                             .nodes()
                             .values()
                             .filter_map(|n| n.pending_reason())
                             .collect::<Vec<_>>()
                     );
-                    assert!(state.nodes().values().any(|n| n.pending_reason()
-                        == Some("further carried coefficient or companion cycle required")));
                 }
             }
         }

@@ -132,3 +132,5 @@ fn snc(f: Arc<EtaleFrame>, e: Poly, b: &mut Budget) -> Arc<VerifiedRelativeSnc> 
 
 mod continuation;
 mod geometry;
+
+mod cycle;

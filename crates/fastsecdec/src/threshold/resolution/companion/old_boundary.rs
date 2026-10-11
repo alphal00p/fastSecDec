@@ -124,7 +124,7 @@ fn produce(
         Err(e) => Err(e),
     }
 }
-type Built = (Vec<BoundaryId>, usize, Option<MarkedIdeal>, MarkedIdeal);
+pub(crate) type Built = (Vec<BoundaryId>, usize, Option<MarkedIdeal>, MarkedIdeal);
 fn run(
     contact: &ContactQuotient,
     history: &ResolutionHistory,
@@ -132,9 +132,7 @@ fn run(
     budget: &mut Budget,
     progress: &mut OldBoundaryProgress,
 ) -> Result<Built> {
-    let ledger = history.ledger();
     let source = contact.source();
-    let local = source.frame().local();
     let d = source.algebraic_maximum_order();
     let cosupport = &source
         .progress()
@@ -145,6 +143,55 @@ fn run(
         )
         .ok_or(Error::Invalid("missing checked contact cosupport"))?
         .ideal;
+    combine_old_boundary(
+        BoundarySumInput {
+            frame: source.frame(),
+            cosupport,
+            history,
+            old_ids,
+            target: contact.contact(),
+            extension: contact.extension(),
+            coefficient: contact.differential_coefficient(),
+        },
+        budget,
+        progress,
+    )
+}
+pub(crate) struct BoundarySumInput<'a> {
+    pub frame: &'a super::super::EtaleFrame,
+    pub cosupport: &'a Ideal,
+    pub history: &'a ResolutionHistory,
+    pub old_ids: &'a [BoundaryId],
+    pub target: &'a super::super::EtaleFrame,
+    pub extension: &'a super::super::RingExtension,
+    pub coefficient: &'a MarkedIdeal,
+}
+pub(crate) fn combine_old_boundary(
+    input: BoundarySumInput<'_>,
+    budget: &mut Budget,
+    progress: &mut OldBoundaryProgress,
+) -> Result<Built> {
+    let BoundarySumInput {
+        frame,
+        cosupport,
+        history,
+        old_ids,
+        target,
+        extension,
+        coefficient,
+    } = input;
+    let ledger = history.ledger();
+    let local = frame.local();
+    if !std::ptr::eq(frame, ledger.frame().as_ref())
+        || cosupport.ring() != local.ring()
+        || extension.source() != local.ring()
+        || extension.target() != target.local().ring()
+        || coefficient.ideal().ring() != target.local().ring()
+    {
+        return Err(Error::Invalid(
+            "old boundary sum actual frame/embedding owner",
+        ));
+    }
     budget.reserve_slots(old_ids.len())?;
     let old = old_ids
         .iter()
@@ -179,18 +226,17 @@ fn run(
     }
     let maximum = maximum.ok_or(Error::Invalid("checked contact cosupport became empty"))?;
     let active_old = old.iter().map(|d| d.id).collect();
-    let coefficient = contact.differential_coefficient();
     if maximum == 0 {
         return Ok((active_old, maximum, None, coefficient.clone()));
     }
-    let target = contact.contact().local();
+    let target = target.local();
     let mark = coefficient.mark();
     let mut product = Ideal::new(target.ring().clone(), vec![target.ring().one()], budget)?;
     for subset in combinations(old.len(), maximum, budget)? {
         budget.reserve_slots(subset.len())?;
         let mut terms = Vec::new();
         for index in subset {
-            let equation = contact.extension().pull(&old[index].equation, budget)?;
+            let equation = extension.pull(&old[index].equation, budget)?;
             target.supports(&equation)?;
             terms.push(budget.power(&equation, mark)?);
         }

@@ -222,53 +222,26 @@ pub fn produce_induced_monomial_center(
     };
     let open = induced.support().incidence_sum().open();
     let support = induced.ambient().support();
-    let normals = open
-        .chosen_equations()
-        .iter()
-        .map(|i| support.clearings()[*i].numerator.clone())
-        .collect();
-    // A further support minor may be a unit only downstairs. Do not lift its
-    // localized center to an unlocalized upstairs chart.
-    if !unit(
-        induced.ambient().chart().geometry().frame().local(),
-        open.relative_minor(),
-        b,
-    )? {
-        return Ok(InducedCenterProduction::NeedsLocalization { induced, factor });
-    }
     let child_normals = child
         .indices()
         .iter()
         .map(|i| child.ledger().divisors()[*i].equation.clone())
         .collect::<Vec<_>>();
-    let parent = induced.ambient().chart().parent().target();
-    let frame = induced.ambient().chart().geometry().frame();
-    let (ideal, normals, clearings) = super::super::recursive::lift_embedded_geometry(
-        frame,
-        parent,
-        open.frame(),
-        open.extension(),
-        normals,
-        child.center(),
-        &child_normals,
+    let Some((ideal, normals, clearings)) = lift_supported_center(
+        SupportedCenterLift {
+            frame: induced.ambient().chart().geometry().frame(),
+            parent: induced.ambient().chart().parent().target(),
+            companion: induced.ambient().companion().target(),
+            support,
+            open,
+            child: child.center(),
+            child_normals: &child_normals,
+        },
         b,
-    )?;
-    // The carried companion must remain admissible too; no newly computed
-    // coefficient can stand in for the original C/J construction.
-    let g = induced.ambient().companion().target();
-    let _ = super::super::recursive::lift_embedded_geometry(
-        frame,
-        g,
-        open.frame(),
-        open.extension(),
-        open.chosen_equations()
-            .iter()
-            .map(|i| support.clearings()[*i].numerator.clone())
-            .collect(),
-        child.center(),
-        &child_normals,
-        b,
-    )?;
+    )?
+    else {
+        return Ok(InducedCenterProduction::NeedsLocalization { induced, factor });
+    };
     Ok(InducedCenterProduction::Center(Arc::new(
         CarriedMonomialCenter {
             induced,
@@ -279,4 +252,64 @@ pub fn produce_induced_monomial_center(
             clearings,
         },
     )))
+}
+
+pub(super) struct SupportedCenterLift<'a> {
+    pub frame: &'a Arc<EtaleFrame>,
+    pub parent: &'a Arc<MarkedIdeal>,
+    pub companion: &'a Arc<MarkedIdeal>,
+    pub support: &'a Arc<super::support::StrictContactSupport>,
+    pub open: &'a Arc<super::support::StrictSupportOpen>,
+    pub child: &'a Ideal,
+    pub child_normals: &'a [Poly],
+}
+pub(super) type LiftResult = (Ideal, Vec<Poly>, Vec<UnitClearing>);
+pub(super) fn lift_supported_center(
+    input: SupportedCenterLift<'_>,
+    b: &mut Budget,
+) -> Result<Option<LiftResult>> {
+    let SupportedCenterLift {
+        frame,
+        parent,
+        companion,
+        support,
+        open,
+        child,
+        child_normals,
+    } = input;
+    if !Arc::ptr_eq(frame, support.geometry().frame())
+        || !support.opens().iter().any(|o| Arc::ptr_eq(o, open))
+    {
+        return Err(Error::Invalid("supported center lift embedding owner"));
+    }
+    if !unit(frame.local(), open.relative_minor(), b)? {
+        return Ok(None);
+    }
+    let normals = || {
+        open.chosen_equations()
+            .iter()
+            .map(|i| support.clearings()[*i].numerator.clone())
+            .collect()
+    };
+    let lifted = super::super::recursive::lift_embedded_geometry(
+        frame,
+        parent,
+        open.frame(),
+        open.extension(),
+        normals(),
+        child,
+        child_normals,
+        b,
+    )?;
+    let _ = super::super::recursive::lift_embedded_geometry(
+        frame,
+        companion,
+        open.frame(),
+        open.extension(),
+        normals(),
+        child,
+        child_normals,
+        b,
+    )?;
+    Ok(Some(lifted))
 }

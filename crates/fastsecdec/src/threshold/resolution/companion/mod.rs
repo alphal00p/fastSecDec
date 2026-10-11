@@ -29,3 +29,5 @@ pub use component_order::{
 pub(crate) use old_boundary::produce_old_boundary_coefficient_for_cycle;
 
 pub(crate) use division::divide_regular_in_localization;
+
+pub(crate) use old_boundary::{BoundarySumInput, combine_old_boundary};

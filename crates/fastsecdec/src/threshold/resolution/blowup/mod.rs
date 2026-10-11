@@ -4,13 +4,22 @@
 //! local exceptional history. They are not a disjoint real integration atlas,
 //! a global BM center-gluing algorithm or a complete endpoint certificate.
 mod adapted;
+mod embedded_center;
+mod embedding;
 mod general;
 mod general_transform;
 mod graph;
 mod helpers;
+mod incidence;
+mod presentation;
+mod presentation_transition;
 mod saturation;
 mod standard;
 mod support;
+pub use embedded_center::{
+    EmbeddedCenterProduction, EmbeddedMonomialCenter, produce_embedded_monomial_center,
+};
+pub use embedding::SupportEmbedding;
 pub use general::{
     CheckedRecursiveCenter, RecursiveAdaptation, RecursiveAdaptedOpen, RecursiveCenterOrigin,
     adapt_recursive_center,
@@ -19,6 +28,11 @@ pub use general_transform::{
     RelativeBlowupGeometry, RelativeMarkedTransform, RelativeRecursiveBlowup,
     RelativeRecursiveChart, blowup_recursive_center,
 };
+pub use incidence::{
+    CompletedEmbeddedChild, IncidenceContinuation, IncidenceDrop, MarkedCosupport,
+};
+pub use presentation::EmbeddedPresentation;
+pub use presentation_transition::{EmbeddedTransition, EmbeddedTransitionOpen};
 pub use saturation::SaturatedSupport;
 pub use support::{StrictContactSupport, StrictSupportOpen, transport_contact_support};
 mod history;

@@ -592,3 +592,5 @@ impl ResolutionHistory {
         }))
     }
 }
+
+mod embedded;

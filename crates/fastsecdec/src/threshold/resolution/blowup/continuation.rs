@@ -2,7 +2,8 @@
 //! problem. Distinct local centers and further nonmonomial cycles stay pending.
 use super::super::*;
 use super::{
-    coefficient::*, general::*, general_transform::*, helpers::Result, induced::*, terminal::*,
+    coefficient::*, embedded_center::*, general::*, general_transform::*, helpers::Result,
+    incidence::*, induced::*, presentation::*, presentation_transition::*, terminal::*,
 };
 use std::{collections::BTreeMap, sync::Arc};
 #[derive(Clone, Debug)]
@@ -20,12 +21,8 @@ impl Default for ContinuationLimits {
         }
     }
 }
-#[derive(Clone, Debug)]
-struct LowerTask {
-    induced: Arc<InducedChildChart>,
-    frontier: ComponentFactorFrontier,
-    done: Option<Arc<CompletedComponentFactors>>,
-}
+mod owners;
+use owners::{CarryOwner, LowerSource, LowerTask, SupportedCenter};
 #[derive(Clone, Debug)]
 enum Stage {
     Factor(ComponentFactorFrontier),
@@ -35,20 +32,20 @@ enum Stage {
     },
     Lower {
         factors: Arc<CompletedComponentFactors>,
-        carry: Arc<CarriedCompanionChart>,
+        carry: CarryOwner,
         tasks: Vec<LowerTask>,
     },
     Expand {
         factors: Arc<CompletedComponentFactors>,
-        carry: Arc<CarriedCompanionChart>,
+        carry: CarryOwner,
         tasks: Vec<LowerTask>,
-        centers: Vec<Arc<CarriedMonomialCenter>>,
+        centers: Vec<SupportedCenter>,
     },
     Expanded {
         factors: Arc<CompletedComponentFactors>,
-        carry: Arc<CarriedCompanionChart>,
+        carry: CarryOwner,
         tasks: Vec<LowerTask>,
-        centers: Vec<Arc<CarriedMonomialCenter>>,
+        centers: Vec<SupportedCenter>,
         blowup: Arc<RelativeRecursiveBlowup>,
         children: Vec<Vec<usize>>,
     },
@@ -244,11 +241,17 @@ impl LocalCompanionContinuation {
                     children,
                 } => {
                     if centers.is_empty()
-                        || tasks.len() != carry.opens().len()
+                        || tasks.len() != carry.opens()
                         || factors.nodes().is_empty()
                         || children.len() != blowup.charts().len()
                     {
                         return Err(Error::Invalid("expanded continuation evidence"));
+                    }
+                    carry.check_tasks(tasks)?;
+                    if centers.iter().any(|c| !tasks.iter().any(|t| c.belongs(t))) {
+                        return Err(Error::Invalid(
+                            "continuation center lacks actual lower factor owner",
+                        ));
                     }
                     for (p, chart) in children.iter().zip(blowup.charts()) {
                         if !self
@@ -349,38 +352,83 @@ fn step(
                     factors: factors.clone(),
                     certificates,
                 };
-            } else if node.origin.is_some() {
+            } else {
                 node.stage = Stage::Carry {
                     factors: factors.clone(),
                 };
-            } else {
-                node.pending = Some("further carried coefficient or companion cycle required");
             }
         }
         Stage::Carry { factors } => {
-            let origin = node
-                .origin
-                .as_ref()
-                .ok_or(Error::Invalid("lost original child cycle"))?;
-            let carry = carry_companion_chart(node.chart.clone(), &format!("{name}_carry"), b)?;
-            let mut tasks = Vec::new();
-            b.reserve_slots(carry.opens().len())?;
-            for (i, open) in carry.opens().iter().enumerate() {
-                let induced = induce_child_chart(
-                    origin.clone(),
-                    carry.clone(),
-                    i,
-                    &format!("{name}_induced{i}"),
+            let (carry, sources) = if let Some(origin) = &node.origin {
+                let carry = carry_companion_chart(node.chart.clone(), &format!("{name}_carry"), b)?;
+                let mut sources = Vec::new();
+                b.reserve_slots(carry.opens().len())?;
+                for i in 0..carry.opens().len() {
+                    sources.push(LowerSource::Initial(induce_child_chart(
+                        origin.clone(),
+                        carry.clone(),
+                        i,
+                        &format!("{name}_induced{i}"),
+                        b,
+                    )?));
+                }
+                (CarryOwner::Initial(carry), sources)
+            } else {
+                let source = match node.chart.geometry().center().origin() {
+                    RecursiveCenterOrigin::CarriedMonomial(c) => {
+                        EmbeddedPresentation::from_induced(c.induced().clone(), b)?
+                    }
+                    RecursiveCenterOrigin::EmbeddedMonomial(c) => c.presentation().clone(),
+                    _ => {
+                        node.pending = Some("further companion origin required");
+                        return Ok(vec![]);
+                    }
+                };
+                let transition = EmbeddedTransition::prepare(
+                    source,
+                    node.chart.clone(),
+                    &format!("{name}_repeated"),
                     b,
                 )?;
+                let presentations = transition.presentations(b)?;
+                let completion = CompletedEmbeddedChild::prove(transition.clone(), b)?;
+                let mut sources = Vec::new();
+                b.reserve_slots(presentations.len())?;
+                for source in presentations {
+                    let source = if let Some(done) = &completion {
+                        match IncidenceDrop::prepare(source, done.clone(), b)? {
+                            IncidenceContinuation::Dropped(drop) => drop.presentation(),
+                            IncidenceContinuation::CompanionResolved { .. } => {
+                                node.pending = Some(
+                                    "resolved companion needs a checked new residual-order cycle",
+                                );
+                                return Ok(vec![]);
+                            }
+                        }
+                    } else {
+                        source
+                    };
+                    sources.push(LowerSource::Repeated(source));
+                }
+                (
+                    CarryOwner::Repeated {
+                        transition,
+                        completion,
+                    },
+                    sources,
+                )
+            };
+            let mut tasks = Vec::new();
+            b.reserve_slots(sources.len())?;
+            for (i, source) in sources.into_iter().enumerate() {
                 let frontier = ComponentFactorFrontier::new(
-                    induced.history().clone(),
-                    open.incidence_sum().target().clone(),
+                    source.history().clone(),
+                    source.ideal().clone(),
                     format!("{name}_lower_factor{i}"),
                     b,
                 )?;
                 tasks.push(LowerTask {
-                    induced,
+                    source,
                     frontier,
                     done: None,
                 });
@@ -411,17 +459,46 @@ fn step(
                     return Ok(vec![]);
                 }
                 for leaf in done.nodes().values().filter_map(|n| n.leaf()) {
-                    match produce_induced_monomial_center(task.induced.clone(), leaf.clone(), b)? {
-                        InducedCenterProduction::Center(c) => centers.push(c),
-                        InducedCenterProduction::Empty { .. } => {}
-                        InducedCenterProduction::NeedsLowerRecursion { .. } => {
-                            node.pending = Some("nonmonomial lower coefficient recursion required");
-                            return Ok(vec![]);
+                    match &task.source {
+                        LowerSource::Initial(source) => {
+                            match produce_induced_monomial_center(source.clone(), leaf.clone(), b)?
+                            {
+                                InducedCenterProduction::Center(c) => {
+                                    centers.push(SupportedCenter::Initial(c))
+                                }
+                                InducedCenterProduction::Empty { .. } => {}
+                                InducedCenterProduction::NeedsLowerRecursion { .. } => {
+                                    node.pending =
+                                        Some("nonmonomial lower coefficient recursion required");
+                                    return Ok(vec![]);
+                                }
+                                InducedCenterProduction::NeedsLocalization { .. } => {
+                                    node.pending = Some(
+                                        "induced center needs compatible ambient localization",
+                                    );
+                                    return Ok(vec![]);
+                                }
+                            }
                         }
-                        InducedCenterProduction::NeedsLocalization { .. } => {
-                            node.pending =
-                                Some("induced center needs compatible ambient localization");
-                            return Ok(vec![]);
+                        LowerSource::Repeated(source) => {
+                            match produce_embedded_monomial_center(source.clone(), leaf.clone(), b)?
+                            {
+                                EmbeddedCenterProduction::Center(c) => {
+                                    centers.push(SupportedCenter::Repeated(c))
+                                }
+                                EmbeddedCenterProduction::Empty(_) => {}
+                                EmbeddedCenterProduction::NeedsLowerRecursion { .. } => {
+                                    node.pending =
+                                        Some("nonmonomial carried lower recursion required");
+                                    return Ok(vec![]);
+                                }
+                                EmbeddedCenterProduction::NeedsLocalization { .. } => {
+                                    node.pending = Some(
+                                        "carried center needs compatible ambient localization",
+                                    );
+                                    return Ok(vec![]);
+                                }
+                            }
                         }
                     }
                 }
@@ -472,8 +549,7 @@ fn step(
                 .first()
                 .ok_or(Error::Invalid("missing carried center"))?
                 .clone();
-            let checked =
-                CheckedRecursiveCenter::new(RecursiveCenterOrigin::CarriedMonomial(selected), b)?;
+            let checked = selected.checked(b)?;
             let cover = adapt_recursive_center(checked, &format!("{name}_next_adapt"), b)?;
             let blowup = blowup_recursive_center(cover, &format!("{name}_next_blowup"), b)?;
             if count

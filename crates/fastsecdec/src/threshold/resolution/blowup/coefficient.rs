@@ -27,6 +27,7 @@ pub struct SupportedMarkedTransform {
     target: Arc<MarkedIdeal>,
     generators: Vec<SupportedGenerator>,
     exceptional_ledger: Option<Arc<VerifiedRelativeSnc>>,
+    exceptional_power: usize,
 }
 impl SupportedMarkedTransform {
     pub fn support(&self) -> &Arc<StrictContactSupport> {
@@ -46,6 +47,9 @@ impl SupportedMarkedTransform {
     }
     pub fn exceptional_ledger(&self) -> Option<&Arc<VerifiedRelativeSnc>> {
         self.exceptional_ledger.as_ref()
+    }
+    pub fn exceptional_power(&self) -> usize {
+        self.exceptional_power
     }
 }
 #[derive(Clone, Debug)]
@@ -170,8 +174,21 @@ pub(super) fn controlled_supported(
     namespace: &str,
     b: &mut Budget,
 ) -> Result<Arc<SupportedMarkedTransform>> {
+    let power = source.mark();
+    transform_supported(support, open, source, power, namespace, b)
+}
+/// Total or controlled support pullback through the same exact mechanism.
+/// The explicit exponent is recorded; callers must retain why it is admissible.
+pub(super) fn transform_supported(
+    support: Arc<StrictContactSupport>,
+    open: Arc<StrictSupportOpen>,
+    source: Arc<MarkedIdeal>,
+    power: usize,
+    namespace: &str,
+    b: &mut Budget,
+) -> Result<Arc<SupportedMarkedTransform>> {
     if !support.opens().iter().any(|o| Arc::ptr_eq(o, &open))
-        || source.ideal().ring() != support.source().contact().local().ring()
+        || source.ideal().ring() != support.embedding().frame().local().ring()
     {
         return Err(Error::Invalid("supported marked transform owner"));
     }
@@ -207,7 +224,7 @@ pub(super) fn controlled_supported(
     } else {
         None
     };
-    let original = support.source().source().frame().local().ring();
+    let original = support.embedding().ambient().local().ring();
     let pull = |p: &Poly, b: &mut Budget| -> Result<Poly> {
         if (original.len()..p.nvars()).any(|i| p.degree(i) > 0) {
             return Err(Error::ResourceIncomplete(
@@ -220,7 +237,7 @@ pub(super) fn controlled_supported(
     let mut generators = Vec::new();
     b.reserve_slots(source.ideal().generators().len())?;
     for (i, f) in source.ideal().generators().iter().enumerate() {
-        let clearing = clear_units(support.source().contact().local(), f, b)?;
+        let clearing = clear_units(support.embedding().frame().local(), f, b)?;
         let numerator = pull(&clearing.numerator, b)?;
         let denominator = pull(&clearing.denominator, b)?;
         if !unit(local, &denominator, b)? {
@@ -236,7 +253,7 @@ pub(super) fn controlled_supported(
         .0;
         let mut quotient = total.clone();
         if let Some(e) = &exceptional {
-            for j in 0..source.mark() {
+            for j in 0..power {
                 quotient = super::super::companion::divide_regular_in_localization(
                     local,
                     e,
@@ -246,7 +263,7 @@ pub(super) fn controlled_supported(
                 )?
                 .0;
             }
-            let factor = b.power(e, source.mark())?;
+            let factor = b.power(e, power)?;
             if !local.zero(&(&total - &b.mul(&factor, &quotient)?), b)? {
                 return Err(Error::Invalid("supported full controlled recombination"));
             }
@@ -269,6 +286,11 @@ pub(super) fn controlled_supported(
         source.mark(),
         b,
     )?);
+    let exceptional_power = if geometry.exceptional().is_some() {
+        power
+    } else {
+        0
+    };
     Ok(Arc::new(SupportedMarkedTransform {
         support,
         open,
@@ -276,5 +298,6 @@ pub(super) fn controlled_supported(
         target,
         generators,
         exceptional_ledger,
+        exceptional_power,
     }))
 }

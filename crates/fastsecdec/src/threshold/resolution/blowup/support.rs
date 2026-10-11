@@ -2,6 +2,7 @@
 //! frames on a complete minor cover. Empty support is a geometric outcome.
 use super::super::*;
 use super::{
+    embedding::SupportEmbedding,
     general_transform::RelativeBlowupGeometry,
     helpers::*,
     saturation::{SaturatedSupport, saturate_support},
@@ -37,7 +38,7 @@ impl StrictSupportOpen {
 #[derive(Clone, Debug)]
 pub struct StrictContactSupport {
     geometry: Arc<RelativeBlowupGeometry>,
-    source: Arc<ContactQuotient>,
+    embedding: Arc<SupportEmbedding>,
     saturation: Arc<SaturatedSupport>,
     clearings: Vec<UnitClearing>,
     source_units: Vec<Poly>,
@@ -50,7 +51,10 @@ impl StrictContactSupport {
         &self.geometry
     }
     pub fn source(&self) -> &Arc<ContactQuotient> {
-        &self.source
+        self.embedding.original_contact()
+    }
+    pub fn embedding(&self) -> &Arc<SupportEmbedding> {
+        &self.embedding
     }
     pub fn saturation(&self) -> &Arc<SaturatedSupport> {
         &self.saturation
@@ -77,18 +81,26 @@ pub fn transport_contact_support(
     namespace: &str,
     b: &mut Budget,
 ) -> Result<Arc<StrictContactSupport>> {
+    let embedding = SupportEmbedding::contact(source, b)?;
+    transport_embedding(geometry, embedding, namespace, b)
+}
+pub(crate) fn transport_embedding(
+    geometry: Arc<RelativeBlowupGeometry>,
+    embedding: Arc<SupportEmbedding>,
+    namespace: &str,
+    b: &mut Budget,
+) -> Result<Arc<StrictContactSupport>> {
     let ambient = geometry.center().history().ledger().frame();
-    if !Arc::ptr_eq(ambient, source.source().frame())
-        || source.extension().source() != ambient.local().ring()
-    {
-        return Err(Error::Invalid("strict support original ambient owner"));
+    if !Arc::ptr_eq(ambient, embedding.ambient()) {
+        return Err(Error::Invalid(
+            "strict embedded support current ambient owner",
+        ));
     }
-    let numerator = &source.clearing().numerator;
-    if (source.extension().source().len()..numerator.nvars()).any(|i| numerator.degree(i) > 0) {
-        return Err(Error::Invalid("contact support has a foreign graph slot"));
+    let mut totals = Vec::new();
+    b.reserve_slots(embedding.equations().generators().len())?;
+    for f in embedding.equations().generators() {
+        totals.push(geometry.pull(f, b)?);
     }
-    let numerator = super::super::elimination::remap(numerator, ambient.local().ring(), b)?;
-    let total = geometry.pull(&numerator, b)?;
     let target = geometry.frame();
     let local = target.local();
     // A contact presentation may be defined on a further derivative open.
@@ -96,9 +108,10 @@ pub fn transport_contact_support(
     // This path accepts only units already certified on the target ambient;
     // other source opens require an explicit additional localization owner.
     let mut source_units = Vec::new();
-    b.reserve_slots(source.contact().local().guards().len())?;
-    for g in source.contact().local().guards() {
-        if (source.extension().source().len()..g.factor.nvars()).any(|i| g.factor.degree(i) > 0) {
+    b.reserve_slots(embedding.frame().local().guards().len())?;
+    for g in embedding.frame().local().guards() {
+        if (embedding.extension().source().len()..g.factor.nvars()).any(|i| g.factor.degree(i) > 0)
+        {
             return Err(Error::ResourceIncomplete(
                 "strict support needs source guard lift",
             ));
@@ -112,7 +125,7 @@ pub fn transport_contact_support(
         }
         source_units.push(pulled);
     }
-    let pulled = Arc::new(Ideal::new(local.ring().clone(), vec![total], b)?);
+    let pulled = Arc::new(Ideal::new(local.ring().clone(), totals, b)?);
     let factor = geometry
         .exceptional()
         .cloned()
@@ -124,13 +137,9 @@ pub fn transport_contact_support(
         &format!("{namespace}_sat"),
         b,
     )?;
-    let codim = ambient
-        .free_axes()
-        .len()
-        .checked_sub(source.contact().free_axes().len())
-        .ok_or(Error::Invalid("strict contact relative dimension"))?;
-    if codim != 1 {
-        return Err(Error::Invalid("contact quotient codimension"));
+    let codim = embedding.codimension();
+    if codim == 0 || codim > target.free_axes().len() {
+        return Err(Error::Invalid("embedded support relative codimension"));
     }
     let clearings = saturation
         .result()
@@ -143,7 +152,19 @@ pub fn transport_contact_support(
     if !saturation.empty() {
         for chosen in combinations(clearings.len(), codim, b)? {
             for columns in combinations(target.free_axes().len(), codim, b)? {
-                let ns = format!("{namespace}_eq{}_col{}", chosen[0], columns[0]);
+                let ns = format!(
+                    "{namespace}_eq{}_col{}",
+                    chosen
+                        .iter()
+                        .map(usize::to_string)
+                        .collect::<Vec<_>>()
+                        .join("_"),
+                    columns
+                        .iter()
+                        .map(usize::to_string)
+                        .collect::<Vec<_>>()
+                        .join("_")
+                );
                 let extension = RingExtension::new(
                     local.ring().clone(),
                     [
@@ -243,7 +264,7 @@ pub fn transport_contact_support(
     .verify(b)?;
     Ok(Arc::new(StrictContactSupport {
         geometry,
-        source,
+        embedding,
         saturation,
         clearings,
         source_units,

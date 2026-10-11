@@ -3696,3 +3696,16 @@ one. Root verified the pinned sources and independently reran the probe; the
 [secant review](reviews/no-deformation-secant-units.md) records the numerical
 scope. This is reuse evidence for a general-dimensional continuation owner,
 not authority to bypass its all-face and common-family admission.
+
+## Repeated old-incidence continuation (2026-10-11)
+
+The [successive-transition review](reviews/no-deformation-repeated-transitions.md)
+records the next native local resolver stage. Original and carried support
+presentations share strict saturation, quotient admission, center lifting,
+relative SNC checks and the existing marked old-boundary sum. A source-definition
+change preserves the original coefficient and actual exceptional history.
+Independent scientific review checks all support opens, original-data ownership
+and the separation of local marked completion from physical integration.
+The native 96-test resolver gate and strict lint pass; no new CAS, AD, graph,
+numerical estimator or library-owned execution pool is introduced. In-memory
+local evidence and incomplete global BM/atlas work remain explicit limitations.

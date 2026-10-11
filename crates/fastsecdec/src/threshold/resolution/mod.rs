@@ -120,3 +120,8 @@ pub use blowup::{
     certify_local_principalization, induce_child_chart, produce_induced_monomial_center,
     transport_contact_support,
 };
+pub use blowup::{
+    CompletedEmbeddedChild, EmbeddedCenterProduction, EmbeddedMonomialCenter, EmbeddedPresentation,
+    EmbeddedTransition, EmbeddedTransitionOpen, IncidenceContinuation, IncidenceDrop,
+    MarkedCosupport, SupportEmbedding, produce_embedded_monomial_center,
+};
