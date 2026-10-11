@@ -3657,3 +3657,24 @@ and residual/SNC terminals. Native controls preserve unresolved outcomes instead
 of manufacturing a complete atlas. No HEPKit graph, numerical reference API,
 pool, estimator, AD or alternative CAS was introduced. General resolution and
 disk-backed global evidence remain separate gates.
+
+## General-degree regular sections and kinematic assumptions (2026-10-11)
+
+The [secant construction](reviews/no-deformation-secant-units.md) uses native
+polynomial replacement, quotient/remainder and differentiation to retain exact
+high-degree boundary equations. A focused probe checks both endpoint maps,
+their width identities and the diagonal limit through degree 17. Independent
+mathematical review accepts the uniform closed-cylinder derivative hypothesis;
+a root bracket alone is explicitly insufficient. This is preparation for the
+general map/endpoint bridge, not a completed algebraic integration path.
+
+The represented HEPKit frontend exposed a missing structural API before native
+exact affine-family construction: all kinematic assumptions must be mapped
+without losing auxiliary momenta or metric aliases. The narrow owner
+[PR #131](https://github.com/alphal00p/gammaloop/pull/131) supplies immutable
+iteration and fallible value mapping while preserving native types and exact
+family semantics. All 40 owner leaf tests and strict lint pass against the
+current consumer graph, including distinct float precisions and callback
+failure. Root and an independent agent reviewed the API; ValentinHirschi opened
+the PR with benruijl requested. It is not yet adopted by the FastSecDec lockfiles,
+and the registered Python threshold entry still accepts exact fixed inputs.
