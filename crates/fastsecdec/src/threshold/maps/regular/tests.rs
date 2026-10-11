@@ -128,6 +128,72 @@ fn actual_native_sections_generic_degree_and_closed_margin() {
     }
 }
 #[test]
+fn high_degree_sections_match_exact_fibers_and_implicit_derivatives() {
+    use callback::{RootProgram, Scope, attempt};
+    use symbolica::evaluate::OptimizationSettings;
+
+    // The root at x=1 grows with degree, so the quintic's 4/5 bracket
+    // cannot be reused. Certify the entire closed unit cylinder instead.
+    for degree in [7, 11, 17] {
+        let maps = maps(degree);
+        assert_eq!(maps.len(), 2);
+        let map = maps[0].clone();
+        let section = RegularSection::prepare(
+            map.clone(),
+            1,
+            SectionSide::Upper,
+            BracketProposal {
+                lower: Rational::zero(),
+                upper: Rational::one(),
+                derivative_margin: Rational::from((1, 2)),
+            },
+            &mut Budget::new(Limits::default()),
+        )
+        .unwrap();
+        assert_eq!(section.coefficients().len(), degree as usize + 1);
+        let helper =
+            RootProgram::prepare(&section, OptimizationSettings::default().cores(1)).unwrap();
+        let tag = symbol!(&format!("regular_high_degree_{degree}::owner"));
+        let call = helper.call(tag, section.coefficients()).unwrap();
+        let x = map.axes()[0].symbol();
+        let first = call.derivative(x);
+        let second = first.derivative(x);
+        let exact = Atom::evaluator_multiple(&[call, first, second], &[Atom::var(x)])
+            .build()
+            .unwrap();
+        let mut scope = Scope::default();
+        scope.insert(tag, helper).unwrap();
+        let mut evaluator = scope.enter(53, || exact.map_coeff(&|c| c.re.to_f64()));
+        let algebra =
+            symgcad::algebra::Algebra::new(&map.decomposition().native_result().order).unwrap();
+        let mut previous = 0.;
+        for value in [0, 1, 7, 8] {
+            let point = Rational::from((value, 8));
+            let fiber = algebra
+                .specialize_univariate(section.polynomial(), 1, std::slice::from_ref(&point))
+                .unwrap();
+            let mut roots = symgcad::roots::isolate_union(vec![(0, fiber)]).unwrap();
+            assert_eq!(roots.len(), 1);
+            let root = &mut roots[0];
+            for _ in 0..64 {
+                symgcad::roots::refine_once(root);
+            }
+            let mut out = [0.; 3];
+            attempt(|| evaluator.evaluate(&[point.to_f64()], &mut out)).unwrap();
+            let r = out[0];
+            assert!(r >= previous);
+            previous = r;
+            assert!(r >= root.interval.0.to_f64() - 2e-14);
+            assert!(r <= root.interval.1.to_f64() + 2e-14);
+            assert!((r.powi(degree as i32) + r - point.to_f64()).abs() < 2e-14);
+            let minor = 1. + degree as f64 * r.powi((degree - 1) as i32);
+            let curvature = (degree * (degree - 1)) as f64 * r.powi((degree - 2) as i32);
+            assert!((out[1] - 1. / minor).abs() < 2e-13);
+            assert!((out[2] + curvature / minor.powi(3)).abs() < 2e-12);
+        }
+    }
+}
+#[test]
 fn proposal_domain_resource_and_cancellation_refusals() {
     let map = maps(5).remove(0);
     let side = SectionSide::Upper;

@@ -57,6 +57,16 @@ and one pre-existing ignored test in 29.10 seconds. Strict library/test Clippy
 passes in 32.24 seconds; workspace formatting and diff checks pass. These gates
 include the direct linear-bound lowering described above.
 
+A further native control solves and verifies actual degree-7, degree-11 and
+degree-17 cell boundaries. At four rational points, including both closed
+endpoints, numerical roots agree with independently isolated exact fibers and
+the first two symbolic derivatives agree with implicit differentiation. This
+control passes in 0.09 seconds; independent scientific review, strict Clippy
+(16.59 seconds) and formatting pass. The bracket is certified anew on `[0,1]`:
+the quintic's narrower `[0,4/5]` bracket would not contain these higher-degree
+roots throughout the domain. These are regular-section controls, not a claim
+that singular high-degree integration is complete.
+
 The supervised test process took 1.348 seconds with 30,109,696 bytes observed
 peak RSS at 100 ms sampling. This is a small correctness control, not a sampling
 performance result or a hard memory bound. Native certificate operations still
