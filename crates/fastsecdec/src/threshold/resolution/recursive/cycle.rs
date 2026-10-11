@@ -1,14 +1,43 @@
 use super::*;
 
 /// A cycle's fixed old exceptional set, separate from geometric birth history.
-/// The only continuation constructor requires an actual proved residual drop.
+/// A genuine construction event may start its first cycle; a subsequent cycle
+/// on the same marked problem requires an actual proved residual-order drop.
 #[derive(Clone, Debug)]
 pub struct CycleSnapshot {
-    origin: Arc<ResidualDrop>,
+    origin: CycleOrigin,
     history: Arc<ResolutionHistory>,
     old: Vec<BoundaryId>,
 }
+#[derive(Clone, Debug)]
+pub enum CycleOrigin {
+    AfterResidualDrop(Arc<ResidualDrop>),
+    InitialProblem {
+        problem: Arc<InitialProblem>,
+        order: Arc<ComponentResidualOrder>,
+    },
+}
 impl CycleSnapshot {
+    pub(crate) fn initial(
+        problem: Arc<InitialProblem>,
+        order: Arc<ComponentResidualOrder>,
+        b: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        problem.check_order(&order)?;
+        if order.algebraic_maximum_on_cosupport() == 0 {
+            return Err(Error::Invalid(
+                "initial monomial problem needs no positive companion",
+            ));
+        }
+        let history = problem.history().clone();
+        b.reserve_slots(history.ledger().divisors().len())?;
+        let old = history.ledger().divisors().iter().map(|d| d.id).collect();
+        Ok(Arc::new(Self {
+            origin: CycleOrigin::InitialProblem { problem, order },
+            history,
+            old,
+        }))
+    }
     pub fn after_first_drop(origin: Arc<ResidualDrop>, b: &mut Budget) -> Result<Arc<Self>> {
         if origin.current().algebraic_maximum_on_cosupport() == 0 {
             return Err(Error::Invalid(
@@ -19,12 +48,12 @@ impl CycleSnapshot {
         b.reserve_slots(history.ledger().divisors().len())?;
         let old = history.ledger().divisors().iter().map(|d| d.id).collect();
         Ok(Arc::new(Self {
-            origin,
+            origin: CycleOrigin::AfterResidualDrop(origin),
             history,
             old,
         }))
     }
-    pub fn origin(&self) -> &Arc<ResidualDrop> {
+    pub fn origin(&self) -> &CycleOrigin {
         &self.origin
     }
     pub fn birth_history(&self) -> &Arc<ResolutionHistory> {
@@ -46,7 +75,11 @@ impl CycleSnapshot {
         Ok(())
     }
     pub(crate) fn check_open(&self, open: &CompanionContactOpen) -> Result<()> {
-        if !Arc::ptr_eq(open.order(), self.origin.current()) {
+        let order = match &self.origin {
+            CycleOrigin::AfterResidualDrop(d) => d.current(),
+            CycleOrigin::InitialProblem { order, .. } => order,
+        };
+        if !Arc::ptr_eq(open.order(), order) {
             return Err(Error::Invalid("cycle snapshot companion source owner"));
         }
         self.check_history(open.restriction().history())

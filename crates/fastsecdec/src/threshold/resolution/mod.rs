@@ -32,8 +32,11 @@ mod transform;
 pub use algebra::{Budget, Error, Ideal, Limits, Poly, Ring};
 pub use blowup::{
     AdaptedCover, AdaptedOpen, AdaptedProduction, AdaptedProgress, BirthContext, BlowupProduction,
-    BlowupProgress, DivisorReceipt, EmptyAdaptedOpen, HistoryCenter, HistoryChartStep, HistoryStep,
-    MonomialBlowup, MonomialBlowupChart, ResolutionHistory, produce_adapted_cover,
+    BlowupProgress, DivisorReceipt, EmbeddedProblemCenter, EmbeddedProblemProduction,
+    EmptyAdaptedOpen, EmptySupportRefinement, HistoryCenter, HistoryChartStep, HistoryStep,
+    MonomialBlowup, MonomialBlowupChart, OriginalLevelOpen, OriginalLevelPullback,
+    OriginalLowerLevel, OriginalRecursionTree, OriginalTreePullback, RefinedSupportCover,
+    RefinedSupportOpen, ResolutionHistory, SupportFrameMap, produce_adapted_cover,
     produce_monomial_blowup,
 };
 pub use chart::{Boundary, Chart, FrameCertificate, Guard, Map, VerifiedFrame};
@@ -96,10 +99,11 @@ pub use producer::{
 };
 pub use recursive::{
     BoundaryFreeFirstCenter, CarriedFirstBlowup, CarriedFirstChart, CompanionCenter,
-    CompanionCenterOutcome, CompanionFirstCenter, ControlledGenerator, CycleSnapshot, FirstBlowup,
-    LiftReceipt, RecursiveAdvance, RecursiveBlowupChart, RecursiveCenter, RecursiveLevel,
-    RecursiveOutcome, ResidualDrop, carry_first_blowup, first_coordinate_blowup,
-    prove_first_residual_drop,
+    CompanionCenterOutcome, CompanionFirstCenter, ControlledGenerator, CycleOrigin, CycleSnapshot,
+    FirstBlowup, InitialProblem, InitialProblemRecursion, LiftReceipt, PreparedProblemCenter,
+    ProblemConstruction, ProblemRecursionRecord, RecursiveAdvance, RecursiveBlowupChart,
+    RecursiveCenter, RecursiveLevel, RecursiveOutcome, ResidualDrop, carry_first_blowup,
+    first_coordinate_blowup, prove_first_residual_drop,
 };
 pub use transform::{ControlledTransformCertificate, DivisorTransform, VerifiedTransform};
 
@@ -123,5 +127,6 @@ pub use blowup::{
 pub use blowup::{
     CompletedEmbeddedChild, EmbeddedCenterProduction, EmbeddedMonomialCenter, EmbeddedPresentation,
     EmbeddedTransition, EmbeddedTransitionOpen, IncidenceContinuation, IncidenceDrop,
-    MarkedCosupport, SupportEmbedding, produce_embedded_monomial_center,
+    MarkedCosupport, PhysicalSupportCover, PhysicalSupportOpen, PhysicalSupportRestriction,
+    SupportEmbedding, produce_embedded_monomial_center,
 };

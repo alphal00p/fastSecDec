@@ -188,9 +188,35 @@ impl ResolutionHistory {
         {
             return Err(Error::Invalid("induced history original J association"));
         }
-        let geometry = ambient.chart().geometry();
+        self.advance_first_embedded(child, ambient.chart(), j, center_pullback, b)
+    }
+    /// Shared first induced transition; callers must consume the actual original
+    /// coefficient/recursion construction owner before invoking it.
+    pub(crate) fn advance_first_embedded(
+        &self,
+        child: &Arc<RecursiveCenter>,
+        chart: &Arc<RelativeRecursiveChart>,
+        j: &super::coefficient::SupportedMarkedTransform,
+        center_pullback: &super::coefficient::SupportedMarkedTransform,
+        b: &mut Budget,
+    ) -> Result<Arc<Self>> {
+        if self.stage != 0
+            || !self.path.is_empty()
+            || !self.ledger.divisors().is_empty()
+            || !self.births.is_empty()
+            || !Arc::ptr_eq(self.ledger.frame(), child.frame())
+            || !Arc::ptr_eq(j.support().geometry(), chart.geometry())
+            || !Arc::ptr_eq(j.support().embedding().frame(), child.frame())
+            || j.source().ideal() != child.source().ideal()
+            || j.source().mark() != child.source().mark()
+        {
+            return Err(Error::Invalid(
+                "first induced hierarchy original source/history ownership",
+            ));
+        }
+        let geometry = chart.geometry();
         let frame = j.open().frame();
-        if !Arc::ptr_eq(center_pullback.support(), ambient.support())
+        if !Arc::ptr_eq(center_pullback.support(), j.support())
             || !Arc::ptr_eq(center_pullback.open(), j.open())
             || center_pullback.source().ideal() != child.ideal()
             || center_pullback.source().mark() != 1
@@ -262,7 +288,7 @@ impl ResolutionHistory {
         let mut path = self.path.clone();
         path.push(HistoryStep::EmbeddedBlowup {
             center: provenance,
-            ambient_path: ambient.chart().history().chart_path().to_vec(),
+            ambient_path: chart.history().chart_path().to_vec(),
             source_open: geometry.open().source_open().clone(),
             pivot_normal: geometry.pivot_normal(),
             support_equations: j.open().chosen_equations().to_vec(),

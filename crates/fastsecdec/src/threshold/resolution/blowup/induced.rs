@@ -14,6 +14,7 @@ use std::sync::Arc;
 pub struct EmbeddedChildCycle {
     center: Arc<CompanionCenter>,
     initial_history: Arc<ResolutionHistory>,
+    original_tree: Arc<super::tower::OriginalRecursionTree>,
 }
 impl EmbeddedChildCycle {
     pub fn new(center: Arc<CompanionCenter>, b: &mut Budget) -> Result<Arc<Self>> {
@@ -35,9 +36,12 @@ impl EmbeddedChildCycle {
             }
         };
         let initial_history = ResolutionHistory::initial(ledger)?;
+        let original_tree =
+            super::tower::OriginalRecursionTree::new(center.clone(), initial_history.clone(), b)?;
         Ok(Arc::new(Self {
             center,
             initial_history,
+            original_tree,
         }))
     }
     pub fn center(&self) -> &Arc<CompanionCenter> {
@@ -45,6 +49,9 @@ impl EmbeddedChildCycle {
     }
     pub fn initial_history(&self) -> &Arc<ResolutionHistory> {
         &self.initial_history
+    }
+    pub fn original_tree(&self) -> &Arc<super::tower::OriginalRecursionTree> {
+        &self.original_tree
     }
 }
 #[derive(Clone, Debug)]

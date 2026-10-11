@@ -88,7 +88,13 @@ pub use carry::{
     prove_first_residual_drop,
 };
 mod cycle;
-pub use cycle::CycleSnapshot;
+pub use cycle::{CycleOrigin, CycleSnapshot};
+mod problem;
+pub use problem::{InitialProblem, ProblemConstruction};
+mod problem_recursion;
+pub use problem_recursion::{
+    InitialProblemRecursion, PreparedProblemCenter, ProblemRecursionRecord,
+};
 
 #[cfg(test)]
 mod continuation_tests;

@@ -7,6 +7,22 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug)]
 enum EmbeddingOrigin {
+    Nested {
+        parent: Arc<SupportEmbedding>,
+        contact: Arc<ContactQuotient>,
+        clearing: UnitClearing,
+    },
+    Localized {
+        parent: Arc<SupportEmbedding>,
+        localization: Arc<LocalizedCoverHistory>,
+        clearing: UnitClearing,
+    },
+    AmbientOpen {
+        parent: Arc<SupportEmbedding>,
+        cover: Arc<PhysicalSupportCover>,
+        localization: Arc<LocalizedCoverHistory>,
+        map: super::refinement::SupportFrameMap,
+    },
     Contact(Arc<ContactQuotient>),
     Strict {
         parent: Arc<StrictContactSupport>,
@@ -88,10 +104,25 @@ impl SupportEmbedding {
             codimension,
         }))
     }
+    /// Whether this receipt descends from the same exact embedding owner.
+    pub fn descends_from(self: &Arc<Self>, ancestor: &Arc<Self>) -> bool {
+        if Arc::ptr_eq(self, ancestor) {
+            return true;
+        }
+        match &self.origin {
+            EmbeddingOrigin::Nested { parent, .. }
+            | EmbeddingOrigin::Localized { parent, .. }
+            | EmbeddingOrigin::AmbientOpen { parent, .. } => parent.descends_from(ancestor),
+            _ => false,
+        }
+    }
     pub fn original_contact(&self) -> &Arc<ContactQuotient> {
         match &self.origin {
             EmbeddingOrigin::Contact(q) => q,
             EmbeddingOrigin::Strict { parent, .. } => parent.source(),
+            EmbeddingOrigin::Nested { parent, .. }
+            | EmbeddingOrigin::Localized { parent, .. }
+            | EmbeddingOrigin::AmbientOpen { parent, .. } => parent.original_contact(),
         }
     }
     pub fn ambient(&self) -> &Arc<EtaleFrame> {
@@ -112,7 +143,14 @@ impl SupportEmbedding {
     pub fn previous(&self) -> Option<(&Arc<StrictContactSupport>, &Arc<StrictSupportOpen>)> {
         match &self.origin {
             EmbeddingOrigin::Strict { parent, open } => Some((parent, open)),
-            EmbeddingOrigin::Contact(_) => None,
+            EmbeddingOrigin::Contact(_)
+            | EmbeddingOrigin::Nested { .. }
+            | EmbeddingOrigin::Localized { .. }
+            | EmbeddingOrigin::AmbientOpen { .. } => None,
         }
     }
 }
+
+mod cover;
+mod nested;
+pub use cover::{PhysicalSupportCover, PhysicalSupportOpen, PhysicalSupportRestriction};

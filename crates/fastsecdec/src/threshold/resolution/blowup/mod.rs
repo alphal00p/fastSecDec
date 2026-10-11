@@ -19,7 +19,9 @@ mod support;
 pub use embedded_center::{
     EmbeddedCenterProduction, EmbeddedMonomialCenter, produce_embedded_monomial_center,
 };
-pub use embedding::SupportEmbedding;
+pub use embedding::{
+    PhysicalSupportCover, PhysicalSupportOpen, PhysicalSupportRestriction, SupportEmbedding,
+};
 pub use general::{
     CheckedRecursiveCenter, RecursiveAdaptation, RecursiveAdaptedOpen, RecursiveCenterOrigin,
     adapt_recursive_center,
@@ -75,3 +77,16 @@ pub use continuation::{
 
 #[cfg(test)]
 mod relative_tests;
+
+mod problem_center;
+mod refinement;
+mod tower;
+pub(crate) use problem_center::produce_embedded_problem_center;
+pub use problem_center::{EmbeddedProblemCenter, EmbeddedProblemProduction};
+pub use refinement::{
+    EmptySupportRefinement, RefinedSupportCover, RefinedSupportOpen, SupportFrameMap,
+};
+pub use tower::{
+    OriginalLevelOpen, OriginalLevelPullback, OriginalLowerLevel, OriginalRecursionTree,
+    OriginalTreePullback,
+};

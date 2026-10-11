@@ -134,3 +134,9 @@ mod continuation;
 mod geometry;
 
 mod cycle;
+
+pub(crate) mod nonmonomial_probe;
+
+mod map_probe;
+
+mod problem_probe;

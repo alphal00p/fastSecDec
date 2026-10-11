@@ -69,6 +69,11 @@ impl EmbeddedTransition {
                         .collect();
                     (lower.center().clone(), normals)
                 }
+                (RecursiveCenterOrigin::EmbeddedProblem(c), _)
+                    if Arc::ptr_eq(c.presentation(), &source) =>
+                {
+                    (c.lower_ideal().clone(), c.lower_normals().to_vec())
+                }
                 _ => {
                     return Err(Error::Invalid(
                         "repeated embedded transition actual center owner",
