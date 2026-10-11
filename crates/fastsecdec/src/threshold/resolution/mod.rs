@@ -17,6 +17,7 @@ mod components;
 mod contact;
 mod cover;
 mod differential;
+mod elimination;
 mod etale;
 mod geometry;
 mod iteration;
@@ -106,3 +107,16 @@ pub use transform::{ControlledTransformCertificate, DivisorTransform, VerifiedTr
 mod etale_tests;
 #[cfg(test)]
 mod tests;
+
+pub use blowup::{
+    CarriedCompanionChart, CarriedCompanionSupport, CarriedMonomialCenter, CheckedRecursiveCenter,
+    CompletedLocalContinuation, ContinuationAdvance, ContinuationCompletion, ContinuationLimits,
+    ContinuationNode, EmbeddedChildCycle, InducedCenterProduction, InducedChildChart,
+    LocalCompanionContinuation, LocalPrincipalization, PrincipalizationProduction,
+    RecursiveAdaptation, RecursiveAdaptedOpen, RecursiveCenterOrigin, RelativeBlowupGeometry,
+    RelativeMarkedTransform, RelativeRecursiveBlowup, RelativeRecursiveChart, SaturatedSupport,
+    StrictContactSupport, StrictSupportOpen, SupportedGenerator, SupportedMarkedTransform,
+    adapt_recursive_center, blowup_recursive_center, carry_companion_chart,
+    certify_local_principalization, induce_child_chart, produce_induced_monomial_center,
+    transport_contact_support,
+};

@@ -49,21 +49,50 @@ pub(super) fn lift_geometry(
     child: &RecursiveCenter,
     b: &mut Budget,
 ) -> Result<(Ideal, Vec<Poly>, Vec<UnitClearing>)> {
+    let candidate = &q.source().candidates()[q.candidate_index()];
+    let contact = clear_units(parent_frame.local(), &candidate.equation, b)?;
+    lift_embedded_geometry(
+        parent_frame,
+        parent_source,
+        q.contact(),
+        q.extension(),
+        vec![contact.numerator],
+        child.ideal(),
+        child.normals(),
+        b,
+    )
+}
+/// Shared exact ascent; constructors must bind their actual embedding and
+/// child producer before calling. Support normals are the checked smooth
+/// defining equations, not arbitrary equations from a presentation.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lift_embedded_geometry(
+    parent_frame: &Arc<EtaleFrame>,
+    parent_source: &Arc<MarkedIdeal>,
+    child_frame: &Arc<EtaleFrame>,
+    extension: &RingExtension,
+    mut normals: Vec<Poly>,
+    child_ideal: &Ideal,
+    child_normals: &[Poly],
+    b: &mut Budget,
+) -> Result<(Ideal, Vec<Poly>, Vec<UnitClearing>)> {
     let old = parent_frame.local();
     let ring = old.ring();
-    let candidate = &q.source().candidates()[q.candidate_index()];
-    let contact = clear_units(old, &candidate.equation, b)?;
+    if extension.source() != ring
+        || extension.target() != child_frame.local().ring()
+        || child_ideal.ring() != child_frame.local().ring()
+    {
+        return Err(Error::Invalid("embedded lift rings"));
+    }
     b.reserve_slots(
-        child
-            .normals
+        child_normals
             .len()
-            .checked_add(1)
+            .checked_add(normals.len())
             .ok_or(Error::ResourceIncomplete("recursive lifted normal count"))?,
     )?;
-    let mut normals = vec![contact.numerator];
     let mut clearings = Vec::new();
-    for f in child.normals() {
-        let c = clear_units(q.contact().local(), f, b)?;
+    for f in child_normals {
+        let c = clear_units(child_frame.local(), f, b)?;
         if (ring.len()..c.numerator.nvars())
             .any(|i| c.numerator.degree(i) > 0 || c.denominator.degree(i) > 0)
         {
@@ -90,9 +119,9 @@ pub(super) fn lift_geometry(
     {
         return Err(Error::Invalid("recursive lifted center empty"));
     }
-    let pulled = q.extension().ideal(&ideal, b)?;
-    let down = q.contact().local();
-    for (a, c) in [(&pulled, child.ideal()), (child.ideal(), &pulled)] {
+    let pulled = extension.ideal(&ideal, b)?;
+    let down = child_frame.local();
+    for (a, c) in [(&pulled, child_ideal), (child_ideal, &pulled)] {
         let c = down.ideal().sum(c, b)?;
         for f in a.generators() {
             if !c.contains(f, down.unit_relations(), b)? {

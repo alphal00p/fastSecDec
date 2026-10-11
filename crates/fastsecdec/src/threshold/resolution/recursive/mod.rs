@@ -92,3 +92,5 @@ pub use cycle::CycleSnapshot;
 
 #[cfg(test)]
 mod continuation_tests;
+
+pub(crate) use lift::lift_embedded_geometry;

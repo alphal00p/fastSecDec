@@ -1,4 +1,6 @@
-use super::super::{Budget, Error, Ideal, Poly, RingExtension, VerifiedRelativeSnc};
+use super::super::{
+    Budget, Error, Ideal, LocalizedAlgebra, Poly, RingExtension, VerifiedRelativeSnc,
+};
 use std::sync::Arc;
 use symbolica::symbol;
 type Result<T> = std::result::Result<T, Error>;
@@ -85,8 +87,30 @@ pub fn divide_cartier(
             dividend,
         });
     }
+    let (quotient, method) =
+        divide_regular_in_localization(local, &h, &dividend, namespace, budget)?;
+    Ok(CartierDivision::Quotient(VerifiedCartierQuotient {
+        owner,
+        divisor,
+        dividend,
+        quotient,
+        method,
+    }))
+}
+
+/// Shared discovery only. Callers must retain a checked Cartier or unit owner;
+/// this exact recombination by itself supplies no regularity/uniqueness proof.
+pub(crate) fn divide_regular_in_localization(
+    local: &LocalizedAlgebra,
+    h: &Poly,
+    dividend: &Poly,
+    namespace: &str,
+    budget: &mut Budget,
+) -> Result<(Poly, QuotientMethod)> {
+    local.supports(h)?;
+    local.supports(dividend)?;
     budget.charge(1)?;
-    let (direct, remainder) = dividend.quot_rem(&h, false);
+    let (direct, remainder) = dividend.quot_rem(h, false);
     budget.poly(&direct)?;
     budget.poly(&remainder)?;
     let (quotient, method) = if local.zero(&remainder, budget)? {
@@ -112,8 +136,8 @@ pub fn divide_cartier(
             f.rearrange_with_growth(&variables)
                 .map_err(|_| Error::Invalid("native quotient extension"))
         };
-        let h_ext = lift(&h)?;
-        let f_ext = lift(&dividend)?;
+        let h_ext = lift(h)?;
+        let f_ext = lift(dividend)?;
         let t = h_ext
             .variable(&variables[1])
             .map_err(|_| Error::Invalid("native quotient axis"))?;
@@ -154,16 +178,10 @@ pub fn divide_cartier(
         (q, QuotientMethod::NativeElimination)
     };
     local.supports(&quotient)?;
-    if !local.zero(&(&dividend - &budget.mul(&h, &quotient)?), budget)? {
+    if !local.zero(&(dividend - &budget.mul(h, &quotient)?), budget)? {
         return Err(Error::Invalid(
             "Cartier quotient original-localization recombination",
         ));
     }
-    Ok(CartierDivision::Quotient(VerifiedCartierQuotient {
-        owner,
-        divisor,
-        dividend,
-        quotient,
-        method,
-    }))
+    Ok((quotient, method))
 }

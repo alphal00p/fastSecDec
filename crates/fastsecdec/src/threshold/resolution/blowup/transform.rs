@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{helpers::*, *};
+use super::{helpers::*, standard::PolynomialPullback, *};
 use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct DivisorReceipt {
@@ -68,20 +68,6 @@ impl MonomialBlowupChart {
     /// Compose source-to-adapted embedding with the checked blowup pullback.
     pub fn pull_from_source(&self, p: &Poly, b: &mut Budget) -> Result<Poly> {
         self.pullback.pull(&self.open.extension.pull(p, b)?, b)
-    }
-}
-#[derive(Clone, Debug)]
-struct PolynomialPullback {
-    extension: Extension,
-    changes: Vec<(usize, Poly)>,
-}
-impl PolynomialPullback {
-    fn pull(&self, p: &Poly, b: &mut Budget) -> Result<Poly> {
-        let mut p = self.extension.pull(p, b)?;
-        for (axis, image) in &self.changes {
-            p = b.substitute(&p, *axis, image)?;
-        }
-        Ok(p)
     }
 }
 #[derive(Clone, Debug, Default)]
@@ -215,12 +201,7 @@ fn one(
     b: &mut Budget,
     pending_boundary: &mut Option<SncProduction>,
 ) -> Result<MonomialBlowupChart> {
-    let old = &open.graph;
     let center = source.indices();
-    let count = if pivot.is_some() { center.len() - 1 } else { 0 };
-    let extension = Extension::new(old.local().ring().clone(), count + 1, namespace, b)?;
-    let ring = extension.target().clone();
-    let start = extension.source().len();
     let axis_for = |index: usize| -> Result<usize> {
         open.incidence
             .iter()
@@ -228,124 +209,30 @@ fn one(
             .map(|j| open.boundary_axes[j])
             .ok_or(Error::Invalid("center missing graph coordinate"))
     };
-    let exceptional = pivot
-        .map(|p| axis_for(p).and_then(|a| ring.coordinate(a)))
-        .transpose()?;
-    let mut changes = Vec::new();
-    let mut swaps = Vec::new();
-    let mut next = start;
-    if let Some(pivot) = pivot {
-        for i in center {
-            if *i != pivot {
-                let axis = axis_for(*i)?;
-                let image = b.mul(
-                    exceptional
-                        .as_ref()
-                        .ok_or(Error::Invalid("missing exceptional"))?,
-                    &ring.coordinate(next)?,
-                )?;
-                changes.push((axis, image));
-                swaps.push((axis, next));
-                next += 1;
-            }
-        }
-    }
-    // Images contain no substituted axis, so this sequence is exactly a
-    // simultaneous native polynomial pullback, including parameter identity.
-    for (_, image) in &changes {
-        if changes.iter().any(|(axis, _)| image.degree(*axis) > 0) {
-            return Err(Error::Invalid("recursive coordinate substitution"));
-        }
-    }
-    let pullback = PolynomialPullback { extension, changes };
-    let equations = old
-        .source()
-        .ideal()
-        .generators()
-        .iter()
-        .map(|p| pullback.pull(p, b))
-        .collect::<Result<Vec<_>>>()?;
-    let selected = old
-        .selected_equations()
-        .iter()
-        .map(|i| pullback.pull(&old.source().ideal().generators()[*i], b))
-        .collect::<Result<Vec<_>>>()?;
-    let relations = Ideal::new(ring.clone(), equations, b)?;
-    let guards = old
-        .local()
-        .guards()
-        .iter()
-        .map(|g| {
-            Ok(Guard {
-                factor: pullback.pull(&g.factor, b)?,
-                inverse_axis: g.inverse_axis,
-            })
-        })
-        .collect::<Result<Vec<_>>>()?;
-    let remap = |a: &usize| {
-        swaps
+    // An identity complement need not contain all center boundary axes. Its
+    // available coordinate list suffices because no axis is changed.
+    let center_axes = if pivot.is_some() {
+        center
             .iter()
-            .find(|(old, _)| old == a)
-            .map_or(*a, |(_, new)| *new)
+            .map(|i| axis_for(*i))
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        open.boundary_axes.clone()
     };
-    let axes = old.source().axes().iter().map(remap).collect::<Vec<_>>();
-    let free = old.free_axes().iter().map(remap).collect::<Vec<_>>();
-    let local = LocalizedAlgebra::new(relations.clone(), axes, guards, b)?;
-    let frame = Arc::new(
-        EtaleCertificate {
-            source: local,
-            equations: indices(&relations, &selected)?,
-            dependent_axes: old.dependent_axes().to_vec(),
-            free_axes: free.clone(),
-            determinant_inverse_axis: if selected.is_empty() {
-                None
-            } else {
-                Some(next)
-            },
-        }
-        .verify(b)?,
-    );
-    if !frame.local().zero(
-        &(frame.determinant() - &pullback.pull(old.determinant(), b)?),
+    let geometry = super::standard::standard_chart(
+        open.geometry.clone(),
+        &center_axes,
+        pivot.map(axis_for).transpose()?,
+        namespace,
         b,
-    )? {
-        return Err(Error::Invalid("pulled relative etale determinant"));
-    }
-    // The old local guard list includes its inverse-minor slot; the target
-    // keeps that pulled guard and adds its own independently checked minor.
-    let mut entries = Vec::new();
-    for source_axis in old.free_axes() {
-        let image = pullback.pull(&old.local().ring().coordinate(*source_axis)?, b)?;
-        for target_axis in &free {
-            entries.push(image.derivative(*target_axis));
-        }
-    }
-    let jacobian = determinant(&ring, entries, free.len(), b)?;
-    let expected = match &exceptional {
-        Some(e) => b.power(e, center.len() - 1)?,
-        None => ring.one(),
-    };
-    if jacobian != expected {
-        return Err(Error::Invalid("standard blowup determinant"));
-    }
-    let mut original_entries = Vec::new();
-    for axis in open.source.frame().free_axes() {
-        let original = open.source.frame().local().ring().coordinate(*axis)?;
-        let adapted = open.extension.pull(&original, b)?;
-        let image = pullback.pull(&adapted, b)?;
-        for j in 0..frame.free_axes().len() {
-            original_entries.push(frame.derivative(j, &image, b)?);
-        }
-    }
-    let original_coordinate_jacobian = determinant(&ring, original_entries, free.len(), b)?;
-    let forward = open.extension.pull(open.forward_coordinate_jacobian(), b)?;
-    let forward = pullback.pull(&forward, b)?;
-    let composed = b.mul(&original_coordinate_jacobian, &forward)?;
-    if !frame.local().zero(&(&composed - &jacobian), b)? {
-        return Err(Error::Invalid(
-            "full relative coordinate Jacobian composition",
-        ));
-    }
+    )?;
+    let frame = geometry.frame.clone();
+    let ring = frame.local().ring().clone();
+    let pullback = geometry.pullback.clone();
+    let swaps = geometry.swaps.clone();
+    let exceptional = geometry.exceptional.clone();
+    let jacobian = geometry.jacobian.clone();
+    let original_coordinate_jacobian = geometry.original_coordinate_jacobian.clone();
     let mut receipts = Vec::new();
     let mut active = Vec::new();
     let mut strict = Vec::new();

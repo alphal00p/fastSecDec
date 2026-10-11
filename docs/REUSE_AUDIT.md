@@ -3640,3 +3640,20 @@ reference. Paper metadata was checked against the primary arXiv records.
 Independent HEPKit review confirms import-only and invalid-load paths remain
 inert, existing FastSecDec/pySecDec citations remain, and no proof replay or
 claim of positive complex-amplitude integrands is implied.
+
+## Repeated local resolution transitions (2026-10-11)
+
+The [transition review](reviews/no-deformation-repeated-transitions.md) records
+the shared native graph/standard blowup geometry, strict-support saturation,
+original coefficient transport and caller-stepped local continuation. Public
+API/source searches and executable probes found native algebra for every
+operation; the missing functionality is geometric orchestration and evidence
+association. Existing elimination, division and center-lifting helpers are
+shared rather than duplicated.
+
+Independent runtime and root reviews checked original lower-problem history,
+all-pivot and factor coverage, parameter roles, exact Jacobians, state ownership
+and residual/SNC terminals. Native controls preserve unresolved outcomes instead
+of manufacturing a complete atlas. No HEPKit graph, numerical reference API,
+pool, estimator, AD or alternative CAS was introduced. General resolution and
+disk-backed global evidence remain separate gates.

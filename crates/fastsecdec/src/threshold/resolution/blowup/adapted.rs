@@ -1,8 +1,9 @@
-use super::super::{contact::clear_units, *};
+use super::super::*;
 use super::helpers::*;
 use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct AdaptedOpen {
+    pub(super) geometry: Arc<super::graph::GraphCoordinateOpen>,
     pub(crate) source: Arc<VerifiedRelativeSnc>,
     pub(crate) incidence: Vec<usize>,
     pub(crate) columns: Vec<usize>,
@@ -172,188 +173,45 @@ fn one(
     namespace: &str,
     b: &mut Budget,
 ) -> Result<std::result::Result<AdaptedOpen, EmptyAdaptedOpen>> {
-    let old = source.frame();
-    let k = incidence.len();
-    let n = source.divisors().len();
-    // k graph slots, n-k complement inverses, one graph minor inverse.
-    let extension = Extension::new(
-        old.local().ring().clone(),
-        n.checked_add(1)
-            .ok_or(Error::ResourceIncomplete("graph slots"))?,
-        namespace,
-        b,
-    )?;
-    let ring = extension.target();
-    let start = extension.source().len();
-    let boundary_axes = (start..start + k).collect::<Vec<_>>();
-    let entries = incidence
+    let functions = incidence
         .iter()
-        .flat_map(|i| columns.iter().map(move |j| (*i, *j)))
-        .map(|(i, j)| old.derivative(j, &source.divisors()[i].equation, b))
-        .collect::<Result<Vec<_>>>()?;
-    let relative_minor = determinant(old.local().ring(), entries, k, b)?;
-    let mut source_open = relative_minor.clone();
-    for (i, divisor) in source.divisors().iter().enumerate() {
-        if !incidence.contains(&i) {
-            source_open = b.mul(&source_open, &divisor.equation)?;
-        }
-    }
-    let mut forward_entries = Vec::new();
-    for (j, _) in old.free_axes().iter().enumerate() {
-        if !columns.contains(&j) {
-            for l in 0..old.free_axes().len() {
-                forward_entries.push(if l == j {
-                    old.local().ring().one()
-                } else {
-                    old.local().ring().one().zero()
-                });
-            }
-        }
-    }
-    for i in incidence {
-        for j in 0..old.free_axes().len() {
-            forward_entries.push(old.derivative(j, &source.divisors()[*i].equation, b)?);
-        }
-    }
-    let forward_coordinate_jacobian = determinant(
-        old.local().ring(),
-        forward_entries,
-        old.free_axes().len(),
-        b,
-    )?;
-    let clearing = incidence
-        .iter()
-        .map(|i| clear_units(old.local(), &source.divisors()[*i].equation, b))
-        .collect::<Result<Vec<_>>>()?;
-    let mut selected = old
-        .selected_equations()
-        .iter()
-        .map(|i| extension.pull(&old.source().ideal().generators()[*i], b))
-        .collect::<Result<Vec<_>>>()?;
-    let mut equations = Vec::new();
-    let mut denominator = ring.one();
-    for (i, c) in clearing.iter().enumerate() {
-        let u = extension.pull(&c.denominator, b)?;
-        denominator = b.mul(&denominator, &u)?;
-        equations.push(
-            &extension.pull(&c.numerator, b)? - &b.mul(&ring.coordinate(boundary_axes[i])?, &u)?,
-        );
-    }
-    selected.extend(equations.iter().cloned());
-    let relations = extension
-        .ideal(old.local().ideal(), b)?
-        .sum(&Ideal::new(ring.clone(), equations, b)?, b)?;
-    let mut guards = extension.guards(old.local().guards(), b)?;
-    let mut slot = start + k;
-    for i in 0..n {
-        if !incidence.contains(&i) {
-            let cleared = clear_units(old.local(), &source.divisors()[i].equation, b)?;
-            guards.push(Guard {
-                factor: extension.pull(&cleared.numerator, b)?,
-                inverse_axis: slot,
-            });
-            slot += 1;
-        }
-    }
-    let old_minor = extension.pull(old.determinant(), b)?;
-    let pulled_minor = extension.pull(&relative_minor, b)?;
-    let expected = b.mul(&old_minor, &denominator)?;
-    let expected = b.mul(&expected, &pulled_minor)?;
-    // Preflight the exact open including its future minor before invoking
-    // LocalizedAlgebra's nonempty constructor.
-    let minor_clearing = clear_units(old.local(), &relative_minor, b)?;
-    let mut probe_guards = guards.clone();
-    probe_guards.push(Guard {
-        factor: extension.pull(&minor_clearing.numerator, b)?,
-        inverse_axis: slot,
-    });
-    if empty(&relations, &probe_guards, b)? {
-        return Ok(Err(EmptyAdaptedOpen {
-            incidence: incidence.to_vec(),
-            columns: columns.to_vec(),
-            ideal: relations,
-            guards: probe_guards,
-        }));
-    }
-    let mut axes = old.local().axes().to_vec();
-    axes.extend(&boundary_axes);
-    let local = LocalizedAlgebra::new(relations.clone(), axes, guards, b)?;
-    let mut dependent = old.dependent_axes().to_vec();
-    dependent.extend(columns.iter().map(|j| old.free_axes()[*j]));
-    let mut free = old
-        .free_axes()
+        .map(|i| source.divisors()[*i].equation.clone())
+        .collect::<Vec<_>>();
+    let extra_units = source
+        .divisors()
         .iter()
         .enumerate()
-        .filter(|(j, _)| !columns.contains(j))
-        .map(|(_, a)| *a)
+        .filter(|(i, _)| !incidence.contains(i))
+        .map(|(_, d)| d.equation.clone())
         .collect::<Vec<_>>();
-    free.extend(&boundary_axes);
-    let graph = Arc::new(
-        EtaleCertificate {
-            source: local,
-            equations: indices(&relations, &selected)?,
-            dependent_axes: dependent,
-            free_axes: free,
-            determinant_inverse_axis: if selected.is_empty() {
-                None
-            } else {
-                Some(slot)
-            },
-        }
-        .verify(b)?,
-    );
-    if !graph.local().zero(&(graph.determinant() - &expected), b)? {
-        return Err(Error::Invalid("adapted graph Schur minor"));
-    }
-    if !unit(
-        graph.local(),
-        &extension.pull(&forward_coordinate_jacobian, b)?,
+    let geometry = match super::graph::graph_coordinates(
+        source.frame().clone(),
+        &functions,
+        columns,
+        &extra_units,
+        namespace,
         b,
     )? {
-        return Err(Error::Invalid("adapted coordinate Jacobian not unit"));
-    }
-    for (i, c) in clearing.iter().enumerate() {
-        let h = extension.pull(&c.original, b)?;
-        if !graph
-            .local()
-            .zero(&(&h - &ring.coordinate(boundary_axes[i])?), b)?
-        {
-            return Err(Error::Invalid("adapted coordinate identity"));
+        Ok(v) => v,
+        Err(e) => {
+            return Ok(Err(EmptyAdaptedOpen {
+                incidence: incidence.to_vec(),
+                columns: columns.to_vec(),
+                ideal: e.ideal,
+                guards: e.guards,
+            }));
         }
-        for (j, axis) in graph.free_axes().iter().enumerate() {
-            let want = if *axis == boundary_axes[i] {
-                ring.one()
-            } else {
-                ring.one().zero()
-            };
-            if !graph
-                .local()
-                .zero(&(graph.derivative(j, &h, b)? - want), b)?
-            {
-                return Err(Error::Invalid("adapted derivative identity"));
-            }
-        }
-    }
-    for i in 0..n {
-        if !incidence.contains(&i)
-            && !unit(
-                graph.local(),
-                &extension.pull(&source.divisors()[i].equation, b)?,
-                b,
-            )?
-        {
-            return Err(Error::Invalid("complement divisor not unit"));
-        }
-    }
+    };
     Ok(Ok(AdaptedOpen {
         source: source.clone(),
         incidence: incidence.to_vec(),
         columns: columns.to_vec(),
-        extension,
-        graph,
-        boundary_axes,
-        relative_minor,
-        source_open,
-        forward_coordinate_jacobian,
+        extension: geometry.extension.clone(),
+        graph: geometry.graph.clone(),
+        boundary_axes: geometry.coordinate_axes.clone(),
+        relative_minor: geometry.relative_minor.clone(),
+        source_open: geometry.source_open.clone(),
+        forward_coordinate_jacobian: geometry.forward_coordinate_jacobian.clone(),
+        geometry,
     }))
 }
