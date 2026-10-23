@@ -22,21 +22,24 @@ mod status;
 mod threshold;
 
 use pyo3::{
-    exceptions::PyRuntimeError,
     prelude::*,
-    types::{PyDict, PyModule},
+    types::{PyDict, PyModule, PyTuple},
 };
 
 pub use citations::get_citations;
+use symbolica::api::python::{ExtensionImplementation, PythonExtensionFunction};
+
+static SECTOR_DECOMPOSE: ExtensionImplementation<PythonExtensionFunction> =
+    ExtensionImplementation::new("FastSecDec", sector_decompose);
 
 fn sector_decompose(
-    input: Bound<'_, PyAny>,
+    args: &Bound<'_, PyTuple>,
     kwargs: Option<&Bound<'_, PyDict>>,
 ) -> PyResult<Py<PyAny>> {
     // Reuse the binding's argument parser and defaults without resolving a
     // Python module or duplicating the scientific input conversion.
-    let function = wrap_pyfunction!(decompose::sector_decompose, input.py())?;
-    Ok(function.call((input,), kwargs)?.unbind())
+    let function = wrap_pyfunction!(decompose::sector_decompose, args.py())?;
+    Ok(function.call(args, kwargs)?.unbind())
 }
 
 pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -65,8 +68,7 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
         .import("sys")?
         .getattr("modules")?
         .set_item("symbolica.community.hepkit_fastsecdec_native", &module)?;
-    feynkit_py::set_sector_decomposition_function(sector_decompose)
-        .map_err(PyRuntimeError::new_err)?;
+    feynkit_py::SECTOR_DECOMPOSE.register(&SECTOR_DECOMPOSE)?;
     Ok(())
 }
 

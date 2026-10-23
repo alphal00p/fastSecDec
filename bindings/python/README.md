@@ -157,11 +157,13 @@ The API remains available in the canonical
 optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
 The host calls `fastsecdec_python::register(&hep)` after registering Feynkit.
-Registration installs the linked backend through
-`feynkit_py::set_sector_decomposition_function`. Owner methods then call that
+Registration installs a static, named `ExtensionImplementation` through
+`feynkit_py::SECTOR_DECOMPOSE.register`. The extension point uses the reusable
+`symbolica::api::python::ExtensionPoint` API. Owner methods then call that
 Rust function without importing the canonical Python facade. The adapter reuses
 PyO3's generated argument parser so defaults, validation and observer exceptions
-match the free function. Repeated registration of this backend is safe.
+match the free function. Repeated registration of the same static implementation
+is safe; a different implementation is rejected with both provider names in the error.
 
 A standalone host must link these bindings, Feynkit and Symbolica into one
 native library and use a Feynkit revision providing that registration API. It
