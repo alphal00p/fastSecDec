@@ -7,6 +7,7 @@ impl<'a> Requests<'a> {
         sector: &'a DualSector,
         runtime: &'a [Symbol],
         settings: CompilationSettings,
+        input_slots: Vec<ComposerSlot>,
     ) -> Result<Self, KernelError> {
         let dimension = sector.parameters.len();
         if sector.map.source_dimension() != sector.source_parameters.len()
@@ -102,6 +103,7 @@ impl<'a> Requests<'a> {
             runtime,
             settings,
             source_inputs,
+            input_slots,
             map,
             factor_inputs,
             constants,
@@ -122,13 +124,13 @@ impl<'a> Requests<'a> {
         request: &Request,
         shape: &Shape,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
-    ) -> Result<Vec<Slot>, KernelError> {
+    ) -> Result<Vec<ComposerSlot>, KernelError> {
         let key = (request.coordinates.clone(), shape.components.clone());
         if let Some(slots) = self.seed_slots.get(&key) {
             return Ok(slots.clone());
         }
         if self.constant_slots.is_none() {
-            self.constant_slots = Some(composer.append(&self.constants, &[]).map_err(compilation)?);
+            self.constant_slots = Some(composer.add(&self.constants, &[]).map_err(compilation)?);
         }
         let constants = self.constant_slots.as_ref().unwrap();
         let dimension = self.sector.parameters.len();
@@ -141,7 +143,7 @@ impl<'a> Requests<'a> {
                         if index >= dimension {
                             return Err(compilation("numerical-dual face variable out of range"));
                         }
-                        Slot::Param(index)
+                        self.input_slots[index]
                     }
                     Coordinate::Zero => constants[0],
                     Coordinate::One => constants[1],
@@ -149,7 +151,7 @@ impl<'a> Requests<'a> {
             } else if input == dimension {
                 constants[0]
             } else {
-                Slot::Param(input - 1)
+                self.input_slots[input - 1]
             };
             for powers in &shape.components {
                 let degree = powers.iter().sum::<usize>();
@@ -233,7 +235,7 @@ impl<'a> Requests<'a> {
         request: &Request,
         shape: &Shape,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
-    ) -> Result<Vec<Slot>, KernelError> {
+    ) -> Result<Vec<ComposerSlot>, KernelError> {
         let key = (request.coordinates.clone(), shape.components.clone());
         if let Some(slots) = self.map_slots.get(&key) {
             return Ok(slots.clone());
@@ -253,7 +255,7 @@ impl<'a> Requests<'a> {
             self.map_programs.insert(program_key.clone(), program);
         }
         let slots = composer
-            .append(&self.map_programs[&program_key], &seeds)
+            .add(&self.map_programs[&program_key], &seeds)
             .map_err(compilation)?;
         self.map_slots.insert(key, slots.clone());
         Ok(slots)

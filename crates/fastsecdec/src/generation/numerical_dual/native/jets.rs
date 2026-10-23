@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{dual::HyperDual, float::Complex, rational::Rational},
-    evaluate::{Dualizer, EvaluatorComposer, Slot},
+    evaluate::{ComposerSlot, Dualizer, EvaluatorComposer},
 };
 
 mod inputs;
@@ -25,22 +25,23 @@ pub(super) struct Requests<'a> {
     runtime: &'a [Symbol],
     settings: CompilationSettings,
     source_inputs: Vec<Symbol>,
+    input_slots: Vec<ComposerSlot>,
     map: ExactProgram,
     factor_inputs: Vec<Symbol>,
     constants: ExactProgram,
-    constant_slots: Option<Vec<Slot>>,
-    seed_slots: BTreeMap<MapKey, Vec<Slot>>,
-    map_slots: BTreeMap<MapKey, Vec<Slot>>,
+    constant_slots: Option<Vec<ComposerSlot>>,
+    seed_slots: BTreeMap<MapKey, Vec<ComposerSlot>>,
+    map_slots: BTreeMap<MapKey, Vec<ComposerSlot>>,
     map_programs: BTreeMap<ProgramKey, ExactProgram>,
-    factor_slots: BTreeMap<FactorKey, Vec<Slot>>,
-    regular_slots: BTreeMap<RegularKey, Slot>,
+    factor_slots: BTreeMap<FactorKey, Vec<ComposerSlot>>,
+    regular_slots: BTreeMap<RegularKey, ComposerSlot>,
 }
 impl<'a> Requests<'a> {
     pub(super) fn append(
         &mut self,
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
-    ) -> Result<Slot, KernelError> {
+    ) -> Result<ComposerSlot, KernelError> {
         let dimension = self.sector.parameters.len();
         if request.coordinates.len() != dimension || request.derivatives.len() != dimension {
             return Err(compilation("numerical-dual request dimension mismatch"));
@@ -123,7 +124,7 @@ impl<'a> Requests<'a> {
                     &self.source_zeros(request, &source),
                     self.settings,
                 )?;
-                let values = composer.append(&polynomial, &mapped).map_err(compilation)?;
+                let values = composer.add(&polynomial, &mapped).map_err(compilation)?;
                 let mut selected = Vec::with_capacity(target.components.len());
                 for powers in &target.components {
                     let shifted = powers
@@ -168,9 +169,7 @@ impl<'a> Requests<'a> {
             ))
             .map_err(compilation)?;
         factor_slots.extend(self.seeds(request, &target, composer)?);
-        let output = composer
-            .append(&regular, &factor_slots)
-            .map_err(compilation)?;
+        let output = composer.add(&regular, &factor_slots).map_err(compilation)?;
         let result = output[target.position(&desired)?];
         self.regular_slots.insert(regular_key, result);
         Ok(result)

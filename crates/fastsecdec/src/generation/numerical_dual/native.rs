@@ -10,7 +10,7 @@ use crate::kernel::{CompilationSettings, KernelError};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator},
 };
 
 pub(crate) use cache::SourcePrograms;
@@ -49,9 +49,8 @@ pub(crate) fn build(
             "numerical-dual jets require nonnegative monomial maps",
         ));
     }
-    let mut composer = EvaluatorComposer::new(inputs.len());
-    let mut slots = (0..inputs.len()).map(Slot::Param).collect::<Vec<_>>();
-    let mut builder = jets::Requests::new(sector, runtime, settings)?;
+    let (mut composer, mut slots) = EvaluatorComposer::new_with_inputs(inputs.len());
+    let mut builder = jets::Requests::new(sector, runtime, settings, slots.clone())?;
     for request in &sector.recipe.requests {
         let value = builder.append(request, &mut composer)?;
         inputs.push(request.placeholder);
@@ -98,7 +97,7 @@ pub(crate) fn build(
             .map_err(compilation)?;
     }
     let recipe = recipe.build().map_err(compilation)?;
-    let outputs = composer.append(&recipe, &slots).map_err(compilation)?;
+    let outputs = composer.add(&recipe, &slots).map_err(compilation)?;
     composer
         .finish(&outputs, settings.native())
         .map_err(compilation)
