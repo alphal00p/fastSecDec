@@ -17,9 +17,23 @@ mod session;
 mod settings;
 mod status;
 
-use pyo3::{prelude::*, types::PyModule};
+use pyo3::{
+    exceptions::PyRuntimeError,
+    prelude::*,
+    types::{PyDict, PyModule},
+};
 
 pub use citations::get_citations;
+
+fn sector_decompose(
+    input: Bound<'_, PyAny>,
+    kwargs: Option<&Bound<'_, PyDict>>,
+) -> PyResult<Py<PyAny>> {
+    // Reuse the binding's argument parser and defaults without resolving a
+    // Python module or duplicating the scientific input conversion.
+    let function = wrap_pyfunction!(decompose::sector_decompose, input.py())?;
+    Ok(function.call((input,), kwargs)?.unbind())
+}
 
 pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
     let module = PyModule::new(hep.py(), "symbolica.community.hepkit_fastsecdec_native")?;
@@ -43,6 +57,8 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
         .import("sys")?
         .getattr("modules")?
         .set_item("symbolica.community.hepkit_fastsecdec_native", &module)?;
+    feynkit_py::set_sector_decomposition_function(sector_decompose)
+        .map_err(PyRuntimeError::new_err)?;
     Ok(())
 }
 
@@ -51,4 +67,32 @@ pub fn register(hep: &Bound<'_, PyModule>) -> PyResult<()> {
 pub fn stub_source(module: &pyo3_stub_gen::generate::Module) -> String {
     module.to_string()
         + "\nclass FastSecDecError(RuntimeError):\n    stage: str\n\nclass CancelledError(FastSecDecError): ...\n"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    use symbolica::api::python::{SymbolicaCommunityModule, create_symbolica_module};
+
+    #[test]
+    fn owner_methods_use_registered_backend_without_canonical_namespaces() {
+        Python::initialize();
+        Python::attach(|py| -> PyResult<()> {
+            let core = PyModule::new(py, "standalone_core")?;
+            create_symbolica_module(&core)?;
+            let hep = PyModule::new(py, "standalone_hep")?;
+            feynkit_py::FeynkitModule::register_module(&hep)?;
+            feynkit_py::FeynkitModule::initialize(py)?;
+            register(&hep)?;
+            register(&hep)?;
+            let locals = PyDict::new(py);
+            locals.set_item("core", core)?;
+            locals.set_item("sd", hep.getattr("_fastsecdec_native")?)?;
+            locals.set_item("hep", hep)?;
+            let source = CString::new(include_str!("../tests/standalone_backend.py")).unwrap();
+            py.run(&source, Some(&locals), Some(&locals))
+        })
+        .unwrap();
+    }
 }

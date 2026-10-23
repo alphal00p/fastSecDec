@@ -118,6 +118,19 @@ The API remains available in the canonical
 `hepkit.sector_decomposition` namespace. HEPKit's object methods are
 optional-backend forwarding hooks; all
 FastSecDec generation, bindings and numerical work remain in this repository.
+The host calls `fastsecdec_python::register(&hep)` after registering Feynkit.
+Registration installs the linked backend through
+`feynkit_py::set_sector_decomposition_function`. Owner methods then call that
+Rust function without importing the canonical Python facade. The adapter reuses
+PyO3's generated argument parser so defaults, validation and observer exceptions
+match the free function. Repeated registration of this backend is safe.
+
+A standalone host must link these bindings, Feynkit and Symbolica into one
+native library and use a Feynkit revision providing that registration API. It
+can expose the shared types under its own import names. The focused embedded
+Python test `owner_methods_use_registered_backend_without_canonical_namespaces`
+exercises the backend with canonical imports blocked and its canonical module
+alias removed.
 
 Use the maintained [HEPKit example build instructions](../../examples/hepkit/BUILD.md)
 to build and install the host wheel. The host's ordinary `community` feature
