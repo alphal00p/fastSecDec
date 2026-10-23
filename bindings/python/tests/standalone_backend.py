@@ -24,9 +24,10 @@ def without_symbolica(name, globals=None, locals=None, fromlist=(), level=0):
 
 builtins.__import__ = without_symbolica
 try:
-    model = hep.Model.phi_3_4()
+    model = hep.Model.phi4()
     diagram = hep.FeynmanDiagram.from_dot(
-        model, 'digraph tadpole { a -> a [particle="phi", lmb_id=0]; }'
+        model,
+        'digraph figure_eight { a -> a [particle="phi", lmb_id=0]; a -> a [particle="phi", lmb_id=1]; }',
     )
     before = diagram.to_json()
     zero = tensor.TensorExpression(
