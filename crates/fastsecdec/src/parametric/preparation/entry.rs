@@ -2,7 +2,7 @@
 
 use super::super::{
     ParametricIntegrand,
-    numerator::{parameterize_validated_family, validate_family_input},
+    numerator::{NumeratorSources, parameterize_validated_family, validate_family_input},
 };
 use super::{
     FamilyPreparationPolicy, FamilyPreparationReport, FamilyPreparationStatus, prepare_family,
@@ -58,6 +58,31 @@ impl ParametricIntegrand {
         dimension: Atom,
         policy: FamilyPreparationPolicy,
     ) -> Result<(Self, FamilyPreparationReport)> {
+        Self::from_family_prepared_with_sources(
+            family,
+            powers,
+            weighted_numerator,
+            parameters,
+            regulator,
+            dimension,
+            policy,
+            NumeratorSources::default(),
+        )
+    }
+
+    /// [`Self::from_family_prepared`] with an explicit choice of numerator
+    /// source rows; see [`NumeratorSources`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_family_prepared_with_sources(
+        family: &IntegralFamily,
+        powers: &[u32],
+        weighted_numerator: Atom,
+        parameters: Vec<Symbol>,
+        regulator: Symbol,
+        dimension: Atom,
+        policy: FamilyPreparationPolicy,
+        sources: NumeratorSources,
+    ) -> Result<(Self, FamilyPreparationReport)> {
         let original_uf = validate_family_input(
             family,
             powers,
@@ -91,6 +116,7 @@ impl ParametricIntegrand {
             regulator,
             dimension,
             uf,
+            sources,
         )?;
         Ok((integrand, report))
     }

@@ -289,6 +289,18 @@ pub fn load_observed(
 pub(crate) fn load_observed_with_overrides(
     path: &Path,
     overrides: crate::config::GenerationOverrides,
+    observe: impl FnMut(LoadProgress<'_>) -> CliResult<()>,
+) -> CliResult<LoadedInput> {
+    load_observed_with_workers(path, overrides, None, observe)
+}
+
+/// Load with numerator parametrization on a caller-owned pool of `workers`
+/// threads; `None` uses the ambient rayon pool. The result is independent of
+/// the thread count.
+pub(crate) fn load_observed_with_workers(
+    path: &Path,
+    overrides: crate::config::GenerationOverrides,
+    workers: Option<usize>,
     mut observe: impl FnMut(LoadProgress<'_>) -> CliResult<()>,
 ) -> CliResult<LoadedInput> {
     let started = Instant::now();
@@ -339,29 +351,42 @@ pub(crate) fn load_observed_with_overrides(
             let numerator = graph
                 .scalar_numerator(&card.generation.contraction_mode.algebra_settings())?
                 * graph.measure_multiplier();
-            let (integrand, family_preparation) = if policy == FamilyPreparationPolicy::Original {
-                (
-                    ParametricIntegrand::from_family(
-                        graph.family(),
-                        graph.powers(),
-                        numerator,
-                        parameters,
-                        regulator,
-                        dimension,
-                    )?,
-                    None,
-                )
-            } else {
-                let (integrand, report) = ParametricIntegrand::from_family_prepared(
-                    graph.family(),
-                    graph.powers(),
-                    numerator,
-                    parameters,
-                    regulator,
-                    dimension,
-                    policy,
-                )?;
-                (integrand, Some(report))
+            let numerator_sources = card.generation.numerator_sources;
+            let parameterize = || -> fastsecdec::Result<_> {
+                Ok(if policy == FamilyPreparationPolicy::Original {
+                    (
+                        ParametricIntegrand::from_family_with_sources(
+                            graph.family(),
+                            graph.powers(),
+                            numerator,
+                            parameters,
+                            regulator,
+                            dimension,
+                            numerator_sources,
+                        )?,
+                        None,
+                    )
+                } else {
+                    let (integrand, report) =
+                        ParametricIntegrand::from_family_prepared_with_sources(
+                            graph.family(),
+                            graph.powers(),
+                            numerator,
+                            parameters,
+                            regulator,
+                            dimension,
+                            policy,
+                            numerator_sources,
+                        )?;
+                    (integrand, Some(report))
+                })
+            };
+            let (integrand, family_preparation) = match workers {
+                Some(workers) => rayon::ThreadPoolBuilder::new()
+                    .num_threads(workers.max(1))
+                    .build()?
+                    .install(parameterize)?,
+                None => parameterize()?,
             };
             let (runtime_mass_constraints, model_parameter_defaults) =
                 if let Some(runtime) = &mut runtime_model {

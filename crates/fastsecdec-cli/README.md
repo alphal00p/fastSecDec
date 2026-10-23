@@ -223,6 +223,30 @@ must still produce a scalar polynomial in native loop scalar products.
 Nondefault modes are rejected for direct parametric inputs, which have no graph
 numerator to contract. The selected graph mode is saved in generation metadata.
 
+The contracted numerator is integrated by Gaussian source derivatives. Choose
+which rows serve as sources:
+
+```toml
+[generation]
+numerator_sources = "factors"   # default; alternative: "scalar_products"
+```
+
+`factors` recognizes a numerator written as a sum of products of positive
+integer powers of affine scalar-product forms, such as
+`A * B^4 * C^4` with `A = (k0+k1+k3-k4)^2 - m^2`, and uses the distinct forms
+themselves as source rows: one term and one mixed derivative per product,
+computed in formal source jets and only then expressed in the native U, F (or,
+without external momenta, U and the affine `F/U`) polynomials. Numerators
+without that structure, or whose factors are all bare scalar products, use the
+`scalar_products` route unchanged. `scalar_products` expands the numerator into
+scalar-product monomials with one source row per family scalar product and one
+term per monomial, the historical representation. Both give exactly the same
+projective density; `factors` usually gives far fewer and much smaller terms,
+which also shortens sector mapping and expansion. Independent source moments
+and term admission run on the generation worker pool (`--workers`), with
+results identical to a sequential run. The choice is saved in generation
+metadata.
+
 Select the generation lane and endpoint subtraction independently:
 
 ```toml

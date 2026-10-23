@@ -9,7 +9,7 @@ pub(super) fn run(
     recipes: Option<&[indexed::ProgramRecipe]>,
     observe: &mut impl FnMut(i32, &generation::GenerationProgress) -> ControlFlow<()>,
 ) -> CliResult<Response> {
-    let loaded = input::load_observed_with_overrides(input, overrides, |_| Ok(()))?;
+    let loaded = input::load_observed_with_workers(input, overrides, Some(workers), |_| Ok(()))?;
     let (options, generation, provenance, timings) = context(&loaded, workers)?;
     enum Native {
         Selected(native::Preparation),
@@ -82,6 +82,7 @@ pub(super) fn context(
         source_chart_modes: None,
         formula_preparation: None,
         contraction_mode: loaded.loops.map(|_| settings.contraction_mode),
+        numerator_sources: loaded.loops.map(|_| settings.numerator_sources),
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(settings.evaluator),
     };

@@ -5,12 +5,20 @@
 //! products to the native inverse-propagator family as auxiliary source rows.
 //! Differentiate m times and set the auxiliary parameters to zero. Integrating
 //! the Schwinger radial scale first shifts Gamma(A-LD/2) to Gamma(A-LD/2-m).
+//!
+//! A numerator given as a product of powers of affine forms, such as
+//! `A * B^4 * C^4`, can instead use those forms as source rows; see
+//! [`NumeratorSources`]. Independent source moments are computed in parallel
+//! on the caller's rayon pool; term order and content do not depend on it.
 
+mod factored;
 mod moments;
 
 use std::collections::BTreeSet;
 
 use feynkit_graph::IntegralFamily;
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
     id::Pattern,
@@ -28,6 +36,26 @@ use super::{
     FactorRole, FactorSemantics, ParametricDomain, ParametricIntegrand, ParametricTerm,
     PolynomialFactor,
 };
+
+/// Gaussian source rows used to parameterize a loop-dependent scalar numerator.
+///
+/// Both choices give exactly the same projective density; they differ in the
+/// number of terms and in the form of each polynomial numerator factor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NumeratorSources {
+    /// Use the distinct affine factors of a numerator written as a sum of
+    /// products of positive integer powers of affine scalar-product forms, for
+    /// example `A * B^4 * C^4` with `A = (k0+k1+k3-k4)^2 - m^2`, as source
+    /// rows: one term and one mixed derivative per product. Numerators without
+    /// such a structure, or whose factors are all bare scalar products, use
+    /// [`Self::ScalarProducts`] unchanged.
+    #[default]
+    Factors,
+    /// One source row per family scalar product and one term per monomial of
+    /// the expanded numerator (the historical representation).
+    ScalarProducts,
+}
 
 impl ParametricIntegrand {
     /// Contract the native graph numerator and integrate its loop momenta by
@@ -73,6 +101,9 @@ impl ParametricIntegrand {
     /// If propagator or kinematic coefficients themselves depend on that native
     /// dimension symbol, specialize the family first before changing dimension;
     /// this entry rejects leaving a stale native dimension in U or F.
+    ///
+    /// The default [`NumeratorSources`] are used; see
+    /// [`Self::from_family_with_sources`].
     pub fn from_family(
         family: &IntegralFamily,
         powers: &[u32],
@@ -81,24 +112,47 @@ impl ParametricIntegrand {
         regulator: Symbol,
         dimension: Atom,
     ) -> Result<Self> {
-        parameterize_family(
+        Self::from_family_with_sources(
             family,
             powers,
             weighted_numerator,
             parameters,
             regulator,
             dimension,
+            NumeratorSources::default(),
+        )
+    }
+
+    /// [`Self::from_family`] with an explicit choice of Gaussian source rows.
+    pub fn from_family_with_sources(
+        family: &IntegralFamily,
+        powers: &[u32],
+        weighted_numerator: Atom,
+        parameters: Vec<Symbol>,
+        regulator: Symbol,
+        dimension: Atom,
+        sources: NumeratorSources,
+    ) -> Result<Self> {
+        parameterize_family_with_sources(
+            family,
+            powers,
+            weighted_numerator,
+            parameters,
+            regulator,
+            dimension,
+            sources,
         )
     }
 }
 
-fn parameterize_family(
+fn parameterize_family_with_sources(
     family: &IntegralFamily,
     powers: &[u32],
     numerator: Atom,
     parameters: Vec<Symbol>,
     regulator: Symbol,
     dimension: Atom,
+    sources: NumeratorSources,
 ) -> Result<ParametricIntegrand> {
     let uf = validate_family_input(
         family,
@@ -109,7 +163,7 @@ fn parameterize_family(
         &dimension,
     )?;
     parameterize_validated_family(
-        family, powers, numerator, parameters, regulator, dimension, uf,
+        family, powers, numerator, parameters, regulator, dimension, uf, sources,
     )
 }
 
@@ -169,6 +223,7 @@ pub(super) fn validate_family_input(
     Ok((u, f))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn parameterize_validated_family(
     family: &IntegralFamily,
     powers: &[u32],
@@ -177,6 +232,7 @@ pub(super) fn parameterize_validated_family(
     regulator: Symbol,
     dimension: Atom,
     (u, f): (Atom, Atom),
+    numerator_sources: NumeratorSources,
 ) -> Result<ParametricIntegrand> {
     let native_dimension = family.kinematics().dimension().to_symbolic();
     let parameter_atoms = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
@@ -252,8 +308,32 @@ pub(super) fn parameterize_validated_family(
     for denominator in family.denominators() {
         occupied.extend(denominator.get_all_symbols(true));
     }
+    let excluded = dimension
+        .get_all_symbols(true)
+        .into_iter()
+        .chain(native_dimension.get_all_symbols(true))
+        .chain([regulator])
+        .collect::<Vec<_>>();
+    let factors = match numerator_sources {
+        NumeratorSources::Factors => factored::factor(&numerator, family, &excluded),
+        NumeratorSources::ScalarProducts => None,
+    };
+    // Each product of affine forms, or each scalar-product monomial, becomes
+    // one term: (loop-independent coefficient, source orders).
+    let factored = factors.is_some();
+    let (rows, products): (Vec<Atom>, Vec<(Atom, Vec<u32>)>) = match factors {
+        Some(factors) => (factors.forms, factors.products),
+        None => (
+            basis.to_vec(),
+            (&polynomial)
+                .into_iter()
+                .map(|monomial| (monomial.coefficient.clone(), monomial.exponents.to_vec()))
+                .collect(),
+        ),
+    };
+    drop(polynomial);
     let mut next = 0usize;
-    let sources = basis
+    let sources = rows
         .iter()
         .map(|_| {
             loop {
@@ -268,7 +348,7 @@ pub(super) fn parameterize_validated_family(
     let extended_family = IntegralFamily::new(
         family.loop_momenta().to_vec(),
         family.external_momenta().to_vec(),
-        family.denominators().iter().chain(basis).cloned().collect(),
+        family.denominators().iter().chain(&rows).cloned().collect(),
         family.kinematics(),
     )?;
     let extended_parameters = parameter_atoms
@@ -278,40 +358,87 @@ pub(super) fn parameterize_validated_family(
         .collect::<Vec<_>>();
     let (source_u, source_f) = extended_family.symanzik(&extended_parameters)?;
     let density_powers = powers.iter().map(|p| Atom::num(p - 1)).collect::<Vec<_>>();
-    let mut terms = Vec::with_capacity(polynomial.nterms());
-    for monomial in &polynomial {
-        let order = monomial
-            .exponents
+    // Check every Gamma argument in term order before any derivative: at an
+    // exact pole the polynomial can vanish, but dropping Gamma(pole)*0 would
+    // lose a finite limit. The first offending term reports the error.
+    let gammas = products
+        .iter()
+        .map(|(_, orders)| {
+            let order = orders.iter().map(|p| u64::from(*p)).sum::<u64>();
+            validated_gamma((&beta - Atom::num(order)).expand()).map(|gamma| (order, gamma))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let kernel = factored.then(|| {
+        let zero_products = basis
             .iter()
-            .map(|p| u64::from(*p))
-            .sum::<u64>();
-        // Check before evaluating derivatives: at an exact pole the polynomial
-        // can vanish, but dropping Gamma(pole)*0 would lose a finite limit.
-        let gamma = validated_gamma((&beta - Atom::num(order)).expand())?;
-        let a = &base_u - Atom::num(order);
-        let b = -&beta + Atom::num(order);
-        let numerator_polynomial =
-            moments::source_moment(&source_u, &source_f, &sources, monomial.exponents, &a, &b);
-        if numerator_polynomial.is_zero() {
-            continue;
-        }
-        let coefficient = replace_dimension(monomial.coefficient.clone());
-        terms.push(ParametricTerm::new(
-            &normalization * gamma * coefficient,
-            density_powers.clone(),
-            vec![
-                PolynomialFactor::new(
-                    u.clone(),
-                    (&base_u - Atom::num(2 * order)).expand(),
-                    FactorRole::Singularity,
+            .map(|p| {
+                symbolica::id::Replacement::new(
+                    Pattern::Literal(p.clone()),
+                    Pattern::Literal(Atom::Zero),
                 )
-                .with_semantics(FactorSemantics::Positive),
-                PolynomialFactor::new(f.clone(), -&beta, FactorRole::Singularity)
-                    .with_semantics(FactorSemantics::Causal),
-                PolynomialFactor::new(numerator_polynomial, Atom::one(), FactorRole::Polynomial),
-            ],
-        ));
-    }
+            })
+            .collect::<Vec<_>>();
+        let constants = extended_family
+            .denominators()
+            .iter()
+            .map(|row| row.replace_multiple(&zero_products).expand())
+            .collect::<Vec<_>>();
+        factored::SourceKernel::new(
+            source_u.clone(),
+            source_f.clone(),
+            &parameter_atoms,
+            &sources,
+            &constants,
+        )
+    });
+    let namespace = factored::placeholder_namespace(&occupied);
+    // Moments are independent; the caller's rayon pool bounds the threads.
+    // Indexed collection keeps the sequential term order.
+    let terms = products
+        .par_iter()
+        .zip(gammas.into_par_iter())
+        .map(|((coefficient, orders), (order, gamma))| {
+            let a = &base_u - Atom::num(order);
+            let b = -&beta + Atom::num(order);
+            let (numerator_polynomial, u_shift) = match &kernel {
+                Some(kernel) => kernel.moment(orders, &a, &b, &namespace),
+                None => (
+                    moments::source_moment(&source_u, &source_f, &sources, orders, &a, &b),
+                    0,
+                ),
+            };
+            if numerator_polynomial.is_zero() {
+                return None;
+            }
+            let coefficient = replace_dimension(coefficient.clone());
+            Some(ParametricTerm::new(
+                &normalization * gamma * coefficient,
+                density_powers.clone(),
+                vec![
+                    PolynomialFactor::new(
+                        u.clone(),
+                        if u_shift == 0 {
+                            (&base_u - Atom::num(2 * order)).expand()
+                        } else {
+                            (&base_u - Atom::num(2 * order) + Atom::num(u_shift)).expand()
+                        },
+                        FactorRole::Singularity,
+                    )
+                    .with_semantics(FactorSemantics::Positive),
+                    PolynomialFactor::new(f.clone(), -&beta, FactorRole::Singularity)
+                        .with_semantics(FactorSemantics::Causal),
+                    PolynomialFactor::new(
+                        numerator_polynomial,
+                        Atom::one(),
+                        FactorRole::Polynomial,
+                    ),
+                ],
+            ))
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .flatten()
+        .collect();
     Ok(ParametricIntegrand::new(
         parameters,
         regulator,
@@ -325,6 +452,26 @@ mod tests {
     use super::*;
     use feynkit_kinematics::Kinematics;
     use symbolica::parse;
+
+    /// The historical test entry with the default numerator sources.
+    fn parameterize_family(
+        family: &IntegralFamily,
+        powers: &[u32],
+        numerator: Atom,
+        parameters: Vec<Symbol>,
+        regulator: Symbol,
+        dimension: Atom,
+    ) -> Result<ParametricIntegrand> {
+        super::parameterize_family_with_sources(
+            family,
+            powers,
+            numerator,
+            parameters,
+            regulator,
+            dimension,
+            NumeratorSources::default(),
+        )
+    }
 
     fn massive_tadpole(s: Atom) -> (IntegralFamily, Atom, Atom) {
         let (k, p) = (parse!("k"), parse!("p"));
@@ -440,6 +587,118 @@ mod tests {
             Atom::num(2),
         );
         assert!(matches!(result, Err(Error::UnregulatedGammaPole(_))));
+    }
+
+    /// Laurent coefficients of a density at a fixed exact point.
+    fn density_series(integrand: &ParametricIntegrand, point: &[(&str, Atom)]) -> Atom {
+        let mut density = integrand.density();
+        for (name, value) in point {
+            density = density.replace(symbol!(name)).with(value.clone());
+        }
+        density
+            .series(symbol!("eps"), 0, 1)
+            .unwrap()
+            .to_atom()
+            .expand()
+    }
+
+    #[test]
+    fn factored_sources_match_scalar_products_with_an_external_momentum() {
+        let (family, kk, kp) = massive_tadpole(parse!("s"));
+        // ((k+p)^2-M)^2 has a k.p component, so the source F is not U times
+        // an affine form and the generic U/F jet kernel is used.
+        let form = &kk + Atom::num(2) * &kp + parse!("s") - parse!("M");
+        let numerator = form.pow(2) * parse!("c");
+        let route = |sources| {
+            super::parameterize_family_with_sources(
+                &family,
+                &[5],
+                numerator.clone(),
+                vec![symbol!("x")],
+                symbol!("eps"),
+                parse!("2-2*eps"),
+                sources,
+            )
+            .unwrap()
+        };
+        let factored = route(NumeratorSources::Factors);
+        let scalar = route(NumeratorSources::ScalarProducts);
+        assert_eq!(factored.terms().len(), 1);
+        assert!(scalar.terms().len() > 1);
+        let point = [("x", Atom::one())];
+        assert!(
+            (density_series(&factored, &point) - density_series(&scalar, &point))
+                .together()
+                .is_zero()
+        );
+    }
+
+    #[test]
+    fn factored_sources_match_scalar_products_for_a_two_loop_vacuum_sum() {
+        let (k, l) = (parse!("k"), parse!("l"));
+        let kin = Kinematics::in_dimension(&parse!("D"))
+            .unwrap()
+            .with_momenta([k.clone(), l.clone()])
+            .unwrap();
+        let kk = kin.scalar_product(&k, &k).unwrap();
+        let ll = kin.scalar_product(&l, &l).unwrap();
+        let kl = kin.scalar_product(&k, &l).unwrap();
+        let family = IntegralFamily::new(
+            vec![k, l],
+            vec![],
+            vec![&kk - Atom::num(1), &ll - Atom::num(2)],
+            &kin,
+        )
+        .unwrap();
+        // A sum of products of affine forms with different total orders and a
+        // constant; without external momenta F = U * L uses the vacuum kernel.
+        let a = &kk + Atom::num(2) * &kl + &ll - Atom::num(3);
+        let b = &kk - Atom::num(5);
+        let numerator = Atom::num(7) * a.pow(2) * &b - &a + Atom::num(11);
+        let route = |sources| {
+            super::parameterize_family_with_sources(
+                &family,
+                &[3, 3],
+                numerator.clone(),
+                vec![symbol!("x"), symbol!("y")],
+                symbol!("eps"),
+                parse!("4-2*eps"),
+                sources,
+            )
+            .unwrap()
+        };
+        let factored = route(NumeratorSources::Factors);
+        let scalar = route(NumeratorSources::ScalarProducts);
+        assert_eq!(factored.terms().len(), 3);
+        assert!(scalar.terms().len() > 3);
+        let point = [("x", parse!("1/3")), ("y", parse!("2/3"))];
+        assert!(
+            (density_series(&factored, &point) - density_series(&scalar, &point))
+                .together()
+                .is_zero()
+        );
+    }
+
+    #[test]
+    fn bare_scalar_product_factors_keep_the_monomial_route() {
+        let (family, kk, kp) = massive_tadpole(parse!("s"));
+        let numerator = kk.pow(2) * kp.pow(2);
+        let route = |sources| {
+            super::parameterize_family_with_sources(
+                &family,
+                &[5],
+                numerator.clone(),
+                vec![symbol!("x")],
+                symbol!("eps"),
+                parse!("2-2*eps"),
+                sources,
+            )
+            .unwrap()
+        };
+        assert_eq!(
+            route(NumeratorSources::Factors),
+            route(NumeratorSources::ScalarProducts)
+        );
     }
 
     #[test]

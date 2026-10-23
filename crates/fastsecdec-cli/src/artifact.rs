@@ -186,6 +186,9 @@ pub struct GenerationRecord {
     /// Graph-numerator policy; absent for direct inputs and historical artifacts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contraction_mode: Option<fastsecdec::input::NumeratorContraction>,
+    /// Graph-numerator source rows; absent for direct inputs and historical artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numerator_sources: Option<fastsecdec::parametric::NumeratorSources>,
     /// The requested route can use its supported per-sector physical fallback;
     /// this field does not claim every sector followed the named-series route.
     pub requested_coefficient_expansion: fastsecdec::generation::CoefficientExpansionMethod,

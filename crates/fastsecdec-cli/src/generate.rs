@@ -106,7 +106,7 @@ pub(crate) fn generate_with_resident_recipe(
         detail: format!("Reading {}", crate::artifact::relative_display(path)),
     };
     dashboard.generation(&status)?;
-    let loaded = input::load_observed_with_overrides(path, overrides, |progress| {
+    let loaded = input::load_observed_with_workers(path, overrides, Some(workers), |progress| {
         match progress {
             input::LoadProgress::Parsed(card) => {
                 if let Some(recipe) = resident_recipe {
@@ -453,6 +453,9 @@ pub(crate) fn generate_with_resident_recipe(
         contraction_mode: loaded
             .loops
             .map(|_| loaded.card.generation.contraction_mode),
+        numerator_sources: loaded
+            .loops
+            .map(|_| loaded.card.generation.numerator_sources),
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(evaluator_settings),
     };

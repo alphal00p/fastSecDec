@@ -177,7 +177,7 @@ pub(super) fn prepare_with_retry(
     {
         return Err("invalid threshold preparer attempt".into());
     }
-    let loaded = input::load_observed_with_overrides(input, overrides, |_| Ok(()))?;
+    let loaded = input::load_observed_with_workers(input, overrides, Some(workers), |_| Ok(()))?;
     if !loaded.card.generation.threshold_enabled() {
         return Err("threshold preparer requires explicit threshold capability".into());
     }
