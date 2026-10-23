@@ -18,21 +18,23 @@ crate-type = ["rlib"]
 default = ["native"]
 native = [
     "fastsecdec/native", "feynkit-py/native", "symbolica/integer-gmp",
-    "symbolica/float-mpfr", "symbolica/native_code_generation",
+    "symbolica/float-mpfr", "symbolica/native_code_generation", "spynso3/native",
 ]
-portable = ["fastsecdec/portable", "feynkit-py/wasm", "symbolica/wasm"]
+portable = ["fastsecdec/portable", "feynkit-py/wasm", "symbolica/wasm", "spynso3/wasm"]
 python_stubgen = [
-    "dep:pyo3-stub-gen", "feynkit-py/python_stubgen", "symbolica/python_stubgen",
+    "dep:pyo3-stub-gen", "feynkit-py/python_stubgen", "symbolica/python_stubgen", "spynso3/python_stubgen",
 ]
 
 [dependencies]
 fastsecdec = { path = "../../crates/fastsecdec", default-features = false }
 fastsecdec-sectors = { path = "../../crates/fastsecdec-sectors", default-features = false }
 feynkit-py = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+spynso3 = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
 symbolica = { version = "3.0.1", default-features = false, features = ["python_export"] }
 # ABI and extension-module linking are owned by the consuming community host.
 pyo3 = { version = "0.28", features = ["multiple-pymethods"] }
 pyo3-stub-gen = { version = "0.17", optional = true, default-features = false }
+pyo3-stub-gen-derive = "0.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip"] }
 

@@ -7,6 +7,7 @@ import sys
 core = globals()["core"]
 hep = globals()["hep"]
 sd = globals()["sd"]
+tensor = globals()["tensor"]
 
 sys.modules.pop("symbolica.community.hepkit_fastsecdec_native", None)
 assert not any(
@@ -23,6 +24,37 @@ def without_symbolica(name, globals=None, locals=None, fromlist=(), level=0):
 
 builtins.__import__ = without_symbolica
 try:
+    model = hep.Model.phi_3_4()
+    diagram = hep.FeynmanDiagram.from_dot(
+        model, 'digraph tadpole { a -> a [particle="phi", lmb_id=0]; }'
+    )
+    before = diagram.to_json()
+    zero = tensor.TensorExpression(
+        core.E("0"),
+        structure=tensor.TensorStructure([tensor.Representation.mink(4)("mu")]),
+    )
+    copied = sd.with_diagram_expressions(diagram, numerator=zero, projector=zero)
+    assert type(copied) is hep.FeynmanDiagram
+    assert diagram.to_json() == before
+    assert copied.numerator_expression().axes == zero.axes
+    assert copied.projector_expression().axes == zero.axes
+    assert copied.numerator_expression().to_expression() == core.E("0")
+    scalar = sd.with_diagram_expressions(
+        diagram,
+        numerator=core.E("3"),
+        projector=core.E("2"),
+        overall_factor=core.E("5"),
+    )
+    assert scalar.numerator_expression().to_expression() == core.E("3")
+    assert scalar.projector_expression().to_expression() == core.E("2")
+    assert scalar.overall_factor_expression() == core.E("5")
+    try:
+        sd.with_diagram_expressions(diagram, numerator=object())
+    except TypeError:
+        pass
+    else:
+        raise AssertionError("invalid numerator was accepted")
+
     eps, dimension, k = core.S("eps", "D", "k")
     point = hep.Kinematics(dimension, momenta=[k])
     family = hep.IntegralFamily(

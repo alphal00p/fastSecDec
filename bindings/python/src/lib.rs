@@ -83,6 +83,9 @@ mod tests {
         Python::attach(|py| -> PyResult<()> {
             let core = PyModule::new(py, "standalone_core")?;
             create_symbolica_module(&core)?;
+            let tensor = PyModule::new(py, "standalone_tensor")?;
+            spynso3::SpensoModule::register_module(&tensor)?;
+            spynso3::SpensoModule::initialize(py)?;
             let hep = PyModule::new(py, "standalone_hep")?;
             feynkit_py::FeynkitModule::register_module(&hep)?;
             feynkit_py::FeynkitModule::initialize(py)?;
@@ -90,6 +93,7 @@ mod tests {
             register(&hep)?;
             let locals = PyDict::new(py);
             locals.set_item("core", core)?;
+            locals.set_item("tensor", tensor)?;
             locals.set_item("sd", hep.getattr("_fastsecdec_native")?)?;
             locals.set_item("hep", hep)?;
             let source = CString::new(include_str!("../tests/standalone_backend.py")).unwrap();

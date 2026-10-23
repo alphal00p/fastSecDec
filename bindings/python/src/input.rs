@@ -8,6 +8,7 @@ use fastsecdec::{
 };
 use feynkit_py::{PyFeynmanDiagram, PyKinematics};
 use pyo3::{prelude::*, types::PyDict};
+use spynso3::expression::as_tensor;
 use symbolica::{api::python::PythonExpression, atom::AtomView};
 
 use super::error;
@@ -20,23 +21,30 @@ use super::error;
         module = "symbolica.community.hepkit.sector_decomposition"
     )
 )]
+#[cfg_attr(not(feature = "python_stubgen"), pyo3_stub_gen_derive::remove_gen_stub)]
 #[pyfunction]
 #[pyo3(signature = (diagram, *, numerator=None, projector=None, overall_factor=None))]
 pub(crate) fn with_diagram_expressions(
     py: Python<'_>,
-    diagram: &PyFeynmanDiagram,
-    numerator: Option<&PythonExpression>,
-    projector: Option<&PythonExpression>,
+    diagram: PyRef<'_, PyFeynmanDiagram>,
+    #[gen_stub(override_type(type_repr="symbolica.Expression | symbolica.community.tensor.TensorExpression | None", imports=("symbolica", "symbolica.community.tensor")))]
+    numerator: Option<&Bound<'_, PyAny>>,
+    #[gen_stub(override_type(type_repr="symbolica.Expression | symbolica.community.tensor.TensorExpression | None", imports=("symbolica", "symbolica.community.tensor")))]
+    projector: Option<&Bound<'_, PyAny>>,
     overall_factor: Option<&PythonExpression>,
 ) -> PyResult<PyFeynmanDiagram> {
     let mut copied = diagram.as_diagram()?.clone();
     if let Some(value) = numerator {
+        let _ = value.extract::<PyRef<'_, PythonExpression>>()?;
+        let value = as_tensor(py, value)?;
         copied = copied
-            .with_numerator(value.expr.clone())
+            .with_numerator(value.borrow(py).structured().clone())
             .map_err(|e| error::native(py, "input", e))?;
     }
     if let Some(value) = projector {
-        copied = copied.with_projector(value.expr.clone());
+        let _ = value.extract::<PyRef<'_, PythonExpression>>()?;
+        let value = as_tensor(py, value)?;
+        copied = copied.with_projector(value.borrow(py).structured().clone());
     }
     if let Some(value) = overall_factor {
         copied = copied.with_overall_factor(value.expr.clone());
