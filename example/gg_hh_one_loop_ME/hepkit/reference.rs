@@ -73,11 +73,15 @@ fn load(path: &Path, ward: Option<usize>) -> Result<GraphIntegral> {
         // scalar occurrences of the corresponding vector-name symbol.
         let projector = diagram
             .projector()
+            .expression()
             .replace(function!(polarization, slots))
             .with(function!(symbols::external_momentum(), index, slots));
-        if projector == *diagram.projector() || projector.contains_symbol(polarization) {
+        if projector == *diagram.projector().expression() || projector.contains_symbol(polarization)
+        {
             return Err("Ward substitution did not replace the native polarization vector".into());
         }
+        // The Ward replacement retains the original external Lorentz ports.
+        let projector = diagram.projector().with_checked_expression(projector)?;
         diagram = diagram.with_projector(projector);
         let _ = auxiliary.remove(index);
     }

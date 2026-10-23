@@ -6,8 +6,10 @@ use fastsecdec::{
     kernel::RuntimeMassConstraint,
     parametric::ParametricIntegrand,
 };
+use feynkit_graph::NumeratorInterface;
 use feynkit_py::{PyFeynmanDiagram, PyIntegralFamily, PyKinematics};
 use pyo3::{prelude::*, types::PyDict};
+use spynso3::expression::TensorExpression;
 use symbolica::{
     api::python::PythonExpression,
     atom::{AtomCore, AtomView},
@@ -17,6 +19,8 @@ use super::error;
 
 /// Copy a complete native diagram, replacing only the supplied expressions.
 /// Native numerator validation and all graph/model ownership are preserved.
+/// TensorExpression inputs retain their interfaces, including ranked zeros;
+/// ordinary Expressions use the native graph's source-index admission.
 #[cfg_attr(
     feature = "python_stubgen",
     pyo3_stub_gen::derive::gen_stub_pyfunction(
@@ -28,18 +32,25 @@ use super::error;
 pub(crate) fn with_diagram_expressions(
     py: Python<'_>,
     diagram: &PyFeynmanDiagram,
-    numerator: Option<&PythonExpression>,
-    projector: Option<&PythonExpression>,
+    numerator: Option<&Bound<'_, PythonExpression>>,
+    projector: Option<&Bound<'_, PythonExpression>>,
     overall_factor: Option<&PythonExpression>,
 ) -> PyResult<PyFeynmanDiagram> {
     let mut copied = diagram.as_diagram()?.clone();
+    let admit = |value: &Bound<'_, PythonExpression>| match value
+        .extract::<PyRef<'_, TensorExpression>>()
+    {
+        Ok(tensor) => Ok(tensor.structured().clone()),
+        Err(_) => NumeratorInterface::admit(value.get().expr.clone(), None)
+            .map_err(|e| error::native(py, "input", e)),
+    };
     if let Some(value) = numerator {
         copied = copied
-            .with_numerator(value.expr.clone())
+            .with_numerator(admit(value)?)
             .map_err(|e| error::native(py, "input", e))?;
     }
     if let Some(value) = projector {
-        copied = copied.with_projector(value.expr.clone());
+        copied = copied.with_projector(admit(value)?);
     }
     if let Some(value) = overall_factor {
         copied = copied.with_overall_factor(value.expr.clone());
@@ -449,5 +460,130 @@ impl PyIntegral {
                 .map(|(i, p)| (i, i64::from(*p)))
                 .collect(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use fastsecdec::{Error, Model, input::NumeratorContraction};
+    use feynkit_graph::symbols;
+    use symbolica::parse;
+
+    const VECTOR: &str = "gammalooprs::P(1,spenso::mink(4,gammalooprs::hedge(1,1)))";
+
+    fn bubble(annotations: &str) -> PyFeynmanDiagram {
+        let model = Arc::new(
+            Model::from_json(include_str!("../../../examples/models/massless_phi3.json")).unwrap(),
+        );
+        let dot = include_str!("../../../examples/graphs/bubble.dot").replace(
+            "digraph bubble {",
+            &format!("digraph bubble {{\n{annotations}"),
+        );
+        FeynmanDiagram::from_dot(model, &dot).unwrap().into()
+    }
+
+    fn integral(diagram: PyFeynmanDiagram) -> GraphIntegral {
+        let kinematics = Kinematics::in_dimension(&parse!("diagram_admission::D"))
+            .unwrap()
+            .with_mass_squared(&symbols::external_momentum().call(1), Atom::num(7))
+            .unwrap();
+        GraphIntegral::new(Arc::new(diagram.as_diagram().unwrap().clone()), &kinematics).unwrap()
+    }
+
+    #[test]
+    fn python_ranked_zero_roles_retain_free_indices_and_close_with_a_matching_projector() {
+        Python::initialize();
+        Python::attach(|py| {
+            let original = bubble("");
+            let before = original.as_diagram().unwrap().to_json().unwrap();
+            let vector = NumeratorInterface::admit(parse!(VECTOR), None).unwrap();
+            let vector = TensorExpression::from_structured(py, vector).unwrap();
+            // Exercise Python scalar multiplication, including its retained interface.
+            let zero = vector.bind(py).call_method1("__rmul__", (0,)).unwrap();
+            let retained = zero.extract::<PyRef<'_, TensorExpression>>().unwrap();
+            assert!(retained.structured().is_zero());
+            assert_eq!(retained.structured().rank(), 1);
+            let zero = zero.cast::<PythonExpression>().unwrap();
+            let vector = vector.bind(py).as_any().cast::<PythonExpression>().unwrap();
+            for numerator in [true, false] {
+                for overall in [Atom::one(), Atom::Zero] {
+                    let factor = PythonExpression { expr: overall };
+                    let copied = with_diagram_expressions(
+                        py,
+                        &original,
+                        numerator.then_some(zero),
+                        (!numerator).then_some(zero),
+                        Some(&factor),
+                    )
+                    .unwrap();
+                    let native = integral(copied);
+                    for mode in [NumeratorContraction::Dots, NumeratorContraction::Full] {
+                        assert!(matches!(
+                            native.scalar_numerator(&mode.algebra_settings()),
+                            Err(Error::FreeTensorIndices)
+                        ));
+                    }
+                }
+                let copied = with_diagram_expressions(
+                    py,
+                    &original,
+                    Some(if numerator { zero } else { vector }),
+                    Some(if numerator { vector } else { zero }),
+                    None,
+                )
+                .unwrap();
+                let native = integral(copied);
+                for mode in [NumeratorContraction::Dots, NumeratorContraction::Full] {
+                    assert_eq!(
+                        native.scalar_numerator(&mode.algebra_settings()).unwrap(),
+                        Atom::Zero
+                    );
+                }
+            }
+            assert_eq!(original.as_diagram().unwrap().to_json().unwrap(), before);
+        });
+    }
+
+    #[test]
+    fn python_raw_source_labels_contract_with_native_dot_payloads_and_apply_scalar_factor_once() {
+        Python::initialize();
+        Python::attach(|py| {
+            for numerator in [false, true] {
+                // A compact DOT graph-level num is a prefactor. Use a vertex
+                // annotation to put the source vector in the local numerator.
+                let annotations = if numerator {
+                    format!("graph [projector=\"{VECTOR}\", overall_factor=\"3\"];")
+                } else {
+                    format!("graph [overall_factor=\"3\"]; a [num=\"{VECTOR}\"];")
+                };
+                let original = bubble(&annotations);
+                let before = original.as_diagram().unwrap().to_json().unwrap();
+                let raw = Bound::new(
+                    py,
+                    PythonExpression {
+                        expr: parse!(VECTOR),
+                    },
+                )
+                .unwrap();
+                let factor = PythonExpression { expr: Atom::num(5) };
+                let copied = with_diagram_expressions(
+                    py,
+                    &original,
+                    numerator.then_some(&raw),
+                    (!numerator).then_some(&raw),
+                    Some(&factor),
+                )
+                .unwrap();
+                let native = integral(copied);
+                for mode in [NumeratorContraction::Dots, NumeratorContraction::Full] {
+                    assert_eq!(
+                        native.scalar_numerator(&mode.algebra_settings()).unwrap(),
+                        Atom::num(35)
+                    );
+                }
+                assert_eq!(original.as_diagram().unwrap().to_json().unwrap(), before);
+            }
+        });
     }
 }

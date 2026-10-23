@@ -7,8 +7,12 @@ use fastsecdec::{
     parametric::ParametricIntegrand,
 };
 use feynkit_graph::symbols;
-use spenso::structure::representation::{Minkowski, RepName};
-use symbolica::{parse, symbol};
+use idenso::tensor::SymbolicTensor;
+use spenso::{
+    network::library::symbolic::ETS,
+    structure::representation::{Minkowski, RepName},
+};
+use symbolica::{function, parse, symbol};
 
 #[test]
 fn dots_and_full_contract_connected_sums_and_preserve_graph_weights() {
@@ -28,19 +32,21 @@ fn dots_and_full_contract_connected_sums_and_preserve_graph_weights() {
     let rep = Minkowski {}.new_rep(4);
     let kmu = rep.vector(k.as_view(), [Atom::num(1)]);
     let pmu = rep.vector(p.as_view(), [Atom::num(1)]);
-    let numerator = (&kmu + &pmu) * (Atom::num(2) * &kmu - Atom::num(3) * &pmu);
+    let numerator = (&kmu + &pmu) * (Atom::num(2) * &kmu - Atom::num(3) * &pmu) - parse!("m^2");
     let diagram = diagram
-        .with_numerator(numerator)
+        .with_numerator(SymbolicTensor::infer(numerator).unwrap())
         .unwrap()
-        .with_projector(Atom::num(5))
+        .with_projector(SymbolicTensor::infer(Atom::num(5)).unwrap())
+        .with_numerator_prefactor(SymbolicTensor::infer(Atom::num(13)).unwrap())
         .with_overall_factor(Atom::num(7));
     let graph = GraphIntegral::new(Arc::new(diagram), &kin)
         .unwrap()
         .with_measure_multiplier(Atom::num(11));
-    let expected = Atom::num(35)
+    let expected = Atom::num(455)
         * (Atom::num(2) * kin.scalar_product(&k, &k).unwrap()
             - kin.scalar_product(&k, &p).unwrap()
-            - Atom::num(3) * parse!("s"));
+            - Atom::num(3) * parse!("s")
+            - parse!("m^2"));
     let mut densities = Vec::new();
     for mode in [NumeratorContraction::Dots, NumeratorContraction::Full] {
         let scalar = graph.scalar_numerator(&mode.algebra_settings()).unwrap();
@@ -60,4 +66,40 @@ fn dots_and_full_contract_connected_sums_and_preserve_graph_weights() {
         densities.push(integrand.density());
     }
     assert!((densities[0].clone() - &densities[1]).expand().is_zero());
+}
+
+#[test]
+fn typed_payload_dimensions_map_before_cross_factor_contraction() {
+    let model = Arc::new(
+        Model::from_json(include_str!("../../../examples/models/massless_phi3.json")).unwrap(),
+    );
+    let rep = Minkowski {}.new_rep(4);
+    let metric = |left, right| {
+        function!(
+            ETS.metric,
+            rep.to_symbolic([Atom::num(left)]),
+            rep.to_symbolic([Atom::num(right)])
+        )
+    };
+    // The three retained rank-two payloads close into g_mu^mu = D only after
+    // composition. The scalar coefficient 4 must survive the dimension map.
+    let diagram =
+        FeynmanDiagram::from_dot(model, include_str!("../../../examples/graphs/bubble.dot"))
+            .unwrap()
+            .with_numerator(SymbolicTensor::infer(metric(1, 2)).unwrap())
+            .unwrap()
+            .with_projector(SymbolicTensor::infer(metric(2, 3)).unwrap())
+            .with_numerator_prefactor(SymbolicTensor::infer(Atom::num(4) * metric(3, 1)).unwrap())
+            .with_overall_factor(Atom::num(7));
+    for dimension in [parse!("typed_dimension_"), Atom::num(6)] {
+        let kin = Kinematics::in_dimension(&dimension)
+            .unwrap()
+            .with_mass_squared(&symbols::external_momentum().call(1), parse!("s"))
+            .unwrap();
+        let graph = GraphIntegral::new(Arc::new(diagram.clone()), &kin).unwrap();
+        for mode in [NumeratorContraction::Dots, NumeratorContraction::Full] {
+            let scalar = graph.scalar_numerator(&mode.algebra_settings()).unwrap();
+            assert_eq!(scalar, Atom::num(28) * &dimension, "{mode:?}");
+        }
+    }
 }

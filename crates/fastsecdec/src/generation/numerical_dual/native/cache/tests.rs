@@ -577,3 +577,110 @@ fn dual_jacobian_cache_composes_mixed_face_jets_before_outer_derivatives() {
         }
     }
 }
+
+#[test]
+fn composer_inputs_preserve_cached_face_jets_and_runtime_order() {
+    use crate::generation::numerical_dual::{
+        DualFactor, DualSector, DualTerm,
+        subtraction::{Coordinate, Recipe, Request},
+    };
+    use fastsecdec_sectors::SectorMap;
+
+    let (x, y, t, u, eps, a, b) = symbol!(
+        "composer_inputs::x",
+        "composer_inputs::y",
+        "composer_inputs::t",
+        "composer_inputs::u",
+        "composer_inputs::eps",
+        "composer_inputs::a",
+        "composer_inputs::b"
+    );
+    let placeholders = [
+        symbol!("composer_inputs::value"),
+        symbol!("composer_inputs::swapped"),
+        symbol!("composer_inputs::zero_face"),
+        symbol!("composer_inputs::one_face"),
+        symbol!("composer_inputs::repeated"),
+    ];
+    use Coordinate::{One, Variable, Zero};
+    let requests = [
+        (vec![0, 0], vec![Variable(0), Variable(1)]),
+        (vec![1, 0], vec![Variable(1), Variable(0)]),
+        (vec![2, 0], vec![Zero, Variable(1)]),
+        (vec![1, 1], vec![Variable(0), One]),
+        (vec![0, 0], vec![Variable(0), Variable(1)]),
+    ]
+    .into_iter()
+    .zip(placeholders)
+    .map(|((derivatives, coordinates), placeholder)| Request {
+        placeholder,
+        term: 0,
+        epsilon_order: 0,
+        derivatives,
+        coordinates,
+    })
+    .collect();
+    let mut sector = DualSector {
+        jacobian: None,
+        contour_definitions: Arc::default(),
+        programs: Arc::default(),
+        source_parameters: vec![x, y],
+        regulator: eps,
+        parameters: vec![t, u],
+        map: SectorMap {
+            fixed_parameter: None,
+            exponent_matrix: vec![vec![1.into(), 1.into()], vec![0.into(), 1.into()]],
+            determinant: 1.into(),
+            jacobian_powers: vec![0.into(), 1.into()],
+            factor_valuations: vec![],
+        },
+        terms: vec![DualTerm {
+            factors: vec![DualFactor {
+                polynomial: parse!(
+                    "1+composer_inputs::a*composer_inputs::x^2+composer_inputs::b*composer_inputs::y"
+                ),
+                exponent: Atom::one(),
+                valuation: vec![0, 0],
+            }],
+        }],
+        mapped_regular: None,
+        recipe: Arc::new(Recipe {
+            coefficients: placeholders
+                .into_iter()
+                .enumerate()
+                .map(|(index, placeholder)| (index as i32, Atom::var(placeholder).into()))
+                .collect(),
+            requests,
+        }),
+        orders: (0..5).collect(),
+    };
+    for mapped in [false, true] {
+        if mapped {
+            sector.mapped_regular = Some(vec![parse!(
+                "1+composer_inputs::a*composer_inputs::t^2*composer_inputs::u^2+composer_inputs::b*composer_inputs::u"
+            )]);
+        }
+        // Rebuilding with the same source cache must allocate fresh composer
+        // handles. Runtime symbols can be reordered independently of coordinates.
+        for runtime in [[a, b], [b, a], [a, b]] {
+            let program =
+                super::super::build(&sector, &runtime, CompilationSettings::default()).unwrap();
+            for (tt, uu, aa, bb) in [(0.25, 0.5, 2., 3.), (0.75, 0.25, 5., -2.)] {
+                let parameters = if runtime[0] == a { [aa, bb] } else { [bb, aa] };
+                let actual = evaluate(&program, &[tt, uu, parameters[0], parameters[1]], 5);
+                let value = 1. + aa * tt * tt * uu * uu + bb * uu;
+                assert_eq!(
+                    actual,
+                    [
+                        value,
+                        2. * aa * uu * tt * tt,
+                        aa * uu * uu,
+                        4. * aa * tt,
+                        value
+                    ],
+                    "mapped={mapped}, runtime={runtime:?}"
+                );
+            }
+        }
+    }
+}

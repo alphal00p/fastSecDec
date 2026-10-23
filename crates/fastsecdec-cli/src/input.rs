@@ -738,7 +738,7 @@ products = [{left=1,right=1,value='-1'}]
             include_str!("../../../examples/graphs/bubble.dot"),
         )
         .unwrap()
-        .with_numerator(numerator)
+        .with_numerator(idenso::tensor::SymbolicTensor::infer(numerator).unwrap())
         .unwrap();
         fs::write(
             directory.path().join("graph.dot"),

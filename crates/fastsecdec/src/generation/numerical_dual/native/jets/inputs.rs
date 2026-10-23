@@ -123,13 +123,14 @@ impl<'a> Requests<'a> {
         request: &Request,
         shape: &Shape,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
-    ) -> Result<Vec<Slot>, KernelError> {
+        input_slots: &[ComposerSlot],
+    ) -> Result<Vec<ComposerSlot>, KernelError> {
         let key = (request.coordinates.clone(), shape.components.clone());
         if let Some(slots) = self.seed_slots.get(&key) {
             return Ok(slots.clone());
         }
         if self.constant_slots.is_none() {
-            self.constant_slots = Some(composer.append(&self.constants, &[]).map_err(compilation)?);
+            self.constant_slots = Some(composer.add(&self.constants, &[]).map_err(compilation)?);
         }
         let constants = self.constant_slots.as_ref().unwrap();
         let dimension = self.sector.parameters.len();
@@ -142,7 +143,7 @@ impl<'a> Requests<'a> {
                         if index >= dimension {
                             return Err(compilation("numerical-dual face variable out of range"));
                         }
-                        Slot::Param(index)
+                        input_slots[index]
                     }
                     Coordinate::Zero => constants[0],
                     Coordinate::One => constants[1],
@@ -150,7 +151,7 @@ impl<'a> Requests<'a> {
             } else if input == dimension {
                 constants[0]
             } else {
-                Slot::Param(input - 1)
+                input_slots[input - 1]
             };
             for powers in &shape.components {
                 let degree = powers.iter().sum::<usize>();
@@ -234,12 +235,13 @@ impl<'a> Requests<'a> {
         request: &Request,
         shape: &Shape,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
-    ) -> Result<Vec<Slot>, KernelError> {
+        input_slots: &[ComposerSlot],
+    ) -> Result<Vec<ComposerSlot>, KernelError> {
         let key = (request.coordinates.clone(), shape.components.clone());
         if let Some(slots) = self.map_slots.get(&key) {
             return Ok(slots.clone());
         }
-        let seeds = self.seeds(request, shape, composer)?;
+        let seeds = self.seeds(request, shape, composer, input_slots)?;
         let zeros = self.seed_zeros(request, shape, 0);
         let program_key = (shape.components.clone(), zeros.clone());
         if !self.map_programs.contains_key(&program_key) {
@@ -254,7 +256,7 @@ impl<'a> Requests<'a> {
             self.map_programs.insert(program_key.clone(), program);
         }
         let slots = composer
-            .append(&self.map_programs[&program_key], &seeds)
+            .add(&self.map_programs[&program_key], &seeds)
             .map_err(compilation)?;
         self.map_slots.insert(key, slots.clone());
         Ok(slots)

@@ -6,6 +6,8 @@ use fastsecdec::{
     parametric::ScalarParametricIntegral,
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
+use spenso::structure::representation::{Minkowski, RepName};
 use symbolica::{parse, symbol};
 
 const MODEL: &str = include_str!("../../../examples/models/massless_phi3.json");
@@ -129,9 +131,12 @@ fn graph_weights_are_applied_once_without_automorphism_division() {
 fn tensor_contraction_reuses_native_momentum_and_dimension() {
     let diagram = FeynmanDiagram::from_dot(model(), BUBBLE)
         .unwrap()
-        .with_numerator(parse!(
-            "gammalooprs::K(0,spenso::mink(4,mu))*gammalooprs::K(0,spenso::mink(4,mu))"
-        ))
+        .with_numerator(
+            SymbolicTensor::infer(parse!(
+                "gammalooprs::K(0,spenso::mink(4,mu))*gammalooprs::K(0,spenso::mink(4,mu))"
+            ))
+            .unwrap(),
+        )
         .unwrap();
     let integral = GraphIntegral::new(Arc::new(diagram), &kinematics()).unwrap();
     let numerator = integral
@@ -160,13 +165,67 @@ fn tensor_contraction_reuses_native_momentum_and_dimension() {
 fn residual_free_indices_are_rejected() {
     let diagram = FeynmanDiagram::from_dot(model(), BUBBLE)
         .unwrap()
-        .with_numerator(parse!("gammalooprs::K(0,spenso::mink(4,mu))"))
+        .with_numerator(
+            SymbolicTensor::infer(parse!("gammalooprs::K(0,spenso::mink(4,mu))")).unwrap(),
+        )
         .unwrap();
     let integral = GraphIntegral::new(Arc::new(diagram), &kinematics()).unwrap();
     assert!(matches!(
         integral.scalar_numerator(&default_algebra_settings()),
         Err(Error::FreeTensorIndices)
     ));
+}
+
+#[test]
+fn ranked_zero_in_each_graph_payload_retains_free_index_rejection() {
+    let diagram = FeynmanDiagram::from_dot(model(), BUBBLE).unwrap();
+    let vector = SymbolicTensor::infer(
+        Minkowski {}
+            .new_rep(4)
+            .vector(symbols::loop_momentum().call(0).as_view(), [Atom::num(1)]),
+    )
+    .unwrap();
+    let zero = vector.with_checked_expression(Atom::Zero).unwrap();
+    assert_eq!(zero.rank(), 1);
+    for payload in [vector.clone(), zero.clone()] {
+        for role in ["numerator", "projector", "numerator_prefactor"] {
+            let diagram = match role {
+                "numerator" => diagram.clone().with_numerator(payload.clone()).unwrap(),
+                "projector" => diagram.clone().with_projector(payload.clone()),
+                _ => diagram.clone().with_numerator_prefactor(payload.clone()),
+            };
+            // A scalar zero multiplier cannot erase an uncontracted interface.
+            for overall in [Atom::one(), Atom::Zero] {
+                let integral = GraphIntegral::new(
+                    Arc::new(diagram.clone().with_overall_factor(overall)),
+                    &kinematics(),
+                )
+                .unwrap();
+                for mode in [
+                    fastsecdec::input::NumeratorContraction::Dots,
+                    fastsecdec::input::NumeratorContraction::Full,
+                ] {
+                    assert!(
+                        matches!(
+                            integral.scalar_numerator(&mode.algebra_settings()),
+                            Err(Error::FreeTensorIndices)
+                        ),
+                        "{role}, {mode:?}, zero={}",
+                        payload.is_zero(),
+                    );
+                }
+            }
+        }
+    }
+    // A projector that closes the zero's retained port does give a scalar zero.
+    let contracted = diagram.with_numerator(zero).unwrap().with_projector(vector);
+    let integral = GraphIntegral::new(Arc::new(contracted), &kinematics()).unwrap();
+    assert_eq!(
+        integral
+            .scalar_numerator(&default_algebra_settings())
+            .unwrap(),
+        Atom::Zero
+    );
 }
 
 #[test]
@@ -228,7 +287,7 @@ fn atomic_scalar_point_admits_zero_builtin_width_and_preserves_native_family() {
     "#,
         )
         .unwrap()
-        .with_numerator(Atom::one())
+        .with_numerator(SymbolicTensor::infer(Atom::one()).unwrap())
         .unwrap(),
     );
     let basis = diagram.loop_momentum_basis();

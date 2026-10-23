@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 use symbolica::{
     atom::AtomCore,
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
 };
 
 /// Outputs the original CAD prefix, its positive partial measure, the selected
@@ -89,16 +89,13 @@ impl CompiledRestrictedNextSection {
                 .map_err(native)
         };
         let params = inputs.iter().copied().map(Atom::var).collect::<Vec<_>>();
-        let slots = (0..n).map(Slot::Param).collect::<Vec<_>>();
         let mut power_atoms = owner.power_images().to_vec();
         power_atoms.push(owner.power_measure().clone());
-        let mut compose = EvaluatorComposer::new(n);
+        let (mut compose, slots) = EvaluatorComposer::new_with_inputs(n);
         let power = compose
-            .append(&build(&power_atoms, &params)?, &slots)
+            .add(&build(&power_atoms, &params)?, &slots)
             .map_err(native)?;
-        let prior = compose
-            .append(parent.checked(), &power[..n])
-            .map_err(native)?;
+        let prior = compose.add(parent.checked(), &power[..n]).map_err(native)?;
         let roles = cover
             .slots()
             .iter()
@@ -110,7 +107,7 @@ impl CompiledRestrictedNextSection {
         let mut coefficient_slots = slots.clone();
         coefficient_slots.extend_from_slice(&prior[n + 1..n + 1 + d]);
         let section = compose
-            .append(
+            .add(
                 &build(
                     &[owner.centre_expression(), owner.scale_expression(), call],
                     &roles,
@@ -121,7 +118,7 @@ impl CompiledRestrictedNextSection {
         let operation = fresh_operation_roles(&mut used)?;
         let a = operation.iter().copied().map(Atom::var).collect::<Vec<_>>();
         let combined = compose
-            .append(
+            .add(
                 &build(&[&a[0] * &a[1], &a[2] + &a[3] * &a[4]], &a)?,
                 &[prior[n], power[n], section[0], section[1], section[2]],
             )
@@ -138,8 +135,8 @@ impl CompiledRestrictedNextSection {
             return Err(Error::Invalid("next-section output layout".into()));
         }
         let checked = compose.finish(&outputs, settings.clone()).map_err(native)?;
-        let mut project = EvaluatorComposer::new(n);
-        let all = project.append(&checked, &slots).map_err(native)?;
+        let (mut project, projection_inputs) = EvaluatorComposer::new_with_inputs(n);
+        let all = project.add(&checked, &projection_inputs).map_err(native)?;
         let exact = project.finish(&all[..visible], settings).map_err(native)?;
         budget.check()?;
         Ok(Self {

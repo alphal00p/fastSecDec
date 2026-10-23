@@ -8,7 +8,7 @@ use crate::{
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
     symbol,
 };
 
@@ -66,10 +66,9 @@ impl CompiledAffineRestriction {
             .optimization_settings(intermediate.clone())
             .build()
             .map_err(native)?;
-        let mut compose = EvaluatorComposer::new(n);
-        let input_slots = (0..n).map(Slot::Param).collect::<Vec<_>>();
-        let restriction = compose.append(&restriction, &input_slots).map_err(native)?;
-        let parent = compose.append(&parent, &restriction[..n]).map_err(native)?;
+        let (mut compose, input_slots) = EvaluatorComposer::new_with_inputs(n);
+        let restriction = compose.add(&restriction, &input_slots).map_err(native)?;
+        let parent = compose.add(&parent, &restriction[..n]).map_err(native)?;
         // Formal multiplication inputs are local to this tiny native operation;
         // neither becomes an additional external parameter or root role.
         let (j, m) = symbol!(
@@ -84,7 +83,7 @@ impl CompiledAffineRestriction {
         .build()
         .map_err(native)?;
         let jacobian = compose
-            .append(&product, &[parent[n], restriction[n]])
+            .add(&product, &[parent[n], restriction[n]])
             .map_err(native)?[0];
         let mut outputs = parent[..n].to_vec();
         outputs.push(jacobian);
@@ -100,8 +99,10 @@ impl CompiledAffineRestriction {
         let checked = compose.finish(&outputs, settings.clone()).map_err(native)?;
         // Native selection removes validation-only outputs from the exact IR
         // exposed for subsequent coefficient composition. No point is evaluated.
-        let mut projection = EvaluatorComposer::new(n);
-        let all = projection.append(&checked, &input_slots).map_err(native)?;
+        let (mut projection, projection_inputs) = EvaluatorComposer::new_with_inputs(n);
+        let all = projection
+            .add(&checked, &projection_inputs)
+            .map_err(native)?;
         let exact = projection
             .finish(&all[..public_len], settings)
             .map_err(native)?;

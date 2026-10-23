@@ -8,7 +8,7 @@ use std::{borrow::Cow, collections::BTreeMap};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{dual::HyperDual, float::Complex, rational::Rational},
-    evaluate::{Dualizer, EvaluatorComposer, Slot},
+    evaluate::{ComposerSlot, Dualizer, EvaluatorComposer},
 };
 
 mod inputs;
@@ -28,27 +28,28 @@ pub(super) struct Requests<'a> {
     map: ExactProgram,
     factor_inputs: Vec<Symbol>,
     constants: ExactProgram,
-    constant_slots: Option<Vec<Slot>>,
-    seed_slots: BTreeMap<MapKey, Vec<Slot>>,
-    map_slots: BTreeMap<MapKey, Vec<Slot>>,
+    constant_slots: Option<Vec<ComposerSlot>>,
+    seed_slots: BTreeMap<MapKey, Vec<ComposerSlot>>,
+    map_slots: BTreeMap<MapKey, Vec<ComposerSlot>>,
     map_programs: BTreeMap<ProgramKey, ExactProgram>,
-    factor_slots: BTreeMap<FactorKey, Vec<Slot>>,
-    regular_slots: BTreeMap<RegularKey, Slot>,
-    mapped_regular_slots: BTreeMap<(usize, Vec<usize>, Vec<Coordinate>), Slot>,
+    factor_slots: BTreeMap<FactorKey, Vec<ComposerSlot>>,
+    regular_slots: BTreeMap<RegularKey, ComposerSlot>,
+    mapped_regular_slots: BTreeMap<(usize, Vec<usize>, Vec<Coordinate>), ComposerSlot>,
 }
 impl<'a> Requests<'a> {
     pub(super) fn append(
         &mut self,
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
+        input_slots: &[ComposerSlot],
         lower: &mut Option<&mut Lowering<'_>>,
-    ) -> Result<Slot, KernelError> {
+    ) -> Result<ComposerSlot, KernelError> {
         let dimension = self.sector.parameters.len();
         if request.coordinates.len() != dimension || request.derivatives.len() != dimension {
             return Err(compilation("numerical-dual request dimension mismatch"));
         }
         if self.sector.mapped_regular.is_some() {
-            return self.append_mapped_regular(request, composer, lower);
+            return self.append_mapped_regular(request, composer, input_slots, lower);
         }
         let sector = self.sector;
         let term = sector
@@ -120,7 +121,7 @@ impl<'a> Requests<'a> {
                     })
                     .collect::<Result<Vec<_>, _>>()?;
                 let source = Shape::new(&maxima)?;
-                let mapped = self.mapped(request, &source, composer)?;
+                let mapped = self.mapped(request, &source, composer, input_slots)?;
                 let polynomial = self.sector.programs.jets(
                     &factor.polynomial,
                     &self.source_inputs,
@@ -128,7 +129,7 @@ impl<'a> Requests<'a> {
                     &self.source_zeros(request, &source),
                     self.settings,
                 )?;
-                let values = composer.append(&polynomial, &mapped).map_err(compilation)?;
+                let values = composer.add(&polynomial, &mapped).map_err(compilation)?;
                 let mut selected = Vec::with_capacity(target.components.len());
                 for powers in &target.components {
                     let shifted = powers
@@ -172,10 +173,8 @@ impl<'a> Requests<'a> {
                 self.seed_zeros(request, &target, term.factors.len()),
             ))
             .map_err(compilation)?;
-        factor_slots.extend(self.seeds(request, &target, composer)?);
-        let output = composer
-            .append(&regular, &factor_slots)
-            .map_err(compilation)?;
+        factor_slots.extend(self.seeds(request, &target, composer, input_slots)?);
+        let output = composer.add(&regular, &factor_slots).map_err(compilation)?;
         let result = output[target.position(&desired)?];
         self.regular_slots.insert(regular_key, result);
         Ok(result)
@@ -190,8 +189,9 @@ impl Requests<'_> {
         &mut self,
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
+        input_slots: &[ComposerSlot],
         lower: &mut Option<&mut Lowering<'_>>,
-    ) -> Result<Slot, KernelError> {
+    ) -> Result<ComposerSlot, KernelError> {
         let desired = std::iter::once(request.epsilon_order)
             .chain(request.derivatives.iter().copied())
             .collect::<Vec<_>>();
@@ -250,8 +250,8 @@ impl Requests<'_> {
             &self.sector.contour_definitions,
             jacobian,
         )?;
-        let seeds = self.seeds(request, &shape, composer)?;
-        let values = composer.append(&program, &seeds).map_err(compilation)?;
+        let seeds = self.seeds(request, &shape, composer, input_slots)?;
+        let values = composer.add(&program, &seeds).map_err(compilation)?;
         let slot = values[shape.position(&desired)?];
         self.mapped_regular_slots.insert(key, slot);
         Ok(slot)

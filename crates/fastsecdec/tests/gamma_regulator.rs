@@ -1,5 +1,5 @@
 //! A valid underscore-suffixed regulator must remain a literal native symbol.
-use std::ops::ControlFlow;
+use std::{collections::BTreeMap, ops::ControlFlow};
 
 use fastsecdec::{
     Atom,
@@ -46,14 +46,33 @@ fn gamma_and_endpoint_poles_keep_the_complete_underscored_regulator_vector() {
         .unwrap()
         .compile()
         .unwrap();
-        assert_eq!(kernels.orders(), [-2, -1, 0, 1]);
-        assert!(
-            kernels
-                .components()
-                .iter()
-                .all(|part| *part == CoefficientComponent::Real)
-        );
         assert!(kernels.sectors().is_empty());
+        assert_eq!(kernels.orders().len(), kernels.components().len());
+        assert_eq!(kernels.orders().len(), kernels.exact_coefficients().len());
+        // Native reality inference can conservatively retain complex output.
+        // Check every component without assuming a real-only storage layout.
+        let mut real = BTreeMap::new();
+        let mut imaginary = BTreeMap::new();
+        for ((order, component), value) in kernels
+            .orders()
+            .iter()
+            .zip(kernels.components())
+            .zip(kernels.exact_coefficients())
+        {
+            let values = match component {
+                CoefficientComponent::Real => &mut real,
+                CoefficientComponent::Imag => &mut imaginary,
+            };
+            assert!(values.insert(*order, *value).is_none());
+        }
+        assert_eq!(real.keys().copied().collect::<Vec<_>>(), [-2, -1, 0, 1]);
+        if !imaginary.is_empty() {
+            assert_eq!(
+                imaginary.keys().copied().collect::<Vec<_>>(),
+                [-2, -1, 0, 1]
+            );
+            assert!(imaginary.values().all(|value| *value == 0.0));
+        }
         // Independent analytic constants, including a positive epsilon order.
         let expected = [
             1.0,
@@ -61,8 +80,7 @@ fn gamma_and_endpoint_poles_keep_the_complete_underscored_regulator_vector() {
             0.989_055_995_327_972_6,
             -0.907_479_076_080_886_3,
         ];
-        assert_eq!(kernels.exact_coefficients().len(), expected.len());
-        for (actual, expected) in kernels.exact_coefficients().iter().zip(expected) {
+        for (actual, expected) in real.values().zip(expected) {
             assert!(actual.is_finite() && (actual - expected).abs() < 2e-14);
         }
     }

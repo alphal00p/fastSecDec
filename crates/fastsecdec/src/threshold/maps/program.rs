@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
 };
 
 /// One reusable native exact map program and an admitted parameter fiber.
@@ -85,7 +85,7 @@ impl ParameterAdmission {
                 .build()
                 .map_err(|e| GcadError::Unsupported(e.to_string()))
         };
-        let mut composer = EvaluatorComposer::new(input_symbols.len());
+        let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(input_symbols.len());
         let mut coordinate_slots = BTreeMap::new();
         let mut widths = Vec::with_capacity(source.unit_coordinates.len());
         let mut prefix_symbols = parameters
@@ -93,7 +93,7 @@ impl ParameterAdmission {
             .copied()
             .map(Atom::var)
             .collect::<Vec<_>>();
-        let mut prefix_slots = (0..parameter_count).map(Slot::Param).collect::<Vec<_>>();
+        let mut prefix_slots = input_slots[..parameter_count].to_vec();
         for (index, axis) in source.axes.iter().enumerate() {
             let Some(unit_index) = axis.unit_index else {
                 continue;
@@ -117,9 +117,9 @@ impl ParameterAdmission {
             inputs.push(t.clone());
             let body = build(&[lower + &width * t, width], &inputs)?;
             let mut slots = prefix_slots.clone();
-            slots.push(Slot::Param(parameter_count + unit_index));
+            slots.push(input_slots[parameter_count + unit_index]);
             let outputs = composer
-                .append(&body, &slots)
+                .add(&body, &slots)
                 .map_err(|e| GcadError::Unsupported(e.to_string()))?;
             coordinate_slots.insert(axis.symbol, outputs[0]);
             prefix_symbols.push(Atom::var(axis.symbol));
@@ -140,7 +140,7 @@ impl ParameterAdmission {
                 .map(Atom::var)
                 .collect::<Vec<_>>();
             composer
-                .append(&build(preparation.images(), &inputs)?, &prepared)
+                .add(&build(preparation.images(), &inputs)?, &prepared)
                 .map_err(|e| GcadError::Unsupported(e.to_string()))?
         } else {
             prepared.clone()
@@ -155,7 +155,7 @@ impl ParameterAdmission {
             .collect::<Vec<_>>();
         let width_product = width_inputs.iter().cloned().product::<Atom>();
         let measure = composer
-            .append(&build(&[width_product], &width_inputs)?, &widths)
+            .add(&build(&[width_product], &width_inputs)?, &widths)
             .map_err(|e| GcadError::Unsupported(e.to_string()))?[0];
         let mut outputs = prepared;
         outputs.extend(original);

@@ -28,43 +28,67 @@ environment setting, not a reason to disable cancellation or worker-panic tests.
 
 Cargo obtains dependencies from their public Git repositories and the registry.
 There is no dependency-preparation script, generated path overlay or local
-Symbolica source patch. The standard `[patch.crates-io]` entry selects the public
-Symbolica Git revision for every consumer of the registry package; it does not
-modify that source. Library dependency declarations remain registry-based so
-the final consuming workspace owns this single shared Symbolica identity.
+Symbolica source patch. The consuming roots use `[patch.crates-io]` to select
+one public Git revision for Symbolica, Numerica and Graphica. Library declarations
+remain registry-based so the final consuming workspace owns that selection.
 
-The numerical workspace, standalone portable validation package, standalone
-Python binding package and community host each own their root manifest and
-lockfile. Dependency-local Cargo patch tables are not inherited by consumers.
-Use `--locked` for normal builds; deliberately update and review lockfiles when
-changing dependency revisions. Old bootstrap-generated Cargo configurations
-must not be carried into ordinary-source checks.
+The numerical workspace, standalone portable validation package and standalone
+Python binding package have coherent native dependency identities in their
+manifests and lockfiles. A community host owns its own manifest and lockfile;
+dependency-local patch tables are not inherited. Use `--locked` for normal builds
+and commit all three FastSecDec lockfile updates together when changing owners.
+Old bootstrap-generated Cargo configurations must not enter ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public `community`-based fork revision `ae0c82b7bda670fdb9f6229226bd47b13bb49a20`, retaining native evaluator composition, ball domains, prepared roots, shared direct-vector evaluation, independent callback environments and single-pass elimination of dependent duplicate instructions, plus [fractional-series, F4 and resultant corrections](reviews/no-deformation-dependencies.md) and [checked native uncertainty range](reviews/no-deformation-numerical-range.md); [upstream contour PRs](reviews/contour-upstream-prs.md) |
-| FeynKit / Linnet / Spenso ecosystem | Public fork revision `9f8b1e50016a58d04e712c34569ea936c44e179a`, retaining the native kinematics mapper in [PR #131](https://github.com/alphal00p/gammaloop/pull/131) and citation URLs in [PR #128](https://github.com/alphal00p/gammaloop/pull/128), plus the immutable numerator-prefactor setter in [PR #132](https://github.com/alphal00p/gammaloop/pull/132); [adoption evidence](reviews/no-deformation-represented-graph-payloads.md) |
-| Numerica | Same public owner revision as Symbolica, with narrow tracked `hypot`, certified real-ball square-root fixes and checked uncertainty range from [PR #9](https://github.com/symbolica-dev/numerica/pull/9) |
-| symGCAD | Optional native geometry dependency, public revision `3baffa7134334c62b45a6b8df9198004060be715`: compatible `bef2a9e6` owner plus explicit capacity for the retained double-box certificates; [capacity and validation review](reviews/no-deformation-certificate-capacity.md), [generation budgets](reviews/no-deformation-generation-budgets.md) and [base adoption review](reviews/no-deformation-latest-symgcad.md). Shares the consuming workspace's Symbolica identity |
-| Graphica | Registry 3.0.1 |
-| SymJIT | Compatible minimum `2.27.0`; public Git revision `d74993ffd76a6fc322a7bcf3963fa786783a38a8` supplies the complex callback fix, existing Rust API entrypoint and compatible long-label codec pending upstream release |
-| OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
-| one-loop-reduce | Public source, locked at `b53a70776a43bd14c6562c52a03bc4909568e473`; development-only reference provider |
+| Symbolica | Public combined revision `87fd1b36d991ee8151b39c2916109dd4ef5105df` from `ValentinHirschi/symbolica`; retains the prepared-root/shared direct-vector APIs from [PR #127](https://github.com/symbolica-dev/symbolica/pull/127) and integrates the reviewed native HPL implementation from [PR #95](https://github.com/symbolica-dev/symbolica/pull/95) |
+| FeynKit / Linnet / Idenso / Spenso ecosystem | Shared `branch = "feynkit"` source query, locked in all three roots at `fb6746c520ace038b6368b06d3122940cec72c88` from [PR #215](https://github.com/alphal00p/gammaloop/pull/215); forwards the default `false` Horner CPE argument in the native Python tensor evaluator |
+| Numerica | Version 3.0.1 from the same public Git owner and revision as Symbolica, including the reviewed error-range fix from [PR #128](https://github.com/symbolica-dev/symbolica/pull/128) |
+| symGCAD | Optional native geometry dependency, public revision `3baffa7134334c62b45a6b8df9198004060be715`; [capacity review](reviews/no-deformation-certificate-capacity.md). Shares the consuming workspace's Symbolica identity |
+| Graphica | Version 3.0.1 from the same public Git owner and revision as Symbolica |
+| SymJIT | Registry version `2.28.1` in all three lockfiles; manifest requirement `2.28.1` |
+| OneLOop | Root Git-source patch selects `ValentinHirschi/oneloopmaster` revision `723e6b19c4d19937f3b2f4c69c21f7a4e235175f` from [PR #11](https://github.com/alphal00p/oneloopmaster/pull/11) for native Symbolica API compatibility; development-only reference provider, absent from the portable and Python locks. The dependency's `branch = "main"` declaration is overridden by this exact owner pin |
+| one-loop-reduce | Public `main`, locked at `0811fb1baf0ff50589764b9f5ae5f480b7934209`; development-only reference provider |
 
+The combined Symbolica commit has sole parent
+`f348a277d3dddcca7399148612a0b5a9597241c1`, which applies the reviewed Numerica
+fix to the earlier `a5f94e6550d78b3c5fd4ce9b1d442ad6daefd299` prepared-root
+integration. The combined commit adds the reviewed native HPL implementation
+and public-tag regressions while preserving that Numerica source. All three
+consuming roots select the same combined revision for Symbolica, Numerica and
+Graphica. The focused combined-owner checks and their limits are recorded in
+[the migration review](reviews/latest-native-api-compatibility.md). Earlier
+scientific evidence retains its original source identities.
+
+These identities supersede the historical fork selections; earlier reviews do
+not establish that their fork-specific fixes are present in these sources.
 The CLI reads public Git revisions and registry checksums from its consuming
 workspace's resolved lockfile. No `FASTSECDEC_*_SOURCE_ROOT` variables are needed
 for normal builds. Developers deliberately selecting local path dependencies
 must supply matching source roots for their source-state fingerprints.
 
-The three FastSecDec consumer roots also select that public FeynKit revision
-through `[patch."https://github.com/alphal00p/gammaloop"]`. This keeps direct
-and transitive native graph, kinematic and algebra types on one owner; changing
-only a direct dependency to a revision would leave duplicate owners through
-other ecosystem crates. A downstream host must make the same selection in its
-own root manifest. No unpublished checkout or source-rewriting script is used.
-The newer upstream Python graph renderer adds rendering/font/image packages to
-the binding lockfile; the numerical and portable validation roots remain free
-of Python and that rendering stack.
+Direct FeynKit dependencies use the same `branch = "feynkit"` Git query as
+transitive consumers, including the one-loop reference providers. A separate
+`rev` query can create duplicate native package/type owners even at the same SHA.
+The branch selector alone is **not a revision pin**: the exact revision comes
+from the committed lockfiles and `--locked` builds. A downstream host must keep
+its own direct/transitive selectors and lockfile coherent. The previous
+`[patch."https://github.com/alphal00p/gammaloop"]` selection is no longer used.
+
+The current FeynKit commit is pushed on `fix-spynso3-symbolica-horner-cpe-default`,
+based on `4ae30bd6e00b33784d0c3c98dd619029c910d08d`. It was selected for each
+root with `cargo update --manifest-path <manifest> -p feynkit-graph --precise
+fb6746c520ace038b6368b06d3122940cec72c88`. Cargo retains the shared
+`?branch=feynkit` query while locking that exact feature-branch commit; changing
+the direct dependency query would break its identity match with transitive
+consumers. Unrestricted updates can move this selection, so use the committed
+locks and `--locked`.
+
+The Python renderer adds rendering/font/image packages to its lockfile, including
+separate `typst-library` and `typst-svg` revision patches at the same FeynKit
+commit. These are distinct packages from the branch-selected native owners.
+The numerical and portable validation roots remain free of Python and that
+rendering stack.
 
 ## Portable and Python consumers
 

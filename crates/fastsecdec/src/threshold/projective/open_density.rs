@@ -11,8 +11,7 @@ use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
     evaluate::{
-        EvaluationDomain, EvaluatorComposer, ExpressionEvaluator, FunctionMap,
-        OptimizationSettings, Slot,
+        EvaluationDomain, EvaluatorComposer, ExpressionEvaluator, FunctionMap, OptimizationSettings,
     },
     symbol,
 };
@@ -69,13 +68,14 @@ impl CompiledOpenDensity {
         let coefficients = body.coefficient_inputs();
         let settings = &composition_settings;
         let bodies = body.term_bodies();
-        let mut compose = EvaluatorComposer::new(n + regulators.len() + coefficients.len());
+        let (mut compose, input_slots) =
+            EvaluatorComposer::new_with_inputs(n + regulators.len() + coefficients.len());
         let map_slots = compose
-            .append(map.exact(), &(0..n).map(Slot::Param).collect::<Vec<_>>())
+            .add(map.exact(), &input_slots[..n])
             .map_err(native)?;
         let mut body_slots = map_slots[..n].to_vec();
-        body_slots.extend((n..n + regulators.len() + coefficients.len()).map(Slot::Param));
-        let term_slots = compose.append(body.exact(), &body_slots).map_err(native)?;
+        body_slots.extend_from_slice(&input_slots[n..]);
+        let term_slots = compose.add(body.exact(), &body_slots).map_err(native)?;
         // Small native arithmetic stage: multiply every term by the same
         // positive map Jacobian exactly once, and retain their complete sum.
         let j = Atom::var(symbol!("fastsecdec::open_density::jacobian"));
@@ -93,7 +93,7 @@ impl CompiledOpenDensity {
             .map_err(native)?;
         let mut values = term_slots;
         values.push(map_slots[n]);
-        let mut outputs = compose.append(&finish, &values).map_err(native)?;
+        let mut outputs = compose.add(&finish, &values).map_err(native)?;
         // Retain coordinates, Jacobian, and all individual positive diagonals
         // even when a numerator/term cancels the corresponding arithmetic.
         outputs.extend(map_slots);

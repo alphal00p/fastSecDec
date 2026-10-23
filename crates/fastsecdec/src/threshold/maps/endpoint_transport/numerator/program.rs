@@ -9,7 +9,7 @@ use std::sync::Arc;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, Instruction, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, Instruction, OptimizationSettings},
 };
 
 fn require_straight_line(exact: &ExpressionEvaluator<Complex<Rational>>) -> Result<()> {
@@ -73,9 +73,8 @@ impl CompiledFaceInputs {
         }
         require_straight_line(map.exact())?;
         let intermediate = settings.clone().cpe_iterations(Some(0));
-        let mut select = EvaluatorComposer::new(map.inputs().len());
-        let slots = (0..map.inputs().len()).map(Slot::Param).collect::<Vec<_>>();
-        let all = select.append(map.exact(), &slots).map_err(native)?;
+        let (mut select, slots) = EvaluatorComposer::new_with_inputs(map.inputs().len());
+        let all = select.add(map.exact(), &slots).map_err(native)?;
         let selected = face
             .finite_coordinates()
             .iter()
@@ -109,10 +108,9 @@ impl CompiledFaceInputs {
             .optimization_settings(intermediate)
             .build()
             .map_err(native)?;
-        let mut compose = EvaluatorComposer::new(inputs.len());
-        let directions = (0..inputs.len()).map(Slot::Param).collect::<Vec<_>>();
-        let bound = compose.append(&binding, &directions).map_err(native)?;
-        let mut values = compose.append(&finite, &bound).map_err(native)?;
+        let (mut compose, directions) = EvaluatorComposer::new_with_inputs(inputs.len());
+        let bound = compose.add(&binding, &directions).map_err(native)?;
+        let mut values = compose.add(&finite, &bound).map_err(native)?;
         values.extend(directions);
         let exact = compose.finish(&values, settings).map_err(native)?;
         let outputs = face

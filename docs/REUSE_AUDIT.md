@@ -5242,3 +5242,51 @@ The review records those limits; no full-workspace or strict all-test lint pass
 is claimed. The scoped library/all-test rerun passes with only
 `clippy::chunks_exact_to_as_chunks` allowed and all other warnings denied.
 Formatting and diff whitespace checks pass.
+
+## Latest native API compatibility (2026-10-23)
+
+The [migration review](reviews/latest-native-api-compatibility.md) records the
+feature-branch caller migration to Symbolica's `new_with_inputs`, `add` and
+`ComposerSlot`, with fresh handles for each second composer and raw `Slot`
+retained for evaluator inspection. FeynKit's native `SymbolicTensor` interfaces
+and typed graph numerators retain ranked zeros, weights, dimension mapping and
+mass-sign conventions. Prepared-root and shared direct-vector wrappers belong
+to separate [Symbolica PR #127](https://github.com/symbolica-dev/symbolica/pull/127).
+Root, portable and Python locks resolve coherent native owners; the mutable
+FeynKit branch selector requires exact committed lockfiles and `--locked`.
+
+The first independent review found three adapter/admission defects. Python now
+preserves `TensorExpression.structured()` and admits raw expressions through
+`NumeratorInterface::admit`; represented graph admission uses a bounded native
+encoded-index scan, including retained canonical ports. This reuses native
+algebra, graph, tensor and codec APIs without a parallel implementation.
+
+The full CLI rebuild including the review fixes passes, as do 47 native
+scientific tests across eight suites. Fresh second-round source review confirms
+all three findings addressed. Additional component-aware gamma regression
+assertions preserve complete order coverage, strict real-value tolerances and
+zero imaginary values; an independent third source review accepts those changes.
+The development-only OneLOop caller repair belongs to separate
+[PR #11](https://github.com/alphal00p/oneloopmaster/pull/11), pinned to its tested
+revision. Final combined-owner validation at `87fd1b36d991ee8151b39c2916109dd4ef5105df`
+passes 33 focused native core tests and both native Python input tests, plus the
+locked portable compile-only check and complete native CLI build. This includes
+the unchanged original affine uncertainty assertion and the additive valid-input
+weighted-underflow callback regression. The repaired range semantics remain in
+native [Numerica PR #128](https://github.com/symbolica-dev/symbolica/pull/128),
+and the default-preserving Python caller fix remains in
+[FeynKit PR #215](https://github.com/alphal00p/gammaloop/pull/215). All public
+locks retain the exact tested owners; no full-library or workspace pass is
+claimed. The earlier 47 scientific tests and gamma constant test keep their
+original dependency identities. The final consolidated independent source review
+found no concrete blockers. Preserved infrastructure failures and the final
+CLI disk-monitor interruption/recovery are qualified separately in the review;
+no scientific result was inferred from those events.
+
+The enclosing pilot has separately accepted scoped P14 ordinary-Havana calibration
+through the finite coefficient at three significant digits under its recorded
+statistical and native decomposition assumptions. Complete-batch covariance,
+independent fixed seeds, all-chart higher-pole evidence and frozen-dispatch EPF
+exclusion are bound by its acceptance receipt. Global pilot flow gates and this
+migration's remaining tests are separate. This source milestone publishes no
+coefficients.

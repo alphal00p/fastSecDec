@@ -12,7 +12,7 @@ use std::{collections::BTreeSet, sync::Arc};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
 };
 
 fn digest_part<T: Serialize>(digest: &mut blake3::Hasher, value: &T) -> Result<()> {
@@ -235,7 +235,7 @@ pub(super) fn prepare_outputs(
     }
     let source = owner.source();
     let inputs = &source.unit_coordinates()[..owner.len()];
-    let mut compose = EvaluatorComposer::new(inputs.len());
+    let (mut compose, input_slots) = EvaluatorComposer::new_with_inputs(inputs.len());
     let mut scope = Scope::default();
     let (mut atoms, mut slots) = (Vec::new(), Vec::new());
     let (mut outputs, mut diagonals) = (Vec::new(), Vec::new());
@@ -272,7 +272,7 @@ pub(super) fn prepare_outputs(
                         tags += 1;
                         let call = program.call(tag, section.coefficients())?;
                         scope.insert(tag, program)?;
-                        let slot = compose.append(&build(&[call], &[])?, &[]).map_err(native)?[0];
+                        let slot = compose.add(&build(&[call], &[])?, &[]).map_err(native)?[0];
                         atoms.push(Atom::var(endpoint.symbol().ok_or_else(|| {
                             Error::Invalid("owned constant root slot".into())
                         })?));
@@ -295,7 +295,7 @@ pub(super) fn prepare_outputs(
                     .map(Atom::var)
                     .collect::<Vec<_>>();
                 let chart = build(&section.chart().parameter_images, &atoms)?;
-                let parameter_slots = compose.append(&chart, &slots).map_err(native)?;
+                let parameter_slots = compose.add(&chart, &slots).map_err(native)?;
                 let program = section.root_program_in(&digest, intermediate.clone())?;
                 if used.contains(&program.transport_symbol()) {
                     return Err(Error::Invalid(
@@ -307,16 +307,16 @@ pub(super) fn prepare_outputs(
                 let call = program.call(tag, section.coefficients())?;
                 scope.insert(tag, program)?;
                 let root = compose
-                    .append(&build(&[call], &parameters)?, &parameter_slots)
+                    .add(&build(&[call], &parameters)?, &parameter_slots)
                     .map_err(native)?[0];
                 atoms.push(Atom::var(section.root_symbol()));
                 slots.push(root);
             }
         }
         atoms.push(Atom::var(inputs[axis]));
-        slots.push(Slot::Param(axis));
+        slots.push(input_slots[axis]);
         let body = build(&[step.image().clone(), step.diagonal().clone()], &atoms)?;
-        let values = compose.append(&body, &slots).map_err(native)?;
+        let values = compose.add(&body, &slots).map_err(native)?;
         outputs.push(values[0]);
         diagonals.push(values[1]);
         step_digest(&mut digest, step)?;
@@ -324,7 +324,7 @@ pub(super) fn prepare_outputs(
     let factors = inputs.iter().copied().map(Atom::var).collect::<Vec<_>>();
     let product: Atom = factors.iter().cloned().product();
     let jacobian = compose
-        .append(&build(&[product], &factors)?, &diagonals)
+        .add(&build(&[product], &factors)?, &diagonals)
         .map_err(native)?[0];
     outputs.push(jacobian);
     outputs.extend(diagonals);
@@ -334,7 +334,7 @@ pub(super) fn prepare_outputs(
         budget.check()?;
         outputs.extend(
             compose
-                .append(&build(extra, &atoms)?, &slots)
+                .add(&build(extra, &atoms)?, &slots)
                 .map_err(native)?,
         );
     }

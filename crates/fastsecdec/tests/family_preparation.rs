@@ -11,6 +11,7 @@ use fastsecdec::{
     },
 };
 use feynkit_graph::EdgeId;
+use idenso::tensor::SymbolicTensor;
 use symbolica::{id::Pattern, parse, symbol};
 
 fn family(masses: &[Atom]) -> (IntegralFamily, Atom) {
@@ -428,10 +429,10 @@ fn native_graph_projection_applies_weight_and_raised_power_measure_once() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::num(5))
+        .with_numerator(SymbolicTensor::infer(Atom::num(5)).unwrap())
         .unwrap()
         .with_overall_factor(Atom::num(2))
-        .with_projector(Atom::num(3));
+        .with_projector(SymbolicTensor::infer(Atom::num(3)).unwrap());
     let graph = GraphIntegral::new(Arc::new(diagram), &kin)
         .unwrap()
         .with_scalar_values(&BTreeMap::from([(symbol!("UFO::mt"), Atom::one())]))

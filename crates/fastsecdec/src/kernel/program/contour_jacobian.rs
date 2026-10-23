@@ -183,12 +183,9 @@ pub(super) fn build(
         .map_err(|e| e.to_string())?
         .build()
         .map_err(|e| e.to_string())?;
-    let mut pruner = EvaluatorComposer::new(body_inputs.len());
+    let (mut pruner, pruner_inputs) = EvaluatorComposer::new_with_inputs(body_inputs.len());
     let outputs = pruner
-        .append(
-            &body,
-            &(0..body_inputs.len()).map(Slot::Param).collect::<Vec<_>>(),
-        )
+        .add(&body, &pruner_inputs)
         .map_err(|e| e.to_string())?;
     let body = pruner
         .finish(&outputs, settings.native())
@@ -202,14 +199,12 @@ pub(super) fn build(
     if !active.is_empty() && control_flow {
         return Err("dual contour image inputs in symbolic endpoint control flow are unsupported; use a symbolic contour Jacobian".into());
     }
-    let mut composer = EvaluatorComposer::new(inputs.len());
+    let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(inputs.len());
     let constants = Atom::evaluator_multiple(&[Atom::zero(), Atom::one()], &[] as &[Atom])
         .optimization_settings(settings.native())
         .build()
         .map_err(|e| e.to_string())?;
-    let constants = composer
-        .append(&constants, &[])
-        .map_err(|e| e.to_string())?;
+    let constants = composer.add(&constants, &[]).map_err(|e| e.to_string())?;
     let mut faces = BTreeMap::new();
     for binding in active.values() {
         if faces.contains_key(&binding.face) {
@@ -245,17 +240,15 @@ pub(super) fn build(
                     .iter()
                     .position(|coordinate| coordinate == symbol)
                     .and_then(|axis| face.iter().find(|(index, _)| *index == axis))
-                    .map_or(Slot::Param(input), |(_, value)| constants[*value as usize])
+                    .map_or(input_slots[input], |(_, value)| constants[*value as usize])
             })
             .collect::<Vec<_>>();
         faces.insert(
             binding.face,
-            composer
-                .append(&partials, &slots)
-                .map_err(|e| e.to_string())?,
+            composer.add(&partials, &slots).map_err(|e| e.to_string())?,
         );
     }
-    let mut slots = (0..inputs.len()).map(Slot::Param).collect::<Vec<_>>();
+    let mut slots = input_slots;
     slots.extend(bindings.values().enumerate().map(|(index, binding)| {
         if active.contains_key(&index) {
             faces[&binding.face][binding.entry]
@@ -263,7 +256,7 @@ pub(super) fn build(
             constants[0]
         }
     }));
-    let outputs = composer.append(&body, &slots).map_err(|e| e.to_string())?;
+    let outputs = composer.add(&body, &slots).map_err(|e| e.to_string())?;
     composer
         .finish(&outputs, settings.native())
         .map(|program| (program, active.len()))

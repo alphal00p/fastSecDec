@@ -6,6 +6,7 @@ use crate::{
     parametric::{
         FactorRole, ParametricDomain, ParametricIntegrand, ParametricTerm, PolynomialFactor,
     },
+    status::CoefficientComponent,
 };
 use std::{collections::BTreeMap, ops::ControlFlow, sync::Arc};
 use symbolica::evaluate::{FunctionMap, FunctionRegistrationOptions, InliningPolicy};
@@ -324,7 +325,7 @@ fn runtime_branch_coordinate_endpoints_preserve_finite_values_and_log_errors() {
 }
 
 #[test]
-fn runtime_branch_fixed_gamma_laurent_constants_retain_real_layout() {
+fn runtime_branch_fixed_gamma_laurent_constants_preserve_real_values_in_complex_layout() {
     let x = symbol!("runtime_branch_gamma::x");
     let eps = symbol!("runtime_branch_gamma::eps");
     let input = ParametricIntegrand::new(
@@ -351,8 +352,34 @@ fn runtime_branch_fixed_gamma_laurent_constants_retain_real_layout() {
         |_| ControlFlow::Continue(()),
     )
     .unwrap();
-    let kernels = generated.compile_with_settings(eager()).unwrap();
-    assert_eq!(kernels.orders(), &[-1, 0, 1, 2]);
+    let mut kernels = generated.compile_with_settings(eager()).unwrap();
+    // Native integer-polygamma normalization introduces zeta(3), whose
+    // reality metadata is inconclusive. Keep the conservative complex layout.
+    assert_eq!(kernels.orders(), &[-1, -1, 0, 0, 1, 1, 2, 2]);
+    assert_eq!(
+        kernels.components(),
+        [CoefficientComponent::Real, CoefficientComponent::Imag].repeat(4)
+    );
+    for (component, value) in kernels
+        .components()
+        .iter()
+        .zip(kernels.exact_coefficients())
+    {
+        assert!(value.is_finite());
+        if *component == CoefficientComponent::Imag {
+            assert_eq!(*value, 0.0);
+        }
+    }
+    for sector in kernels.sectors_mut() {
+        for coordinate in [0.125, 0.75] {
+            let mut values = [0.0; 8];
+            sector
+                .evaluate(&vec![coordinate; sector.dimension()], &mut values)
+                .unwrap();
+            assert!(values.iter().all(|value| value.is_finite()));
+            assert!(values.iter().skip(1).step_by(2).all(|value| *value == 0.0));
+        }
+    }
 }
 
 #[test]
@@ -361,11 +388,15 @@ fn runtime_branch_fixed_native_constant_domains_exclude_unknown_and_complex_argu
     for expression in [
         parse!("polygamma(0,1/3)"),
         parse!("polygamma(1,3)"),
-        parse!("polygamma(2,3)"),
+        parse!("polygamma(2,1/3)"),
     ] {
         assert!(is_real_expression(&expression, &[]));
     }
     for expression in [
+        // These canonical odd-zeta values are real, but the existing native
+        // metadata does not prove that fact. Inconclusive remains conservative.
+        parse!("polygamma(2,3)"),
+        parse!("zeta(3)"),
         parse!("polygamma(1,runtime_branch_fixed_domain::p)"),
         parse!("polygamma(1/2,3)"),
         parse!("polygamma(1,3+𝑖/10^400)"),

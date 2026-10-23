@@ -5,7 +5,7 @@ use super::Error;
 use super::numeric::{ROOT, ROOT_V2, ROOT_V3};
 use std::{cell::RefCell, collections::BTreeMap, sync::Arc};
 #[cfg(feature = "threshold-decomposition")]
-use symbolica::evaluate::{EvaluatorComposer, OptimizationSettings, Slot};
+use symbolica::evaluate::{EvaluatorComposer, OptimizationSettings};
 use symbolica::{
     atom::{Atom, AtomCore, AtomView, Symbol},
     domains::{float::Complex, rational::Rational},
@@ -186,17 +186,17 @@ impl RootProgram {
                 let image = Atom::num(lower.clone()) + Atom::num(width.clone()) * Atom::var(z);
                 let affine = build(&[image], &[Atom::var(z)])?;
                 let scale = build(&[Atom::num(width) * Atom::var(z)], &[Atom::var(z)])?;
-                let mut compose = EvaluatorComposer::new(degree + 2);
+                let (mut compose, input_slots) = EvaluatorComposer::new_with_inputs(degree + 2);
                 let physical = compose
-                    .append(&affine, &[Slot::Param(0)])
+                    .add(&affine, &[input_slots[0]])
                     .map_err(|e| Error::Native(e.to_string()))?[0];
                 let mut slots = vec![physical];
-                slots.extend((1..degree + 2).map(Slot::Param));
+                slots.extend_from_slice(&input_slots[1..]);
                 let values = compose
-                    .append(&body, &slots)
+                    .add(&body, &slots)
                     .map_err(|e| Error::Native(e.to_string()))?;
                 let qs = compose
-                    .append(&scale, &[values[1]])
+                    .add(&scale, &[values[1]])
                     .map_err(|e| Error::Native(e.to_string()))?[0];
                 compose
                     .finish(&[values[0], qs, physical], settings)

@@ -3,7 +3,7 @@ use crate::kernel::CompilationSettings;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{dual::HyperDual, float::Complex, rational::Rational},
-    evaluate::{Dualizer, EvaluatorComposer, ExpressionEvaluator, Slot},
+    evaluate::{Dualizer, EvaluatorComposer, ExpressionEvaluator},
 };
 
 type ExactProgram = ExpressionEvaluator<Complex<Rational>>;
@@ -55,22 +55,18 @@ pub(crate) fn image_partials(
         .optimization_settings(settings.native())
         .build()
         .map_err(|error| error.to_string())?;
-    let mut composer = EvaluatorComposer::new(inputs.len());
-    let constants = composer
-        .append(&constants, &[])
-        .map_err(|e| e.to_string())?;
+    let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(inputs.len());
+    let constants = composer.add(&constants, &[]).map_err(|e| e.to_string())?;
     let constants = &constants;
     let seeds = (0..inputs.len())
         .flat_map(|input| {
-            std::iter::once(Slot::Param(input)).chain(
+            std::iter::once(input_slots[input]).chain(
                 axes.iter()
                     .map(move |index| constants[usize::from(input == *index)]),
             )
         })
         .collect::<Vec<_>>();
-    let outputs = composer
-        .append(&images, &seeds)
-        .map_err(|e| e.to_string())?;
+    let outputs = composer.add(&images, &seeds).map_err(|e| e.to_string())?;
     let entries = (0..dimension)
         .flat_map(|row| {
             let outputs = &outputs;

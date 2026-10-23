@@ -6,7 +6,7 @@ use symbolica::{
     domains::{float::Complex, rational::Rational},
     evaluate::{
         EvaluationDomain, EvaluatorComposer, ExpressionEvaluator, FunctionMap,
-        FunctionRegistrationOptions, InliningPolicy, Slot,
+        FunctionRegistrationOptions, InliningPolicy,
     },
     id::{Pattern, Replacement},
 };
@@ -102,8 +102,9 @@ impl JetProgram {
         }
         let nd = input.directions.len();
         let intermediate = settings.clone().cpe_iterations(Some(0));
-        let mut compose = EvaluatorComposer::new(nd + coefficient_inputs.len());
-        let directions = (0..nd).map(Slot::Param).collect::<Vec<_>>();
+        let (mut compose, input_slots) =
+            EvaluatorComposer::new_with_inputs(nd + coefficient_inputs.len());
+        let directions = input_slots[..nd].to_vec();
         // Only coordinate-free source coefficient trees see caller mappings.
         // The actual partial bodies consume these very slots: validating a
         // separate expansion would miss transitive A->x, x->0 alias changes.
@@ -170,12 +171,7 @@ impl JetProgram {
             .build()
             .map_err(native)?;
         let scalar_slots = compose
-            .append(
-                &coefficient_stage,
-                &(nd..nd + coefficient_inputs.len())
-                    .map(Slot::Param)
-                    .collect::<Vec<_>>(),
-            )
+            .add(&coefficient_stage, &input_slots[nd..])
             .map_err(native)?;
         let mut compiled_definitions = BTreeMap::new();
         let mut call_slots = Vec::new();
@@ -194,7 +190,7 @@ impl JetProgram {
                 .optimization_settings(intermediate.clone())
                 .build()
                 .map_err(native)?;
-            let geometry = compose.append(&geometry, &directions).map_err(native)?;
+            let geometry = compose.add(&geometry, &directions).map_err(native)?;
             geometry_slots.extend_from_slice(&geometry);
             if let std::collections::btree_map::Entry::Vacant(slot) =
                 compiled_definitions.entry(*definition)
@@ -245,7 +241,7 @@ impl JetProgram {
             inputs.extend_from_slice(&scalar_slots);
             call_slots.extend(
                 compose
-                    .append(&compiled_definitions[definition], &inputs)
+                    .add(&compiled_definitions[definition], &inputs)
                     .map_err(native)?,
             );
         }
@@ -285,7 +281,7 @@ impl JetProgram {
             .map_err(native)?;
         let mut assembly_slots = directions;
         assembly_slots.extend(call_slots);
-        let mut outputs = compose.append(&assembly, &assembly_slots).map_err(native)?;
+        let mut outputs = compose.add(&assembly, &assembly_slots).map_err(native)?;
         let coefficient_count = outputs.len();
         let geometry_count = geometry_slots.len();
         outputs.extend(geometry_slots);

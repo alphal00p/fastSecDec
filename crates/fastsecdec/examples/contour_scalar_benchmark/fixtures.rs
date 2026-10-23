@@ -12,6 +12,7 @@ use fastsecdec::{
     status::CoefficientComponent,
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
 use oneloop::{EvaluationBackend, ScalarIntegral};
 use serde::{Deserialize, Serialize};
 use symbolica::{
@@ -288,7 +289,7 @@ pub fn build(name: &str) -> Result<Fixture> {
                 .diagram()
                 .as_ref()
                 .clone()
-                .with_numerator(Atom::one())?;
+                .with_numerator(SymbolicTensor::infer(Atom::one())?)?;
             let graph = GraphIntegral::new(Arc::new(scalar), source.family().kinematics())?
                 .with_scalar_values(&BTreeMap::from([(symbol!("UFO::mt"), Atom::Zero)]))?;
             (

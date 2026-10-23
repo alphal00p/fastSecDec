@@ -103,6 +103,7 @@ impl PartialEq for ExactRepresentedGraphInput {
 impl Eq for ExactRepresentedGraphInput {}
 
 fn require_exact(work: &mut Work<GraphLocation>, expression: &Atom, role: String) -> Result<()> {
+    payload::validate_labels(work, expression, 0)?;
     let before = work.conversions.len();
     let _ = work.atom(expression, GraphLocation::ExactPayload { role })?;
     if work.conversions.len() != before {
@@ -203,27 +204,34 @@ impl ExactRepresentedGraphInput {
             // native validation can contract or combine any of these expressions.
             for (role, expression) in [
                 ("overall_factor", original.diagram.overall_factor()),
+                ("integration_dimension", &original.dimension),
+            ] {
+                require_exact(&mut work, expression, role.into())?;
+            }
+            for (role, tensor) in [
                 ("numerator", original.diagram.numerator()),
                 (
                     "numerator_prefactor",
                     original.diagram.numerator_prefactor(),
                 ),
                 ("projector", original.diagram.projector()),
-                ("integration_dimension", &original.dimension),
             ] {
-                require_exact(&mut work, expression, role.into())?;
+                payload::validate_interface_labels(&mut work, tensor)?;
+                require_exact(&mut work, tensor.expression(), role.into())?;
             }
             for (id, vertex) in original.diagram.vertices() {
+                payload::validate_interface_labels(&mut work, &vertex.numerator)?;
                 require_exact(
                     &mut work,
-                    &vertex.numerator,
+                    vertex.numerator.expression(),
                     format!("vertex_numerator:{}", id.0),
                 )?;
             }
             for (id, _, edge) in original.diagram.edges() {
+                payload::validate_interface_labels(&mut work, &edge.numerator)?;
                 require_exact(
                     &mut work,
-                    &edge.numerator,
+                    edge.numerator.expression(),
                     format!("edge_numerator:{}", id.0),
                 )?;
             }

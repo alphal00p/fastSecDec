@@ -255,6 +255,73 @@ fn incoming_complex_uncertainty_and_codec_version_association() {
 }
 
 #[test]
+fn weighted_epf_error_underflow_refuses_affine_callback() {
+    type E = Epf<Float>;
+    let bits = 192;
+    // This dyadic centre and weight are exact native Floats, about 1e-200.
+    // Ten decimal digits are within the 192-bit constructor precision contract.
+    let tiny = Float::rational_at(&(Rational::one() / Rational::from(2).pow(664)), bits);
+    let value = E::new(tiny.clone(), 10.);
+    let error = value.get_absolute_error();
+    assert!(value.valid() && error > 1e-211 && error < 1e-209);
+    let weight = E::new_with_accuracy(tiny, f64::INFINITY);
+    assert_eq!(weight.get_absolute_error(), 0.);
+    // The propagated error is nonzero natively, but below the f64 tracking range.
+    let native_error = Float::with_val(bits, error) * weight.get_num();
+    assert!(native_error > Float::exact_zero_at(bits));
+    assert!(native_error < Float::with_val(bits, f64::from_bits(1)));
+    let native_center = value.get_num().clone() * weight.get_num();
+    let weighted = value * &weight;
+    assert_eq!(weighted.get_num(), &native_center);
+    assert!(weighted.get_num().valid());
+    assert!(weighted.get_num() > &Float::exact_zero_at(bits));
+    assert!(
+        !weighted.get_absolute_error().is_finite(),
+        "a nonzero propagated error below f64 range must not become exact"
+    );
+
+    // Recenter through native EPF subtraction so imaginary admission tests the
+    // uncertainty guard, rather than rejecting a nonzero imaginary centre.
+    let uncertain_zero =
+        weighted.clone() - E::new_with_accuracy(weighted.get_num().clone(), f64::INFINITY);
+    assert_eq!(uncertain_zero.get_num(), &Float::exact_zero_at(bits));
+    assert!(!uncertain_zero.get_absolute_error().is_finite());
+    let exact_zero = E::exact_zero_at(bits);
+    assert_eq!(exact_zero.get_absolute_error(), 0.);
+
+    let (section, x, _, _) = fixture(5, Rational::zero());
+    let root =
+        RootProgram::prepare_affine(&section, OptimizationSettings::default().cores(1)).unwrap();
+    let tag = symbol!("affine_v2_test::weighted_underflow");
+    let call = root.call(tag, section.coefficients()).unwrap();
+    let exact = Atom::evaluator_multiple(&[call], &[Atom::var(x)])
+        .build()
+        .unwrap();
+    let mut scope = Scope::default();
+    scope.insert(tag, root).unwrap();
+    let mut eval = scope.enter(bits, || {
+        exact.map_coeff_with_prec(
+            &|c| Complex::new(E::rational_at(&c.re, bits), E::rational_at(&c.im, bits)),
+            bits,
+        )
+    });
+    let mut out = [Complex::new(exact_zero.clone(), exact_zero.clone())];
+    for (component, input) in [
+        ("real", Complex::new(weighted, exact_zero.clone())),
+        (
+            "imaginary",
+            Complex::new(exact_zero.clone(), uncertain_zero),
+        ),
+    ] {
+        let error = attempt(|| eval.evaluate(&[input], &mut out)).unwrap_err();
+        assert!(error.contains("uncertainty"), "{component}: {error}");
+    }
+    // An explicitly exact zero still succeeds, including after refused inputs.
+    attempt(|| eval.evaluate(&[Complex::new(exact_zero.clone(), exact_zero)], &mut out)).unwrap();
+    assert!(out[0].re.valid() && out[0].im.valid());
+}
+
+#[test]
 fn exact_endpoint_controls_and_native_power_preflight() {
     type E = Epf<Float>;
     let bits = 192;

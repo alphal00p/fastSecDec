@@ -274,9 +274,15 @@ pub fn run(input: &Path, output: &Path) -> Result<()> {
             let polarization = auxiliaries[ward].as_view().get_symbol().unwrap();
             let projector = diagram
                 .projector()
+                .expression()
                 .replace(function!(polarization, slots))
                 .with(function!(symbols::external_momentum(), ward, slots));
-            assert!(projector != *diagram.projector() && !projector.contains_symbol(polarization));
+            assert!(
+                projector != *diagram.projector().expression()
+                    && !projector.contains_symbol(polarization)
+            );
+            // The Ward replacement retains the original external Lorentz ports.
+            let projector = diagram.projector().with_checked_expression(projector)?;
             let mut remaining = auxiliaries.clone();
             let _ = remaining.remove(ward);
             let direct = GraphIntegral::new_with_scalar_values(

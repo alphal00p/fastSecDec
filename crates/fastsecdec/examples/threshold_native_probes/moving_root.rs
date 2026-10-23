@@ -4,7 +4,7 @@ use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     evaluate::{
         EvaluatorComposer, FunctionMap, FunctionRegistrationOptions, InliningPolicy,
-        OptimizationSettings, Slot,
+        OptimizationSettings,
     },
     symbol,
 };
@@ -73,10 +73,10 @@ pub(super) fn run() -> ProbeResult<Value> {
     let outer = Atom::evaluator_multiple(&expressions, &inputs)
         .horner_iterations(10)
         .build()?;
-    let mut composer = EvaluatorComposer::new(3);
-    let mut bindings = composer.append(&prefix, &[Slot::Param(0), Slot::Param(1)])?;
-    bindings.extend([Slot::Param(1), Slot::Param(2)]);
-    let outputs = composer.append(&outer, &bindings)?;
+    let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(3);
+    let mut bindings = composer.add(&prefix, &input_slots[..2])?;
+    bindings.extend_from_slice(&input_slots[1..]);
+    let outputs = composer.add(&outer, &bindings)?;
     let composed = composer.finish(&outputs, OptimizationSettings::default())?;
     assert_eq!(composed.get_input_len(), 3);
     assert_eq!(composed.get_output_len(), 4);
@@ -134,8 +134,8 @@ pub(super) fn run() -> ProbeResult<Value> {
     let collision = pr.replace(call.clone()).with(Atom::Zero);
     assert_eq!(collision, Atom::Zero);
 
-    // Exercise the owner's actual non-inlined-body composition refusal,
-    // without relying on the unrelated DERIVATIVE/Never upstream patch.
+    // Native composition preserves and shares the registered source body;
+    // this control does not require non-inlined derivative registrations.
     let mut retained = FunctionMap::new();
     retained.add_function_with_options(
         root,
@@ -148,9 +148,39 @@ pub(super) fn run() -> ProbeResult<Value> {
         .function_map(retained)
         .horner_iterations(10)
         .build()?;
-    let error = EvaluatorComposer::new(2)
-        .append(&retained, &[Slot::Param(0), Slot::Param(1)])
-        .expect_err("retained body must be explicitly inlined");
+    assert_eq!(retained.export_instructions().sub_evaluators.len(), 1);
+    let source_bytes = bincode::serde::encode_to_vec(&retained, bincode::config::standard())?;
+    let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(2);
+    let first = composer.add(&retained, &input_slots)?;
+    let swapped = composer.add(&retained, &[input_slots[1], input_slots[0]])?;
+    let retained_composed =
+        composer.finish(&[first[0], swapped[0]], OptimizationSettings::default())?;
+    assert_eq!(retained_composed.get_input_len(), 2);
+    assert_eq!(retained_composed.get_output_len(), 2);
+    let shared_bodies = retained_composed.export_instructions().sub_evaluators;
+    assert_eq!(shared_bodies.len(), 1);
+    assert_eq!(shared_bodies[0].symbol, root);
+    assert_eq!(
+        bincode::serde::encode_to_vec(&retained, bincode::config::standard())?,
+        source_bytes
+    );
+    let mut source = retained.map_coeff(&|q| q.re.to_f64());
+    let mut shared = retained_composed.map_coeff(&|q| q.re.to_f64());
+    let mut retained_max_error = 0.0_f64;
+    let retained_points = [[1.0_f64, 0.125], [0.5, 0.25], [2.0, 0.75], [0.5, 0.25]];
+    for point in retained_points {
+        let mut actual = [0.0; 2];
+        shared.evaluate(&point, &mut actual);
+        for (value, arguments) in actual.into_iter().zip([point, [point[1], point[0]]]) {
+            let reference = source.evaluate_single(&arguments);
+            let analytic = (arguments[0] + arguments[1] * arguments[1]).sqrt();
+            for expected in [reference, analytic] {
+                let error = (value - expected).abs() / expected.abs().max(1.0);
+                assert!(error <= 2e-12, "{arguments:?}: {value} != {expected}");
+                retained_max_error = retained_max_error.max(error);
+            }
+        }
+    }
     Ok(json!({
         "root_equation": "r^2-a-x^2=0; positive root for a>0",
         "symbolic_partial_orders": [[0,0],[0,1],[1,0],[0,2],[1,1]],
@@ -160,7 +190,13 @@ pub(super) fn run() -> ProbeResult<Value> {
         "public_runtime_inputs": 3,
         "supplied_collision_counterexample_pr_is_zero": true,
         "general_collision_detector_exercised": false,
-        "noninlined_composition_refusal": error,
+        "noninlined_composition": {
+            "shared_function_bodies": shared_bodies.len(),
+            "source_evaluator_preserved": true,
+            "original_and_swapped_bindings_compared": true,
+            "points_including_parameter_rebinding": retained_points.len(),
+            "maximum_scaled_difference": retained_max_error
+        },
         "generic_implicit_root_solver_or_endpoint_reduction_implemented": false
     }))
 }

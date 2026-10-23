@@ -10,9 +10,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{
-        EvaluationDomain, EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot,
-    },
+    evaluate::{EvaluationDomain, EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
     symbol,
 };
 
@@ -44,7 +42,7 @@ impl CompiledMap {
             ));
         }
         let inputs = source.unit_coordinates().to_vec();
-        let mut composer = EvaluatorComposer::new(inputs.len());
+        let (mut composer, input_slots) = EvaluatorComposer::new_with_inputs(inputs.len());
         let mut prefix_atoms = Vec::new();
         let mut prefix_slots = Vec::new();
         let mut coordinate_slots = BTreeMap::new();
@@ -84,7 +82,7 @@ impl CompiledMap {
                 // Native coefficient arithmetic in this stage sees prior coordinate slots;
                 // no previous root expression is recursively substituted into it.
                 let body = build(&[call], &prefix_atoms)?;
-                roots.push(composer.append(&body, &prefix_slots).map_err(native)?[0]);
+                roots.push(composer.add(&body, &prefix_slots).map_err(native)?[0]);
                 sections.push(section);
             }
             let (lo, hi, t) = symbol!(
@@ -101,7 +99,7 @@ impl CompiledMap {
                 .unit_index()
                 .ok_or_else(|| Error::Invalid("integration unit role".into()))?;
             let slots = composer
-                .append(&body, &[roots[0], roots[1], Slot::Param(unit_index)])
+                .add(&body, &[roots[0], roots[1], input_slots[unit_index]])
                 .map_err(native)?;
             coordinate_slots.insert(source.axes()[axis].symbol(), slots[0]);
             prefix_atoms.push(Atom::var(source.axes()[axis].symbol()));
@@ -123,7 +121,7 @@ impl CompiledMap {
                 .map(Atom::var)
                 .collect::<Vec<_>>();
             composer
-                .append(&build(p.images(), &ins)?, &prepared)
+                .add(&build(p.images(), &ins)?, &prepared)
                 .map_err(native)?
         } else {
             prepared.clone()
@@ -131,7 +129,7 @@ impl CompiledMap {
         let factors = inputs.iter().copied().map(Atom::var).collect::<Vec<_>>();
         let product: Atom = factors.iter().cloned().product();
         let measure = composer
-            .append(&build(&[product], &factors)?, &widths)
+            .add(&build(&[product], &factors)?, &widths)
             .map_err(native)?[0];
         let dimensions = prepared.len() + original.len() + 1;
         let mut outputs = prepared;

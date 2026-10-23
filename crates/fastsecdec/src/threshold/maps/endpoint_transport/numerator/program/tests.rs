@@ -82,13 +82,12 @@ fn coefficient_program(owner: &CompiledFaceInputs) -> ExpressionEvaluator<Comple
     .optimization_settings(settings())
     .build()
     .unwrap();
-    let mut compose = EvaluatorComposer::new(owner.inputs().len() + 1);
-    let directions = (0..owner.inputs().len())
-        .map(Slot::Param)
-        .collect::<Vec<_>>();
-    let mut values = compose.append(owner.exact(), &directions).unwrap();
-    values.push(Slot::Param(owner.inputs().len()));
-    let outputs = compose.append(&body, &values).unwrap();
+    let (mut compose, input_slots) = EvaluatorComposer::new_with_inputs(owner.inputs().len() + 1);
+    let mut values = compose
+        .add(owner.exact(), &input_slots[..owner.inputs().len()])
+        .unwrap();
+    values.push(input_slots[owner.inputs().len()]);
+    let outputs = compose.add(&body, &values).unwrap();
     compose.finish(&outputs, settings()).unwrap()
 }
 

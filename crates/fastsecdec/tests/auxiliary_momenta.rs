@@ -8,6 +8,7 @@ use fastsecdec::{
 };
 use feynkit_graph::{IntegralFamilyError, symbols};
 use feynkit_tensor::TensorReducer;
+use idenso::tensor::SymbolicTensor;
 use symbolica::{parse, symbol};
 
 fn input(e2_squared: Atom, mutual: Atom) -> (GraphIntegral, [Atom; 2]) {
@@ -43,7 +44,7 @@ fn input(e2_squared: Atom, mutual: Atom) -> (GraphIntegral, [Atom; 2]) {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(numerator)
+        .with_numerator(SymbolicTensor::infer(numerator).unwrap())
         .unwrap();
     (
         GraphIntegral::new(Arc::new(diagram), &kin).unwrap(),
@@ -80,10 +81,14 @@ fn transverse_helicity_sources_match_native_reducer_with_degenerate_gram() {
         let reduced = TensorReducer::new(parse!("auxiliary_test::D"))
             .with_integrated_head(symbols::loop_momentum())
             .with_external_vector(parse!("gammalooprs::P(1,spenso::mink(auxiliary_test::D))"))
-            .reduce(original.diagram().numerator().as_view())
+            .unwrap()
+            .reduce(original.diagram().numerator())
             .unwrap();
         assert!(reduced.is_fully_contracted());
-        let numerator = original.family().kinematics().apply(&reduced.expression());
+        let reduced = reduced.expression().unwrap();
+        let numerator = reduced
+            .with_checked_expression(original.family().kinematics().apply(reduced.expression()))
+            .unwrap();
         let diagram = original
             .diagram()
             .as_ref()

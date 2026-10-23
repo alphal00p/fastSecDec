@@ -77,6 +77,10 @@ fn restriction_native_all_leaves_codec_constant_slots_and_exact_measure_once() {
                 .map_coeff_with_prec(&|q| Float::rational_at(&q.re, bits), bits);
             let mut numeric = restored.map::<Float>(bits);
             let mut tracked = restored.map::<Epf<Float>>(bits);
+            let mut projected = restored
+                .scope()
+                .map_checked(restored.exact(), bits, |q| Float::rational_at(&q.re, bits))
+                .unwrap();
             let tolerance = Rational::from((1, 2)).pow(u64::from(bits - 12));
             for q in [
                 Rational::from((1, 4)),
@@ -97,8 +101,16 @@ fn restriction_native_all_leaves_codec_constant_slots_and_exact_measure_once() {
                     a.clone(),
                 ];
                 let values = numeric.evaluate(&point).unwrap();
-                for (value, expected) in values.iter().zip(&expected) {
-                    assert!((value.to_rational() - expected.to_rational()).abs() < tolerance);
+                // The independently composed projection must preserve the public
+                // coordinate/J/dependent order while dropping runtime guards.
+                let mut projected_values = vec![Float::exact_zero_at(bits); expected.len()];
+                attempt(|| projected.try_evaluate(&point, &mut projected_values))
+                    .unwrap()
+                    .unwrap();
+                for output in [&values, &projected_values] {
+                    for (value, expected) in output.iter().zip(&expected) {
+                        assert!((value.to_rational() - expected.to_rational()).abs() < tolerance);
+                    }
                 }
                 // A second measure factor must not accidentally disappear in the oracle.
                 let wrong = expected[1].clone() * &mu;

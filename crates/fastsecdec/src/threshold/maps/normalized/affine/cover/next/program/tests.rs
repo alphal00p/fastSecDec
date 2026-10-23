@@ -44,6 +44,10 @@ fn restricted_next_cubic_quartic_power_frame_codec_and_boundary_measure() {
             for bits in [128, 256] {
                 let mut numeric = restored.map::<Float>(bits);
                 let mut tracked = restored.map::<Epf<Float>>(bits);
+                let mut projected = restored
+                    .scope()
+                    .map_checked(restored.exact(), bits, |q| Float::rational_at(&q.re, bits))
+                    .unwrap();
                 let a = Float::rational_at(&Rational::from((1, 128)), bits).sqrt();
                 let f = |q: Rational| Float::rational_at(&q, bits);
                 let tolerance = Rational::from((1, 2)).pow(u64::from(bits - 16));
@@ -54,6 +58,17 @@ fn restricted_next_cubic_quartic_power_frame_codec_and_boundary_measure() {
                 ] {
                     let u = f(q.clone());
                     let values = numeric.evaluate(std::slice::from_ref(&u)).unwrap();
+                    // Projection owns fresh inputs and keeps every visible slot
+                    // in the checked program's order, including prior roots.
+                    let mut projected_values = vec![Float::exact_zero_at(bits); values.len()];
+                    attempt(|| {
+                        projected.try_evaluate(std::slice::from_ref(&u), &mut projected_values)
+                    })
+                    .unwrap()
+                    .unwrap();
+                    for (actual, expected) in projected_values.iter().zip(&values) {
+                        assert!((actual.to_rational() - expected.to_rational()).abs() < tolerance);
+                    }
                     // Independent elementary restriction: lower u²/2, upper
                     // 1-u²/2. The native first prefix is x=A*t².
                     let t = if leaf == 0 {

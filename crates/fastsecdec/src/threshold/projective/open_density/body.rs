@@ -9,7 +9,7 @@ use std::sync::Arc;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, FunctionMap, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, FunctionMap, OptimizationSettings},
     symbol,
 };
 
@@ -112,21 +112,11 @@ impl CompiledDensityBody {
         .optimization_settings(settings.clone().cpe_iterations(Some(0)))
         .build()
         .map_err(native)?;
-        let mut body_compose = EvaluatorComposer::new(body_inputs.len());
-        let mut body_slots = body_compose
-            .append(
-                &raw_body,
-                &(0..body_inputs.len()).map(Slot::Param).collect::<Vec<_>>(),
-            )
-            .map_err(native)?;
+        let (mut body_compose, input_slots) = EvaluatorComposer::new_with_inputs(body_inputs.len());
+        let mut body_slots = body_compose.add(&raw_body, &input_slots).map_err(native)?;
         body_slots.extend(
             body_compose
-                .append(
-                    &phase,
-                    &(n..n + regulators.len())
-                        .map(Slot::Param)
-                        .collect::<Vec<_>>(),
-                )
+                .add(&phase, &input_slots[n..n + regulators.len()])
                 .map_err(native)?,
         );
         let body_formals = (0..2 * bodies.len())
@@ -139,9 +129,7 @@ impl CompiledDensityBody {
             .optimization_settings(settings.clone().cpe_iterations(Some(0)))
             .build()
             .map_err(native)?;
-        let body_outputs = body_compose
-            .append(&multiply, &body_slots)
-            .map_err(native)?;
+        let body_outputs = body_compose.add(&multiply, &body_slots).map_err(native)?;
         let body = body_compose
             .finish(&body_outputs, settings.clone().cpe_iterations(Some(0)))
             .map_err(native)?;

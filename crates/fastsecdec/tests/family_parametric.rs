@@ -7,6 +7,7 @@ use fastsecdec::{
     parametric::{ParametricIntegrand, ScalarParametricIntegral},
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
 use symbolica::{id::Pattern, parse, symbol};
 
 fn tadpole(mass_squared: Atom, duplicate: bool) -> (IntegralFamily, Atom) {
@@ -33,6 +34,36 @@ fn finite(expression: Atom) -> Atom {
         .unwrap()
         .to_atom()
         .cancel()
+}
+
+#[test]
+fn normalized_massive_tadpole_preserves_pole_finite_part_and_mass_log() {
+    let eps = symbol!("family_api::eps");
+    let x = symbol!("family_api::x");
+    for (mass_squared, expected) in [
+        (Atom::one(), parse!("1/family_api::eps+1")),
+        (Atom::num(2), parse!("2/family_api::eps+2-2*log(2)")),
+    ] {
+        let (family, _) = tadpole(mass_squared, false);
+        let input = ParametricIntegrand::from_family(
+            &family,
+            &[1],
+            parse!("exp(euler_gamma*family_api::eps)"),
+            vec![x],
+            eps,
+            parse!("4-2*family_api::eps"),
+        )
+        .unwrap();
+        // The one-coordinate simplex is x=1; there is no quadrature here.
+        // Native Gamma/Laurent algebra must include the measure before expansion.
+        let actual = finite(
+            input
+                .density()
+                .replace(Pattern::Literal(Atom::var(x)))
+                .with(1),
+        );
+        assert!((actual - expected).expand().is_zero());
+    }
 }
 
 #[test]
@@ -131,10 +162,10 @@ fn graph_and_family_apply_native_weights_and_measure_exactly_once() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::num(5))
+        .with_numerator(SymbolicTensor::infer(Atom::num(5)).unwrap())
         .unwrap()
         .with_overall_factor(Atom::num(2))
-        .with_projector(Atom::num(3));
+        .with_projector(SymbolicTensor::infer(Atom::num(3)).unwrap());
     let graph = GraphIntegral::new(Arc::new(diagram), &kinematics)
         .unwrap()
         .with_measure_multiplier(Atom::num(7));

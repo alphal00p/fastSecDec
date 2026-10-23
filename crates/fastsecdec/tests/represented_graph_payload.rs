@@ -5,7 +5,7 @@ use fastsecdec::{
     kernel::{KernelLoadOptions, KernelSet, ThresholdPublicationPlan},
     results::{KernelResultManifest, ResultScope},
     threshold::{
-        gcad::staging::StagedRequest,
+        gcad::{GcadError, staging::StagedRequest},
         generation::{self, PreparationOptions, PreparationReceipt},
         represented::{
             self, Limits, NumericalMeaning,
@@ -13,9 +13,14 @@ use fastsecdec::{
         },
     },
 };
-use spenso::structure::representation::{Minkowski, RepName};
+use feynkit_graph::NumeratorInterface;
+use idenso::tensor::SymbolicTensor;
+use spenso::structure::{
+    partial::PartialStructureExt,
+    representation::{Minkowski, RepName},
+};
 use std::{collections::BTreeMap, io::Cursor, ops::ControlFlow, path::Path, sync::Arc};
-use symbolica::{domains::float::Float, parse, symbol};
+use symbolica::{atom::FunctionBuilder, domains::float::Float, function, parse, symbol};
 const CAP: u64 = 64 * 1024 * 1024;
 fn point(bits: u32, tensor: bool, payload: bool) -> Arc<GraphPoint> {
     let model = Arc::new(
@@ -48,10 +53,13 @@ fn point(bits: u32, tensor: bool, payload: bool) -> Arc<GraphPoint> {
         let numerator = if tensor { a * &vector } else { a };
         let projector = if tensor { c * &vector } else { c };
         diagram = diagram
-            .with_numerator_fragments([(vertex, numerator)], [(edge, b)])
+            .with_numerator_fragments(
+                [(vertex, SymbolicTensor::infer(numerator).unwrap())],
+                [(edge, SymbolicTensor::infer(b).unwrap())],
+            )
             .unwrap()
-            .with_projector(projector)
-            .with_numerator_prefactor(d)
+            .with_projector(SymbolicTensor::infer(projector).unwrap())
+            .with_numerator_prefactor(SymbolicTensor::infer(d).unwrap())
             .with_overall_factor(f);
     }
     let gamma = symbolica::transcendental::gamma();
@@ -162,6 +170,19 @@ fn primitive_policy_retains_original_rounding_precision_and_native_tensor_roles(
             assert!(Arc::ptr_eq(&exact.model_arc(), &source.diagram.model_arc()));
             assert_eq!(exact.cuts(), source.diagram.cuts());
             assert_eq!(exact.symmetry_factor(), source.diagram.symmetry_factor());
+            for (converted, original) in [
+                (exact.numerator(), source.diagram.numerator()),
+                (exact.projector(), source.diagram.projector()),
+                (
+                    exact.numerator_prefactor(),
+                    source.diagram.numerator_prefactor(),
+                ),
+            ] {
+                assert_eq!(
+                    converted.structure().logical_slots(),
+                    original.structure().logical_slots(),
+                );
+            }
             exact.validate().unwrap();
             assert!(owner.conversions().iter().any(|r| matches!(
                 r.location,
@@ -182,6 +203,24 @@ fn primitive_policy_retains_original_rounding_precision_and_native_tensor_roles(
                 .unwrap();
             let primitive=owner.conversions().iter().filter(|r|matches!(&r.location,GraphLocation::Payload{role} if role.starts_with("vertex_")||role.starts_with("edge_"))).map(|r|r.exact.clone()).product::<Atom>();
             assert!(!(&aggregate.exact - &primitive).expand().is_zero());
+            // Conversion records carry Float coefficients; the native aggregate
+            // must retain the vector multiplying those coefficients as well.
+            let expected = if tensor {
+                primitive
+                    * Minkowski {}.new_rep(4).vector(
+                        feynkit_graph::symbols::external_momentum()
+                            .call(1)
+                            .as_view(),
+                        [Atom::num(1)],
+                    )
+            } else {
+                primitive
+            };
+            assert!(
+                (exact.numerator().expression() - &expected)
+                    .expand()
+                    .is_zero()
+            );
             // The known native external-vector contraction is scalar s, never a new
             // tensor implementation. Input validation runs actual Idenso contraction.
             let plain = converted(
@@ -207,13 +246,17 @@ fn policy_refuses_structural_float_and_unprojected_tensor_before_solve() {
     let label = Minkowski {}
         .new_rep(4)
         .vector(momentum.as_view(), [Atom::num(1)]);
-    for bad in [
-        symbol!("graph_payload::f").call(Atom::num(0.1)),
-        index,
-        label,
-    ] {
+    // Float abstract indices are already invalid at the native typed admission
+    // boundary; they can no longer be stored as an unchecked graph payload.
+    assert!(SymbolicTensor::infer(index).is_err());
+    for bad in [symbol!("graph_payload::f").call(Atom::num(0.1)), label] {
         let mut p = (*base).clone();
-        p.diagram = Arc::new(p.diagram.as_ref().clone().with_projector(bad));
+        p.diagram = Arc::new(
+            p.diagram
+                .as_ref()
+                .clone()
+                .with_projector(SymbolicTensor::infer(bad).unwrap()),
+        );
         let before = p.diagram.to_json().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let err = generation::prepare_graph(Arc::new(p.clone()), options(true), dir.path(), |p| {
@@ -227,7 +270,12 @@ fn policy_refuses_structural_float_and_unprojected_tensor_before_solve() {
         assert_eq!(dir.path().read_dir().unwrap().count(), 0);
     }
     let mut p = (*point(53, true, true)).clone();
-    p.diagram = Arc::new(p.diagram.as_ref().clone().with_projector(Atom::one()));
+    p.diagram = Arc::new(
+        p.diagram
+            .as_ref()
+            .clone()
+            .with_projector(SymbolicTensor::infer(Atom::one()).unwrap()),
+    );
     let dir = tempfile::tempdir().unwrap();
     assert!(
         generation::prepare_graph(Arc::new(p), options(true), dir.path(), |p| {
@@ -260,6 +308,271 @@ fn policy_refuses_structural_float_and_unprojected_tensor_before_solve() {
         ))
         .is_err()
     );
+}
+
+fn encoded_index_point(label: Atom) -> Arc<GraphPoint> {
+    let index = function!(feynkit_graph::symbols::hedge_index(), label, 1);
+    let raw = Minkowski {}.new_rep(4).vector(
+        feynkit_graph::symbols::external_momentum()
+            .call(1)
+            .as_view(),
+        [index],
+    );
+    let tensor = NumeratorInterface::admit(raw.clone(), None).unwrap();
+    assert_eq!(tensor.rank(), 1);
+    assert_ne!(tensor.expression(), &raw);
+    assert_eq!(NumeratorInterface::export(&tensor).0, raw);
+    // The same admitted ports close to p.p: free-index refusal cannot hide a
+    // missing Float guard on P(1,mink(4,hedge(0.1,1))).
+    assert!(tensor.multiply(&tensor).unwrap().is_scalar());
+    let mut source = (*point(53, false, false)).clone();
+    source.diagram = Arc::new(
+        source
+            .diagram
+            .as_ref()
+            .clone()
+            .with_numerator(tensor.clone())
+            .unwrap()
+            .with_projector(tensor),
+    );
+    Arc::new(source)
+}
+
+#[test]
+fn both_graph_policies_reject_original_encoded_float_labels_including_ranked_zero() {
+    let source = encoded_index_point(Atom::num(Float::parse("0.1", Some(53)).unwrap()));
+    let zero = source
+        .diagram
+        .projector()
+        .with_checked_expression(Atom::Zero)
+        .unwrap();
+    assert_eq!(zero.rank(), 1);
+    let mut zero_source = (*source).clone();
+    zero_source.diagram = Arc::new(
+        source
+            .diagram
+            .as_ref()
+            .clone()
+            .with_numerator(zero.clone())
+            .unwrap()
+            .with_projector(zero),
+    );
+    assert_eq!(zero_source.diagram.numerator().rank(), 1);
+    assert!(zero_source.diagram.numerator().expression().is_zero());
+    assert!(zero_source.diagram.projector().expression().is_zero());
+    for source in [source, Arc::new(zero_source)] {
+        let before = source.diagram.to_json().unwrap();
+        for primitive in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let error = generation::prepare_graph(
+                source.clone(),
+                options(primitive),
+                dir.path(),
+                |progress| {
+                    assert_eq!(progress.stage, generation::Stage::Input);
+                    ControlFlow::Continue(())
+                },
+            )
+            .err()
+            .unwrap();
+            assert!(
+                matches!(
+                    &error,
+                    generation::Error::Geometry(GcadError::Represented(
+                        represented::Error::Unsupported(
+                            "graph payload Float in an encoded index label"
+                        )
+                    ))
+                ),
+                "primitive={primitive}: {error}"
+            );
+            assert_eq!(source.diagram.to_json().unwrap(), before);
+            assert_eq!(dir.path().read_dir().unwrap().count(), 0);
+        }
+    }
+}
+
+#[test]
+fn both_graph_policies_preserve_exact_encoded_indices() {
+    for label in [Atom::num(7), Atom::num((1, 10))] {
+        let source = encoded_index_point(label);
+        let before = source.diagram.to_json().unwrap();
+        let legacy = represented::graph::ExactRepresentedGraphInput::prepare(
+            source.clone(),
+            NumericalMeaning::RepresentedValues,
+            Limits::default(),
+            |_| ControlFlow::Continue(()),
+        )
+        .unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let primitive = converted(source.clone(), dir.path());
+        assert_eq!(legacy.payload_policy(), None);
+        assert!(Arc::ptr_eq(legacy.exact_diagram(), &source.diagram));
+        assert_eq!(
+            primitive.payload_policy(),
+            Some(GraphPayloadPolicy::PrimitiveFragmentsV1)
+        );
+        assert_eq!(legacy.exact(), primitive.exact());
+        for owner in [&legacy, &primitive] {
+            let exact = owner.exact_diagram();
+            assert!(exact.numerator().same_value(source.diagram.numerator()));
+            assert!(exact.projector().same_value(source.diagram.projector()));
+            for (id, vertex) in source.diagram.vertices() {
+                let restored = exact
+                    .vertices()
+                    .find(|(candidate, _)| *candidate == id)
+                    .unwrap()
+                    .1;
+                assert!(restored.numerator.same_value(&vertex.numerator));
+            }
+            assert!(!owner.conversions().iter().any(|row| matches!(
+                &row.location,
+                GraphLocation::ExactPayload { .. }
+                    | GraphLocation::Payload { .. }
+                    | GraphLocation::OriginalAggregate {}
+            )));
+        }
+        assert_eq!(source.diagram.to_json().unwrap(), before);
+    }
+}
+
+#[test]
+fn encoded_index_labels_share_graph_resource_limits() {
+    let head = symbol!("graph_payload::bounded_index_label");
+    let wide = (0..2048)
+        .fold(FunctionBuilder::new(head), |builder, n| builder.add_arg(n))
+        .finish();
+    let deep = (0..32).fold(Atom::one(), |label, _| head.call(label));
+    for (label, limits, bound) in [
+        (
+            wide.clone(),
+            Limits {
+                input_bytes: 1024,
+                ..Limits::default()
+            },
+            "represented input bytes",
+        ),
+        (
+            wide.clone(),
+            Limits {
+                output_bytes: 1024,
+                ..Limits::default()
+            },
+            "represented output bytes",
+        ),
+        (
+            wide,
+            Limits {
+                nodes: 512,
+                ..Limits::default()
+            },
+            "represented input nodes",
+        ),
+        (
+            deep,
+            Limits {
+                depth: 16,
+                ..Limits::default()
+            },
+            "represented input depth",
+        ),
+        (
+            Atom::num(257),
+            Limits {
+                rational_bits: 8,
+                ..Limits::default()
+            },
+            "represented rational bit limit",
+        ),
+        (
+            Atom::num((1, 257)),
+            Limits {
+                rational_bits: 8,
+                ..Limits::default()
+            },
+            "represented rational bit limit",
+        ),
+    ] {
+        let source = encoded_index_point(label);
+        let before = source.diagram.to_json().unwrap();
+        for primitive in [false, true] {
+            let dir = tempfile::tempdir().unwrap();
+            let mut options = options(primitive);
+            options.represented.as_mut().unwrap().1 = limits;
+            let error =
+                generation::prepare_graph(source.clone(), options, dir.path(), |progress| {
+                    assert_eq!(progress.stage, generation::Stage::Input);
+                    if let Some(input) = progress.graph_input {
+                        assert!(matches!(
+                            input.stage,
+                            represented::graph::Stage::ExactPayload
+                                | represented::graph::Stage::Payload
+                        ));
+                    }
+                    ControlFlow::Continue(())
+                })
+                .err()
+                .unwrap();
+            assert!(
+                matches!(
+                    &error,
+                    generation::Error::Geometry(GcadError::Represented(
+                        represented::Error::ResourceIncomplete(reason)
+                    )) if *reason == bound
+                ),
+                "primitive={primitive}, {limits:?}: {error}"
+            );
+            assert_eq!(source.diagram.to_json().unwrap(), before);
+            assert_eq!(dir.path().read_dir().unwrap().count(), 0);
+        }
+    }
+}
+
+#[test]
+fn primitive_conversion_cannot_turn_a_ranked_zero_into_a_scalar() {
+    let source = point(53, false, true);
+    let vector = SymbolicTensor::infer(
+        Minkowski {}.new_rep(4).vector(
+            feynkit_graph::symbols::external_momentum()
+                .call(1)
+                .as_view(),
+            [Atom::num(1)],
+        ),
+    )
+    .unwrap();
+    let zero = vector.with_checked_expression(Atom::Zero).unwrap();
+    assert_eq!(zero.rank(), 1);
+    for role in ["numerator", "projector", "numerator_prefactor"] {
+        let diagram = source.diagram.as_ref().clone();
+        let diagram = match role {
+            "numerator" => diagram.with_numerator(zero.clone()).unwrap(),
+            "projector" => diagram.with_projector(zero.clone()),
+            _ => diagram.with_numerator_prefactor(zero.clone()),
+        };
+        let mut point = source.as_ref().clone();
+        point.diagram = Arc::new(diagram);
+        let original = point.diagram.to_json().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let error = generation::prepare_graph(
+            Arc::new(point.clone()),
+            options(true),
+            dir.path(),
+            |progress| {
+                assert_eq!(progress.stage, generation::Stage::Input);
+                ControlFlow::Continue(())
+            },
+        )
+        .err()
+        .unwrap();
+        assert!(
+            error
+                .to_string()
+                .contains(&fastsecdec::Error::FreeTensorIndices.to_string()),
+            "{role}: {error}",
+        );
+        assert_eq!(point.diagram.to_json().unwrap(), original);
+        assert_eq!(dir.path().read_dir().unwrap().count(), 0);
+    }
 }
 #[test]
 fn legacy_policy_omission_keeps_native_identity_and_new_policy_is_explicit() {

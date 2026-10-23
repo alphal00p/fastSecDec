@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, sync::Arc};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::{float::Complex, rational::Rational},
-    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings, Slot},
+    evaluate::{EvaluatorComposer, ExpressionEvaluator, OptimizationSettings},
     symbol,
 };
 
@@ -227,7 +227,7 @@ impl CompiledOpenMap {
         }
         let source = owner.source();
         let inputs = source.unit_coordinates().to_vec();
-        let mut compose = EvaluatorComposer::new(inputs.len());
+        let (mut compose, input_slots) = EvaluatorComposer::new_with_inputs(inputs.len());
         let mut scope = Scope::default();
         let mut atoms = Vec::new();
         let mut slots = Vec::new();
@@ -292,7 +292,7 @@ impl CompiledOpenMap {
                         }
                         let call = program.call(tag, section.coefficients())?;
                         scope.insert(tag, program)?;
-                        let slot = compose.append(&build(&[call], &[])?, &[]).map_err(native)?[0];
+                        let slot = compose.add(&build(&[call], &[])?, &[]).map_err(native)?[0];
                         atoms.push(Atom::var(
                             endpoint
                                 .symbol()
@@ -316,13 +316,13 @@ impl CompiledOpenMap {
                     .map(Atom::var)
                     .collect::<Vec<_>>();
                 let chart = build(&section.chart.parameter_images, &atoms)?;
-                let parameters_slots = compose.append(&chart, &slots).map_err(native)?;
+                let parameters_slots = compose.add(&chart, &slots).map_err(native)?;
                 let program = section.root_program_in(&identity, intermediate.clone())?;
                 let tag = symbol!(&format!("fastsecdec::normalized_map::root_slot_{axis}"));
                 let call = program.call(tag, &section.coefficients)?;
                 scope.insert(tag, program)?;
                 let root = compose
-                    .append(&build(&[call], &parameters)?, &parameters_slots)
+                    .add(&build(&[call], &parameters)?, &parameters_slots)
                     .map_err(native)?[0];
                 atoms.push(Atom::var(section.root_symbol));
                 slots.push(root);
@@ -331,9 +331,9 @@ impl CompiledOpenMap {
                 .unit_index()
                 .ok_or_else(|| Error::Invalid("normalized map integration role".into()))?;
             atoms.push(Atom::var(inputs[unit]));
-            slots.push(Slot::Param(unit));
+            slots.push(input_slots[unit]);
             let body = build(&[step.image().clone(), step.diagonal().clone()], &atoms)?;
-            let outputs = compose.append(&body, &slots).map_err(native)?;
+            let outputs = compose.add(&body, &slots).map_err(native)?;
             coordinates.insert(source.axes()[axis].symbol(), outputs[0]);
             diagonals.push(outputs[1]);
         }
@@ -349,7 +349,7 @@ impl CompiledOpenMap {
         let factors = inputs.iter().copied().map(Atom::var).collect::<Vec<_>>();
         let product: Atom = factors.iter().cloned().product();
         let jacobian = compose
-            .append(&build(&[product], &factors)?, &diagonals)
+            .add(&build(&[product], &factors)?, &diagonals)
             .map_err(native)?[0];
         outputs.push(jacobian);
         // Individual positives catch errors hidden by a product of two negatives.
