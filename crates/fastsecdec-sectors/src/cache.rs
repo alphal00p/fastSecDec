@@ -3,6 +3,8 @@ use crate::{
     ParametricDomain, PolynomialSupport, SectorError, decompose,
 };
 use std::{collections::VecDeque, ops::ControlFlow, sync::Arc};
+use symbolica::utils::resources;
+use symbolica::utils::resources::ResourceBudget;
 
 mod dispatch;
 pub use dispatch::GeometryDispatch;
@@ -24,8 +26,8 @@ pub struct GeometryCacheOutcome {
 /// format, and the ordinary [`decompose`] function remains cache-free.
 ///
 /// Keys retain the input domain, ordered native supports (including coordinate
-/// order and monomial translations), and all three resource limits. Thus a warm
-/// result cannot bypass a tighter limit or misassign positional valuations.
+/// order and monomial translations), and all three optional count diagnostics.
+/// Process resources are checked on every request, including warm reuse.
 #[derive(Debug)]
 pub struct GeometryCache {
     capacity: usize,
@@ -36,7 +38,7 @@ pub struct GeometryCache {
 struct Entry {
     domain: ParametricDomain,
     supports: Vec<PolynomialSupport>,
-    limits: [usize; 3],
+    limits: [Option<usize>; 3],
     decomposition: Arc<Decomposition>,
     completion: DecompositionProgress,
 }
@@ -82,41 +84,47 @@ impl GeometryCache {
         options: &DecompositionOptions,
         mut progress: impl FnMut(&DecompositionProgress) -> ControlFlow<()>,
     ) -> Result<GeometryCacheOutcome, SectorError> {
-        let limits = [
-            options.max_support_pairs,
-            options.max_rays,
-            options.max_sectors,
-        ];
-        if let Some(hit) = self.lookup(domain, supports, limits, &mut progress)? {
-            return Ok(hit);
-        }
-
-        let mut completion = None;
-        let result = decompose(domain, supports, options, |status| {
-            let decision = progress(status);
-            if decision.is_continue() && status.phase == DecompositionPhase::Complete {
-                completion = Some(status.clone());
+        ResourceBudget::new(options.resources).run(|| {
+            resources::checkpoint()?;
+            let limits = [
+                options.max_support_pairs,
+                options.max_rays,
+                options.max_sectors,
+            ];
+            if let Some(hit) = self.lookup(domain, supports, limits, &mut progress)? {
+                return Ok(hit);
             }
-            decision
-        })?;
-        self.store(domain, supports, limits, result, completion)
+
+            let mut completion = None;
+            let result = decompose(domain, supports, options, |status| {
+                let decision = progress(status);
+                if decision.is_continue() && status.phase == DecompositionPhase::Complete {
+                    completion = Some(status.clone());
+                }
+                decision
+            })?;
+            self.store(domain, supports, limits, result, completion)
+        })
     }
 
     fn lookup(
         &self,
         domain: ParametricDomain,
         supports: &[PolynomialSupport],
-        limits: [usize; 3],
+        limits: [Option<usize>; 3],
         progress: &mut impl FnMut(&DecompositionProgress) -> ControlFlow<()>,
     ) -> Result<Option<GeometryCacheOutcome>, SectorError> {
+        resources::checkpoint()?;
         let Some(entry) = self.entries.iter().find(|entry| {
             entry.domain == domain && entry.supports == supports && entry.limits == limits
         }) else {
+            resources::checkpoint()?;
             return Ok(None);
         };
         if progress(&entry.completion).is_break() {
             return Err(SectorError::Cancelled);
         }
+        resources::checkpoint()?;
         Ok(Some(GeometryCacheOutcome {
             decomposition: Arc::clone(&entry.decomposition),
             reused: true,
@@ -129,25 +137,39 @@ impl GeometryCache {
         &mut self,
         domain: ParametricDomain,
         supports: &[PolynomialSupport],
-        limits: [usize; 3],
+        limits: [Option<usize>; 3],
         result: Decomposition,
         completion: Option<DecompositionProgress>,
     ) -> Result<GeometryCacheOutcome, SectorError> {
         let completion = completion.ok_or_else(|| {
             SectorError::Geometry("decomposition returned without accepted completion".into())
         })?;
+        resources::checkpoint()?;
         let decomposition = Arc::new(result);
         if self.capacity != 0 {
-            if self.entries.len() == self.capacity {
-                self.entries.pop_front();
-            }
-            self.entries.push_back(Entry {
+            let entry = Entry {
                 domain,
                 supports: supports.to_vec(),
                 limits,
                 decomposition: Arc::clone(&decomposition),
                 completion,
-            });
+            };
+            resources::checkpoint()?;
+            let evicted = if self.entries.len() == self.capacity {
+                self.entries.pop_front()
+            } else {
+                None
+            };
+            self.entries.push_back(entry);
+            if let Err(error) = resources::checkpoint() {
+                self.entries.pop_back();
+                if let Some(evicted) = evicted {
+                    self.entries.push_front(evicted);
+                }
+                return Err(error.into());
+            }
+        } else {
+            resources::checkpoint()?;
         }
         Ok(GeometryCacheOutcome {
             decomposition,

@@ -48,6 +48,8 @@ pub use weighted::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum KernelError {
+    #[error("{0}")]
+    Resource(#[from] symbolica::utils::resources::ResourceLimitError),
     #[error("kernel compilation cancelled")]
     Cancelled,
     #[error("invalid runtime parameters: {0}")]

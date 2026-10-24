@@ -43,9 +43,9 @@ impl PyIntegral {
     /// every GenerationSnapshot. Observer runs first; None/True continues,
     /// False from either callback cancels at a native event boundary. Original
     /// callback and KeyboardInterrupt exceptions propagate after UI cleanup.
-    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+    #[pyo3(signature = (max_order=0, *, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", max_process_rss_bytes=None, max_elapsed_seconds=None, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
     #[pyo3(
-        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', observer=None, progress='auto')"
+        text_signature = "($self, max_order=0, *, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', max_process_rss_bytes=None, max_elapsed_seconds=None, observer=None, progress='auto')"
     )]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn generate(
@@ -55,12 +55,21 @@ impl PyIntegral {
         coefficient_expansion: &str,
         mode: &str,
         subtraction: &str,
+        max_process_rss_bytes: Option<u64>,
+        max_elapsed_seconds: Option<f64>,
         observer: Option<Py<PyAny>>,
         progress: Option<Py<PyAny>>,
     ) -> PyResult<PyGeneratedIntegral> {
         generate_native(
             py,
-            options(max_order, coefficient_expansion, mode, subtraction)?,
+            options(
+                max_order,
+                coefficient_expansion,
+                mode,
+                subtraction,
+                max_process_rss_bytes,
+                max_elapsed_seconds,
+            )?,
             observer.as_ref(),
             progress.as_ref(),
             "Parametrizing the native diagram",
@@ -76,6 +85,8 @@ pub(crate) fn options(
     coefficient_expansion: &str,
     mode: &str,
     subtraction: &str,
+    max_process_rss_bytes: Option<u64>,
+    max_elapsed_seconds: Option<f64>,
 ) -> PyResult<GenerationOptions> {
     let method = match coefficient_expansion {
         "full_expression" | "physical" => CoefficientExpansionMethod::Physical,
@@ -99,6 +110,7 @@ pub(crate) fn options(
         max_order,
         mode,
         subtraction,
+        resources: crate::resources::limits(max_process_rss_bytes, max_elapsed_seconds)?,
         ..Default::default()
     };
     options.coefficient_expansion.method = method;
@@ -109,6 +121,19 @@ pub(crate) fn options(
 /// Parameterization is deferred until the initial observer permits it; returning
 /// this result neither compiles evaluators nor creates an integration session.
 pub(crate) fn generate_native(
+    py: Python<'_>,
+    options: GenerationOptions,
+    observer: Option<&Py<PyAny>>,
+    progress: Option<&Py<PyAny>>,
+    detail: &str,
+    parametrize: impl FnOnce() -> PyResult<(ParametricIntegrand, RuntimeInputs)>,
+) -> PyResult<PyGeneratedIntegral> {
+    crate::resources::run(py, options.resources, || {
+        generate_native_scoped(py, options, observer, progress, detail, parametrize)
+    })
+}
+
+fn generate_native_scoped(
     py: Python<'_>,
     options: GenerationOptions,
     observer: Option<&Py<PyAny>>,
@@ -343,6 +368,7 @@ import symbolica.community.hepkit.sector_decomposition
 class PyIntegral:
     def generate(self, max_order: int = 0, *, coefficient_expansion: str = "full_expression",
                  mode: str = "symbolic", subtraction: str = "taylor",
+                 max_process_rss_bytes: typing.Optional[int] = None, max_elapsed_seconds: typing.Optional[float] = None,
                  observer: typing.Optional[typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
                  progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
                  ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:

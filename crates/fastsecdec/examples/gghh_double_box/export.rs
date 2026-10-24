@@ -12,6 +12,7 @@ use feynkit_generator::{GenerationOptions, GenerationReport, Process};
 use feynkit_graph::{ExternalState, FeynmanDiagram, expressions::evaluate_overall_factor, symbols};
 use feynkit_model::{Model, ParameterCard};
 use idenso::representations::ColorAdjoint;
+use idenso::tensor::SymbolicTensor;
 use linnet::half_edge::involution::HedgePair;
 use numerica::domains::float::Complex;
 use spenso::structure::representation::{Minkowski, RepName};
@@ -40,10 +41,13 @@ pub fn raw(
     std::fs::write(output.join("raw-diagram.json"), diagram.to_json()?)?;
     std::fs::write(output.join("raw-diagram.dot"), diagram.to_dot()?)?;
     for (name, atom) in [
-        ("numerator", diagram.numerator()),
-        ("numerator-prefactor", diagram.numerator_prefactor()),
+        ("numerator", diagram.numerator().expression()),
+        (
+            "numerator-prefactor",
+            diagram.numerator_prefactor().expression(),
+        ),
         ("overall-factor", diagram.overall_factor()),
-        ("projector", diagram.projector()),
+        ("projector", diagram.projector().expression()),
     ] {
         std::fs::write(
             output.join(format!("raw-{name}.txt")),
@@ -81,13 +85,13 @@ pub fn projected(raw: &FeynmanDiagram) -> Result<FeynmanDiagram> {
         ports.push((external.index, symbols::hedge_index().call((hedge.0, 1))));
     }
     ports.sort_by_key(|(index, _)| *index);
-    if ports.len() != 2 || !raw.projector().is_one() {
+    if ports.len() != 2 || !raw.projector().expression().is_one() {
         return Err("unexpected amputated external layout".into());
     }
     let lorentz = Minkowski {}.new_rep(4);
     let color = ColorAdjoint {}.new_rep(8);
     let color_projector = color.id(&ports[0].1, &ports[1].1);
-    let numerator = super::color::contract(raw.numerator(), &color_projector)?;
+    let numerator = super::color::contract(raw.numerator().expression(), &color_projector)?;
     let mut projector = Atom::one();
     for ((_, index), name) in ports.into_iter().zip(point::auxiliaries()) {
         projector *= lorentz.vector(name.as_view(), [index]);
@@ -96,8 +100,8 @@ pub fn projected(raw: &FeynmanDiagram) -> Result<FeynmanDiagram> {
     // No extra symmetry factor, color average or spin average is introduced.
     Ok(raw
         .clone()
-        .with_numerator(numerator)?
-        .with_projector(projector)
+        .with_numerator(SymbolicTensor::infer(numerator)?)?
+        .with_projector(SymbolicTensor::infer(projector)?)
         .with_overall_factor(evaluate_overall_factor(raw.overall_factor().as_view())))
 }
 
@@ -139,7 +143,7 @@ pub fn fixture(
     std::fs::write(output.join("graph.dot"), dot)?;
     std::fs::write(
         output.join("color-projected-numerator.txt"),
-        projected.numerator().to_canonical_string(),
+        projected.numerator().expression().to_canonical_string(),
     )?;
     let parameters = parameter_card(projected.model())?;
     let mut cli_model = projected.model().clone();

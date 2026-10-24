@@ -8,6 +8,7 @@ use crate::{
     *,
 };
 use numerica::domains::integer::Integer;
+use symbolica::utils::resources;
 
 #[cfg(test)]
 std::thread_local! {
@@ -18,6 +19,7 @@ pub(crate) fn validate_input(
     domain: ParametricDomain,
     supports: &[PolynomialSupport],
 ) -> Result<usize, SectorError> {
+    resources::checkpoint()?;
     let Some(first) = supports.first() else {
         return Err(SectorError::InvalidSupport("no factor polynomials".into()));
     };
@@ -34,14 +36,17 @@ pub(crate) fn validate_input(
     }
     if domain == ParametricDomain::ProjectiveSimplex {
         for support in supports {
+            resources::checkpoint()?;
             let degrees: Vec<_> = support
                 .exponents()
                 .iter()
                 .map(|row| {
-                    row.iter()
-                        .fold(Integer::from(0), |sum, exponent| sum + exponent)
+                    resources::checkpoint()?;
+                    Ok(row
+                        .iter()
+                        .fold(Integer::from(0), |sum, exponent| sum + exponent))
                 })
-                .collect();
+                .collect::<Result<_, SectorError>>()?;
             if degrees.iter().any(|degree| degree != &degrees[0]) {
                 return Err(SectorError::InvalidSupport(
                     "projective gauge fixing requires individually homogeneous factor polynomials"
@@ -67,6 +72,7 @@ pub(crate) fn prepare_chart(
     cube: bool,
     monitor: &mut Monitor<'_>,
 ) -> Result<ChartData, SectorError> {
+    resources::checkpoint()?;
     let dim = supports[0].dimension();
     if dim == 0 {
         monitor.emit()?;
@@ -85,7 +91,7 @@ pub(crate) fn prepare_chart(
             .skip(1)
             .map(|p| p.iter().zip(&candidates[0]).map(|(a, b)| a - b).collect())
             .collect();
-        let affine_rank = rank(&differences);
+        let affine_rank = rank(&differences)?;
         if affine_rank != dim {
             return Err(SectorError::RankDeficient {
                 rank: affine_rank,
@@ -156,7 +162,7 @@ pub(crate) fn decompose_candidate(
         .collect();
     rays.sort();
     rays.dedup();
-    if rank(&rays) != dim {
+    if rank(&rays)? != dim {
         return Ok(false);
     }
     let mut inequalities: Vec<IntVector> = candidates
@@ -171,6 +177,7 @@ pub(crate) fn decompose_candidate(
         }
     }
     for simplex in pulling(&rays, &inequalities, monitor)? {
+        resources::checkpoint()?;
         let chart_matrix: Vec<IntVector> = (0..dim)
             .map(|i| simplex.iter().map(|&j| rays[j][i].clone()).collect())
             .collect();
@@ -190,6 +197,7 @@ pub(crate) fn decompose_candidate(
         let factor_valuations: Vec<IntVector> = supports
             .iter()
             .map(|s| {
+                resources::checkpoint()?;
                 let images: Vec<IntVector> = s
                     .exponents()
                     .iter()
@@ -227,13 +235,16 @@ pub(crate) fn decompose_candidate(
             jacobian_powers,
             factor_valuations,
         });
-        if output.len() > monitor.options.max_sectors {
+        if let Some(limit) = monitor.options.max_sectors
+            && output.len() > limit
+        {
             return Err(SectorError::ResourceLimit {
                 resource: "sectors",
-                limit: monitor.options.max_sectors,
+                limit,
             });
         }
         monitor.status.sectors = output.len();
     }
+    resources::checkpoint()?;
     Ok(true)
 }

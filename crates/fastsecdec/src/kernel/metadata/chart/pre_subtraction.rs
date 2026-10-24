@@ -1,6 +1,6 @@
 use super::super::{StoredAtom, atom, invalid, symbols};
 use crate::{
-    generation::{EndpointPower, PreSubtractionMetadata, PreSubtractionTerm},
+    generation::{EndpointPower, GenerationError, PreSubtractionMetadata, PreSubtractionTerm},
     kernel::KernelError,
 };
 use serde::{Deserialize, Serialize};
@@ -89,8 +89,12 @@ impl PortablePreSubtraction {
                     .powers
                     .into_iter()
                     .map(|power| {
-                        EndpointPower::admit(atom(power)?, regulator, usize::MAX)
-                            .map_err(|_| invalid("invalid pre-subtraction endpoint power"))
+                        EndpointPower::admit(atom(power)?, regulator, None).map_err(|error| {
+                            match error {
+                                GenerationError::Resource(error) => KernelError::Resource(error),
+                                _ => invalid("invalid pre-subtraction endpoint power"),
+                            }
+                        })
                     })
                     .collect::<Result<_, _>>()?;
                 Ok(PreSubtractionTerm {

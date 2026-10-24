@@ -15,6 +15,7 @@ use fastsecdec::{
     },
 };
 use feynkit_model::resolve_scalar_bindings;
+use symbolica::utils::resources::{self, ResourceBudget};
 use symbolica::{
     atom::AtomView,
     domains::rational::Rational,
@@ -37,6 +38,7 @@ impl MomentumName {
 }
 
 pub struct LoadedInput {
+    pub resource_budget: ResourceBudget,
     pub card: RunCard,
     pub integrand: ParametricIntegrand,
     pub runtime_parameters: Vec<Symbol>,
@@ -90,7 +92,9 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
     let mut sources = Vec::new();
     let base = path.parent().unwrap_or_else(|| Path::new("."));
     let read = |path: &Path, sources: &mut Vec<crate::artifact::SourceFile>| -> CliResult<String> {
+        resources::checkpoint()?;
         let text = fs::read_to_string(path)?;
+        resources::checkpoint()?;
         sources.push(crate::artifact::SourceFile {
             path: crate::artifact::relative_path(path, base)?
                 .to_string_lossy()
@@ -104,300 +108,310 @@ pub fn load(path: &Path) -> CliResult<LoadedInput> {
     sources[0].fingerprint = crate::artifact::SourceFingerprint::RunCardWithoutReference;
     sources[0].blake3 = sources[0].fingerprint.hash(text.as_bytes())?;
     let card: RunCard = toml::from_str(&text)?;
-    let base = path.parent().unwrap_or_else(|| Path::new("."));
-    let mut values = BTreeMap::new();
-    for (name, value) in &card.parameters {
-        values.insert(symbol(name)?, value_expression(value)?);
-    }
-    let regulator = symbol(&card.integral.regulator)?;
-    match (&card.input, &card.direct) {
-        (Some(input), None) => {
-            let mut model = Model::from_json(&read(&base.join(&input.model), &mut sources)?)?;
-            let restriction = if let Some(parameter_card) = &input.parameter_card {
-                let restriction =
-                    ParameterCard::from_json(&read(&base.join(parameter_card), &mut sources)?)?;
-                model.apply_parameter_card(&restriction)?;
-                restriction
-            } else {
-                ParameterCard::new()
-            };
-            let graph_text = read(&base.join(&input.graph), &mut sources)?;
-            let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
-            let mut runtime_model = match input.model_parameters {
-                crate::config::ModelParameters::Runtime => Some(RuntimeModelBindings::new(
-                    &diagram,
-                    Some(&restriction),
-                    &values,
-                )?),
-                crate::config::ModelParameters::Fixed => None,
-            };
-            let values = match &runtime_model {
-                Some(runtime) => runtime.values().clone(),
-                None => diagram
-                    .model()
-                    .scalar_bindings(Some(&restriction), &values)?,
-            };
-            let model_symbols = runtime_model
-                .as_ref()
-                .map_or_else(Vec::new, RuntimeModelBindings::symbols);
-            if model_symbols.contains(&regulator) {
-                return Err("runtime model inputs must differ from the regulator".into());
+    let budget = ResourceBudget::new(card.generation.resource_limits()?);
+    budget.run(|| {
+        resources::checkpoint()?;
+        let loaded = (|| -> CliResult<LoadedInput> {
+            let base = path.parent().unwrap_or_else(|| Path::new("."));
+            let mut values = BTreeMap::new();
+            for (name, value) in &card.parameters {
+                values.insert(symbol(name)?, value_expression(value)?);
             }
-            let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
-            let mut runtime_parameters = Vec::new();
-            for product in &card.kinematics.products {
-                let product_value = match (&product.value, &product.symbol) {
-                    (Some(value), None) => bind(&expression(value)?, &values),
-                    (None, Some(name)) => {
-                        let parameter = symbol(name)?;
-                        if parameter == regulator
-                            || values.contains_key(&parameter)
-                            || model_symbols.contains(&parameter)
-                        {
-                            return Err(format!("runtime kinematic symbol {name} conflicts with a fixed scalar or regulator").into());
-                        }
-                        if !runtime_parameters.contains(&parameter) {
-                            runtime_parameters.push(parameter);
-                        }
-                        Atom::var(parameter)
+            let regulator = symbol(&card.integral.regulator)?;
+            match (&card.input, &card.direct) {
+                (Some(input), None) => {
+                    let mut model = Model::from_json(&read(&base.join(&input.model), &mut sources)?)?;
+                    let restriction = if let Some(parameter_card) = &input.parameter_card {
+                        let restriction =
+                            ParameterCard::from_json(&read(&base.join(parameter_card), &mut sources)?)?;
+                        model.apply_parameter_card(&restriction)?;
+                        restriction
+                    } else {
+                        ParameterCard::new()
+                    };
+                    let graph_text = read(&base.join(&input.graph), &mut sources)?;
+                    let diagram = feynkit_graph::FeynmanDiagram::from_dot(Arc::new(model), &graph_text)?;
+                    let mut runtime_model = match input.model_parameters {
+                        crate::config::ModelParameters::Runtime => Some(RuntimeModelBindings::new(
+                            &diagram,
+                            Some(&restriction),
+                            &values,
+                        )?),
+                        crate::config::ModelParameters::Fixed => None,
+                    };
+                    let values = match &runtime_model {
+                        Some(runtime) => runtime.values().clone(),
+                        None => diagram
+                            .model()
+                            .scalar_bindings(Some(&restriction), &values)?,
+                    };
+                    let model_symbols = runtime_model
+                        .as_ref()
+                        .map_or_else(Vec::new, RuntimeModelBindings::symbols);
+                    if model_symbols.contains(&regulator) {
+                        return Err("runtime model inputs must differ from the regulator".into());
                     }
-                    _ => {
+                    let mut kinematics = Kinematics::in_dimension(&expression("D")?)?;
+                    let mut runtime_parameters = Vec::new();
+                    for product in &card.kinematics.products {
+                        let product_value = match (&product.value, &product.symbol) {
+                            (Some(value), None) => bind(&expression(value)?, &values),
+                            (None, Some(name)) => {
+                                let parameter = symbol(name)?;
+                                if parameter == regulator
+                                    || values.contains_key(&parameter)
+                                    || model_symbols.contains(&parameter)
+                                {
+                                    return Err(format!("runtime kinematic symbol {name} conflicts with a fixed scalar or regulator").into());
+                                }
+                                if !runtime_parameters.contains(&parameter) {
+                                    runtime_parameters.push(parameter);
+                                }
+                                Atom::var(parameter)
+                            }
+                            _ => {
+                                return Err(
+                                    "each kinematic product requires exactly one of symbol or value".into(),
+                                );
+                            }
+                        };
+                        kinematics = kinematics.with_scalar_product(
+                            &product.left.atom()?,
+                            &product.right.atom()?,
+                            product_value,
+                        )?;
+                    }
+                    let powers = card
+                        .integral
+                        .powers
+                        .iter()
+                        .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
+                        .collect::<Result<BTreeMap<_, _>, _>>()?;
+                    let graph = GraphIntegral::new_with_runtime_scalar_values(
+                        Arc::new(diagram),
+                        &kinematics,
+                        &values,
+                        &model_symbols,
+                    )?
+                    .with_auxiliary_external_momenta(
+                        &card
+                            .kinematics
+                            .auxiliary_momenta
+                            .iter()
+                            .map(|name| expression(name))
+                            .collect::<CliResult<Vec<_>>>()?,
+                    )?
+                    .with_powers(&powers)?
+                    .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
+                    let loops = Some(graph.diagram().loop_count());
+                    let propagators = graph.powers().len();
+                    let independent_externals = graph
+                        .family()
+                        .external_momenta()
+                        .iter()
+                        .map(Atom::to_canonical_string)
+                        .collect();
+                    let basis = graph.diagram().loop_momentum_basis();
+                    let dependent_externals = basis
+                        .external_edges
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, edge)| basis.dependent_externals.contains(edge))
+                        .map(|(index, _)| {
+                            feynkit_graph::symbols::external_momentum()
+                                .call(index)
+                                .to_canonical_string()
+                        })
+                        .collect();
+                    let parameters = (0..propagators)
+                        .map(|i| symbol(&format!("fastsecdec::x{i}")))
+                        .collect::<CliResult<Vec<_>>>()?;
+                    if runtime_parameters
+                        .iter()
+                        .any(|parameter| parameters.contains(parameter))
+                    {
                         return Err(
-                            "each kinematic product requires exactly one of symbol or value".into(),
+                            "runtime kinematic symbols must differ from integration coordinates".into(),
                         );
                     }
-                };
-                kinematics = kinematics.with_scalar_product(
-                    &product.left.atom()?,
-                    &product.right.atom()?,
-                    product_value,
-                )?;
-            }
-            let powers = card
-                .integral
-                .powers
-                .iter()
-                .map(|(edge, power)| edge.parse::<usize>().map(|edge| (EdgeId(edge), *power)))
-                .collect::<Result<BTreeMap<_, _>, _>>()?;
-            let graph = GraphIntegral::new_with_runtime_scalar_values(
-                Arc::new(diagram),
-                &kinematics,
-                &values,
-                &model_symbols,
-            )?
-            .with_auxiliary_external_momenta(
-                &card
-                    .kinematics
-                    .auxiliary_momenta
-                    .iter()
-                    .map(|name| expression(name))
-                    .collect::<CliResult<Vec<_>>>()?,
-            )?
-            .with_powers(&powers)?
-            .with_measure_multiplier(expression(&card.integral.measure_multiplier)?);
-            let loops = Some(graph.diagram().loop_count());
-            let propagators = graph.powers().len();
-            let independent_externals = graph
-                .family()
-                .external_momenta()
-                .iter()
-                .map(Atom::to_canonical_string)
-                .collect();
-            let basis = graph.diagram().loop_momentum_basis();
-            let dependent_externals = basis
-                .external_edges
-                .iter()
-                .enumerate()
-                .filter(|(_, edge)| basis.dependent_externals.contains(edge))
-                .map(|(index, _)| {
-                    feynkit_graph::symbols::external_momentum()
-                        .call(index)
-                        .to_canonical_string()
-                })
-                .collect();
-            let parameters = (0..propagators)
-                .map(|i| symbol(&format!("fastsecdec::x{i}")))
-                .collect::<CliResult<Vec<_>>>()?;
-            if runtime_parameters
-                .iter()
-                .any(|parameter| parameters.contains(parameter))
-            {
-                return Err(
-                    "runtime kinematic symbols must differ from integration coordinates".into(),
-                );
-            }
-            let input_seconds = started.elapsed().as_secs_f64();
-            let parametrization_started = Instant::now();
-            let policy = card.generation.family_preparation;
-            let dimension = bind(&expression(&card.integral.dimension)?, &values);
-            let numerator = graph
-                .scalar_numerator(&card.generation.contraction_mode.algebra_settings())?
-                * graph.measure_multiplier();
-            let (integrand, family_preparation) = if policy == FamilyPreparationPolicy::Original {
-                (
-                    ParametricIntegrand::from_family(
-                        graph.family(),
-                        graph.powers(),
-                        numerator,
-                        parameters,
-                        regulator,
-                        dimension,
-                    )?,
-                    None,
-                )
-            } else {
-                let (integrand, report) = ParametricIntegrand::from_family_prepared(
-                    graph.family(),
-                    graph.powers(),
-                    numerator,
-                    parameters,
-                    regulator,
-                    dimension,
-                    policy,
-                )?;
-                (integrand, Some(report))
-            };
-            let (runtime_mass_constraints, model_parameter_defaults) =
-                if let Some(runtime) = &mut runtime_model {
-                    runtime.retain_used(&integrand);
-                    runtime_parameters.extend(runtime.symbols());
-                    (runtime.mass_constraints().to_vec(), runtime.defaults())
-                } else {
-                    (Vec::new(), BTreeMap::new())
-                };
-            Ok(LoadedInput {
-                card,
-                integrand,
-                runtime_parameters,
-                runtime_mass_constraints,
-                model_parameter_defaults,
-                label: path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned(),
-                loops,
-                propagators,
-                sources,
-                family_preparation,
-                independent_externals,
-                dependent_externals,
-                input_seconds,
-                parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
-            })
-        }
-        (None, Some(direct)) => {
-            if card.generation.contraction_mode != fastsecdec::input::NumeratorContraction::Minimal
-            {
-                return Err(
-                    "contraction_mode requires native graph input, not direct parametric data"
-                        .into(),
-                );
-            }
-            if card.generation.family_preparation != FamilyPreparationPolicy::Original {
-                return Err(
-                    "family preparation requires native graph input, not direct parametric data"
-                        .into(),
-                );
-            }
-            let values = resolve_scalar_bindings(values)?;
-            let domain =
-                match direct.domain.as_str() {
-                    "unit_cube" => ParametricDomain::UnitCube,
-                    "projective_simplex" => ParametricDomain::ProjectiveSimplex,
-                    "positive_orthant" => ParametricDomain::PositiveOrthant,
-                    _ => return Err(
-                        "direct domain must be unit_cube, projective_simplex or positive_orthant"
-                            .into(),
-                    ),
-                };
-            let parameters = direct
-                .parameters
-                .iter()
-                .map(|name| symbol(name))
-                .collect::<CliResult<Vec<_>>>()?;
-            if parameters
-                .iter()
-                .chain(std::iter::once(&regulator))
-                .any(|symbol| values.contains_key(symbol))
-            {
-                return Err(
-                    "[parameters] cannot bind an integration parameter or its regulator".into(),
-                );
-            }
-            let mut terms = Vec::new();
-            for term in &direct.terms {
-                let monomial_powers = if term.monomial_powers.is_empty() {
-                    vec![Atom::Zero; parameters.len()]
-                } else {
-                    term.monomial_powers
-                        .iter()
-                        .map(|text| Ok(bind(&expression(text)?, &values)))
-                        .collect::<CliResult<Vec<_>>>()?
-                };
-                let mut factors = Vec::new();
-                for factor in &term.factors {
-                    let polynomial = match (&factor.polynomial, &factor.polynomial_file) {
-                        (Some(text), None) => expression(text)?,
-                        (None, Some(path)) => expression(&read(&base.join(path), &mut sources)?)?,
-                        _ => {
-                            return Err(
-                                "each factor requires exactly one of polynomial or polynomial_file"
-                                    .into(),
-                            );
-                        }
+                    let input_seconds = started.elapsed().as_secs_f64();
+                    let parametrization_started = Instant::now();
+                    let policy = card.generation.family_preparation;
+                    let dimension = bind(&expression(&card.integral.dimension)?, &values);
+                    let numerator = graph
+                        .scalar_numerator(&card.generation.contraction_mode.algebra_settings())?
+                        * graph.measure_multiplier();
+                    let (integrand, family_preparation) = if policy == FamilyPreparationPolicy::Original {
+                        (
+                            ParametricIntegrand::from_family(
+                                graph.family(),
+                                graph.powers(),
+                                numerator,
+                                parameters,
+                                regulator,
+                                dimension,
+                            )?,
+                            None,
+                        )
+                    } else {
+                        let (integrand, report) = ParametricIntegrand::from_family_prepared(
+                            graph.family(),
+                            graph.powers(),
+                            numerator,
+                            parameters,
+                            regulator,
+                            dimension,
+                            policy,
+                        )?;
+                        (integrand, Some(report))
                     };
-                    let role = match factor.role.as_str() {
-                        "singularity" => FactorRole::Singularity,
-                        "polynomial" => FactorRole::Polynomial,
-                        _ => return Err("factor role must be singularity or polynomial".into()),
-                    };
-                    factors.push(PolynomialFactor::new(
-                        bind(&polynomial, &values),
-                        bind(&expression(&factor.exponent)?, &values),
-                        role,
-                    ));
+                    let (runtime_mass_constraints, model_parameter_defaults) =
+                        if let Some(runtime) = &mut runtime_model {
+                            runtime.retain_used(&integrand);
+                            runtime_parameters.extend(runtime.symbols());
+                            (runtime.mass_constraints().to_vec(), runtime.defaults())
+                        } else {
+                            (Vec::new(), BTreeMap::new())
+                        };
+                    Ok(LoadedInput {
+                        resource_budget: budget.clone(),
+                        card,
+                        integrand,
+                        runtime_parameters,
+                        runtime_mass_constraints,
+                        model_parameter_defaults,
+                        label: path
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned(),
+                        loops,
+                        propagators,
+                        sources,
+                        family_preparation,
+                        independent_externals,
+                        dependent_externals,
+                        input_seconds,
+                        parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
+                    })
                 }
-                terms.push(ParametricTerm::new(
-                    bind(
-                        &(expression(&term.prefactor)?
-                            * expression(&card.integral.measure_multiplier)?),
-                        &values,
-                    ),
-                    monomial_powers,
-                    factors,
-                ));
+                (None, Some(direct)) => {
+                    if card.generation.contraction_mode != fastsecdec::input::NumeratorContraction::Minimal
+                    {
+                        return Err(
+                            "contraction_mode requires native graph input, not direct parametric data"
+                                .into(),
+                        );
+                    }
+                    if card.generation.family_preparation != FamilyPreparationPolicy::Original {
+                        return Err(
+                            "family preparation requires native graph input, not direct parametric data"
+                                .into(),
+                        );
+                    }
+                    let values = resolve_scalar_bindings(values)?;
+                    let domain =
+                        match direct.domain.as_str() {
+                            "unit_cube" => ParametricDomain::UnitCube,
+                            "projective_simplex" => ParametricDomain::ProjectiveSimplex,
+                            "positive_orthant" => ParametricDomain::PositiveOrthant,
+                            _ => return Err(
+                                "direct domain must be unit_cube, projective_simplex or positive_orthant"
+                                    .into(),
+                            ),
+                        };
+                    let parameters = direct
+                        .parameters
+                        .iter()
+                        .map(|name| symbol(name))
+                        .collect::<CliResult<Vec<_>>>()?;
+                    if parameters
+                        .iter()
+                        .chain(std::iter::once(&regulator))
+                        .any(|symbol| values.contains_key(symbol))
+                    {
+                        return Err(
+                            "[parameters] cannot bind an integration parameter or its regulator".into(),
+                        );
+                    }
+                    let mut terms = Vec::new();
+                    for term in &direct.terms {
+                        let monomial_powers = if term.monomial_powers.is_empty() {
+                            vec![Atom::Zero; parameters.len()]
+                        } else {
+                            term.monomial_powers
+                                .iter()
+                                .map(|text| Ok(bind(&expression(text)?, &values)))
+                                .collect::<CliResult<Vec<_>>>()?
+                        };
+                        let mut factors = Vec::new();
+                        for factor in &term.factors {
+                            let polynomial = match (&factor.polynomial, &factor.polynomial_file) {
+                                (Some(text), None) => expression(text)?,
+                                (None, Some(path)) => expression(&read(&base.join(path), &mut sources)?)?,
+                                _ => {
+                                    return Err(
+                                        "each factor requires exactly one of polynomial or polynomial_file"
+                                            .into(),
+                                    );
+                                }
+                            };
+                            let role = match factor.role.as_str() {
+                                "singularity" => FactorRole::Singularity,
+                                "polynomial" => FactorRole::Polynomial,
+                                _ => return Err("factor role must be singularity or polynomial".into()),
+                            };
+                            factors.push(PolynomialFactor::new(
+                                bind(&polynomial, &values),
+                                bind(&expression(&factor.exponent)?, &values),
+                                role,
+                            ));
+                        }
+                        terms.push(ParametricTerm::new(
+                            bind(
+                                &(expression(&term.prefactor)?
+                                    * expression(&card.integral.measure_multiplier)?),
+                                &values,
+                            ),
+                            monomial_powers,
+                            factors,
+                        ));
+                    }
+                    let propagators = parameters.len();
+                    let input_seconds = started.elapsed().as_secs_f64();
+                    let parametrization_started = Instant::now();
+                    let integrand = ParametricIntegrand::new(parameters, regulator, domain, terms)?;
+                    Ok(LoadedInput {
+                        resource_budget: budget.clone(),
+                        card,
+                        integrand,
+                        label: path
+                            .file_stem()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned(),
+                        runtime_parameters: Vec::new(),
+                        runtime_mass_constraints: Vec::new(),
+                        model_parameter_defaults: BTreeMap::new(),
+                        loops: None,
+                        propagators,
+                        sources,
+                        family_preparation: None,
+                        independent_externals: Vec::new(),
+                        dependent_externals: Vec::new(),
+                        input_seconds,
+                        parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
+                    })
+                }
+                _ => Err(
+                    "run card requires exactly one of [input] graph data or [direct] parametric data"
+                        .into(),
+                ),
             }
-            let propagators = parameters.len();
-            let input_seconds = started.elapsed().as_secs_f64();
-            let parametrization_started = Instant::now();
-            let integrand = ParametricIntegrand::new(parameters, regulator, domain, terms)?;
-            Ok(LoadedInput {
-                card,
-                integrand,
-                label: path
-                    .file_stem()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned(),
-                runtime_parameters: Vec::new(),
-                runtime_mass_constraints: Vec::new(),
-                model_parameter_defaults: BTreeMap::new(),
-                loops: None,
-                propagators,
-                sources,
-                family_preparation: None,
-                independent_externals: Vec::new(),
-                dependent_externals: Vec::new(),
-                input_seconds,
-                parametrization_seconds: parametrization_started.elapsed().as_secs_f64(),
-            })
-        }
-        _ => Err(
-            "run card requires exactly one of [input] graph data or [direct] parametric data"
-                .into(),
-        ),
-    }
+        })()?;
+        resources::checkpoint()?;
+        Ok(loaded)
+    })
 }
 
 pub fn artifact_path(card: &Path) -> PathBuf {
@@ -413,6 +427,7 @@ mod on_shell_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use idenso::tensor::SymbolicTensor;
 
     #[test]
     fn runtime_example_points_preserve_frozen_reference_densities() {
@@ -603,7 +618,7 @@ products = [{left=1,right=1,value='-1'}]
             include_str!("../../../examples/graphs/bubble.dot"),
         )
         .unwrap()
-        .with_numerator(numerator)
+        .with_numerator(SymbolicTensor::infer(numerator).unwrap())
         .unwrap();
         fs::write(
             directory.path().join("graph.dot"),

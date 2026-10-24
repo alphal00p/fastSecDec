@@ -362,6 +362,9 @@ fn runtime_branch_fixed_native_constant_domains_exclude_unknown_and_complex_argu
         parse!("polygamma(0,1/3)"),
         parse!("polygamma(1,3)"),
         parse!("polygamma(2,3)"),
+        parse!("zeta(3)"),
+        parse!("zeta(5)"),
+        parse!("zeta(3)^(1/2)"),
     ] {
         assert!(is_real_expression(&expression, &[]));
     }
@@ -371,6 +374,10 @@ fn runtime_branch_fixed_native_constant_domains_exclude_unknown_and_complex_argu
         parse!("polygamma(1,3+𝑖/10^400)"),
         parse!("gamma(1+𝑖/10^400)"),
         parse!("(polygamma(1,1/3)-polygamma(1,3))^(1/2)"),
+        parse!("zeta(runtime_branch_fixed_domain::p)"),
+        parse!("zeta(3/2)"),
+        parse!("zeta(3+𝑖/10^400)"),
+        parse!("runtime_branch_fixed_domain::zeta(3)"),
     ] {
         assert!(!is_real_expression(&expression, &[p]), "{expression}");
     }

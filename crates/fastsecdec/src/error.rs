@@ -1,12 +1,15 @@
 //! Errors retain native causes at the graph and kinematics boundary.
 
 use feynkit_graph::{DiagramError, EdgeId, IntegralFamilyError};
+use symbolica::utils::resources::ResourceLimitError;
 use thiserror::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("{0}")]
+    Resource(#[from] ResourceLimitError),
     #[error(transparent)]
     Parametric(#[from] crate::parametric::ParametricError),
     #[error(transparent)]

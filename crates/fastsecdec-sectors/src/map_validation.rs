@@ -1,11 +1,13 @@
 use crate::{ParametricDomain, SectorError, SectorMap, arithmetic::determinant};
 use numerica::domains::integer::Integer;
+use symbolica::utils::resources;
 
 impl SectorMap {
     /// Validate the exact monomial map and measure for its input domain.
     /// Factor-valuation row widths are checked; certifying their values requires
     /// the original factor supports and remains the decomposer's responsibility.
     pub fn validate(&self, domain: ParametricDomain) -> Result<(), SectorError> {
+        resources::checkpoint()?;
         let invalid = |detail: &str| SectorError::Geometry(format!("invalid sector map: {detail}"));
         let source = self.source_dimension();
         let target = self.dimension();
@@ -39,6 +41,7 @@ impl SectorMap {
             return Err(invalid("negative exponent outside positive-orthant domain"));
         }
         for j in 0..target {
+            resources::checkpoint()?;
             let expected = self
                 .exponent_matrix
                 .iter()
@@ -57,6 +60,7 @@ impl SectorMap {
         if self.determinant <= 0 || determinant(&square)? != self.determinant {
             return Err(invalid("nonpositive or inconsistent absolute determinant"));
         }
+        resources::checkpoint()?;
         Ok(())
     }
 }

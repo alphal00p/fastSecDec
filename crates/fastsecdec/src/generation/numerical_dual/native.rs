@@ -9,7 +9,7 @@ use super::DualSector;
 use crate::kernel::{CompilationSettings, KernelError};
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::{float::Complex, rational::Rational},
+    domains::{dual::HyperDual, float::Complex, rational::Rational},
     evaluate::{EvaluatorComposer, ExpressionEvaluator},
 };
 
@@ -20,11 +20,27 @@ fn compilation(error: impl std::fmt::Display) -> KernelError {
     KernelError::Compilation(error.to_string())
 }
 
+// Preflight the actual maintained HyperDual constructor, which owns the dense
+// multiplication table. The byte bound is conservative; it is not a count cap.
+fn hyperdual(shape: Vec<Vec<usize>>) -> Result<HyperDual<Complex<Rational>>, KernelError> {
+    symbolica::utils::resources::checkpoint()?;
+    let count = shape.len() as u64;
+    let table_bytes = count
+        .saturating_mul(count)
+        .saturating_mul(std::mem::size_of::<(usize, usize, usize)>() as u64);
+    let value_bytes = count.saturating_mul(std::mem::size_of::<Complex<Rational>>() as u64);
+    symbolica::utils::resources::check_allocation(table_bytes.saturating_add(value_bytes))?;
+    let dual = HyperDual::new(shape);
+    symbolica::utils::resources::checkpoint()?;
+    Ok(dual)
+}
+
 pub(crate) fn build(
     sector: &DualSector,
     runtime: &[Symbol],
     settings: CompilationSettings,
 ) -> Result<ExactProgram, KernelError> {
+    symbolica::utils::resources::checkpoint()?;
     settings.validate()?;
     let mut inputs = sector
         .parameters
@@ -52,6 +68,7 @@ pub(crate) fn build(
     let (mut composer, mut slots) = EvaluatorComposer::new_with_inputs(inputs.len());
     let mut builder = jets::Requests::new(sector, runtime, settings, slots.clone())?;
     for request in &sector.recipe.requests {
+        symbolica::utils::resources::checkpoint()?;
         let value = builder.append(request, &mut composer)?;
         inputs.push(request.placeholder);
         slots.push(value);
@@ -96,9 +113,13 @@ pub(crate) fn build(
             .add_aliases(ordered.into_iter().map(|(a, b)| (a.clone(), b.clone())))
             .map_err(compilation)?;
     }
+    symbolica::utils::resources::checkpoint()?;
     let recipe = recipe.build().map_err(compilation)?;
+    symbolica::utils::resources::checkpoint()?;
     let outputs = composer.add(&recipe, &slots).map_err(compilation)?;
-    composer
+    let result = composer
         .finish(&outputs, settings.native())
-        .map_err(compilation)
+        .map_err(compilation)?;
+    symbolica::utils::resources::checkpoint()?;
+    Ok(result)
 }

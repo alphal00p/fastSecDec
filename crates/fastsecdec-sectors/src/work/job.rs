@@ -13,19 +13,25 @@ impl GeometryPlan {
         supports: Vec<PolynomialSupport>,
         options: DecompositionOptions,
     ) -> Result<Self, SectorError> {
-        let dimension = validate_input(domain, &supports)?;
-        let fixed = if domain == ParametricDomain::ProjectiveSimplex {
-            (0..dimension).map(Some).collect()
-        } else {
-            vec![None]
-        };
-        Ok(Self {
-            inner: Arc::new(PlanData {
-                domain,
-                supports,
-                options,
-                fixed,
-            }),
+        ResourceBudget::new(options.resources).run(|| {
+            resources::checkpoint()?;
+            let dimension = validate_input(domain, &supports)?;
+            let fixed = if domain == ParametricDomain::ProjectiveSimplex {
+                (0..dimension).map(Some).collect()
+            } else {
+                vec![None]
+            };
+            let plan = Self {
+                inner: Arc::new(PlanData {
+                    domain,
+                    supports,
+                    options,
+                    fixed,
+                    budget: ResourceBudget::capture_current(),
+                }),
+            };
+            resources::checkpoint()?;
+            Ok(plan)
         })
     }
 
@@ -65,63 +71,77 @@ impl GeometryJob {
         &self,
         mut progress: impl FnMut(&DecompositionProgress) -> ControlFlow<()>,
     ) -> GeometryCompletion {
-        let (payload, status) = match (&self.owner, self.id) {
-            (Owner::Charts(plan), GeometryJobId::Chart { chart }) => {
-                let fixed = plan.fixed[chart];
-                let mut monitor = Monitor {
-                    callback: &mut progress,
-                    options: &plan.options,
-                    status: initial_status(chart, 0),
-                };
-                let result = monitor.emit().and_then(|()| {
-                    let supports = plan
-                        .supports
-                        .iter()
-                        .map(|s| fixed.map_or_else(|| s.clone(), |axis| s.without_axis(axis)))
-                        .collect();
-                    prepare_chart(
-                        supports,
-                        fixed,
-                        plan.domain != ParametricDomain::PositiveOrthant,
-                        &mut monitor,
-                    )
-                });
-                (Payload::Chart(result), monitor.status)
-            }
-            (Owner::Cones(prepared), GeometryJobId::Cone { chart, candidate }) => {
-                let native = prepared.charts[chart]
-                    .result
-                    .as_ref()
-                    .expect("private job requires successful chart");
-                let mut status = prepared.charts[chart].status.clone();
-                status.sectors = 0;
-                let mut monitor = Monitor {
-                    callback: &mut progress,
-                    options: &prepared.plan.options,
-                    status,
-                };
-                let mut maps = Vec::new();
-                let result = decompose_candidate(native, candidate, &mut maps, &mut monitor);
-                let (geometric, error) = match result {
-                    Ok(g) => (g, None),
-                    Err(e) => (false, Some(e)),
-                };
-                (
-                    Payload::Cone {
-                        maps,
-                        geometric,
-                        error,
-                    },
-                    monitor.status,
-                )
-            }
-            _ => unreachable!("job fields are private and stage-bound"),
+        let budget = match &self.owner {
+            Owner::Charts(plan) => plan.budget.clone(),
+            Owner::Cones(prepared) => prepared.plan.budget.clone(),
         };
-        GeometryCompletion {
-            owner: self.owner.clone(),
-            id: self.id,
-            payload,
-            status,
-        }
+        budget.run(|| {
+            let (payload, status) = match (&self.owner, self.id) {
+                (Owner::Charts(plan), GeometryJobId::Chart { chart }) => {
+                    let fixed = plan.fixed[chart];
+                    let mut monitor = Monitor {
+                        callback: &mut progress,
+                        options: &plan.options,
+                        status: initial_status(chart, 0),
+                    };
+                    let result = monitor
+                        .emit()
+                        .and_then(|()| {
+                            let supports = plan
+                                .supports
+                                .iter()
+                                .map(|s| {
+                                    fixed.map_or_else(|| s.clone(), |axis| s.without_axis(axis))
+                                })
+                                .collect();
+                            prepare_chart(
+                                supports,
+                                fixed,
+                                plan.domain != ParametricDomain::PositiveOrthant,
+                                &mut monitor,
+                            )
+                        })
+                        .and_then(|chart| {
+                            resources::checkpoint()?;
+                            Ok(chart)
+                        });
+                    (Payload::Chart(result), monitor.status)
+                }
+                (Owner::Cones(prepared), GeometryJobId::Cone { chart, candidate }) => {
+                    let native = prepared.charts[chart]
+                        .result
+                        .as_ref()
+                        .expect("private job requires successful chart");
+                    let mut status = prepared.charts[chart].status.clone();
+                    status.sectors = 0;
+                    let mut monitor = Monitor {
+                        callback: &mut progress,
+                        options: &prepared.plan.options,
+                        status,
+                    };
+                    let mut maps = Vec::new();
+                    let result = decompose_candidate(native, candidate, &mut maps, &mut monitor);
+                    let (geometric, error) = match result {
+                        Ok(g) => (g, None),
+                        Err(e) => (false, Some(e)),
+                    };
+                    (
+                        Payload::Cone {
+                            maps,
+                            geometric,
+                            error,
+                        },
+                        monitor.status,
+                    )
+                }
+                _ => unreachable!("job fields are private and stage-bound"),
+            };
+            GeometryCompletion {
+                owner: self.owner.clone(),
+                id: self.id,
+                payload,
+                status,
+            }
+        })
     }
 }

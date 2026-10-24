@@ -72,9 +72,11 @@ pub(super) fn subtract_profiled(
         })
         .collect::<Result<Vec<_>, GenerationError>>()?;
     for (axis, parameter) in parameters.iter().enumerate() {
+        symbolica::utils::resources::checkpoint()?;
         let x = Atom::var(*parameter);
         let mut next = Vec::new();
         for mut piece in pieces {
+            symbolica::utils::resources::checkpoint()?;
             let mut power = piece.powers[axis].as_ref().unwrap().clone();
             let endpoint = endpoints::admit(&power, regulator, options.max_subtractions_per_axis)?;
             if endpoint.constant > -1 {
@@ -85,6 +87,7 @@ pub(super) fn subtract_profiled(
             let mut count = endpoint.subtractions;
             if options.subtraction == SubtractionStrategy::IntegrateByParts && !slope.is_zero() {
                 for _ in 1..count {
+                    symbolica::utils::resources::checkpoint()?;
                     let denominator = (&power + Atom::one()).expand();
                     let boundary = piece
                         .regular
@@ -104,7 +107,10 @@ pub(super) fn subtract_profiled(
                     piece.regular = -piece.regular.derivative(*parameter) / &denominator;
                     power = denominator;
                     piece.powers[axis] = Some(power.clone());
-                    if next.len() > options.max_subtraction_terms {
+                    if options
+                        .max_subtraction_terms
+                        .is_some_and(|limit| next.len() > limit)
+                    {
                         return Err(GenerationError::ResourceLimit("integration-by-parts terms"));
                     }
                 }
@@ -113,6 +119,7 @@ pub(super) fn subtract_profiled(
             let mut derivative = piece.regular.clone();
             let mut taylor = Atom::Zero;
             for degree in 0..count {
+                symbolica::utils::resources::checkpoint()?;
                 let coefficient = derivative
                     .replace(Pattern::Literal(x.clone()))
                     .with(Atom::Zero);
@@ -159,7 +166,10 @@ pub(super) fn subtract_profiled(
                     ..piece
                 });
             }
-            if next.len() > options.max_subtraction_terms {
+            if options
+                .max_subtraction_terms
+                .is_some_and(|limit| next.len() > limit)
+            {
                 return Err(GenerationError::ResourceLimit("Taylor subtraction terms"));
             }
         }
@@ -196,6 +206,7 @@ pub(super) fn subtract_profiled(
         .collect();
     let mut groups = BTreeMap::<Atom, Atom>::new();
     for piece in pieces {
+        symbolica::utils::resources::checkpoint()?;
         let regular = piece.regular
             * parameters
                 .iter()

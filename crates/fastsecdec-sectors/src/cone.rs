@@ -5,6 +5,7 @@ use crate::{
     types::{DecompositionPhase, Monitor},
 };
 use std::collections::{BTreeMap, BTreeSet};
+use symbolica::utils::resources;
 
 #[derive(Clone)]
 struct Ray {
@@ -16,29 +17,38 @@ pub(crate) fn extreme_rays(
     mut constraints: Vec<IntVector>,
     monitor: &mut Monitor<'_>,
 ) -> Result<Vec<IntVector>, SectorError> {
+    resources::checkpoint()?;
     if constraints.is_empty() {
         return Err(SectorError::Geometry("empty cone constraints".into()));
     }
     let dim = constraints[0].len();
-    if dim > monitor.options.max_rays {
+    if let Some(limit) = monitor.options.max_rays
+        && dim > limit
+    {
         return Err(SectorError::ResourceLimit {
             resource: "cone rays",
-            limit: monitor.options.max_rays,
+            limit,
         });
     }
-    constraints = constraints
-        .into_iter()
-        .map(primitive)
-        .filter(|r| r.iter().any(|v| !v.is_zero()))
-        .collect();
+    let mut normalized = Vec::new();
+    for constraint in constraints {
+        resources::checkpoint()?;
+        let row = primitive(constraint);
+        resources::checkpoint()?;
+        if row.iter().any(|value| !value.is_zero()) {
+            normalized.push(row);
+        }
+    }
+    constraints = normalized;
     constraints.sort();
     constraints.dedup();
     let mut basis = Vec::new();
     let mut basis_indices = BTreeSet::new();
     for (i, row) in constraints.iter().enumerate() {
+        resources::checkpoint()?;
         let mut candidate = basis.clone();
         candidate.push(row.clone());
-        if rank(&candidate) > basis.len() {
+        if rank(&candidate)? > basis.len() {
             basis.push(row.clone());
             basis_indices.insert(i);
         }
@@ -52,6 +62,7 @@ pub(crate) fn extreme_rays(
     let inverse = matrix(&basis)?
         .inv()
         .map_err(|e| SectorError::Geometry(e.to_string()))?;
+    resources::checkpoint()?;
     let mut rays: Vec<Ray> = (0..dim)
         .map(|j| {
             let vector = integer_ray(
@@ -78,17 +89,22 @@ pub(crate) fn extreme_rays(
         monitor.emit()?;
         // Dynamic minimum-pair insertion reduces intermediate ray growth.
         // The index tie-break makes output independent of hash/thread order.
-        let next = pending
-            .iter()
-            .copied()
-            .min_by_key(|&i| {
-                let (p, n) = rays.iter().fold((0usize, 0usize), |(p, n), r| {
-                    let v = dot(&constraints[i], &r.vector);
-                    (p + usize::from(v > 0), n + usize::from(v < 0))
-                });
-                (p.saturating_mul(n), n, i)
-            })
-            .unwrap();
+        let mut selected = None;
+        for &i in &pending {
+            resources::checkpoint()?;
+            let (mut positive, mut negative) = (0usize, 0usize);
+            for ray in &rays {
+                resources::checkpoint()?;
+                let value = dot(&constraints[i], &ray.vector);
+                positive += usize::from(value > 0);
+                negative += usize::from(value < 0);
+            }
+            let score = (positive.saturating_mul(negative), negative, i);
+            if selected.is_none_or(|(_, best)| score < best) {
+                selected = Some((i, score));
+            }
+        }
+        let (next, _) = selected.expect("pending constraints are nonempty");
         pending.remove(&next);
         let values: Vec<_> = rays
             .iter()
@@ -98,6 +114,7 @@ pub(crate) fn extreme_rays(
         let negative: Vec<_> = (0..rays.len()).filter(|&i| values[i] < 0).collect();
         let mut out = BTreeMap::<IntVector, BTreeSet<usize>>::new();
         for (i, ray) in rays.iter().enumerate() {
+            resources::checkpoint()?;
             if values[i] < 0 {
                 continue;
             }
@@ -110,6 +127,7 @@ pub(crate) fn extreme_rays(
         for &p in &positive {
             monitor.emit()?;
             for &n in &negative {
+                resources::checkpoint()?;
                 let shared = rays[p].zeros.intersection(&rays[n].zeros);
                 // A two-dimensional face has codimension dim-2 in this cone.
                 // Its common active constraints must have at least that rank,
@@ -140,10 +158,12 @@ pub(crate) fn extreme_rays(
                 );
                 common.insert(next);
                 out.insert(vector, common);
-                if out.len() > monitor.options.max_rays {
+                if let Some(limit) = monitor.options.max_rays
+                    && out.len() > limit
+                {
                     return Err(SectorError::ResourceLimit {
                         resource: "cone rays",
-                        limit: monitor.options.max_rays,
+                        limit,
                     });
                 }
             }

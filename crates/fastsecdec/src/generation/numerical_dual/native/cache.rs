@@ -6,7 +6,6 @@ use std::{
 };
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::{dual::HyperDual, float::Complex, rational::Rational},
     evaluate::Dualizer,
 };
 
@@ -15,7 +14,11 @@ use symbolica::{
 #[derive(Default)]
 pub(crate) struct SourcePrograms(Mutex<Vec<Arc<Source>>>);
 type JetKey = (Vec<Vec<usize>>, Vec<(usize, usize)>);
-type ProgramCell = OnceLock<Result<Arc<ExactProgram>, String>>;
+#[derive(Default)]
+struct ProgramCell {
+    value: OnceLock<Result<Arc<ExactProgram>, String>>,
+    building: Mutex<()>,
+}
 
 #[cfg(test)]
 mod tests;
@@ -41,8 +44,12 @@ impl SourcePrograms {
         zeros: &[(usize, usize)],
         settings: CompilationSettings,
     ) -> Result<Arc<ExactProgram>, KernelError> {
-        self.source(polynomial, inputs, settings)?
-            .jets(shape, zeros)
+        symbolica::utils::resources::checkpoint()?;
+        let program = self
+            .source(polynomial, inputs, settings)?
+            .jets(shape, zeros)?;
+        symbolica::utils::resources::checkpoint()?;
+        Ok(program)
     }
 
     fn source(
@@ -66,7 +73,7 @@ impl SourcePrograms {
             polynomial: polynomial.clone(),
             inputs: inputs.to_vec(),
             settings,
-            exact: OnceLock::new(),
+            exact: ProgramCell::default(),
             jets: Mutex::default(),
         });
         sources.push(source.clone());
@@ -92,7 +99,7 @@ impl Source {
                 .evaluator(&params)
                 .optimization_settings(self.settings.native())
                 .build()
-                .map_err(|error| error.to_string())
+                .map_err(compilation)
         })?;
         let cell = {
             let mut jets = self
@@ -108,21 +115,45 @@ impl Source {
                 .as_ref()
                 .clone()
                 .vectorize(&Dualizer::new(
-                    HyperDual::<Complex<Rational>>::new(shape.to_vec()),
+                    super::hyperdual(shape.to_vec())?,
                     zeros.to_vec(),
                 ))
-                .map_err(|error| error.to_string())
+                .map_err(compilation)
         })
     }
 }
 
 fn program(
     cell: &ProgramCell,
-    build: impl FnOnce() -> Result<ExactProgram, String>,
+    build: impl FnOnce() -> Result<ExactProgram, KernelError>,
 ) -> Result<Arc<ExactProgram>, KernelError> {
-    // Native construction failures are immutable for this exact key. A panic
-    // propagates without poisoning OnceLock; caller job handling owns unwind.
-    cell.get_or_init(|| build().map(Arc::new))
+    symbolica::utils::resources::checkpoint()?;
+    if cell.value.get().is_none() {
+        // One initializer per exact key; unrelated keys retain independent
+        // locks. An unwound initializer publishes nothing and can be retried.
+        let _initializing = cell
+            .building
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        symbolica::utils::resources::checkpoint()?;
+        if cell.value.get().is_none() {
+            let value = match build() {
+                Ok(program) => {
+                    let program = Arc::new(program);
+                    symbolica::utils::resources::checkpoint()?;
+                    Ok(program)
+                }
+                // Resource state belongs to a request, never to an exact key.
+                Err(KernelError::Resource(error)) => return Err(error.into()),
+                Err(KernelError::Compilation(error)) => Err(error),
+                Err(error) => Err(error.to_string()),
+            };
+            let _ = cell.value.set(value);
+        }
+    }
+    cell.value
+        .get()
+        .ok_or_else(|| compilation("native program cell was not initialized"))?
         .as_ref()
         .map(Arc::clone)
         .map_err(compilation)

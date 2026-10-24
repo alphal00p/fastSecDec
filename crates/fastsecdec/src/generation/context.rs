@@ -166,9 +166,11 @@ pub(super) fn emit(
     progress: &mut impl FnMut(&GenerationEvent) -> ControlFlow<()>,
     event: impl Into<GenerationEvent>,
 ) -> Result<(), GenerationError> {
+    symbolica::utils::resources::checkpoint()?;
     if progress(&event.into()).is_break() {
         Err(GenerationError::Cancelled)
     } else {
+        symbolica::utils::resources::checkpoint()?;
         Ok(())
     }
 }

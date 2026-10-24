@@ -195,7 +195,7 @@ fn while_pending(
                 entered_tx.send(()).unwrap();
                 release_rx
                     .recv_timeout(Duration::from_secs(10))
-                    .map_err(|error| error.to_string())?;
+                    .map_err(compilation)?;
                 Ok(value)
             })
         });
@@ -239,7 +239,7 @@ fn unrelated_jet_shapes_do_not_wait_for_an_initializing_jet() {
         .source(&polynomial, &[x], CompilationSettings::default())
         .unwrap();
     program(&source.exact, || Ok(scalar(&polynomial, &[x]))).unwrap();
-    let cell = Arc::new(ProgramCell::new());
+    let cell = Arc::new(ProgramCell::default());
     source
         .jets
         .lock()
@@ -259,13 +259,13 @@ fn unrelated_jet_shapes_do_not_wait_for_an_initializing_jet() {
 
 #[test]
 fn failed_initialization_is_shared_without_poisoning_other_keys() {
-    let cell = ProgramCell::new();
+    let cell = ProgramCell::default();
     let attempts = AtomicUsize::new(0);
     std::thread::scope(|scope| {
         let workers = (0..8).map(|_| scope.spawn(|| {
             let error = program(&cell, || {
                 attempts.fetch_add(1, Ordering::SeqCst);
-                Err("native construction failed".into())
+                Err(compilation("native construction failed"))
             }).unwrap_err();
             assert!(matches!(error, KernelError::Compilation(message) if message == "native construction failed"));
         })).collect::<Vec<_>>();
@@ -309,15 +309,33 @@ fn failed_initialization_is_shared_without_poisoning_other_keys() {
 
 #[test]
 fn initializer_panic_does_not_poison_or_complete_the_cell() {
-    let cell = ProgramCell::new();
+    let cell = ProgramCell::default();
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         program(&cell, || {
             panic!("intentional native-cache initializer unwind")
         })
     }));
     assert!(panic.is_err());
-    assert!(cell.get().is_none());
+    assert!(cell.value.get().is_none());
     let x = symbol!("native_cache_panic::x");
+    let result = program(&cell, || Ok(scalar(&Atom::var(x), &[x]))).unwrap();
+    assert_eq!(evaluate(&result, &[3.], 1), [3.]);
+}
+
+#[test]
+fn resource_failures_do_not_become_permanent_program_failures() {
+    let cell = ProgramCell::default();
+    let result = program(&cell, || {
+        Err(symbolica::utils::resources::ResourceLimitError::Memory {
+            rss_bytes: 11,
+            additional_bytes: 0,
+            limit_bytes: 10,
+        }
+        .into())
+    });
+    assert!(matches!(result, Err(KernelError::Resource(_))));
+    assert!(cell.value.get().is_none());
+    let x = symbol!("native_cache_resource::x");
     let result = program(&cell, || Ok(scalar(&Atom::var(x), &[x]))).unwrap();
     assert_eq!(evaluate(&result, &[3.], 1), [3.]);
 }
