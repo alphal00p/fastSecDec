@@ -59,7 +59,7 @@ pub(in crate::generation) fn endpoint_power(
 pub(in crate::generation) fn admit(
     expression: &Atom,
     regulator: Symbol,
-    max_subtractions: usize,
+    max_subtractions: Option<usize>,
 ) -> Result<EndpointAdmission, GenerationError> {
     let (constant, slope) = endpoint_power(expression, regulator)?;
     let subtractions = subtraction_count(&constant, max_subtractions)?;
@@ -70,7 +70,10 @@ pub(in crate::generation) fn admit(
     })
 }
 
-fn subtraction_count(constant: &Rational, maximum: usize) -> Result<usize, GenerationError> {
+fn subtraction_count(
+    constant: &Rational,
+    maximum: Option<usize>,
+) -> Result<usize, GenerationError> {
     if *constant > -1 {
         return Ok(0);
     }
@@ -81,7 +84,7 @@ fn subtraction_count(constant: &Rational, maximum: usize) -> Result<usize, Gener
         .to_i64()
         .and_then(|value| usize::try_from(value).ok())
         .ok_or(GenerationError::ResourceLimit("Taylor subtraction degree"))?;
-    if count > maximum {
+    if maximum.is_some_and(|limit| count > limit) {
         return Err(GenerationError::ResourceLimit("Taylor subtraction degree"));
     }
     Ok(count)

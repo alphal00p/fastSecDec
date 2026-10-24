@@ -25,6 +25,8 @@ pub use fastsecdec_sectors::{
 pub use metadata_display::MetadataView;
 #[cfg(test)]
 pub(crate) mod profiling;
+#[cfg(test)]
+mod resource_tests;
 mod subtraction;
 mod support;
 mod symmetry;
@@ -51,6 +53,7 @@ use geometry::{Geometry, GeometrySource};
 use std::{collections::BTreeMap, ops::ControlFlow, time::Instant};
 #[cfg(test)]
 use symbolica::atom::Atom;
+use symbolica::utils::resources::{self, ResourceBudget};
 
 /// Test-only access to the real Laurent stage, without manufacturing a partial
 /// generated integral or its domain/chart metadata.
@@ -120,6 +123,22 @@ fn generate_inner(
     input: &ParametricIntegrand,
     options: &GenerationOptions,
     geometry_source: GeometrySource<'_, '_>,
+    symbolic_dispatch: Option<&mut SymbolicDispatch<'_>>,
+    progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
+) -> Result<GeneratedIntegral, GenerationError> {
+    ResourceBudget::new(options.resources).run(|| {
+        resources::checkpoint()?;
+        let generated =
+            generate_scoped(input, options, geometry_source, symbolic_dispatch, progress)?;
+        resources::checkpoint()?;
+        Ok(generated)
+    })
+}
+
+fn generate_scoped(
+    input: &ParametricIntegrand,
+    options: &GenerationOptions,
+    geometry_source: GeometrySource<'_, '_>,
     mut symbolic_dispatch: Option<&mut SymbolicDispatch<'_>>,
     mut progress: impl FnMut(&GenerationEvent) -> ControlFlow<()>,
 ) -> Result<GeneratedIntegral, GenerationError> {
@@ -136,6 +155,7 @@ fn generate_inner(
     let mut source_supports = support::SupportCache::new(input.parameters());
     let mut supports = Vec::new();
     for term in input.terms() {
+        resources::checkpoint()?;
         for factor in term.factors() {
             if domain::is_singular(factor) {
                 let support = source_supports.get(factor)?;
@@ -211,6 +231,7 @@ fn generate_inner(
         None
     };
     for index in 0..total {
+        resources::checkpoint()?;
         let prepared = if let Some(charts) = &mut prepared_charts {
             charts
                 .next()

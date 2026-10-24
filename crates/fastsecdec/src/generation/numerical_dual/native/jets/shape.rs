@@ -1,5 +1,6 @@
 use super::{KernelError, compilation};
 use std::collections::BTreeMap;
+use symbolica::utils::resources;
 
 pub(super) struct Shape {
     pub(super) components: Vec<Vec<usize>>,
@@ -7,6 +8,7 @@ pub(super) struct Shape {
 }
 impl Shape {
     pub(super) fn new(maxima: &[usize]) -> Result<Self, KernelError> {
+        resources::checkpoint()?;
         // Each caller requests one maximal multiindex (including any source
         // valuation shift). Its complete box is precisely the minimal ancestor
         // closure required by native HyperDual; maxima are never pooled across
@@ -15,25 +17,48 @@ impl Shape {
             .iter()
             .try_fold(1usize, |count, max| count.checked_mul(max.checked_add(1)?))
             .ok_or_else(|| compilation("numerical-dual jet shape overflow"))?;
-        // Native dense HyperDual multiplication owns a quadratic table. Keep
-        // excessive requests explicit instead of allowing an allocation abort.
-        if count > 4096 {
-            return Err(compilation(format!(
-                "numerical-dual jet requires {count} components (limit 4096); use symbolic generation or a lower expansion order"
-            )));
-        }
+        maxima.iter().try_fold(0usize, |sum, maximum| {
+            sum.checked_add(*maximum)
+                .ok_or_else(|| compilation("numerical-dual total derivative order overflow"))
+        })?;
+        let vectors_bytes = count
+            .checked_mul(std::mem::size_of::<Vec<usize>>())
+            .filter(|bytes| *bytes <= isize::MAX as usize)
+            .ok_or_else(|| compilation("numerical-dual shape vector allocation size overflow"))?;
+        maxima
+            .len()
+            .checked_mul(std::mem::size_of::<usize>())
+            .filter(|bytes| *bytes <= isize::MAX as usize)
+            .ok_or_else(|| compilation("numerical-dual shape row allocation size overflow"))?;
+        let component_bytes = Some(vectors_bytes)
+            .and_then(|vectors| {
+                count
+                    .checked_mul(maxima.len())
+                    .and_then(|entries| entries.checked_mul(std::mem::size_of::<usize>()))
+                    .and_then(|entries| vectors.checked_add(entries))
+            })
+            .ok_or_else(|| compilation("numerical-dual shape allocation size overflow"))?;
+        resources::check_allocation(component_bytes as u64)?;
         let mut components = vec![Vec::new()];
         for max in maxima {
-            components = components
-                .into_iter()
-                .flat_map(|prefix| {
-                    (0..=*max).map(move |n| {
-                        let mut p = prefix.clone();
-                        p.push(n);
-                        p
-                    })
-                })
-                .collect();
+            resources::checkpoint()?;
+            let mut next = Vec::new();
+            let next_count = components
+                .len()
+                .checked_mul(max + 1)
+                .ok_or_else(|| compilation("numerical-dual jet shape overflow"))?;
+            next.try_reserve_exact(next_count).map_err(|error| {
+                compilation(format!("numerical-dual shape allocation: {error}"))
+            })?;
+            for prefix in components {
+                for n in 0..=*max {
+                    resources::checkpoint()?;
+                    let mut p = prefix.clone();
+                    p.push(n);
+                    next.push(p);
+                }
+            }
+            components = next;
         }
         components.sort_by(|a, b| {
             a.iter()
@@ -47,6 +72,7 @@ impl Shape {
             .enumerate()
             .map(|(i, p)| (p, i))
             .collect();
+        resources::checkpoint()?;
         Ok(Self { components, index })
     }
     pub(super) fn position(&self, powers: &[usize]) -> Result<usize, KernelError> {
@@ -60,6 +86,26 @@ impl Shape {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shape_construction_checks_planned_bytes_against_the_shared_budget() {
+        use symbolica::utils::resources::{ResourceBudget, ResourceLimitError, ResourceLimits};
+        let budget = ResourceBudget::with_memory_monitor(
+            ResourceLimits {
+                max_process_rss_bytes: Some(1),
+                ..Default::default()
+            },
+            || Ok(0),
+        );
+        assert!(matches!(
+            budget.run(|| Shape::new(&[2, 2])),
+            Err(KernelError::Resource(ResourceLimitError::Memory {
+                additional_bytes,
+                ..
+            })) if additional_bytes > 1
+        ));
+        assert_eq!(Shape::new(&[2, 2]).unwrap().components.len(), 9);
+    }
 
     #[test]
     fn individual_request_shapes_are_minimal_native_ancestor_closures() {
@@ -90,6 +136,8 @@ mod tests {
             assert_eq!(native.values.len(), shape.components.len());
         }
         assert!(Shape::new(&[usize::MAX]).is_err());
-        assert!(Shape::new(&[4096]).is_err());
+        // Shape construction has no arbitrary component-count ceiling. Native
+        // multiplication is a separate operation and is not invoked here.
+        assert_eq!(Shape::new(&[4096]).unwrap().components.len(), 4097);
     }
 }

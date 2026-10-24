@@ -150,14 +150,10 @@ fn original_gghh_mapping_stage_attribution() {
     // Exact absent-card CLI defaults, not the independently evolving library defaults.
     options.decomposition.max_sectors = card["generation"]["max_sectors"]
         .as_u64()
-        .unwrap_or(1_000_000)
-        .try_into()
-        .unwrap();
+        .map(|value| usize::try_from(value).unwrap());
     options.decomposition.max_support_pairs = card["generation"]["max_support_pairs"]
         .as_u64()
-        .unwrap_or(10_000_000)
-        .try_into()
-        .unwrap();
+        .map(|value| usize::try_from(value).unwrap());
     assert_eq!(options.max_order, 0);
     assert!(!options.assume_no_threshold);
     eprintln!("original ggHH: 7 parameters, 179 terms; unchanged native generation options");

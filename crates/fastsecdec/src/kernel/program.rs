@@ -308,6 +308,16 @@ fn fixed_native_constant(atom: AtomView<'_>) -> Option<bool> {
             Some(true)
         }
         AtomView::Fun(function)
+            if function.get_symbol() == symbolica::transcendental::zeta()
+                && function.get_nargs() == 1 =>
+        {
+            let argument = Rational::try_from(function.iter().next()?).ok()?;
+            // Canonical integer polygamma normalization emits these constants.
+            // Their convergent Dirichlet series is strictly positive; runtime,
+            // noninteger and complex arguments retain ordinary admission.
+            (argument.is_integer() && argument > 1).then_some(true)
+        }
+        AtomView::Fun(function)
             if function.get_symbol() == symbolica::transcendental::polygamma()
                 && function.get_nargs() == 2 =>
         {

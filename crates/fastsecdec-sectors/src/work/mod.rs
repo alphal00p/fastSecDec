@@ -6,6 +6,8 @@ mod tests;
 
 use crate::{stages::ChartData, *};
 use std::sync::Arc;
+use symbolica::utils::resources;
+use symbolica::utils::resources::ResourceBudget;
 
 /// Work identity within one in-process geometry plan, not a sector content ID.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,6 +75,7 @@ struct PlanData {
     supports: Vec<PolynomialSupport>,
     options: DecompositionOptions,
     fixed: Vec<Option<usize>>,
+    budget: ResourceBudget,
 }
 
 struct PreparedData {

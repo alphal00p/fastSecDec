@@ -140,8 +140,12 @@ fn notify(
     poll: &mut impl FnMut(Progress) -> ControlFlow<()>,
     progress: Progress,
 ) -> Result<(), GenerationError> {
+    symbolica::utils::resources::checkpoint()?;
     match poll(progress) {
-        ControlFlow::Continue(()) => Ok(()),
+        ControlFlow::Continue(()) => {
+            symbolica::utils::resources::checkpoint()?;
+            Ok(())
+        }
         ControlFlow::Break(()) => Err(GenerationError::Cancelled),
     }
 }
@@ -155,13 +159,17 @@ pub(super) fn expand(
     fallback_cache: &mut TemplateCache,
     poll: &mut impl FnMut(Progress) -> ControlFlow<()>,
 ) -> Result<Completed, GenerationError> {
-    if terms.len() > options.max_subtraction_terms {
+    if options
+        .max_subtraction_terms
+        .is_some_and(|limit| terms.len() > limit)
+    {
         return Err(GenerationError::ResourceLimit(
             "coefficient-first subtraction terms",
         ));
     }
     let mut needs_exact_admission = false;
     for (term_index, term) in terms.iter().enumerate() {
+        symbolica::utils::resources::checkpoint()?;
         if term.powers.len() != parameters.len() {
             return Err(GenerationError::Invariant(
                 "mapped endpoint dimension mismatch".into(),
@@ -228,6 +236,7 @@ pub(super) fn expand(
     // after the fallback decision: the existing physical route owns its
     // derivative-dependent pruning and error precedence.
     for (term_index, term) in terms.iter().enumerate() {
+        symbolica::utils::resources::checkpoint()?;
         for (axis, power) in term.powers.iter().enumerate() {
             notify(
                 poll,

@@ -7,7 +7,7 @@ use crate::kernel::{CompilationSettings, KernelError};
 use std::collections::BTreeMap;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
-    domains::{dual::HyperDual, float::Complex, rational::Rational},
+    domains::{float::Complex, rational::Rational},
     evaluate::{ComposerSlot, Dualizer, EvaluatorComposer},
 };
 
@@ -42,6 +42,7 @@ impl<'a> Requests<'a> {
         request: &Request,
         composer: &mut EvaluatorComposer<Complex<Rational>>,
     ) -> Result<ComposerSlot, KernelError> {
+        symbolica::utils::resources::checkpoint()?;
         let dimension = self.sector.parameters.len();
         if request.coordinates.len() != dimension || request.derivatives.len() != dimension {
             return Err(compilation("numerical-dual request dimension mismatch"));
@@ -75,6 +76,7 @@ impl<'a> Requests<'a> {
         let mut factor_slots = Vec::new();
         let mut regular = Atom::one();
         for (factor_index, factor) in term.factors.iter().enumerate() {
+            symbolica::utils::resources::checkpoint()?;
             if factor.valuation.len() != dimension {
                 return Err(compilation(
                     "numerical-dual factor valuation dimension mismatch",
@@ -164,13 +166,14 @@ impl<'a> Requests<'a> {
             .build()
             .map_err(compilation)?
             .vectorize(&Dualizer::new(
-                HyperDual::<Complex<Rational>>::new(target.components.clone()),
+                super::hyperdual(target.components.clone())?,
                 self.seed_zeros(request, &target, term.factors.len()),
             ))
             .map_err(compilation)?;
         factor_slots.extend(self.seeds(request, &target, composer)?);
         let output = composer.add(&regular, &factor_slots).map_err(compilation)?;
         let result = output[target.position(&desired)?];
+        symbolica::utils::resources::checkpoint()?;
         self.regular_slots.insert(regular_key, result);
         Ok(result)
     }

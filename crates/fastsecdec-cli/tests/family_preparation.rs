@@ -126,7 +126,9 @@ fn prepared_graph_cold_artifact_preserves_full_weighted_laurent_vector_and_sourc
                 serde_json::from_value(provenance["family_preparation"].clone()).unwrap();
             assert_eq!(
                 report.policy,
-                FamilyPreparationPolicy::SingleUnitTerm { max_states: 32 }
+                FamilyPreparationPolicy::SingleUnitTerm {
+                    max_states: Some(32)
+                }
             );
             assert_eq!(report.status, FamilyPreparationStatus::Projected);
             assert_eq!(report.original_powers, [1, 1]);

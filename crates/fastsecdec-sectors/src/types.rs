@@ -1,5 +1,7 @@
 use numerica::domains::integer::Integer;
 use std::ops::ControlFlow;
+use symbolica::utils::resources;
+use symbolica::utils::resources::{ResourceLimitError, ResourceLimits};
 
 /// Domain of the *input* parameters, before sector transformations.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,21 +32,14 @@ pub struct DecompositionProgress {
     pub sectors: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct DecompositionOptions {
-    pub max_support_pairs: usize,
-    pub max_rays: usize,
-    pub max_sectors: usize,
-}
-
-impl Default for DecompositionOptions {
-    fn default() -> Self {
-        Self {
-            max_support_pairs: 10_000_000,
-            max_rays: 1_000_000,
-            max_sectors: 1_000_000,
-        }
-    }
+    /// Optional work-count diagnostics, disabled by default.
+    pub max_support_pairs: Option<usize>,
+    pub max_rays: Option<usize>,
+    pub max_sectors: Option<usize>,
+    /// Cooperative process-RSS and elapsed-time controls, disabled by default.
+    pub resources: ResourceLimits,
 }
 
 /// x_i = product_j t_j^M_ij, with t in the open unit cube.
@@ -81,6 +76,10 @@ pub struct Decomposition {
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum SectorError {
+    #[error("{0}")]
+    Resource(#[from] ResourceLimitError),
+    #[error("sector decomposition {resource} counter overflowed")]
+    CountOverflow { resource: &'static str },
     #[error(transparent)]
     Work(#[from] crate::GeometryWorkError),
     #[error("invalid polynomial support: {0}")]
@@ -111,6 +110,7 @@ impl Monitor<'_> {
         if (self.callback)(&self.status).is_break() {
             Err(SectorError::Cancelled)
         } else {
+            resources::checkpoint()?;
             Ok(())
         }
     }

@@ -7,6 +7,7 @@ use fastsecdec::{
     parametric::{ParametricIntegrand, ParametricTerm},
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
 use serde::Deserialize;
 use symbolica::{
     id::Pattern, parse, parser::ParseSettings, symbol, transcendental::TranscendentalFunctions,
@@ -121,7 +122,7 @@ fn native_sunset_preserves_coupled_propagators_and_numerator() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::one())
+        .with_numerator(SymbolicTensor::infer(Atom::one()).unwrap())
         .unwrap();
     let restored = GraphIntegral::new(Arc::new(scalar), family.kinematics())
         .unwrap()
@@ -198,7 +199,7 @@ fn scalar_sunset_in_its_convergence_domain_checks_the_measure_sign() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::one())
+        .with_numerator(SymbolicTensor::infer(Atom::one()).unwrap())
         .unwrap();
     let scalar = GraphIntegral::new(Arc::new(scalar), graph.family().kinematics())
         .unwrap()

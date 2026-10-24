@@ -7,6 +7,7 @@ use super::{
 };
 use crate::generation::{GeneratedIntegral, GenerationMetadata};
 use std::{collections::HashMap, ops::ControlFlow, time::Instant};
+use symbolica::utils::resources::{self, ResourceBudget};
 use symbolica::{
     atom::{AliasedAtom, Atom, AtomCore, Symbol},
     domains::float::ErrorPropagatingFloat,
@@ -36,6 +37,7 @@ pub type CompilationDispatch<'a> = dyn FnMut(
     + 'a;
 
 pub struct CompilationJob {
+    budget: ResourceBudget,
     owner: std::sync::Arc<()>,
     index: usize,
     sector: crate::generation::GeneratedSector,
@@ -54,6 +56,15 @@ impl CompilationJob {
         self.index
     }
     pub fn run(self) -> Result<CompilationCompletion, KernelError> {
+        let budget = self.budget.clone();
+        budget.run(|| {
+            resources::checkpoint()?;
+            let result = self.run_scoped()?;
+            resources::checkpoint()?;
+            Ok(result)
+        })
+    }
+    fn run_scoped(self) -> Result<CompilationCompletion, KernelError> {
         let program = program::build_sector(&self.sector, &self.runtime_parameters, self.settings)?;
         let sector = SectorKernel::from_program_with_backend(
             program,
@@ -141,6 +152,7 @@ impl GeneratedIntegral {
         settings: CompilationSettings,
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
+        resources::checkpoint()?;
         precision.validate()?;
         settings.validate()?;
         let started = Instant::now();
@@ -152,6 +164,7 @@ impl GeneratedIntegral {
         emit(0)?;
         let mut sectors = Vec::with_capacity(total);
         for sector in self.sectors() {
+            resources::checkpoint()?;
             let program = program::build_sector(sector, runtime_parameters, settings)?;
             sectors.push(SectorKernel::from_program_with_backend(
                 program,
@@ -172,6 +185,7 @@ impl GeneratedIntegral {
             settings,
         )?;
         kernels.initialize_artifact()?;
+        resources::checkpoint()?;
         Ok(kernels)
     }
     /// Compile independent sectors on the caller's executor and assemble in native order.
@@ -215,6 +229,7 @@ impl GeneratedIntegral {
         dispatch: &mut CompilationDispatch<'_>,
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<KernelSet, KernelError> {
+        resources::checkpoint()?;
         precision.validate()?;
         settings.validate()?;
         let started = Instant::now();
@@ -228,6 +243,7 @@ impl GeneratedIntegral {
             .iter()
             .enumerate()
             .map(|(index, sector)| CompilationJob {
+                budget: ResourceBudget::capture_current(),
                 owner: std::sync::Arc::clone(&owner),
                 index,
                 sector: sector.clone(),
@@ -268,6 +284,7 @@ impl GeneratedIntegral {
             settings,
         )?;
         kernels.initialize_artifact()?;
+        resources::checkpoint()?;
         Ok(kernels)
     }
 }

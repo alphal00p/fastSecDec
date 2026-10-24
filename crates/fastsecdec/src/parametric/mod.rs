@@ -13,6 +13,6 @@ pub use integrand::{
 };
 pub use preparation::{
     FamilyPreparationFallback, FamilyPreparationPolicy, FamilyPreparationReport,
-    FamilyPreparationStatus, PreparedFamily, prepare_family,
+    FamilyPreparationStatus, PreparedFamily, prepare_family, prepare_family_with_resources,
 };
 pub use scalar::ScalarParametricIntegral;

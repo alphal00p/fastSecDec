@@ -192,7 +192,10 @@ fn compose(
                 .to_i64()
                 .and_then(|value| usize::try_from(value).ok())
                 .ok_or(GenerationError::ResourceLimit("Taylor subtraction degree"))?;
-            if count > options.max_subtractions_per_axis {
+            if options
+                .max_subtractions_per_axis
+                .is_some_and(|limit| count > limit)
+            {
                 return Err(GenerationError::ResourceLimit("Taylor subtraction degree"));
             }
             if options.subtraction == SubtractionStrategy::IntegrateByParts && !slope.is_zero() {
@@ -261,7 +264,10 @@ fn compose(
             // still limits what can be concluded after later singular weights.
             piece.regular = &piece.regular - &taylor;
             next.push(piece);
-            if next.len() > options.max_subtraction_terms {
+            if options
+                .max_subtraction_terms
+                .is_some_and(|limit| next.len() > limit)
+            {
                 return Err(GenerationError::ResourceLimit(
                     "series-first subtraction terms",
                 ));

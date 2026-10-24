@@ -9,5 +9,6 @@ native = ["numerica/integer-gmp", "numerica/float-mpfr"]
 portable = ["numerica/integer-malachite", "numerica/float-astro"]
 
 [dependencies]
+symbolica = { workspace = true, default-features = false }
 numerica = { workspace = true }
 thiserror = { workspace = true }

@@ -64,9 +64,11 @@ fn poll(
     stage: RequestStage,
     observer: &mut impl FnMut(RequestProgress) -> ControlFlow<()>,
 ) -> Result<(), GenerationError> {
+    symbolica::utils::resources::checkpoint()?;
     if observer(RequestProgress { stage, counts }).is_break() {
         Err(GenerationError::Cancelled)
     } else {
+        symbolica::utils::resources::checkpoint()?;
         Ok(())
     }
 }

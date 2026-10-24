@@ -27,7 +27,7 @@ fn octahedron(limit: usize) -> PreparedGeometry {
         ParametricDomain::PositiveOrthant,
         vec![input],
         DecompositionOptions {
-            max_sectors: limit,
+            max_sectors: Some(limit),
             ..Default::default()
         },
     )
@@ -99,7 +99,7 @@ fn an_earlier_chart_cone_limit_precedes_a_later_chart_preparation_error() {
         ParametricDomain::ProjectiveSimplex,
         vec![input],
         DecompositionOptions {
-            max_sectors: 1,
+            max_sectors: Some(1),
             ..Default::default()
         },
     )

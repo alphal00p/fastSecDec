@@ -5,6 +5,26 @@ use crate::generation::{
 use symbolica::{parse, symbol};
 
 #[test]
+fn default_diagnostics_do_not_bound_the_exact_endpoint_degree() {
+    let options = GenerationOptions::default();
+    assert_eq!(options.max_subtractions_per_axis, None);
+    assert_eq!(options.max_subtraction_terms, None);
+    assert_eq!(options.resources, Default::default());
+    let epsilon = symbol!("endpoint_unlimited::eps");
+    let power = Atom::num(-65) + Atom::var(epsilon);
+    assert_eq!(
+        admit(&power, epsilon, options.max_subtractions_per_axis)
+            .unwrap()
+            .subtractions,
+        65
+    );
+    assert!(matches!(
+        admit(&power, epsilon, Some(64)),
+        Err(GenerationError::ResourceLimit("Taylor subtraction degree"))
+    ));
+}
+
+#[test]
 fn affine_rational_endpoints_keep_the_exact_integrability_threshold() {
     let epsilon = symbol!("endpoint_admission::eps_");
     for (constant, expected) in [
@@ -17,13 +37,13 @@ fn affine_rational_endpoints_keep_the_exact_integrability_threshold() {
         let slope = Rational::from((2, 3));
         let expression =
             Atom::num(constant.clone()) + Atom::num(slope.clone()) * Atom::var(epsilon);
-        let endpoint = admit(&expression, epsilon, expected).unwrap();
+        let endpoint = admit(&expression, epsilon, Some(expected)).unwrap();
         assert_eq!(endpoint.constant, constant);
         assert_eq!(endpoint.slope, slope);
         assert_eq!(endpoint.subtractions, expected);
     }
     let factored = parse!("-3/2*(1+endpoint_admission::eps_)");
-    let endpoint = admit(&factored, epsilon, 1).unwrap();
+    let endpoint = admit(&factored, epsilon, Some(1)).unwrap();
     assert_eq!(endpoint.constant, Rational::from((-3, 2)));
     assert_eq!(endpoint.slope, Rational::from((-3, 2)));
     assert_eq!(endpoint.subtractions, 1);
@@ -37,19 +57,19 @@ fn invalid_affine_power_precedes_limits_and_zero_slope_is_not_a_divergence_proof
         parse!("-2+endpoint_admission::x*endpoint_admission::eps_"),
     ] {
         assert!(matches!(
-            admit(&expression, epsilon, 0),
+            admit(&expression, epsilon, Some(0)),
             Err(GenerationError::EndpointExponent(value)) if value == expression
         ));
     }
     assert!(matches!(
-        admit(&Atom::num(-2), epsilon, 1),
+        admit(&Atom::num(-2), epsilon, Some(1)),
         Err(GenerationError::ResourceLimit("Taylor subtraction degree"))
     ));
-    let endpoint = admit(&Atom::num(-2), epsilon, 2).unwrap();
+    let endpoint = admit(&Atom::num(-2), epsilon, Some(2)).unwrap();
     assert!(endpoint.slope.is_zero());
     assert_eq!(endpoint.subtractions, 2);
     assert!(matches!(
-        admit(&parse!("-9223372036854775808"), epsilon, usize::MAX),
+        admit(&parse!("-9223372036854775808"), epsilon, None),
         Err(GenerationError::ResourceLimit("Taylor subtraction degree"))
     ));
 }
@@ -94,7 +114,7 @@ fn fractional_endpoint_continuation_retains_boundary_and_remainder_density() {
             epsilon,
             &GenerationOptions {
                 subtraction,
-                max_subtractions_per_axis: 1,
+                max_subtractions_per_axis: Some(1),
                 ..Default::default()
             },
         )
@@ -124,7 +144,7 @@ fn physical_zero_boundaries_preserve_unregulated_pruning_and_error_precedence() 
                 epsilon,
                 &GenerationOptions {
                     subtraction,
-                    max_subtractions_per_axis: maximum,
+                    max_subtractions_per_axis: Some(maximum),
                     ..Default::default()
                 },
             )

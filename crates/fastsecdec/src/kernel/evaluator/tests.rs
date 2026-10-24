@@ -77,9 +77,10 @@ fn unsupported_rescue_callback_is_a_typed_precision_error() {
 fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback() {
     let _ = symbolica::transcendental::gamma();
     let x = symbol!("gamma_admission::x");
-    // polygamma(1,3) retains a native tagged, fixed-argument callback.
-    let coefficient = parse!("polygamma(1,3)*(1+gamma_admission::x)");
-    let constant = std::f64::consts::PI.powi(2) / 6.0 - 1.25;
+    // A noninteger argument retains the native tagged callback. Independently,
+    // psi_1(1/2) = pi^2/2 and psi_1(z+1) = psi_1(z)-1/z^2.
+    let coefficient = parse!("polygamma(1,3/2)*(1+gamma_admission::x)");
+    let constant = std::f64::consts::PI.powi(2) / 2.0 - 4.0;
     for complex in [false, true] {
         let coefficient = if complex {
             coefficient.clone() * parse!("2+3𝑖")
@@ -87,7 +88,13 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
             coefficient.clone()
         };
         let exact = coefficient.evaluator(&[Atom::var(x)]).build().unwrap();
-        assert!(!exact.export_instructions().constant_functions.is_empty());
+        assert!(
+            exact
+                .export_instructions()
+                .constant_functions
+                .iter()
+                .any(|callback| callback.symbol == symbolica::transcendental::polygamma())
+        );
         let requirements = MappingRequirements::new(&exact).unwrap();
         assert!(
             requirements

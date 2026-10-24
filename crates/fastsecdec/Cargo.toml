@@ -42,7 +42,7 @@ feynkit-generator = { git = "https://github.com/alphal00p/gammaloop", branch = "
 feynkit-tensor.workspace = true
 # Same native scalar-master provider/revision as the HEPKit community bridge.
 oneloop = { git = "https://github.com/alphal00p/oneloopmaster", branch = "main", default-features = false }
-one-loop-reduce = { git = "https://github.com/lcnbr/one-loop-reduce", branch = "main", default-features = false }
+one-loop-reduce = { git = "https://github.com/lcnbr/one-loop-reduce", rev = "f34a9ef069d28db771ee1a42554e89826d8f74a6", default-features = false }
 
 [[example]]
 name = "gghh_double_box"

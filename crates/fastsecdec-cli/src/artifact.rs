@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use symbolica::utils::resources;
 
 use fastsecdec::kernel::KernelSet;
 use fastsecdec::status::GenerationTimings;
@@ -356,6 +357,7 @@ impl Artifact {
         {
             return Err("artifact provenance paths must be relative".into());
         }
+        resources::checkpoint()?;
         // The metadata commits the pair only after the complete data is durable.
         // A interrupted overwrite can leave a mismatched pair, which loading rejects.
         atomic_write(&data, &self.data)?;
