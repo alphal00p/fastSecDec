@@ -201,4 +201,37 @@ mod tests {
         }
         assert_eq!((decided, deferred), (4, 4));
     }
+
+    /// Regression for the factored numerator: a sum of products of powers of
+    /// unexpanded polynomials with symbolic, regulator-dependent coefficients
+    /// (the shape of a source moment in its jets) is decided by the structural
+    /// pass alone, with the minimum and residual of native collection. Before,
+    /// collection over Atom coefficients made one such chart of the five-loop
+    /// P1 numerator take 427-514 s and 5.4-9.0 GB.
+    #[test]
+    fn structural_valuation_decides_factored_jet_sums() {
+        let t = parse!("regular_test::t");
+        let y = parse!("regular_test::y");
+        let jet = |shift: i64| {
+            parse!("regular_test::t*regular_test::y+regular_test::t^2")
+                + Atom::num(shift) * parse!("regular_test::t^3*regular_test::z")
+        };
+        let mapped = (1..=24)
+            .map(|i| {
+                (parse!("regular_test::a") + Atom::num(i) * parse!("regular_test::eps"))
+                    * jet(i).pow(Atom::num(3 + i % 4))
+                    * (&y + &t).pow(Atom::num(i % 3))
+            })
+            .sum::<Atom>();
+        assert_eq!(structural_valuation(&mapped, &t), Some(3));
+        assert_eq!(
+            structural_valuation(&mapped, &t),
+            collected_valuation(&mapped, &t)
+        );
+        let variables = [t.clone(), y.clone()];
+        let (minima, residual) = common_monomial(&mapped, &variables).unwrap();
+        assert_eq!(minima, vec![Integer::from(3), Integer::from(0)]);
+        let restored = residual * t.pow(Atom::num(3));
+        assert!((restored - &mapped).expand().is_zero());
+    }
 }
