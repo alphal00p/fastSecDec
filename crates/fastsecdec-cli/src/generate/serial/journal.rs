@@ -141,7 +141,7 @@ impl Journal {
         let dependencies = artifact::dependencies();
         let journal = directory.join("journal.json");
         let previous = if journal.exists() {
-            Some(serde_json::from_reader::<_, State>(File::open(&journal)?)?)
+            Some(super::jobs::read_json::<State>(&journal)?)
         } else {
             None
         };
@@ -205,7 +205,7 @@ impl Journal {
             .open(directory.join("lock"))?;
         lock.try_lock()
             .map_err(|e| format!("original preparation is still owned: {e}"))?;
-        let state: State = serde_json::from_reader(File::open(directory.join("journal.json"))?)?;
+        let state: State = super::jobs::read_json(&directory.join("journal.json"))?;
         state.validate_resume(
             input,
             overrides,
@@ -378,7 +378,7 @@ impl Journal {
         if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err("invalid threshold anchor key".into());
         }
-        let job: Job = serde_json::from_reader(File::open(self.job_path(&key))?)?;
+        let job: Job = super::jobs::read_json(&self.job_path(&key))?;
         if job.root != self.root || job.response != self.response_path(&key) {
             return Err("threshold anchor job path changed".into());
         }
