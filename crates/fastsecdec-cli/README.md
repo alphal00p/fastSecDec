@@ -223,6 +223,50 @@ must still produce a scalar polynomial in native loop scalar products.
 Nondefault modes are rejected for direct parametric inputs, which have no graph
 numerator to contract. The selected graph mode is saved in generation metadata.
 
+The contracted numerator is integrated by Gaussian source derivatives. Choose
+which rows serve as sources:
+
+```toml
+[generation]
+numerator_sources = "auto"   # default; alternatives: "factors", "scalar_products"
+```
+
+`factors` recognizes a numerator written as a polynomial in affine
+scalar-product forms, such as `A * B^4 * C^4` with `A = (k0+k1+k3-k4)^2 - m^2`,
+and uses the distinct forms themselves as source rows: one mixed derivative per
+product of forms, computed in formal source jets and only then expressed in the
+native U, F (or, without external momenta, U and the affine `F/U`) polynomials.
+The recognition depends on the mathematical sums, not on how they are stored:
+all terms of degree at most one of a sum form one exactly expanded affine form,
+numeric multiples of a form share its row, loop-independent factors become
+coefficients, and regulator- or dimension-dependent parts of an affine form are
+split off as coefficients. Each monomial of a source moment in the jets is its
+own term, with its regulator-dependent coefficient in the prefactor and every
+jet a separate polynomial factor; only a moment whose expansion in the Feynman
+parameters has at most 64 monomials is one expanded numerator factor instead. An explicit
+`factors` request fails before any derivative when the numerator has no such
+structure, exceeds 4096 products of forms or needs more forms than the family
+has scalar products.
+
+`scalar_products` expands the numerator into scalar-product monomials with one
+source row per family scalar product and one term per monomial, the historical
+representation. `auto` uses `factors` unless every form is a bare scalar
+product (then both routes use the same rows and the historical route is kept)
+or the numerator has no factored structure; in the latter case it prints a
+warning and uses `scalar_products`. All choices give exactly the same
+projective density. Direct parametric inputs reject the key.
+
+Generation metadata records the request (`numerator_sources`) and the route
+actually taken (`numerator_route`: `route`, any `fallback` reason, and the
+numbers of `source_rows`, `moments`, `expanded_moments` and `terms`);
+`inspect <card>` reports the same as `numerator`. Like `workers` and `serial`,
+the key is excluded from the artifact `content_id`, which identifies the
+integral; `kernel_content_id` identifies the representation, and checkpoints
+and serial staging bind the route. Independent source moments and term
+admission run on the generation worker pool (`--workers`), with results
+identical to a sequential run; without a caller-owned pool, as in
+`inspect <card>`, they run sequentially.
+
 Select the generation lane and endpoint subtraction independently:
 
 ```toml

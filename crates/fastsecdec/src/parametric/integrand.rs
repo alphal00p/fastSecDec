@@ -151,8 +151,11 @@ impl ParametricIntegrand {
         let atoms = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
         let dependent = |expression: &Atom| atoms.iter().any(|p| expression.contains(p.as_view()));
         let regulator_atom = Atom::var(regulator);
-        let mut retained = Vec::with_capacity(terms.len());
-        for term in terms {
+        // Terms are validated independently, in parallel only on a rayon pool
+        // the caller runs in. Results are consumed in input order, so the first
+        // invalid term is reported and retained terms keep their order, exactly
+        // as sequentially.
+        let check = |term: ParametricTerm| -> Result<Option<ParametricTerm>, ParametricError> {
             if term.monomial_powers.len() != parameters.len() {
                 return Err(invalid(
                     "one monomial density power is required per parameter",
@@ -235,7 +238,7 @@ impl ParametricIntegrand {
                 }
             }
             if zero {
-                continue;
+                return Ok(None);
             }
             if domain == ParametricDomain::ProjectiveSimplex
                 && !(degree + Atom::num(parameters.len())).expand().is_zero()
@@ -244,7 +247,13 @@ impl ParametricIntegrand {
                     "each projective density must have total degree minus its parameter count",
                 ));
             }
-            retained.push(term);
+            Ok(Some(term))
+        };
+        let mut retained = Vec::with_capacity(terms.len());
+        for checked in super::numerator::ordered_map(terms, check) {
+            if let Some(term) = checked? {
+                retained.push(term);
+            }
         }
         Ok(Self {
             parameters,

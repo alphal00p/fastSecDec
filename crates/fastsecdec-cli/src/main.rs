@@ -800,6 +800,9 @@ fn run(cli: Cli) -> CliResult<()> {
                     value["family_preparation"] = serde_json::to_value(preparation)?;
                     value["active_parameters"] = loaded.integrand.parameters().len().into();
                 }
+                if let Some(numerator) = loaded.numerator {
+                    value["numerator"] = serde_json::to_value(numerator)?;
+                }
                 if expressions {
                     value["density"] =
                         serde_json::Value::String(loaded.integrand.density().to_canonical_string());

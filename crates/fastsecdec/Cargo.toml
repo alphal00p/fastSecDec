@@ -37,6 +37,7 @@ spenso.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 blake3.workspace = true
+rayon.workspace = true
 thiserror.workspace = true
 bincode.workspace = true
 rand = "0.9"

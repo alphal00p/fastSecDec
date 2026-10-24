@@ -39,6 +39,10 @@ pub(super) fn generate(
         contraction_mode: loaded
             .loops
             .map(|_| loaded.card.generation.contraction_mode),
+        numerator_sources: loaded
+            .loops
+            .map(|_| loaded.card.generation.numerator_sources),
+        numerator_route: loaded.numerator,
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(evaluator),
     };

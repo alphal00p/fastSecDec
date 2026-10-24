@@ -11,6 +11,7 @@ pub use integrand::{
     FactorRole, FactorSemantics, ParametricError, ParametricIntegrand, ParametricTerm,
     PolynomialFactor, polynomial_support,
 };
+pub use numerator::{NumeratorFallback, NumeratorReport, NumeratorRoute, NumeratorSources};
 pub use preparation::{
     FamilyPreparationFallback, FamilyPreparationPolicy, FamilyPreparationReport,
     FamilyPreparationStatus, PreparedFamily, prepare_family,

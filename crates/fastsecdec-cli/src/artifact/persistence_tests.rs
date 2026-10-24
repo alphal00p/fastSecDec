@@ -281,6 +281,22 @@ fn scientific_identity_excludes_scheduling_but_representation_identity_remains_e
         fingerprint.hash(b"[generation]\nmax_order=0\n").unwrap(),
         fingerprint.hash(b"[generation]\nmax_order=1\n").unwrap()
     );
+    // Numerator source rows select a representation of the same integral: the
+    // scientific identity ignores them, serial staging still binds them.
+    let omitted = b"[generation]\nmax_order=0\n";
+    let explicit = b"[generation]\nmax_order=0\nnumerator_sources='factors'\n";
+    assert_eq!(
+        fingerprint.hash(omitted).unwrap(),
+        fingerprint.hash(explicit).unwrap()
+    );
+    assert_eq!(
+        SourceFingerprint::staging_hash(omitted).unwrap(),
+        fingerprint.hash(omitted).unwrap()
+    );
+    assert_ne!(
+        SourceFingerprint::staging_hash(omitted).unwrap(),
+        SourceFingerprint::staging_hash(explicit).unwrap()
+    );
 }
 
 #[test]

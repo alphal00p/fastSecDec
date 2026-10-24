@@ -160,6 +160,23 @@ fn family_policy_uses_native_type_with_explicit_original_cli_default() {
 }
 
 #[test]
+fn numerator_sources_default_to_auto_and_accept_explicit_routes() {
+    use fastsecdec::parametric::NumeratorSources;
+    let default: GenerationInput = toml::from_str("order=1").unwrap();
+    assert_eq!(default.numerator_sources, NumeratorSources::Auto);
+    for (text, sources) in [
+        ("auto", NumeratorSources::Auto),
+        ("factors", NumeratorSources::Factors),
+        ("scalar_products", NumeratorSources::ScalarProducts),
+    ] {
+        let input: GenerationInput =
+            toml::from_str(&format!("numerator_sources='{text}'")).unwrap();
+        assert_eq!(input.numerator_sources, sources);
+    }
+    assert!(toml::from_str::<GenerationInput>("numerator_sources='monomials'").is_err());
+}
+
+#[test]
 fn coefficient_options_reuse_native_defaults_and_reject_unknown_steering() {
     let historical: GenerationInput = toml::from_str("order=1").unwrap();
     assert_eq!(

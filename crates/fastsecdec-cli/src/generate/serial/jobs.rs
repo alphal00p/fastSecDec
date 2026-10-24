@@ -140,8 +140,16 @@ pub(crate) enum Response {
     Compiled(Compiled),
 }
 
+/// Read a complete JSON file at once. `serde_json::from_reader` on an
+/// unbuffered `File` issues one read system call per byte; every serial child
+/// parses its job and the shared preparation receipt, so that cost recurs in
+/// each of the thousands of chart jobs.
+pub(crate) fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> CliResult<T> {
+    Ok(serde_json::from_slice(&fs::read(path)?)?)
+}
+
 pub(crate) fn read_response(path: &Path) -> CliResult<Response> {
-    Ok(serde_json::from_reader(File::open(path)?)?)
+    read_json(path)
 }
 
 fn read_prepared(path: &Path, recipe: indexed::ProgramRecipe) -> CliResult<Prepared> {
@@ -181,7 +189,7 @@ pub(crate) fn execute(
     path: &Path,
     emit: &mut dyn FnMut(GenerationSnapshot) -> std::io::Result<()>,
 ) -> CliResult<()> {
-    let job: Job = serde_json::from_reader(File::open(path)?)?;
+    let job: Job = read_json(path)?;
     fs::create_dir_all(&job.root)?;
     let started = Instant::now();
     let mut snapshot = GenerationSnapshot {

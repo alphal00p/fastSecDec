@@ -51,7 +51,7 @@ impl State {
         family: &RecipeFamily,
     ) -> CliResult<()> {
         let state = self;
-        let input_hash = SourceFingerprint::RunCardScientificInput.hash(&fs::read(input)?)?;
+        let input_hash = SourceFingerprint::staging_hash(&fs::read(input)?)?;
         let dependencies = artifact::dependencies();
         if state.version != JOURNAL_VERSION {
             return Err(format!(
@@ -137,11 +137,11 @@ impl Journal {
         lock.try_lock().map_err(|error| {
             format!("another process owns the generation staging directory: {error}")
         })?;
-        let input_hash = SourceFingerprint::RunCardScientificInput.hash(&fs::read(input)?)?;
+        let input_hash = SourceFingerprint::staging_hash(&fs::read(input)?)?;
         let dependencies = artifact::dependencies();
         let journal = directory.join("journal.json");
         let previous = if journal.exists() {
-            Some(serde_json::from_reader::<_, State>(File::open(&journal)?)?)
+            Some(super::jobs::read_json::<State>(&journal)?)
         } else {
             None
         };
@@ -205,7 +205,7 @@ impl Journal {
             .open(directory.join("lock"))?;
         lock.try_lock()
             .map_err(|e| format!("original preparation is still owned: {e}"))?;
-        let state: State = serde_json::from_reader(File::open(directory.join("journal.json"))?)?;
+        let state: State = super::jobs::read_json(&directory.join("journal.json"))?;
         state.validate_resume(
             input,
             overrides,
@@ -378,7 +378,7 @@ impl Journal {
         if key.is_empty() || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') {
             return Err("invalid threshold anchor key".into());
         }
-        let job: Job = serde_json::from_reader(File::open(self.job_path(&key))?)?;
+        let job: Job = super::jobs::read_json(&self.job_path(&key))?;
         if job.root != self.root || job.response != self.response_path(&key) {
             return Err("threshold anchor job path changed".into());
         }

@@ -118,24 +118,42 @@ impl SourceFingerprint {
                 blake3::hash(toml::to_string(&card)?.as_bytes())
             }
             Self::RunCardScientificInput => {
-                let mut card: toml::Table = toml::from_str(std::str::from_utf8(bytes)?)?;
-                card.remove("reference");
-                card.remove("integration");
-                if let Some(generation) = card
-                    .get_mut("generation")
-                    .and_then(toml::Value::as_table_mut)
-                {
-                    generation.remove("serial");
-                    generation.remove("workers");
-                    if generation.is_empty() {
-                        card.remove("generation");
-                    }
-                }
-                blake3::hash(toml::to_string(&card)?.as_bytes())
+                // Numerator source rows choose a representation of the same
+                // integral, recorded with the kernels (`kernel_content_id`).
+                scientific_card_hash(bytes, &["serial", "workers", "numerator_sources"])?
             }
         };
         Ok(hash.to_hex().to_string())
     }
+
+    /// The scientific run-card fingerprint that still binds every generation
+    /// choice changing the staged representation, such as `numerator_sources`.
+    /// Serial staging and threshold preparation must not resume across them.
+    pub fn staging_hash(bytes: &[u8]) -> CliResult<String> {
+        Ok(scientific_card_hash(bytes, &["serial", "workers"])?
+            .to_hex()
+            .to_string())
+    }
+}
+
+/// Hash a run card without its observational reference/integration tables and
+/// the listed observational generation keys.
+fn scientific_card_hash(bytes: &[u8], observational: &[&str]) -> CliResult<blake3::Hash> {
+    let mut card: toml::Table = toml::from_str(std::str::from_utf8(bytes)?)?;
+    card.remove("reference");
+    card.remove("integration");
+    if let Some(generation) = card
+        .get_mut("generation")
+        .and_then(toml::Value::as_table_mut)
+    {
+        for key in observational {
+            generation.remove(*key);
+        }
+        if generation.is_empty() {
+            card.remove("generation");
+        }
+    }
+    Ok(blake3::hash(toml::to_string(&card)?.as_bytes()))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -186,6 +204,14 @@ pub struct GenerationRecord {
     /// Graph-numerator policy; absent for direct inputs and historical artifacts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contraction_mode: Option<fastsecdec::input::NumeratorContraction>,
+    /// Requested graph-numerator source rows; absent for direct inputs and
+    /// historical artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numerator_sources: Option<fastsecdec::parametric::NumeratorSources>,
+    /// Source rows actually used, any fallback reason, and the numbers of rows,
+    /// moments and terms; absent for direct inputs and historical artifacts.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numerator_route: Option<fastsecdec::parametric::NumeratorReport>,
     /// The requested route can use its supported per-sector physical fallback;
     /// this field does not claim every sector followed the named-series route.
     pub requested_coefficient_expansion: fastsecdec::generation::CoefficientExpansionMethod,
