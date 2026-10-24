@@ -83,6 +83,7 @@ pub(super) fn context(
         formula_preparation: None,
         contraction_mode: loaded.loops.map(|_| settings.contraction_mode),
         numerator_sources: loaded.loops.map(|_| settings.numerator_sources),
+        numerator_route: loaded.numerator,
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(settings.evaluator),
     };

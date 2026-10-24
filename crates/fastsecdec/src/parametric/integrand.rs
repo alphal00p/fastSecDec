@@ -3,7 +3,6 @@
 use std::collections::BTreeSet;
 
 use fastsecdec_sectors::{ParametricDomain, PolynomialSupport, SectorError};
-use rayon::prelude::*;
 use symbolica::{
     atom::{Atom, AtomCore, Symbol},
     domains::atom::AtomField,
@@ -152,9 +151,10 @@ impl ParametricIntegrand {
         let atoms = parameters.iter().map(|s| Atom::var(*s)).collect::<Vec<_>>();
         let dependent = |expression: &Atom| atoms.iter().any(|p| expression.contains(p.as_view()));
         let regulator_atom = Atom::var(regulator);
-        // Terms are validated independently on the caller's rayon pool. Results
-        // are consumed in input order, so the first invalid term is reported
-        // and retained terms keep their order, exactly as sequentially.
+        // Terms are validated independently, in parallel only on a rayon pool
+        // the caller runs in. Results are consumed in input order, so the first
+        // invalid term is reported and retained terms keep their order, exactly
+        // as sequentially.
         let check = |term: ParametricTerm| -> Result<Option<ParametricTerm>, ParametricError> {
             if term.monomial_powers.len() != parameters.len() {
                 return Err(invalid(
@@ -250,7 +250,7 @@ impl ParametricIntegrand {
             Ok(Some(term))
         };
         let mut retained = Vec::with_capacity(terms.len());
-        for checked in terms.into_par_iter().map(check).collect::<Vec<_>>() {
+        for checked in super::numerator::ordered_map(terms, check) {
             if let Some(term) = checked? {
                 retained.push(term);
             }

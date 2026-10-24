@@ -51,7 +51,7 @@ impl State {
         family: &RecipeFamily,
     ) -> CliResult<()> {
         let state = self;
-        let input_hash = SourceFingerprint::RunCardScientificInput.hash(&fs::read(input)?)?;
+        let input_hash = SourceFingerprint::staging_hash(&fs::read(input)?)?;
         let dependencies = artifact::dependencies();
         if state.version != JOURNAL_VERSION {
             return Err(format!(
@@ -137,7 +137,7 @@ impl Journal {
         lock.try_lock().map_err(|error| {
             format!("another process owns the generation staging directory: {error}")
         })?;
-        let input_hash = SourceFingerprint::RunCardScientificInput.hash(&fs::read(input)?)?;
+        let input_hash = SourceFingerprint::staging_hash(&fs::read(input)?)?;
         let dependencies = artifact::dependencies();
         let journal = directory.join("journal.json");
         let previous = if journal.exists() {

@@ -456,6 +456,7 @@ pub(crate) fn generate_with_resident_recipe(
         numerator_sources: loaded
             .loops
             .map(|_| loaded.card.generation.numerator_sources),
+        numerator_route: loaded.numerator,
         requested_coefficient_expansion: options.coefficient_expansion.method,
         evaluator: Some(evaluator_settings),
     };

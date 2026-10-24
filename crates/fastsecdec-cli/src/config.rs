@@ -163,8 +163,9 @@ pub struct GenerationInput {
     pub contour_jacobian: fastsecdec::contour::ContourJacobian,
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
     pub contraction_mode: fastsecdec::input::NumeratorContraction,
-    /// Gaussian source rows for a loop-dependent graph numerator. Both choices
-    /// give the same density; `factors` keeps a factored numerator compact.
+    /// Gaussian source rows for a loop-dependent graph numerator. All choices
+    /// give the same density; `factors` keeps a factored numerator compact,
+    /// `auto` (the default) falls back to `scalar_products` with a warning.
     pub numerator_sources: fastsecdec::parametric::NumeratorSources,
     pub assume_no_threshold: bool,
     pub max_sectors: usize,

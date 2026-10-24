@@ -46,7 +46,7 @@ fn issued_settings(
     input: &Path,
     overrides: crate::config::GenerationOverrides,
 ) -> CliResult<String> {
-    let card = artifact::SourceFingerprint::RunCardScientificInput.hash(&fs::read(input)?)?;
+    let card = artifact::SourceFingerprint::staging_hash(&fs::read(input)?)?;
     Ok(blake3::hash(&serde_json::to_vec(&(
         "threshold-cli-issued-settings-v1",
         card,

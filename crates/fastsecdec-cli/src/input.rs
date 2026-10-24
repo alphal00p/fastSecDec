@@ -47,6 +47,8 @@ pub struct LoadedInput {
     pub propagators: usize,
     pub sources: Vec<crate::artifact::SourceFile>,
     pub family_preparation: Option<FamilyPreparationReport>,
+    /// The numerator source route of a graph input; `None` for direct input.
+    pub numerator: Option<fastsecdec::parametric::NumeratorReport>,
     pub independent_externals: Vec<String>,
     pub dependent_externals: Vec<String>,
     pub input_seconds: f64,
@@ -294,9 +296,9 @@ pub(crate) fn load_observed_with_overrides(
     load_observed_with_workers(path, overrides, None, observe)
 }
 
-/// Load with numerator parametrization on a caller-owned pool of `workers`
-/// threads; `None` uses the ambient rayon pool. The result is independent of
-/// the thread count.
+/// Load with numerator parametrization on a pool of `workers` threads; `None`
+/// parameterizes on the calling thread (or on the rayon pool it runs in). The
+/// result is independent of the thread count.
 pub(crate) fn load_observed_with_workers(
     path: &Path,
     overrides: crate::config::GenerationOverrides,
@@ -354,20 +356,18 @@ pub(crate) fn load_observed_with_workers(
             let numerator_sources = card.generation.numerator_sources;
             let parameterize = || -> fastsecdec::Result<_> {
                 Ok(if policy == FamilyPreparationPolicy::Original {
-                    (
-                        ParametricIntegrand::from_family_with_sources(
-                            graph.family(),
-                            graph.powers(),
-                            numerator,
-                            parameters,
-                            regulator,
-                            dimension,
-                            numerator_sources,
-                        )?,
-                        None,
-                    )
+                    let (integrand, numerator) = ParametricIntegrand::from_family_with_sources(
+                        graph.family(),
+                        graph.powers(),
+                        numerator,
+                        parameters,
+                        regulator,
+                        dimension,
+                        numerator_sources,
+                    )?;
+                    (integrand, None, numerator)
                 } else {
-                    let (integrand, report) =
+                    let (integrand, report, numerator) =
                         ParametricIntegrand::from_family_prepared_with_sources(
                             graph.family(),
                             graph.powers(),
@@ -378,16 +378,24 @@ pub(crate) fn load_observed_with_workers(
                             policy,
                             numerator_sources,
                         )?;
-                    (integrand, Some(report))
+                    (integrand, Some(report), numerator)
                 })
             };
-            let (integrand, family_preparation) = match workers {
+            // Without a caller-owned pool the library parameterizes sequentially;
+            // it never starts rayon's global pool on every visible core.
+            let (integrand, family_preparation, numerator_report) = match workers {
                 Some(workers) => rayon::ThreadPoolBuilder::new()
                     .num_threads(workers.max(1))
                     .build()?
                     .install(parameterize)?,
                 None => parameterize()?,
             };
+            if let Some(reason) = numerator_report.notable_fallback() {
+                eprintln!(
+                    "fastsecdec warning: numerator_sources = \"auto\" used scalar-product sources ({} rows, {} moments) because {reason}",
+                    numerator_report.source_rows, numerator_report.moments,
+                );
+            }
             let (runtime_mass_constraints, model_parameter_defaults) =
                 if let Some(runtime) = &mut runtime_model {
                     runtime.retain_used(&integrand);
@@ -411,6 +419,7 @@ pub(crate) fn load_observed_with_workers(
                 propagators,
                 sources,
                 family_preparation,
+                numerator: Some(numerator_report),
                 independent_externals,
                 dependent_externals,
                 input_seconds,
@@ -428,6 +437,12 @@ pub(crate) fn load_observed_with_workers(
             if card.generation.family_preparation != FamilyPreparationPolicy::Original {
                 return Err(
                     "family preparation requires native graph input, not direct parametric data"
+                        .into(),
+                );
+            }
+            if card.generation.numerator_sources != fastsecdec::parametric::NumeratorSources::Auto {
+                return Err(
+                    "numerator_sources requires native graph input, not direct parametric data"
                         .into(),
                 );
             }
@@ -544,6 +559,7 @@ pub(crate) fn load_observed_with_workers(
                 propagators,
                 sources,
                 family_preparation: None,
+                numerator: None,
                 independent_externals: Vec::new(),
                 dependent_externals: Vec::new(),
                 input_seconds,
