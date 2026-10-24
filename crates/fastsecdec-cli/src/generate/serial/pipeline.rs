@@ -10,7 +10,11 @@ use fastsecdec::{
     kernel::CompilationSettings,
     status::{FormulaPreparationSnapshot, GenerationStage},
 };
-use std::{collections::BTreeMap, path::Path, time::Instant};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    path::Path,
+    time::Instant,
+};
 
 pub(super) fn run(
     runner: &mut Runner,
@@ -24,62 +28,27 @@ pub(super) fn run(
     let recipe = prepared.native.program_recipe;
     let timings = &mut prepared.timings;
     let phase = Instant::now();
-    let mut assignments = Vec::with_capacity(charts.len());
-    if prepared.native.mode == GenerationMode::Symbolic {
-        let mut representatives = BTreeMap::<String, Vec<native::DiscoveredSector>>::new();
-        // Native exact admission is ordered. Canonicalization and heavyweight
-        // mapped records were already built independently in the discovery pass.
-        for chart in &charts {
-            let key = chart
-                .symmetry_key
-                .clone()
-                .ok_or("symbolic discovery omitted its symmetry bucket")?;
-            let candidates = representatives.get(&key).cloned().unwrap_or_default();
-            let assignment = if candidates.is_empty() {
-                native::SymmetryAssignment {
-                    program_recipe: chart.program_recipe,
-                    source_id: chart.source_id.clone(),
-                    source: chart.index,
-                    representative: chart.index,
-                    permutation: (0..chart.dimension).collect(),
-                }
-            } else {
-                let response = runner
-                    .run(
-                        journal,
-                        vec![(
-                            format!("{}-symmetry-{}", recipe.name(), chart.index),
-                            Request::Symmetry {
-                                preparation: preparation_path.to_path_buf(),
-                                chart: chart.clone(),
-                                candidates,
-                            },
-                        )],
-                        GenerationStage::Symmetry,
-                        "Exact sector equivalence",
-                        dashboard,
-                    )?
-                    .pop()
-                    .ok_or("missing symmetry result")?;
-                let Response::Symmetry(assignment) = response else {
-                    return Err("invalid symmetry completion".into());
-                };
-                assignment
-            };
-            if assignment.representative == chart.index {
-                representatives.entry(key).or_default().push(chart.clone());
-            }
-            assignments.push(assignment);
-        }
+    let assignments = if prepared.native.mode == GenerationMode::Symbolic {
+        symmetry(
+            runner,
+            journal,
+            preparation_path,
+            recipe.name(),
+            &charts,
+            dashboard,
+        )?
     } else {
-        assignments.extend(charts.iter().map(|chart| native::SymmetryAssignment {
-            program_recipe: chart.program_recipe,
-            source_id: chart.source_id.clone(),
-            source: chart.index,
-            representative: chart.index,
-            permutation: (0..chart.dimension).collect(),
-        }));
-    }
+        charts
+            .iter()
+            .map(|chart| native::SymmetryAssignment {
+                program_recipe: chart.program_recipe,
+                source_id: chart.source_id.clone(),
+                source: chart.index,
+                representative: chart.index,
+                permutation: (0..chart.dimension).collect(),
+            })
+            .collect()
+    };
     timings.symmetry_seconds = phase.elapsed().as_secs_f64();
     let phase = Instant::now();
     let mut formula_sources = BTreeMap::new();
@@ -182,4 +151,99 @@ pub(super) fn run(
     }
     prepared.generation.source_chart_modes = Some(source_modes);
     Ok(compiled)
+}
+
+/// Exact symmetry admission in original source-chart order within each
+/// lookup bucket. A chart is compared only with the earlier representatives
+/// of its own bucket, so buckets are independent ordered chains: every round
+/// submits the next chart of each bucket that has candidates. Every chart
+/// receives the same candidates, job key and assignment as one-at-a-time
+/// admission, while independent comparisons use all workers.
+fn symmetry(
+    runner: &mut Runner,
+    journal: &mut Journal,
+    preparation_path: &Path,
+    recipe: &str,
+    charts: &[native::DiscoveredSector],
+    dashboard: &mut Dashboard,
+) -> CliResult<Vec<native::SymmetryAssignment>> {
+    let mut buckets = BTreeMap::<String, VecDeque<usize>>::new();
+    for (position, chart) in charts.iter().enumerate() {
+        let key = chart
+            .symmetry_key
+            .clone()
+            .ok_or("symbolic discovery omitted its symmetry bucket")?;
+        buckets.entry(key).or_default().push_back(position);
+    }
+    let mut representatives = BTreeMap::<String, Vec<native::DiscoveredSector>>::new();
+    let mut assignments = vec![None; charts.len()];
+    loop {
+        let mut jobs = Vec::new();
+        let mut round = BTreeMap::new();
+        for (key, chain) in &mut buckets {
+            while let Some(position) = chain.pop_front() {
+                let chart = &charts[position];
+                let candidates = representatives.get(key).cloned().unwrap_or_default();
+                if candidates.is_empty() {
+                    representatives
+                        .entry(key.clone())
+                        .or_default()
+                        .push(chart.clone());
+                    assignments[position] = Some(native::SymmetryAssignment {
+                        program_recipe: chart.program_recipe,
+                        source_id: chart.source_id.clone(),
+                        source: chart.index,
+                        representative: chart.index,
+                        permutation: (0..chart.dimension).collect(),
+                    });
+                    continue;
+                }
+                jobs.push((
+                    format!("{recipe}-symmetry-{}", chart.index),
+                    Request::Symmetry {
+                        preparation: preparation_path.to_path_buf(),
+                        chart: chart.clone(),
+                        candidates,
+                    },
+                ));
+                round.insert(chart.index, (position, key.clone()));
+                break;
+            }
+        }
+        if jobs.is_empty() {
+            break;
+        }
+        let responses = runner.run(
+            journal,
+            jobs,
+            GenerationStage::Symmetry,
+            "Exact sector equivalence",
+            dashboard,
+        )?;
+        let mut replies = BTreeMap::new();
+        for response in responses {
+            let Response::Symmetry(assignment) = response else {
+                return Err("invalid symmetry completion".into());
+            };
+            if !round.contains_key(&assignment.source)
+                || replies.insert(assignment.source, assignment).is_some()
+            {
+                return Err("unexpected symmetry completion".into());
+            }
+        }
+        for (index, (position, key)) in round {
+            let assignment = replies.remove(&index).ok_or("missing symmetry result")?;
+            if assignment.representative == index {
+                representatives
+                    .entry(key)
+                    .or_default()
+                    .push(charts[position].clone());
+            }
+            assignments[position] = Some(assignment);
+        }
+    }
+    assignments
+        .into_iter()
+        .map(|assignment| assignment.ok_or_else(|| "unassigned symmetry chart".into()))
+        .collect()
 }
