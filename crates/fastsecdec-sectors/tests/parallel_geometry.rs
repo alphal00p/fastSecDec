@@ -195,19 +195,19 @@ fn all_native_limits_and_admission_errors_remain_failures() {
     let factors = vec![support(&[&[1, 0], &[0, 1]])];
     for options in [
         DecompositionOptions {
-            max_support_pairs: 0,
+            max_support_pairs: Some(0),
             ..Default::default()
         },
         DecompositionOptions {
-            max_rays: 0,
+            max_rays: Some(0),
             ..Default::default()
         },
         DecompositionOptions {
-            max_sectors: 0,
+            max_sectors: Some(0),
             ..Default::default()
         },
         DecompositionOptions {
-            max_sectors: 1,
+            max_sectors: Some(1),
             ..Default::default()
         },
     ] {
@@ -230,7 +230,7 @@ fn all_native_limits_and_admission_errors_remain_failures() {
     ]);
     for limit in [0, 1, 2, 3, 11] {
         let options = DecompositionOptions {
-            max_sectors: limit,
+            max_sectors: Some(limit),
             ..Default::default()
         };
         let native = error(decompose(

@@ -13,6 +13,7 @@ mod kernels;
 mod mc;
 mod presentation;
 mod progress;
+mod resources;
 mod session;
 mod settings;
 mod status;

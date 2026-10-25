@@ -7,6 +7,7 @@ use fastsecdec::{
     parametric::ParametricIntegrand,
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
 use spenso::structure::representation::{Minkowski, RepName};
 use symbolica::{parse, symbol};
 
@@ -30,9 +31,9 @@ fn dots_and_full_contract_connected_sums_and_preserve_graph_weights() {
     let pmu = rep.vector(p.as_view(), [Atom::num(1)]);
     let numerator = (&kmu + &pmu) * (Atom::num(2) * &kmu - Atom::num(3) * &pmu);
     let diagram = diagram
-        .with_numerator(numerator)
+        .with_numerator(SymbolicTensor::infer(numerator).unwrap())
         .unwrap()
-        .with_projector(Atom::num(5))
+        .with_projector(SymbolicTensor::infer(Atom::num(5)).unwrap())
         .with_overall_factor(Atom::num(7));
     let graph = GraphIntegral::new(Arc::new(diagram), &kin)
         .unwrap()

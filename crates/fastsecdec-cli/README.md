@@ -305,7 +305,7 @@ conditioning rows retain their existing numeric meaning; the fresh result's
 descriptive conditioning basis is not inferred from a loaded artifact.
 
 The on-shell triple-box card selects `coefficient_series` together with
-`SingleUnitTerm { max_states: 32 }`. This preserves its original graph,
+`SingleUnitTerm { max_states: Some(32) }`. This preserves its original graph,
 kinematics and normalization while using the validated eight-parameter family:
 
 ```sh

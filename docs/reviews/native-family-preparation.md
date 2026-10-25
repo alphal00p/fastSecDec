@@ -1,5 +1,18 @@
 # Native family preparation before parameterization
 
+The 2026-10-23 resource-policy update supersedes the historical count defaults
+below. `SingleUnitTerm { max_states: None }` is now the library default; an
+explicit `Some(n)` enables a state-count diagnostic. The CLI keeps `Original`
+as its default, and a `SingleUnitTerm` table without `max_states` leaves work
+counts unrestricted. Native partial fractions use the shared cooperative
+process-RSS/time resource contract. `prepare_family_with_resources` scopes
+admission, exact decomposition and report construction; native resource errors
+propagate without selecting an original-family fallback. The single exact
+unit-coefficient term and all original scientific admission checks are
+unchanged. Source review and formatting passed; matching official-kernel native
+validation is pending, so the historical timings below do not validate this
+new source cohort.
+
 This is the design and in-progress implementation record for a production seam,
 not an implemented graph rewrite. The
 off-shell scalar and rank-two probes already prove the exact original-to-active

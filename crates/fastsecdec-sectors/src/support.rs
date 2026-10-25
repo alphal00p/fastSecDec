@@ -5,6 +5,7 @@ use crate::{
 };
 use numerica::domains::integer::Integer;
 use std::collections::BTreeMap;
+use symbolica::utils::resources;
 
 /// Nonzero monomial exponents, stripped of coefficients by the caller.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +25,7 @@ impl PolynomialSupport {
     }
 
     pub fn from_exact(mut exponents: Vec<IntVector>) -> Result<Self, SectorError> {
+        resources::checkpoint()?;
         let Some(first) = exponents.first() else {
             return Err(SectorError::InvalidSupport("zero polynomial".into()));
         };
@@ -38,6 +40,7 @@ impl PolynomialSupport {
         }
         exponents.sort();
         exponents.dedup();
+        resources::checkpoint()?;
         Ok(Self {
             exponents,
             dimension,
@@ -78,21 +81,24 @@ pub(crate) fn minkowski_candidates(
     supports: &[PolynomialSupport],
     monitor: &mut Monitor<'_>,
 ) -> Result<Vec<IntVector>, SectorError> {
+    resources::checkpoint()?;
     monitor.status.phase = DecompositionPhase::Supports;
     let mut candidates = vec![vec![Integer::from(0); supports[0].dimension]];
     for support in supports {
-        let pairs = candidates
-            .len()
-            .checked_mul(support.exponents.len())
-            .ok_or(SectorError::ResourceLimit {
-                resource: "support pairs",
-                limit: monitor.options.max_support_pairs,
-            })?;
-        if pairs > monitor.options.max_support_pairs {
-            return Err(SectorError::ResourceLimit {
-                resource: "support pairs",
-                limit: monitor.options.max_support_pairs,
-            });
+        resources::checkpoint()?;
+        if let Some(limit) = monitor.options.max_support_pairs {
+            let pairs = candidates
+                .len()
+                .checked_mul(support.exponents.len())
+                .ok_or(SectorError::CountOverflow {
+                    resource: "support pairs",
+                })?;
+            if pairs > limit {
+                return Err(SectorError::ResourceLimit {
+                    resource: "support pairs",
+                    limit,
+                });
+            }
         }
         let mut counts = BTreeMap::<IntVector, u8>::new();
         for (i, a) in candidates.iter().enumerate() {
@@ -100,6 +106,7 @@ pub(crate) fn minkowski_candidates(
                 monitor.emit()?;
             }
             for b in &support.exponents {
+                resources::checkpoint()?;
                 let sum = a.iter().zip(b).map(|(x, y)| x + y).collect();
                 counts.entry(sum).and_modify(|c| *c = 2).or_insert(1);
             }
@@ -109,5 +116,6 @@ pub(crate) fn minkowski_candidates(
             .filter_map(|(x, n)| (n == 1).then_some(x))
             .collect();
     }
+    resources::checkpoint()?;
     Ok(candidates)
 }

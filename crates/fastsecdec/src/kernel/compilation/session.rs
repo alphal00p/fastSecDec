@@ -3,6 +3,7 @@ use super::*;
 use std::sync::Arc;
 
 pub struct CompilationSession {
+    budget: ResourceBudget,
     generated: Arc<GeneratedIntegral>,
     runtime: Arc<Vec<Symbol>>,
     precision: PrecisionPolicy,
@@ -23,10 +24,13 @@ impl CompilationSession {
         precision: PrecisionPolicy,
         settings: CompilationSettings,
     ) -> Result<Self, KernelError> {
+        resources::checkpoint()?;
         precision.validate()?;
         settings.validate()?;
         let use_complex = requires_complex(&generated, &runtime_parameters);
+        resources::checkpoint()?;
         Ok(Self {
+            budget: ResourceBudget::capture_current(),
             generated,
             runtime: Arc::new(runtime_parameters),
             precision,
@@ -68,8 +72,27 @@ impl CompilationSession {
         mut progress: impl FnMut(&CompilationProgress) -> ControlFlow<()>,
     ) -> Result<bool, KernelError> {
         let started = Instant::now();
-        let result = self.step_inner(max_units, &mut progress);
+        if max_units == 0 {
+            return Err(KernelError::Compilation(
+                "max_units must be positive".into(),
+            ));
+        }
+        if self.complete {
+            return Ok(true);
+        }
+        let budget = self.budget.clone();
+        let result: Result<bool, KernelError> = budget.run(|| {
+            resources::checkpoint()?;
+            let complete = self.step_inner(max_units, &mut progress)?;
+            resources::checkpoint()?;
+            Ok(complete)
+        });
         self.elapsed_seconds += started.elapsed().as_secs_f64();
+        if let Err(error) = &result {
+            self.failed = Some(error.to_string());
+            self.result = None;
+            self.complete = false;
+        }
         result
     }
 
@@ -90,6 +113,7 @@ impl CompilationSession {
             return Ok(true);
         }
         for _ in 0..max_units {
+            resources::checkpoint()?;
             let event = self.snapshot();
             if progress(&event).is_break() {
                 return Ok(false);
@@ -97,6 +121,7 @@ impl CompilationSession {
             let result = if self.sectors.len() < self.total_sectors() {
                 let index = self.sectors.len();
                 CompilationJob {
+                    budget: ResourceBudget::capture_current(),
                     owner: self.owner.clone(),
                     index,
                     sector: self.generated.sectors()[index].clone(),

@@ -18,6 +18,7 @@ use std::{
     time::Instant,
 };
 use symbolica::atom::Symbol;
+use symbolica::utils::resources::{self, ResourceBudget};
 
 /// A paused owner can resume by calling [`GenerationSession::step`] again.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -88,9 +89,12 @@ enum Stage {
 /// It never discards successful native work. Errors are terminal and never
 /// expose a partial generated integral. Use the ordinary generation entry when
 /// aborting inside existing native progress boundaries is preferable to resume.
+/// The resource deadline starts at construction and includes queued/paused wall
+/// time; the reported generation timings count only active step calls.
 pub struct GenerationSession {
     input: ParametricIntegrand,
     options: GenerationOptions,
+    budget: ResourceBudget,
     stage: Stage,
     domain: Option<DomainAssessment>,
     supports: SupportCache,
@@ -108,11 +112,13 @@ pub struct GenerationSession {
 
 impl GenerationSession {
     pub fn new(input: ParametricIntegrand, options: GenerationOptions) -> Self {
+        let budget = ResourceBudget::new(options.resources).run(ResourceBudget::capture_current);
         let supports = SupportCache::new(input.parameters());
         let assembly = Some(Assembly::new(options.max_order));
         Self {
             input,
             options,
+            budget,
             stage: Stage::Admission,
             domain: None,
             supports,
@@ -160,6 +166,39 @@ impl GenerationSession {
     pub fn step(
         &mut self,
         max_units: usize,
+        progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+    ) -> Result<GenerationSessionState, GenerationError> {
+        if max_units == 0 {
+            return Err(GenerationError::Invariant(
+                "generation step requires at least one work unit".into(),
+            ));
+        }
+        if matches!(self.stage, Stage::Failed) {
+            return Err(GenerationError::Invariant(
+                "generation session failed; create a new session to retry".into(),
+            ));
+        }
+        if self.is_complete() {
+            return Ok(GenerationSessionState::Complete);
+        }
+        let budget = self.budget.clone();
+        let outcome = budget.run(|| {
+            resources::checkpoint()?;
+            let state = self.step_scoped(max_units, progress)?;
+            resources::checkpoint()?;
+            Ok(state)
+        });
+        if let Err(error) = &outcome {
+            self.stage = Stage::Failed;
+            self.result = None;
+            self.snapshot.detail = format!("Generation failed: {error}");
+        }
+        outcome
+    }
+
+    fn step_scoped(
+        &mut self,
+        max_units: usize,
         mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
     ) -> Result<GenerationSessionState, GenerationError> {
         if max_units == 0 {
@@ -175,6 +214,7 @@ impl GenerationSession {
         let started = Instant::now();
         let mut pause = false;
         for _ in 0..max_units {
+            resources::checkpoint()?;
             if self.is_complete() {
                 break;
             }

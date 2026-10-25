@@ -2,6 +2,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use fastsecdec::AtomCore;
 use serde::Deserialize;
+use std::time::Duration;
+use symbolica::utils::resources::ResourceLimits;
 
 /// Normalize one input layer before merging it with lower-priority values.
 pub(crate) fn canonical_parameter_names<T>(
@@ -125,13 +127,33 @@ pub struct GenerationInput {
     pub subtraction: fastsecdec::generation::SubtractionStrategy,
     pub contraction_mode: fastsecdec::input::NumeratorContraction,
     pub assume_no_threshold: bool,
-    pub max_sectors: usize,
-    pub max_support_pairs: usize,
+    /// Optional execution-count diagnostics. None leaves counts unrestricted.
+    pub max_sectors: Option<usize>,
+    pub max_support_pairs: Option<usize>,
+    pub max_rays: Option<usize>,
+    pub max_subtractions_per_axis: Option<usize>,
+    pub max_subtraction_terms: Option<usize>,
+    pub max_process_rss_bytes: Option<u64>,
+    pub max_elapsed_seconds: Option<f64>,
     pub coefficient_expansion: fastsecdec::generation::CoefficientExpansionOptions,
     pub evaluator: fastsecdec::kernel::CompilationSettings,
     /// Native graph-family preparation; unlike the library policy's default,
     /// historical CLI cards keep their original propagator representation.
     pub family_preparation: fastsecdec::parametric::FamilyPreparationPolicy,
+}
+
+impl GenerationInput {
+    pub fn resource_limits(&self) -> crate::CliResult<ResourceLimits> {
+        let max_elapsed = self
+            .max_elapsed_seconds
+            .map(Duration::try_from_secs_f64)
+            .transpose()
+            .map_err(|_| "generation.max_elapsed_seconds must be finite and nonnegative")?;
+        Ok(ResourceLimits {
+            max_process_rss_bytes: self.max_process_rss_bytes,
+            max_elapsed,
+        })
+    }
 }
 
 impl Default for GenerationInput {
@@ -142,8 +164,13 @@ impl Default for GenerationInput {
             subtraction: Default::default(),
             contraction_mode: Default::default(),
             assume_no_threshold: false,
-            max_sectors: 1_000_000,
-            max_support_pairs: 10_000_000,
+            max_sectors: None,
+            max_support_pairs: None,
+            max_rays: None,
+            max_subtractions_per_axis: None,
+            max_subtraction_terms: None,
+            max_process_rss_bytes: None,
+            max_elapsed_seconds: None,
             coefficient_expansion: Default::default(),
             evaluator: Default::default(),
             family_preparation: fastsecdec::parametric::FamilyPreparationPolicy::Original,

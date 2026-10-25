@@ -327,7 +327,7 @@ fn native_errors_and_early_endpoint_caps_are_not_hidden_by_series_work() {
         Err(GenerationError::Series(_))
     ));
     let restricted = GenerationOptions {
-        max_subtractions_per_axis: 1,
+        max_subtractions_per_axis: Some(1),
         ..options.clone()
     };
     // These must reject before attempting the unsupported regular Series.
@@ -418,7 +418,7 @@ fn caller_caps_fail_before_partial_output_at_attempt_width_piece_and_request_bou
     ] {
         let options = GenerationOptions {
             subtraction: strategy,
-            max_subtraction_terms: 1,
+            max_subtraction_terms: Some(1),
             ..GenerationOptions::default()
         };
         assert!(matches!(

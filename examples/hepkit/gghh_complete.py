@@ -976,7 +976,7 @@ def _(formatting):
         def _formula(mo, value):
             # Symbolica supplies the bounded LaTeX; no expression reconstruction or CAS.
             # Qualified identities remain in the exact-source metadata and downloads.
-            formatted = value.formatted(max_terms=12, max_line_length=80, show_namespaces=False)
+            formatted = value.formatted(max_terms=12, max_line_length=80, show_namespaces=False, mathml=False)
             latex = formatted._repr_latex_()
             if latex and len(latex) <= 4000:
                 return mo.md(latex)

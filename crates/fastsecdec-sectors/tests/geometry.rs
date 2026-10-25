@@ -188,7 +188,7 @@ fn zero_dimensional_work_obeys_cancellation_and_limits() {
         Err(SectorError::Cancelled)
     ));
     let options = DecompositionOptions {
-        max_sectors: 0,
+        max_sectors: Some(0),
         ..DecompositionOptions::default()
     };
     assert!(matches!(

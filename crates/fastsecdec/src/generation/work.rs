@@ -9,6 +9,7 @@ use crate::parametric::ParametricIntegrand;
 use fastsecdec_sectors::SectorMap;
 use std::{collections::BTreeMap, ops::ControlFlow, sync::Arc, time::Instant};
 use symbolica::atom::Symbol;
+use symbolica::utils::resources::{self, ResourceBudget};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SymbolicStage {
@@ -32,6 +33,7 @@ pub struct SymbolicJob {
     owner: Arc<()>,
     id: SymbolicJobId,
     work: Work,
+    budget: ResourceBudget,
 }
 pub struct SymbolicCompletion {
     owner: Arc<()>,
@@ -88,6 +90,19 @@ impl SymbolicJob {
     }
     /// Execute one native job; no worker pool is constructed by the library.
     pub fn run(
+        self,
+        progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
+    ) -> Result<SymbolicCompletion, GenerationError> {
+        let budget = self.budget.clone();
+        budget.run(|| {
+            resources::checkpoint()?;
+            let completion = self.run_scoped(progress)?;
+            resources::checkpoint()?;
+            Ok(completion)
+        })
+    }
+
+    fn run_scoped(
         self,
         mut progress: impl FnMut(&GenerationProgress) -> ControlFlow<()>,
     ) -> Result<SymbolicCompletion, GenerationError> {
@@ -198,6 +213,7 @@ pub(super) fn numerical_dual_tasks(
         .enumerate()
         .map(|(index, task)| SymbolicJob {
             owner: owner.clone(),
+            budget: ResourceBudget::capture_current(),
             id: SymbolicJobId { stage, index },
             work: Work::NumericalDual(task),
         });
@@ -291,6 +307,7 @@ pub(super) fn map_dispatched(
         .enumerate()
         .map(|(index, map)| SymbolicJob {
             owner: Arc::clone(&owner),
+            budget: ResourceBudget::capture_current(),
             id: SymbolicJobId {
                 stage: SymbolicStage::Mapping,
                 index,
@@ -354,6 +371,7 @@ pub(super) fn symmetry_dispatched(
         .enumerate()
         .map(|(index, chart)| SymbolicJob {
             owner: Arc::clone(&owner),
+            budget: ResourceBudget::capture_current(),
             id: SymbolicJobId {
                 stage: SymbolicStage::Symmetry,
                 index,
@@ -397,6 +415,7 @@ pub(super) fn expand_dispatched(
     let mut jobs = representatives.into_iter().enumerate().map(
         |(index, (representative, (map, parameters, mapped, multiplicity)))| SymbolicJob {
             owner: Arc::clone(&owner),
+            budget: ResourceBudget::capture_current(),
             id: SymbolicJobId {
                 stage: SymbolicStage::Coefficients,
                 index,

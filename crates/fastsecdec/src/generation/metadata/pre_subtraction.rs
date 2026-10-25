@@ -31,7 +31,7 @@ impl EndpointPower {
     pub(crate) fn admit(
         exponent: Atom,
         regulator: Symbol,
-        maximum: usize,
+        maximum: Option<usize>,
     ) -> Result<Self, GenerationError> {
         let admission = endpoints::admit(&exponent, regulator, maximum)?;
         Ok(Self {
@@ -82,7 +82,7 @@ impl PreSubtractionMetadata {
     pub(in crate::generation) fn capture(
         terms: &[MappedTerm],
         regulator: Symbol,
-        maximum: usize,
+        maximum: Option<usize>,
     ) -> Result<Self, GenerationError> {
         Ok(Self {
             regulator,

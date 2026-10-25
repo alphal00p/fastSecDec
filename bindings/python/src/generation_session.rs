@@ -25,6 +25,7 @@ use symbolica::api::python::PythonExpression;
 pub(crate) struct PyGenerationSession {
     input: Option<PyIntegral>,
     options: GenerationOptions,
+    budget: Option<symbolica::utils::resources::ResourceBudget>,
     settings: fastsecdec::kernel::CompilationSettings,
     generation: Option<GenerationSession>,
     compilation: Option<CompilationSession>,
@@ -37,10 +38,27 @@ pub(crate) struct PyGenerationSession {
     parametrization_seconds: f64,
 }
 
+impl PyGenerationSession {
+    fn check_resources(&mut self, py: Python<'_>) -> PyResult<()> {
+        if let Err(error) = symbolica::utils::resources::checkpoint() {
+            self.failed = Some(error.to_string());
+            self.status.detail = format!("Generation failed: {error}");
+            if self.status.stage == GenerationStage::Complete {
+                self.status.stage = GenerationStage::Compilation;
+            }
+            self.kernels = None;
+            self.generated = None;
+            self.compilation = None;
+            return Err(error::native(py, "generation", error));
+        }
+        Ok(())
+    }
+}
+
 #[pymethods]
 impl PyIntegral {
     /// Create inert retained work. Only step() performs parameterization, generation or compilation.
-    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", compilation_settings=None, runtime_parameters=None))]
+    #[pyo3(signature=(max_order=0, *, coefficient_expansion="coefficient_series", mode="symbolic", subtraction="taylor", max_process_rss_bytes=None, max_elapsed_seconds=None, compilation_settings=None, runtime_parameters=None))]
     #[allow(clippy::too_many_arguments)]
     fn generation_session(
         &self,
@@ -49,11 +67,19 @@ impl PyIntegral {
         coefficient_expansion: &str,
         mode: &str,
         subtraction: &str,
+        max_process_rss_bytes: Option<u64>,
+        max_elapsed_seconds: Option<f64>,
         compilation_settings: Option<&PyCompilationSettings>,
         runtime_parameters: Option<Vec<PythonExpression>>,
     ) -> PyResult<PyGenerationSession> {
-        let options =
-            crate::generation::options(max_order, coefficient_expansion, mode, subtraction)?;
+        let options = crate::generation::options(
+            max_order,
+            coefficient_expansion,
+            mode,
+            subtraction,
+            max_process_rss_bytes,
+            max_elapsed_seconds,
+        )?;
         let settings = compilation_settings.cloned().unwrap_or_default().inner;
         settings
             .validate()
@@ -68,6 +94,7 @@ impl PyIntegral {
         Ok(PyGenerationSession {
             input: Some(input),
             options,
+            budget: None,
             settings,
             generation: None,
             compilation: None,
@@ -148,135 +175,159 @@ impl PyGenerationSession {
         }
         let started = Instant::now();
         let mut paused = false;
-        let result = (|| {
-            for _ in 0..max_units {
-                if !observe(py, observer.as_ref(), &self.status)? {
-                    break;
-                }
-                if let Some(input) = &self.input {
-                    crate::citations::mark_generation();
-                    self.status.stage = GenerationStage::Parametrization;
-                    self.status.detail = "Parametrizing the native diagram".into();
-                    let timer = Instant::now();
-                    let (input, runtime) = match input.parametrize(py) {
-                        Ok(value) => value,
-                        Err(e) => {
-                            self.failed = Some(e.to_string());
+        let limits = self.options.resources;
+        let budget = self
+            .budget
+            .get_or_insert_with(|| {
+                symbolica::utils::resources::ResourceBudget::new(limits)
+                    .run(symbolica::utils::resources::ResourceBudget::capture_current)
+            })
+            .clone();
+        let result = budget.run(|| {
+            self.check_resources(py)?;
+            let result = (|| {
+                for _ in 0..max_units {
+                    if !observe(py, observer.as_ref(), &self.status)? {
+                        break;
+                    }
+                    if let Some(input) = &self.input {
+                        crate::citations::mark_generation();
+                        self.status.stage = GenerationStage::Parametrization;
+                        self.status.detail = "Parametrizing the native diagram".into();
+                        let timer = Instant::now();
+                        let (input, runtime) = match input.parametrize(py) {
+                            Ok(value) => value,
+                            Err(e) => {
+                                self.failed = Some(e.to_string());
+                                return Err(e);
+                            }
+                        };
+                        self.parametrization_seconds = timer.elapsed().as_secs_f64();
+                        self.runtime = runtime;
+                        self.generation = Some(GenerationSession::new(input, self.options.clone()));
+                        self.input = None;
+                    } else if let Some(generation) = &mut self.generation {
+                        let mut callback_error = None;
+                        let status = &mut self.status;
+                        let max_order = self.options.max_order;
+                        let result = generation.step(1, |event| {
+                            status.observe_generation(max_order, event);
+                            if callback_error.is_some() || paused {
+                                return ControlFlow::Break(());
+                            }
+                            match observe(py, observer.as_ref(), status) {
+                                Ok(true) => ControlFlow::Continue(()),
+                                Ok(false) => {
+                                    paused = true;
+                                    ControlFlow::Break(())
+                                }
+                                Err(e) => {
+                                    callback_error = Some(e);
+                                    ControlFlow::Break(())
+                                }
+                            }
+                        });
+                        self.status = generation.snapshot().clone();
+                        if let Err(error) = &result {
+                            self.failed = Some(error.to_string());
+                        }
+                        if let Some(e) = callback_error.take() {
                             return Err(e);
                         }
-                    };
-                    self.parametrization_seconds = timer.elapsed().as_secs_f64();
-                    self.runtime = runtime;
-                    self.generation = Some(GenerationSession::new(input, self.options.clone()));
-                    self.input = None;
-                } else if let Some(generation) = &mut self.generation {
-                    let mut callback_error = None;
-                    let status = &mut self.status;
-                    let max_order = self.options.max_order;
-                    let result = generation.step(1, |event| {
-                        status.observe_generation(max_order, event);
-                        if callback_error.is_some() || paused {
-                            return ControlFlow::Break(());
+                        if let Err(e) = result {
+                            self.failed = Some(e.to_string());
+                            return Err(error::native(py, "generation", e));
                         }
-                        match observe(py, observer.as_ref(), status) {
-                            Ok(true) => ControlFlow::Continue(()),
-                            Ok(false) => {
-                                paused = true;
-                                ControlFlow::Break(())
-                            }
-                            Err(e) => {
-                                callback_error = Some(e);
-                                ControlFlow::Break(())
-                            }
+                        if let Some(generated) = generation.take_result() {
+                            let generated = Arc::new(generated);
+                            self.compilation = Some(
+                                CompilationSession::new(
+                                    generated.clone(),
+                                    self.runtime.parameters.clone(),
+                                    Default::default(),
+                                    self.settings,
+                                )
+                                .map_err(|e| {
+                                    self.failed = Some(e.to_string());
+                                    error::native(py, "compilation", e)
+                                })?,
+                            );
+                            self.generated = Some(PyGeneratedIntegral {
+                                inner: generated,
+                                status: self.status.clone(),
+                                runtime: self.runtime.clone(),
+                                mode: self.options.mode,
+                                subtraction: self.options.subtraction,
+                            });
+                            self.generation = None;
                         }
-                    });
-                    self.status = generation.snapshot().clone();
-                    if let Err(e) = result {
-                        self.failed = Some(e.to_string());
-                        return Err(error::native(py, "generation", e));
-                    }
-                    if let Some(generated) = generation.take_result() {
-                        let generated = Arc::new(generated);
-                        self.compilation = Some(
-                            CompilationSession::new(
-                                generated.clone(),
-                                self.runtime.parameters.clone(),
-                                Default::default(),
-                                self.settings,
-                            )
-                            .map_err(|e| {
-                                self.failed = Some(e.to_string());
-                                error::native(py, "compilation", e)
-                            })?,
-                        );
-                        self.generated = Some(PyGeneratedIntegral {
-                            inner: generated,
-                            status: self.status.clone(),
-                            runtime: self.runtime.clone(),
-                            mode: self.options.mode,
-                            subtraction: self.options.subtraction,
+                    } else if let Some(compilation) = &mut self.compilation {
+                        let mut callback_error = None;
+                        let status = &mut self.status;
+                        let result = compilation.step(1, |event| {
+                            status.observe_compilation(event);
+                            if callback_error.is_some() || paused {
+                                return ControlFlow::Break(());
+                            }
+                            match observe(py, observer.as_ref(), status) {
+                                Ok(true) => ControlFlow::Continue(()),
+                                Ok(false) => {
+                                    paused = true;
+                                    ControlFlow::Break(())
+                                }
+                                Err(e) => {
+                                    callback_error = Some(e);
+                                    ControlFlow::Break(())
+                                }
+                            }
                         });
-                        self.generation = None;
-                    }
-                    if let Some(e) = callback_error {
-                        return Err(e);
-                    }
-                } else if let Some(compilation) = &mut self.compilation {
-                    let mut callback_error = None;
-                    let status = &mut self.status;
-                    let result = compilation.step(1, |event| {
-                        status.observe_compilation(event);
-                        if callback_error.is_some() || paused {
-                            return ControlFlow::Break(());
+                        self.status.observe_compilation(&compilation.snapshot());
+                        if let Err(error) = &result {
+                            self.failed = Some(error.to_string());
                         }
-                        match observe(py, observer.as_ref(), status) {
-                            Ok(true) => ControlFlow::Continue(()),
-                            Ok(false) => {
-                                paused = true;
-                                ControlFlow::Break(())
-                            }
-                            Err(e) => {
-                                callback_error = Some(e);
-                                ControlFlow::Break(())
-                            }
+                        if let Some(e) = callback_error.take() {
+                            return Err(e);
                         }
-                    });
-                    self.status.observe_compilation(&compilation.snapshot());
-                    if let Err(e) = result {
-                        self.failed = Some(e.to_string());
-                        return Err(error::native(py, "compilation", e));
-                    }
-                    if let Some(kernels) = compilation.take_result() {
-                        let kernels = kernels
-                            .with_runtime_mass_constraints(self.runtime.masses.clone())
-                            .map_err(|e| {
-                                self.failed = Some(e.to_string());
-                                error::native(py, "compilation", e)
-                            })?;
-                        self.status.stage = GenerationStage::Complete;
-                        self.status.detail =
+                        if let Err(e) = result {
+                            self.failed = Some(e.to_string());
+                            return Err(error::native(py, "compilation", e));
+                        }
+                        if let Some(kernels) = compilation.take_result() {
+                            let kernels = kernels
+                                .with_runtime_mass_constraints(self.runtime.masses.clone())
+                                .map_err(|e| {
+                                    self.failed = Some(e.to_string());
+                                    error::native(py, "compilation", e)
+                                })?;
+                            self.status.stage = GenerationStage::Complete;
+                            self.status.detail =
                             "Kernels ready; supply any declared runtime inputs before integration"
                                 .into();
-                        self.kernels = Some(PyKernels {
-                            inner: Rc::new(kernels),
-                            status: self.status.clone(),
-                        });
-                        self.compilation = None;
+                            self.kernels = Some(PyKernels {
+                                inner: Rc::new(kernels),
+                                status: self.status.clone(),
+                            });
+                            self.compilation = None;
+                        }
                     }
-                    if let Some(e) = callback_error {
-                        return Err(e);
+                    self.status.elapsed_seconds = self.elapsed + started.elapsed().as_secs_f64();
+                    if paused
+                        || !observe(py, observer.as_ref(), &self.status)?
+                        || self.kernels.is_some()
+                    {
+                        break;
                     }
                 }
-                self.status.elapsed_seconds = self.elapsed + started.elapsed().as_secs_f64();
-                if paused
-                    || !observe(py, observer.as_ref(), &self.status)?
-                    || self.kernels.is_some()
-                {
-                    break;
-                }
+                Ok(())
+            })();
+            // Preserve the original callback/Python error while still removing
+            // results published by a unit whose resource postcheck fails.
+            let resources = self.check_resources(py);
+            match result {
+                Err(error) => Err(error),
+                Ok(()) => resources,
             }
-            Ok(())
-        })();
+        });
         self.elapsed += started.elapsed().as_secs_f64();
         self.status.elapsed_seconds = self.elapsed;
         self.status.timings.parametrization_seconds = self.parametrization_seconds;
@@ -330,6 +381,7 @@ import symbolica.community.hepkit.sector_decomposition
 class PyIntegral:
     def generation_session(self, max_order: int = 0, *, coefficient_expansion: str = "coefficient_series",
         mode: str = "symbolic", subtraction: str = "taylor",
+        max_process_rss_bytes: typing.Optional[int] = None, max_elapsed_seconds: typing.Optional[float] = None,
         compilation_settings: typing.Optional[symbolica.community.hepkit.sector_decomposition.CompilationSettings] = None,
         runtime_parameters: typing.Optional[list[symbolica.Expression]] = None,
     ) -> symbolica.community.hepkit.sector_decomposition.GenerationSession:

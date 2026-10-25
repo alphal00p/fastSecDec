@@ -35,43 +35,62 @@ impl GeometryCache {
         mut cancelled: impl FnMut() -> bool,
         mut progress: impl FnMut(&DecompositionProgress) -> ControlFlow<()>,
     ) -> Result<GeometryCacheOutcome, SectorError> {
-        if cancelled() {
-            return Err(SectorError::Cancelled);
-        }
-        let limits = [
-            options.max_support_pairs,
-            options.max_rays,
-            options.max_sectors,
-        ];
-        if let Some(hit) = self.lookup(domain, supports, limits, &mut progress)? {
-            return if cancelled() {
-                Err(SectorError::Cancelled)
-            } else {
-                Ok(hit)
-            };
-        }
-
-        let plan = GeometryPlan::new(domain, supports.to_vec(), options.clone())?;
-        if cancelled() {
-            return Err(SectorError::Cancelled);
-        }
-        let charts = dispatch(&mut plan.charts())?;
-        let prepared = plan.prepare(charts, &mut cancelled)?;
-        if cancelled() {
-            return Err(SectorError::Cancelled);
-        }
-        let cones = dispatch(&mut prepared.cones())?;
-        let mut completion = None;
-        let result = prepared.finish(cones, &mut cancelled, |status| {
-            let decision = progress(status);
-            if decision.is_continue() && status.phase == DecompositionPhase::Complete {
-                completion = Some(status.clone());
+        ResourceBudget::new(options.resources).run(|| {
+            if cancelled() {
+                return Err(SectorError::Cancelled);
             }
-            decision
-        })?;
-        if cancelled() {
-            return Err(SectorError::Cancelled);
-        }
-        self.store(domain, supports, limits, result, completion)
+            resources::checkpoint()?;
+            let limits = [
+                options.max_support_pairs,
+                options.max_rays,
+                options.max_sectors,
+            ];
+            if let Some(hit) = self.lookup(domain, supports, limits, &mut progress)? {
+                return if cancelled() {
+                    Err(SectorError::Cancelled)
+                } else {
+                    Ok(hit)
+                };
+            }
+
+            let plan = GeometryPlan::new(domain, supports.to_vec(), options.clone())?;
+            if cancelled() {
+                return Err(SectorError::Cancelled);
+            }
+            let charts = dispatch(&mut plan.charts())?;
+            if cancelled()
+                || charts
+                    .iter()
+                    .any(|result| matches!(result.error(), Some(SectorError::Cancelled)))
+            {
+                return Err(SectorError::Cancelled);
+            }
+            resources::checkpoint()?;
+            let prepared = plan.prepare(charts, &mut cancelled)?;
+            if cancelled() {
+                return Err(SectorError::Cancelled);
+            }
+            let cones = dispatch(&mut prepared.cones())?;
+            if cancelled()
+                || cones
+                    .iter()
+                    .any(|result| matches!(result.error(), Some(SectorError::Cancelled)))
+            {
+                return Err(SectorError::Cancelled);
+            }
+            resources::checkpoint()?;
+            let mut completion = None;
+            let result = prepared.finish(cones, &mut cancelled, |status| {
+                let decision = progress(status);
+                if decision.is_continue() && status.phase == DecompositionPhase::Complete {
+                    completion = Some(status.clone());
+                }
+                decision
+            })?;
+            if cancelled() {
+                return Err(SectorError::Cancelled);
+            }
+            self.store(domain, supports, limits, result, completion)
+        })
     }
 }

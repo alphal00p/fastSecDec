@@ -72,6 +72,7 @@ def sector_decompose(
     model_parameters: str = "runtime",
     max_order: int = 0, coefficient_expansion: str = "full_expression",
     mode: str = "symbolic", subtraction: str = "taylor",
+    max_process_rss_bytes: typing.Optional[int] = None, max_elapsed_seconds: typing.Optional[float] = None,
     observer: typing.Optional[collections.abc.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]]] = None,
     progress: typing.Union[typing.Literal["auto"], typing.Callable[[symbolica.community.hepkit.sector_decomposition.GenerationSnapshot], typing.Optional[bool]], None] = "auto",
 ) -> symbolica.community.hepkit.sector_decomposition.GeneratedIntegral:
@@ -91,9 +92,9 @@ def sector_decompose(
     )
 )]
 #[pyfunction]
-#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
+#[pyo3(signature = (input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters="runtime", max_order=0, coefficient_expansion="full_expression", mode="symbolic", subtraction="taylor", max_process_rss_bytes=None, max_elapsed_seconds=None, observer=None, progress=Some(Python::attach(|py| PyString::new(py, "auto").into_any().unbind()))))]
 #[pyo3(
-    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', observer=None, progress='auto')"
+    text_signature = "(input, *, regulator, kinematics=None, dimension=None, powers=None, numerator=None, scalar_values=None, auxiliary_momenta=None, measure_multiplier=None, runtime_parameters=None, model_parameters='runtime', max_order=0, coefficient_expansion='full_expression', mode='symbolic', subtraction='taylor', max_process_rss_bytes=None, max_elapsed_seconds=None, observer=None, progress='auto')"
 )]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sector_decompose(
@@ -113,108 +114,122 @@ pub(crate) fn sector_decompose(
     coefficient_expansion: &str,
     mode: &str,
     subtraction: &str,
+    max_process_rss_bytes: Option<u64>,
+    max_elapsed_seconds: Option<f64>,
     observer: Option<Py<PyAny>>,
     progress: Option<Py<PyAny>>,
 ) -> PyResult<PyGeneratedIntegral> {
-    if let Ok(diagram) = input.extract::<PyRef<'_, PyFeynmanDiagram>>() {
-        let kinematics = kinematics.ok_or_else(|| {
-            PyTypeError::new_err("a FeynmanDiagram requires explicit native kinematics")
-        })?;
-        if numerator.is_some() {
-            return Err(PyTypeError::new_err(
-                "a FeynmanDiagram uses its owned numerator and weights; replace its numerator on the native diagram before sector_decompose",
-            ));
+    let limits = crate::resources::limits(max_process_rss_bytes, max_elapsed_seconds)?;
+    crate::resources::run(py, limits, || {
+        if let Ok(diagram) = input.extract::<PyRef<'_, PyFeynmanDiagram>>() {
+            let kinematics = kinematics.ok_or_else(|| {
+                PyTypeError::new_err("a FeynmanDiagram requires explicit native kinematics")
+            })?;
+            if numerator.is_some() {
+                return Err(PyTypeError::new_err(
+                    "a FeynmanDiagram uses its owned numerator and weights; replace its numerator on the native diagram before sector_decompose",
+                ));
+            }
+            let powers = powers
+                .map(|value| value.extract::<BTreeMap<usize, u32>>())
+                .transpose()?;
+            return PyIntegral::new(
+                py,
+                &diagram,
+                kinematics,
+                regulator,
+                dimension,
+                powers,
+                scalar_values,
+                auxiliary_momenta,
+                measure_multiplier,
+                runtime_parameters,
+                model_parameters,
+            )?
+            .generate(
+                py,
+                max_order,
+                coefficient_expansion,
+                mode,
+                subtraction,
+                max_process_rss_bytes,
+                max_elapsed_seconds,
+                observer,
+                progress,
+            );
         }
-        let powers = powers
-            .map(|value| value.extract::<BTreeMap<usize, u32>>())
-            .transpose()?;
-        return PyIntegral::new(
-            py,
-            &diagram,
-            kinematics,
-            regulator,
-            dimension,
-            powers,
-            scalar_values,
-            auxiliary_momenta,
-            measure_multiplier,
-            runtime_parameters,
-            model_parameters,
-        )?
-        .generate(
-            py,
-            max_order,
-            coefficient_expansion,
-            mode,
-            subtraction,
-            observer,
-            progress,
-        );
-    }
-    if let Ok(family) = input.extract::<PyRef<'_, PyIntegralFamily>>() {
-        let powers = powers
-            .ok_or_else(|| {
-                PyTypeError::new_err("an IntegralFamily requires explicit signed powers")
-            })?
-            .extract::<Vec<i32>>()?;
-        let numerator = numerator.ok_or_else(|| {
-            PyTypeError::new_err(
-                "an IntegralFamily requires an explicitly weighted scalar numerator",
-            )
-        })?;
-        let regulator = expression_symbol(py, regulator, "regulator")?;
-        let dimension = dimension.map_or_else(
-            || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
-            |value| value.expr.clone(),
-        );
-        let bindings = scalar_bindings(py, scalar_values)?;
-        let momenta: Vec<_> = auxiliary_momenta
-            .unwrap_or_default()
-            .into_iter()
-            .map(|value| value.expr)
-            .collect();
-        let weighted_numerator =
-            &numerator.expr * measure_multiplier.map_or_else(Atom::one, |value| value.expr.clone());
-        return generate_native(
-            py,
-            crate::generation::options(max_order, coefficient_expansion, mode, subtraction)?,
-            observer.as_ref(),
-            progress.as_ref(),
-            "Parametrizing the native integral family",
-            || {
-                let (family, powers, numerator) = prepare_family_input(
-                    family.as_family(),
-                    &powers,
-                    weighted_numerator,
-                    kinematics.map(PyKinematics::as_kinematics),
-                    &bindings,
-                    &momenta,
+        if let Ok(family) = input.extract::<PyRef<'_, PyIntegralFamily>>() {
+            let powers = powers
+                .ok_or_else(|| {
+                    PyTypeError::new_err("an IntegralFamily requires explicit signed powers")
+                })?
+                .extract::<Vec<i32>>()?;
+            let numerator = numerator.ok_or_else(|| {
+                PyTypeError::new_err(
+                    "an IntegralFamily requires an explicitly weighted scalar numerator",
                 )
-                .map_err(|e| error::native(py, "input", e))?;
-                let parameters = (0..powers.len())
-                    .map(|i| symbol!(format!("fastsecdec::hepkit::x{i}")))
-                    .collect();
-                ParametricIntegrand::from_family(
-                    &family, &powers, numerator, parameters, regulator, dimension,
-                )
-                .map_err(|e| error::native(py, "parametrization", e))
-                .and_then(|input| {
-                    Ok((
-                        input,
-                        crate::input::RuntimeInputs {
-                            parameters: runtime_parameters
-                                .unwrap_or_default()
-                                .iter()
-                                .map(|p| expression_symbol(py, p, "runtime parameter"))
-                                .collect::<PyResult<_>>()?,
-                            ..Default::default()
-                        },
-                    ))
-                })
-            },
-        );
-    }
-    Err(PyTypeError::new_err(
-        "input must be a native HEPKit FeynmanDiagram or IntegralFamily",
-    ))
+            })?;
+            let regulator = expression_symbol(py, regulator, "regulator")?;
+            let dimension = dimension.map_or_else(
+                || Atom::num(4) - Atom::num(2) * Atom::var(regulator),
+                |value| value.expr.clone(),
+            );
+            let bindings = scalar_bindings(py, scalar_values)?;
+            let momenta: Vec<_> = auxiliary_momenta
+                .unwrap_or_default()
+                .into_iter()
+                .map(|value| value.expr)
+                .collect();
+            let weighted_numerator = &numerator.expr
+                * measure_multiplier.map_or_else(Atom::one, |value| value.expr.clone());
+            return generate_native(
+                py,
+                crate::generation::options(
+                    max_order,
+                    coefficient_expansion,
+                    mode,
+                    subtraction,
+                    max_process_rss_bytes,
+                    max_elapsed_seconds,
+                )?,
+                observer.as_ref(),
+                progress.as_ref(),
+                "Parametrizing the native integral family",
+                || {
+                    let (family, powers, numerator) = prepare_family_input(
+                        family.as_family(),
+                        &powers,
+                        weighted_numerator,
+                        kinematics.map(PyKinematics::as_kinematics),
+                        &bindings,
+                        &momenta,
+                    )
+                    .map_err(|e| error::native(py, "input", e))?;
+                    let parameters = (0..powers.len())
+                        .map(|i| symbol!(format!("fastsecdec::hepkit::x{i}")))
+                        .collect();
+                    ParametricIntegrand::from_family(
+                        &family, &powers, numerator, parameters, regulator, dimension,
+                    )
+                    .map_err(|e| error::native(py, "parametrization", e))
+                    .and_then(|input| {
+                        Ok((
+                            input,
+                            crate::input::RuntimeInputs {
+                                parameters: runtime_parameters
+                                    .unwrap_or_default()
+                                    .iter()
+                                    .map(|p| expression_symbol(py, p, "runtime parameter"))
+                                    .collect::<PyResult<_>>()?,
+                                ..Default::default()
+                            },
+                        ))
+                    })
+                },
+            );
+        }
+        Err(PyTypeError::new_err(
+            "input must be a native HEPKit FeynmanDiagram or IntegralFamily",
+        ))
+    })
 }

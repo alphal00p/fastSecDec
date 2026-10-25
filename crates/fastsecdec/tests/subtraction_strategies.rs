@@ -195,7 +195,7 @@ fn a_nonnegative_integer_factor_remains_a_regular_polynomial_weight() {
     )
     .unwrap();
     let mut options = GenerationOptions::default();
-    options.decomposition.max_sectors = 1;
+    options.decomposition.max_sectors = Some(1);
     let generated = generate(&input, &options, |_| ControlFlow::Continue(())).unwrap();
     let mut kernels = generated.compile().unwrap();
     assert_eq!(kernels.sectors().len(), 1);

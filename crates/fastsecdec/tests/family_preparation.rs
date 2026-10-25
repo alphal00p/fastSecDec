@@ -1,4 +1,5 @@
 //! Exact scientific controls for optional native family preparation.
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::{collections::BTreeMap, sync::Arc};
 
 use fastsecdec::{
@@ -7,10 +8,12 @@ use fastsecdec::{
     parametric::{
         FamilyPreparationFallback as Fallback, FamilyPreparationPolicy as Policy,
         FamilyPreparationReport, FamilyPreparationStatus as Status, ParametricIntegrand,
-        prepare_family,
+        prepare_family, prepare_family_with_resources,
     },
 };
 use feynkit_graph::EdgeId;
+use idenso::tensor::SymbolicTensor;
+use symbolica::utils::resources::{ResourceBudget, ResourceLimitError, ResourceLimits};
 use symbolica::{id::Pattern, parse, symbol};
 
 fn family(masses: &[Atom]) -> (IntegralFamily, Atom) {
@@ -110,7 +113,9 @@ fn native_noop_and_inadmissible_decompositions_preserve_original_density() {
         ),
         (
             vec![Atom::one(), Atom::one()],
-            Policy::SingleUnitTerm { max_states: 1 },
+            Policy::SingleUnitTerm {
+                max_states: Some(1),
+            },
             Fallback::StateLimit,
         ),
         (
@@ -272,7 +277,16 @@ fn optional_native_integer_limits_fall_back_without_changing_valid_powers() {
         );
         assert_eq!(prepared.powers(), powers);
     }
-    assert!(prepare_family(&family, &[1, 1], Policy::SingleUnitTerm { max_states: 0 }).is_err());
+    assert!(
+        prepare_family(
+            &family,
+            &[1, 1],
+            Policy::SingleUnitTerm {
+                max_states: Some(0)
+            }
+        )
+        .is_err()
+    );
     assert!(prepare_family(&family, &[0, 1], Policy::default()).is_err());
     let invalid = IntegralFamily::new(
         family.loop_momenta().to_vec(),
@@ -302,10 +316,10 @@ fn native_graph_projection_applies_weight_and_raised_power_measure_once() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::num(5))
+        .with_numerator(SymbolicTensor::infer(Atom::num(5)).unwrap())
         .unwrap()
         .with_overall_factor(Atom::num(2))
-        .with_projector(Atom::num(3));
+        .with_projector(SymbolicTensor::infer(Atom::num(3)).unwrap());
     let graph = GraphIntegral::new(Arc::new(diagram), &kin)
         .unwrap()
         .with_scalar_values(&BTreeMap::from([(symbol!("UFO::mt"), Atom::one())]))
@@ -334,4 +348,66 @@ fn native_graph_projection_applies_weight_and_raised_power_measure_once() {
     assert_eq!(value, Atom::num(70));
     assert_eq!(graph.powers(), [2, 2]);
     assert_eq!(graph.family().denominators().len(), 2);
+}
+
+#[test]
+fn default_counts_are_unlimited_and_outer_resource_errors_do_not_fall_back() {
+    assert_eq!(
+        Policy::default(),
+        Policy::SingleUnitTerm { max_states: None }
+    );
+    let (family, _) = family(&[Atom::one(), Atom::one()]);
+    let outer = ResourceBudget::with_memory_monitor(
+        ResourceLimits {
+            max_process_rss_bytes: Some(10),
+            ..ResourceLimits::default()
+        },
+        || Ok(11),
+    );
+    assert!(matches!(
+        outer.run(|| prepare_family(&family, &[2, 3], Policy::default())),
+        Err(Error::Resource(ResourceLimitError::Memory { .. }))
+    ));
+    let checks = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&checks);
+    let native_failure = ResourceBudget::with_memory_monitor(
+        ResourceLimits {
+            max_process_rss_bytes: Some(10),
+            ..ResourceLimits::default()
+        },
+        move || {
+            Ok(if observed.fetch_add(1, Ordering::SeqCst) < 2 {
+                0
+            } else {
+                11
+            })
+        },
+    );
+    assert!(matches!(
+        native_failure.run(|| prepare_family(&family, &[2, 3], Policy::default())),
+        Err(Error::Resource(ResourceLimitError::Memory { .. }))
+    ));
+    assert!(checks.load(Ordering::SeqCst) >= 3);
+    let missing = ResourceBudget::with_memory_monitor(
+        ResourceLimits {
+            max_process_rss_bytes: Some(10),
+            ..ResourceLimits::default()
+        },
+        || Err("injected unavailable RSS monitor".to_string()),
+    );
+    assert!(matches!(
+        missing.run(|| prepare_family(&family, &[2, 3], Policy::default())),
+        Err(Error::Resource(
+            ResourceLimitError::MonitorUnavailable { .. }
+        ))
+    ));
+    let prepared = prepare_family_with_resources(
+        &family,
+        &[2, 3],
+        Policy::default(),
+        ResourceLimits::default(),
+    )
+    .unwrap();
+    assert_eq!(prepared.report().status, Status::Projected);
+    assert_eq!(prepared.powers(), [5]);
 }

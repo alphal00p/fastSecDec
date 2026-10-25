@@ -148,15 +148,15 @@ fn warm_geometry_does_not_bypass_any_resource_limit() {
     let original = cached(&mut cache, &factors);
     for options in [
         DecompositionOptions {
-            max_support_pairs: 0,
+            max_support_pairs: Some(0),
             ..Default::default()
         },
         DecompositionOptions {
-            max_rays: 0,
+            max_rays: Some(0),
             ..Default::default()
         },
         DecompositionOptions {
-            max_sectors: 0,
+            max_sectors: Some(0),
             ..Default::default()
         },
     ] {
@@ -174,13 +174,15 @@ fn warm_geometry_does_not_bypass_any_resource_limit() {
         );
         assert_eq!(cache.len(), 1);
     }
-    let mut more_permissive = DecompositionOptions::default();
-    more_permissive.max_sectors += 1;
+    let diagnostic_options = DecompositionOptions {
+        max_sectors: Some(original.decomposition.sectors.len() + 1),
+        ..Default::default()
+    };
     let changed = cache
         .decompose(
             ParametricDomain::UnitCube,
             &factors,
-            &more_permissive,
+            &diagnostic_options,
             |_| ControlFlow::Continue(()),
         )
         .unwrap();

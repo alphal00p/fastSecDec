@@ -248,7 +248,7 @@ impl<'a> Requests<'a> {
                 .map
                 .clone()
                 .vectorize(&Dualizer::new(
-                    HyperDual::<Complex<Rational>>::new(shape.components.clone()),
+                    super::super::hyperdual(shape.components.clone())?,
                     zeros,
                 ))
                 .map_err(compilation)?;

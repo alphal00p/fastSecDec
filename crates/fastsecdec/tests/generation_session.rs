@@ -144,7 +144,7 @@ fn one_large_step_and_empty_input_have_complete_only_results() {
 fn geometry_failure_is_terminal_and_never_exposes_partial_integral() {
     let input = input(ParametricDomain::UnitCube);
     let mut options = GenerationOptions::default();
-    options.decomposition.max_sectors = 0;
+    options.decomposition.max_sectors = Some(0);
     let mut session = GenerationSession::new(input, options);
     assert!(
         session

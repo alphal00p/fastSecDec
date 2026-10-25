@@ -47,14 +47,18 @@ impl Expansion {
     }
 }
 
-fn push(pieces: &mut Vec<Piece>, piece: Piece, maximum: usize) -> Result<(), GenerationError> {
+fn push(
+    pieces: &mut Vec<Piece>,
+    piece: Piece,
+    maximum: Option<usize>,
+) -> Result<(), GenerationError> {
     let count = pieces
         .len()
         .checked_add(1)
         .ok_or(GenerationError::ResourceLimit(
             "coefficient-first subtraction terms",
         ))?;
-    if count > maximum {
+    if maximum.is_some_and(|limit| count > limit) {
         return Err(GenerationError::ResourceLimit(
             "coefficient-first subtraction terms",
         ));
@@ -94,6 +98,7 @@ pub(super) fn compose(
         )?;
     }
     for (axis, parameter) in parameters.iter().enumerate() {
+        symbolica::utils::resources::checkpoint()?;
         let x = Atom::var(*parameter);
         let mut next = Vec::new();
         for (piece_index, mut piece) in pieces.into_iter().enumerate() {
@@ -166,6 +171,7 @@ pub(super) fn compose(
             // fresh Series::zero would discard that unknown-tail information.
             let mut taylor = piece.regular.map_coeff(|_| Atom::Zero);
             for degree in 0..count {
+                symbolica::utils::resources::checkpoint()?;
                 notify(poll, Progress::EndpointDegree { axis, degree })?;
                 let coefficient = derivative
                     .map_coeff(|value| value.replace(Pattern::Literal(x.clone())).with(Atom::Zero));

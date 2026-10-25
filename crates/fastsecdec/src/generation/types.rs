@@ -2,6 +2,7 @@ use fastsecdec_sectors::{DecompositionOptions, DecompositionProgress, SectorMap}
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 use symbolica::atom::{AliasedAtom, Atom, Symbol};
+use symbolica::utils::resources::{ResourceLimitError, ResourceLimits};
 
 #[derive(Clone, Debug)]
 pub struct GenerationOptions {
@@ -13,8 +14,12 @@ pub struct GenerationOptions {
     /// Highest included Laurent order. Lower pole orders are found exactly.
     pub max_order: i32,
     pub decomposition: DecompositionOptions,
-    pub max_subtractions_per_axis: usize,
-    pub max_subtraction_terms: usize,
+    /// Optional diagnostic endpoint derivative-count bound; None is unlimited.
+    pub max_subtractions_per_axis: Option<usize>,
+    /// Optional diagnostic term-count bound; None is unlimited.
+    pub max_subtraction_terms: Option<usize>,
+    /// Cooperative RAM/time limits for the complete generation request.
+    pub resources: ResourceLimits,
     pub subtraction: SubtractionStrategy,
     pub coefficient_expansion: CoefficientExpansionOptions,
 }
@@ -125,8 +130,9 @@ impl Default for GenerationOptions {
             assume_no_threshold: false,
             max_order: 0,
             decomposition: DecompositionOptions::default(),
-            max_subtractions_per_axis: 64,
-            max_subtraction_terms: 1_000_000,
+            max_subtractions_per_axis: None,
+            max_subtraction_terms: None,
+            resources: ResourceLimits::default(),
             subtraction: SubtractionStrategy::Taylor,
             coefficient_expansion: CoefficientExpansionOptions::default(),
         }
@@ -331,6 +337,8 @@ impl GeneratedIntegral {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GenerationError {
+    #[error("{0}")]
+    Resource(#[from] ResourceLimitError),
     #[error(
         "no-threshold domain could not be certified for {0}; an explicit caller assertion is required"
     )]
@@ -352,7 +360,7 @@ pub enum GenerationError {
     #[error(transparent)]
     Parametric(#[from] crate::parametric::ParametricError),
     #[error(transparent)]
-    Geometry(#[from] fastsecdec_sectors::SectorError),
+    Geometry(fastsecdec_sectors::SectorError),
     #[error("generation cancelled")]
     Cancelled,
     #[error(
@@ -373,4 +381,13 @@ pub enum GenerationError {
     Invariant(String),
     #[error("reserved coefficient symbol {name} conflicts with native metadata: {reason}")]
     ReservedSymbolConflict { name: String, reason: String },
+}
+
+impl From<fastsecdec_sectors::SectorError> for GenerationError {
+    fn from(error: fastsecdec_sectors::SectorError) -> Self {
+        match error {
+            fastsecdec_sectors::SectorError::Resource(error) => Self::Resource(error),
+            error => Self::Geometry(error),
+        }
+    }
 }

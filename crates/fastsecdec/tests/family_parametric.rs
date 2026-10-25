@@ -7,6 +7,7 @@ use fastsecdec::{
     parametric::{ParametricIntegrand, ScalarParametricIntegral},
 };
 use feynkit_graph::symbols;
+use idenso::tensor::SymbolicTensor;
 use symbolica::{id::Pattern, parse, symbol};
 
 fn tadpole(mass_squared: Atom, duplicate: bool) -> (IntegralFamily, Atom) {
@@ -39,7 +40,13 @@ fn finite(expression: Atom) -> Atom {
 fn native_partial_fraction_projection_preserves_a_raised_power_gaussian_moment() {
     let (family, denominator) = tadpole(Atom::one(), true);
     let original_powers = [2, 3];
-    let terms = family.partial_fraction(&original_powers, 32).unwrap();
+    let terms = family
+        .partial_fraction(
+            &original_powers,
+            Some(32),
+            symbolica::utils::resources::ResourceLimits::default(),
+        )
+        .unwrap();
     assert_eq!(terms.len(), 1);
     let (coefficient, powers) = &terms[0];
     let original = denominator.pow(-2) * denominator.pow(-3);
@@ -131,10 +138,10 @@ fn graph_and_family_apply_native_weights_and_measure_exactly_once() {
         .diagram()
         .as_ref()
         .clone()
-        .with_numerator(Atom::num(5))
+        .with_numerator(SymbolicTensor::infer(Atom::num(5)).unwrap())
         .unwrap()
         .with_overall_factor(Atom::num(2))
-        .with_projector(Atom::num(3));
+        .with_projector(SymbolicTensor::infer(Atom::num(3)).unwrap());
     let graph = GraphIntegral::new(Arc::new(diagram), &kinematics)
         .unwrap()
         .with_measure_multiplier(Atom::num(7));

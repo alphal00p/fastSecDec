@@ -66,11 +66,11 @@ fn exact_signature_preserves_ordered_powers_prefactors_strategy_and_limits() {
             ..options.clone()
         },
         GenerationOptions {
-            max_subtractions_per_axis: 3,
+            max_subtractions_per_axis: Some(3),
             ..options.clone()
         },
         GenerationOptions {
-            max_subtraction_terms: 7,
+            max_subtraction_terms: Some(7),
             ..options.clone()
         },
         {
