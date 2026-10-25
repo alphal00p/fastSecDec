@@ -276,7 +276,7 @@ def test_diagram_expression_copy_preserves_native_owner_and_other_factors(prepar
     )
     assert original.to_json() == before
     assert copied.numerator_expression().to_expression() == E("3")
-    assert copied.projector_expression() == E("2")
+    assert copied.projector_expression().to_expression() == E("2")
     assert copied.overall_factor_expression() == E("5")
     assert copied.numerator_prefactor_expression() == original.numerator_prefactor_expression()
     assert copied.loop_momentum_basis.external_edges == original.loop_momentum_basis.external_edges
