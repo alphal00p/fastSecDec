@@ -402,6 +402,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
+name = "corosensei"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6886a0c0f263965933c438626e7179139a62b978a33aa18281cbf0cd5a975f34"
+dependencies = [
+ "autocfg",
+ "cfg-if",
+ "libc",
+ "scopeguard",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -537,8 +550,7 @@ dependencies = [
 [[package]]
 name = "dot-parser"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cce83b336cd8d9b2718f4e8228a185de6e7a1cfe34f237e8c4acaf1c4141630"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "either",
  "pest",
@@ -702,6 +714,7 @@ name = "fastsecdec-sectors"
 version = "0.1.0"
 dependencies = [
  "numerica",
+ "symbolica",
  "thiserror",
 ]
 
@@ -717,10 +730,11 @@ dependencies = [
 [[package]]
 name = "feynkit-graph"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "feynkit-kinematics",
  "feynkit-model",
+ "idenso",
  "itertools 0.14.0",
  "linnet",
  "nu-ansi-term",
@@ -735,7 +749,7 @@ dependencies = [
 [[package]]
 name = "feynkit-kinematics"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "linnet",
  "numerica",
@@ -748,11 +762,12 @@ dependencies = [
 [[package]]
 name = "feynkit-model"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
  "blake3",
+ "linnet",
  "miniz_oxide",
  "serde",
  "serde_json",
@@ -850,8 +865,7 @@ dependencies = [
 [[package]]
 name = "graphica"
 version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "118912fe5e24df9c7f36c1211bdeb1a803013b312cc149bd1794b9a0e4ef9c78"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "dyn-clone",
@@ -910,7 +924,7 @@ dependencies = [
 [[package]]
 name = "idenso"
 version = "0.3.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "ahash",
  "base64",
@@ -1061,7 +1075,7 @@ dependencies = [
 [[package]]
 name = "linnet"
 version = "0.17.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "ahash",
  "bincode",
@@ -1252,8 +1266,7 @@ dependencies = [
 [[package]]
 name = "numerica"
 version = "3.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "836accdb415b7667573bd12676e0b2eb4440e3f60b110038d96a9086f5651c15"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "astro-float",
@@ -1678,6 +1691,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scopeguard"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
+
+[[package]]
 name = "self_cell"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1806,7 +1825,7 @@ checksum = "02ef091d4e8b981dbaa4cc17789d00b53d5d2c001ae689f14e6093f30c529036"
 [[package]]
 name = "spenso"
 version = "0.6.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -1849,7 +1868,7 @@ dependencies = [
 [[package]]
 name = "spenso-macros"
 version = "0.3.2"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1865,7 +1884,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "symbolica"
 version = "3.0.1"
-source = "git+https://github.com/ValentinHirschi/symbolica?rev=1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4#1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -1911,7 +1930,7 @@ dependencies = [
 [[package]]
 name = "symbolica-utils"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#259df8790f27b8d3ef32778cd7195942691b4ef0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -1922,12 +1941,13 @@ dependencies = [
 
 [[package]]
 name = "symjit"
-version = "2.26.4"
+version = "2.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37344a51408baa239bbaa771e40cd908686bffed4f4491ec6bc608e8d248c931"
+checksum = "8ac321099e6c4ef6d30ce72050469fc422295c41c5418a97f083bcf931cfd0fc"
 dependencies = [
  "ahash",
  "anyhow",
+ "corosensei",
  "hashbrown 0.16.1",
  "hugepage-rs",
  "lazy_static",

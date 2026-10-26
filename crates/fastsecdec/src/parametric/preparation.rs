@@ -188,7 +188,9 @@ fn prepare_family_scoped<'a>(
     else {
         return Ok(original(FamilyPreparationFallback::PowerOutsideNativeRange));
     };
-    let terms = match family.partial_fraction(&signed, max_states, ResourceLimits::default()) {
+    // The maintained native API takes a concrete work-count ceiling. Resource
+    // limits remain owned by the enclosing cooperative budget.
+    let terms = match family.partial_fraction(&signed, max_states.unwrap_or(usize::MAX)) {
         Ok(terms) => terms,
         Err(IntegralFamilyError::PartialFractionLimit(_)) => {
             return Ok(original(FamilyPreparationFallback::StateLimit));

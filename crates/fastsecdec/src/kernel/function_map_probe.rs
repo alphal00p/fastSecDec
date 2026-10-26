@@ -424,8 +424,14 @@ fn read_cases(directory: &Path) {
         serde_json::from_slice(&std::fs::read(directory.join("cases.json")).unwrap()).unwrap();
     for case in &cases {
         let bytes = std::fs::read(directory.join(&case.file)).unwrap();
-        let (exact, consumed): (Exact, usize) =
-            bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        // These evaluators have no Atom-bearing optimizer hot start; callback
+        // symbols and tags use Symbolica's self-contained evaluator codec.
+        let (exact, consumed): (Exact, usize) = bincode::decode_from_slice_with_context(
+            &bytes,
+            bincode::config::standard(),
+            symbolica::state::StateMap::default(),
+        )
+        .unwrap();
         assert_eq!(consumed, bytes.len());
         let (interior, weighted, bits, _) = inspect(&exact, case.complex, case.jit_direct);
         for (actual, expected) in interior.iter().zip(&case.interior) {

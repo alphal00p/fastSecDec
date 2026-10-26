@@ -1,5 +1,33 @@
 # Ecosystem reuse evidence
 
+## Official community-kernel compatibility (2026-10-26)
+
+The Community-compatible line now selects official Symbolica/Numerica/Graphica
+`f514a7fe` and the canonical FeynKit branch. Validation used FeynKit PR #225
+revision `db3eb81418c22ea2ffea62c4eb87ef2c7f0c23aa`. Exported callback tags are retained
+as native Atoms, with no string round trip or new mathematical implementation.
+Family preparation uses the maintained native partial-fraction API and preserves
+its typed resource failures; FeynKit PR #225 supplies the missing native polling
+and shared Python backend extension point.
+
+Focused validation with that FeynKit source passed 138 library tests (16 existing
+ignores), 23 family/preparation/artifact tests, and two native callback/weighted
+reload tests. All four embedded-Python binding tests pass, including linked
+backend calls with canonical imports blocked. The portable validation package's
+test targets and the Python binding with stub generation compile. These checks use a private dependency
+override while PR #225 is unmerged; the published locks retain `branch=feynkit`.
+
+Independent review identified the missing native resource checkpoints before
+acceptance; the existing failure-injection assertion now passes unchanged.
+The optional ignored raw FunctionMap cold-process diagnostic still fails while
+mapping a zeta constant to an unsupported tracked domain, before serialization.
+Production mapping admission reports unsupported domains and its existing
+precision-fallback controls pass. This diagnostic is not recorded as a success,
+and no new Symbolica API or numerical implementation is introduced to bypass it.
+Binary artifacts written with older unsupported Symbolica state formats must be
+regenerated; the current importer admits state versions 10 and 11.
+
+
 ## Notebook default correction (2026-10-07)
 
 The user subsequently selected the existing symbolic generation lane for the

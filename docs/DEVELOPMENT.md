@@ -42,12 +42,33 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public fork revision `1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4`, including configurable coefficient fields and native evaluator composition; [upstream PR #54](https://github.com/symbolica-dev/symbolica/pull/54) targets `community` |
-| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch, locked at `259df8790f27b8d3ef32778cd7195942691b4ef0` |
-| Numerica and Graphica | Registry 3.0.1 |
+| Symbolica, Numerica and Graphica | Official `symbolica-dev/symbolica` `community` branch, locked at `f514a7fe` |
+| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch; see the pending compatibility prerequisite below |
 | SymJIT | Compatible minimum `2.26.4`; exact resolved release in Cargo.lock |
-| OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
-| one-loop-reduce | Public source, locked at `b53a70776a43bd14c6562c52a03bc4909568e473`; development-only reference provider |
+| OneLOop | Public PR #12 revision `73102242`; development-only reference provider |
+| one-loop-reduce | Public PR #4 revision `4f68636c`; development-only reference provider |
+
+This compatibility update follows the Community-compatible resource-budget line
+(PR #5). Its native callback metadata uses Symbolica's owned Atom tags directly;
+its family preparation calls FeynKit's maintained two-argument partial-fraction
+API inside the existing cooperative resource scope. The compatibility update
+in PR #225 adds native checkpoints between partial-fraction states.
+
+The linked Python backend requires the shared extension point and evaluator
+argument update in [FeynKit PR #225](https://github.com/alphal00p/gammaloop/pull/225).
+Until that PR reaches `feynkit` and the locks are refreshed, Python validation
+uses a private override of that exact source. Published dependencies retain the
+canonical branch. The native reference tests also require
+[OneLOop PR #12](https://github.com/alphal00p/oneloopmaster/pull/12).
+The reference provider is paired through
+[one-loop-reduce PR #4](https://github.com/lcnbr/one-loop-reduce/pull/4).
+These are draft integration prerequisites.
+
+FastSecDec's newer threshold-development `main` additionally uses prepared
+bracketed-root solving and shared-cache direct vector evaluation from
+[Symbolica PR #127](https://github.com/symbolica-dev/symbolica/pull/127).
+Those APIs are absent from official `f514a7fe` and are not required by this
+Community-compatible line. No Symbolica changes are included here.
 
 The CLI reads public Git revisions and registry checksums from its consuming
 workspace's resolved lockfile. No `FASTSECDEC_*_SOURCE_ROOT` variables are needed

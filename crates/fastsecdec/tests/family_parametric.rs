@@ -40,13 +40,7 @@ fn finite(expression: Atom) -> Atom {
 fn native_partial_fraction_projection_preserves_a_raised_power_gaussian_moment() {
     let (family, denominator) = tadpole(Atom::one(), true);
     let original_powers = [2, 3];
-    let terms = family
-        .partial_fraction(
-            &original_powers,
-            Some(32),
-            symbolica::utils::resources::ResourceLimits::default(),
-        )
-        .unwrap();
+    let terms = family.partial_fraction(&original_powers, 32).unwrap();
     assert_eq!(terms.len(), 1);
     let (coefficient, powers) = &terms[0];
     let original = denominator.pow(-2) * denominator.pow(-3);

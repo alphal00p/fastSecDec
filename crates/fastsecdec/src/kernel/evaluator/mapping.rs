@@ -20,7 +20,7 @@ pub(in crate::kernel) struct MappingRequirements(Vec<Requirement>);
 
 impl MappingRequirements {
     /// Called while constructing the kernel, before caller-owned workers start.
-    /// In particular, parsing canonical native tags never happens per sample.
+    /// Native callback tags remain owned Atoms and are never reparsed per sample.
     pub(in crate::kernel) fn new(exact: &ExactProgram) -> Result<Arc<Self>, String> {
         let mut requirements = Self(Vec::new());
         requirements.collect(&exact.export_instructions(), &mut HashSet::new())?;
@@ -35,7 +35,7 @@ impl MappingRequirements {
         for constant in &exported.constant_functions {
             self.0.push(Requirement {
                 symbol: constant.symbol,
-                tags: tags(&constant.tags)?,
+                tags: constant.tags.clone(),
                 fixed_args: Some(constant.fixed_args.clone()),
             });
         }
@@ -63,7 +63,7 @@ impl MappingRequirements {
             }
             self.0.push(Requirement {
                 symbol: *symbol,
-                tags: tags(tag_names)?,
+                tags: tag_names.clone(),
                 fixed_args: None,
             });
         }
@@ -118,14 +118,4 @@ impl MappingRequirements {
         // implementation in T. User callbacks retain Symbolica's own contract.
         Ok(exact.clone().map_coeff_with_prec(&coefficient, bits))
     }
-}
-
-fn tags(values: &[String]) -> Result<Vec<Atom>, String> {
-    values
-        .iter()
-        .map(|value| {
-            Atom::parse(value, "fastsecdec::artifact", Default::default())
-                .map_err(|error| format!("Native evaluator callback tag: {error}"))
-        })
-        .collect()
 }
