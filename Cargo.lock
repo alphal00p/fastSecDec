@@ -761,7 +761,7 @@ dependencies = [
 [[package]]
 name = "dot-parser"
 version = "0.5.1"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "either",
  "pest",
@@ -958,7 +958,7 @@ dependencies = [
 [[package]]
 name = "feynkit-amplitude"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-graph",
  "feynkit-model",
@@ -972,7 +972,7 @@ dependencies = [
 [[package]]
 name = "feynkit-generator"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -992,7 +992,7 @@ dependencies = [
 [[package]]
 name = "feynkit-graph"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-kinematics",
  "feynkit-model",
@@ -1004,6 +1004,7 @@ dependencies = [
  "serde_json",
  "spenso",
  "symbolica",
+ "symbolica-notation",
  "symbolica-utils",
  "thiserror",
 ]
@@ -1011,7 +1012,7 @@ dependencies = [
 [[package]]
 name = "feynkit-kinematics"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "linnet",
  "numerica",
@@ -1024,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "feynkit-model"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -1041,7 +1042,7 @@ dependencies = [
 [[package]]
 name = "feynkit-tensor"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-graph",
  "idenso",
@@ -1204,7 +1205,7 @@ dependencies = [
 [[package]]
 name = "idenso"
 version = "0.3.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "base64",
@@ -1217,6 +1218,7 @@ dependencies = [
  "spenso",
  "spenso-macros",
  "symbolica",
+ "symbolica-notation",
  "symbolica-utils",
  "thiserror",
  "tracing",
@@ -1403,7 +1405,7 @@ dependencies = [
 [[package]]
 name = "linnet"
 version = "0.17.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "bincode",
@@ -2202,6 +2204,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9da7f59328b09405b181fee1018925fad50f157afb43c0c0f5c522c256dd5907"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rug"
 version = "1.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2441,7 +2452,7 @@ checksum = "02ef091d4e8b981dbaa4cc17789d00b53d5d2c001ae689f14e6093f30c529036"
 [[package]]
 name = "spenso"
 version = "0.6.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -2474,6 +2485,7 @@ dependencies = [
  "serde_json",
  "spenso-macros",
  "symbolica",
+ "symbolica-notation",
  "symbolica-typst-plugin",
  "symbolica-utils",
  "tabled",
@@ -2484,7 +2496,7 @@ dependencies = [
 [[package]]
 name = "spenso-hep-lib"
 version = "0.1.7"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "idenso",
@@ -2497,7 +2509,7 @@ dependencies = [
 [[package]]
 name = "spenso-macros"
 version = "0.3.2"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2574,6 +2586,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "symbolica-notation"
+version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
+dependencies = [
+ "roxmltree",
+ "symbolica",
+ "thiserror",
+]
+
+[[package]]
 name = "symbolica-typst-plugin"
 version = "0.1.0"
 source = "git+https://github.com/symbolica-dev/symbolica-typst-plugin?rev=57b7455b37c30f4f87353c0073e49f5225e937ab#57b7455b37c30f4f87353c0073e49f5225e937ab"
@@ -2586,7 +2608,7 @@ dependencies = [
 [[package]]
 name = "symbolica-utils"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#f02faa90d55c1d0a875b5345c010f03746d29549"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",

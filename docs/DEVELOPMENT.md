@@ -43,7 +43,7 @@ must not be carried into ordinary-source checks.
 | Owner | Selected source |
 |---|---|
 | Symbolica, Numerica and Graphica | Official `symbolica-dev/symbolica` `community` branch, locked at `f514a7fe` |
-| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch; see the pending compatibility prerequisite below |
+| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch, locked at merged PR #225 revision `bbe81189` |
 | SymJIT | Compatible minimum `2.26.4`; exact resolved release in Cargo.lock |
 | OneLOop | Public PR #12 revision `73102242`; development-only reference provider |
 | one-loop-reduce | Public PR #4 revision `4f68636c`; development-only reference provider |
@@ -54,15 +54,15 @@ its family preparation calls FeynKit's maintained two-argument partial-fraction
 API inside the existing cooperative resource scope. The compatibility update
 in PR #225 adds native checkpoints between partial-fraction states.
 
-The linked Python backend requires the shared extension point and evaluator
-argument update in [FeynKit PR #225](https://github.com/alphal00p/gammaloop/pull/225).
-Until that PR reaches `feynkit` and the locks are refreshed, Python validation
-uses a private override of that exact source. Published dependencies retain the
-canonical branch. The native reference tests also require
+The linked Python backend uses the shared extension point and evaluator
+argument update from merged [FeynKit PR #225](https://github.com/alphal00p/gammaloop/pull/225).
+All three lockfiles select that public revision, with no private source overrides.
+The Python consumer no longer patches the removed Typst crates from FeynKit;
+the current renderer owns its dependencies. The native reference tests also require
 [OneLOop PR #12](https://github.com/alphal00p/oneloopmaster/pull/12).
 The reference provider is paired through
 [one-loop-reduce PR #4](https://github.com/lcnbr/one-loop-reduce/pull/4).
-These are draft integration prerequisites.
+These remain separately reviewed integration prerequisites.
 
 FastSecDec's newer threshold-development `main` additionally uses prepared
 bracketed-root solving and shared-cache direct vector evaluation from
