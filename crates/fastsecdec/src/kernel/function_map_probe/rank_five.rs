@@ -482,8 +482,14 @@ fn read(directory: &Path) {
     let original = params.iter().map(|x| x * x).collect::<Vec<_>>();
     for row in &report.rows {
         let bytes = std::fs::read(directory.join(&row.file)).unwrap();
-        let (exact, consumed): (Exact, usize) =
-            bincode::decode_from_slice(&bytes, bincode::config::standard()).unwrap();
+        // These evaluators have no Atom-bearing optimizer hot start; callback
+        // symbols and tags use Symbolica's self-contained evaluator codec.
+        let (exact, consumed): (Exact, usize) = bincode::decode_from_slice_with_context(
+            &bytes,
+            bincode::config::standard(),
+            symbolica::state::StateMap::default(),
+        )
+        .unwrap();
         assert_eq!(consumed, bytes.len());
         let mut compiled = exact.jit_compile::<f64>(settings(row.jit_direct)).unwrap();
         let inputs = if matches!(row.mode, Mode::Production) {

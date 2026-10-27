@@ -17,13 +17,13 @@ symbolica = { version = "3.0.1", default-features = false, features = ["serde", 
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 # Use the published Rust library with a compatible 2.x minimum, not its C/Python cdylib.
 symjit = "2.26.4"
-feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-model = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-linnet = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
-idenso = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-spenso = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false, features = ["shadowing"] }
+feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-model = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+linnet = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
+idenso = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false }
+spenso = { git = "https://github.com/alphal00p/gammaloop", branch = "feynkit", default-features = false, features = ["shadowing"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip", "raw_value"] }
 thiserror = "2.0"
@@ -35,9 +35,9 @@ blake3 = "1.8"
 bincode = { version = "2.0.1", features = ["serde"] }
 
 [patch.crates-io]
-symbolica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
-numerica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
-graphica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
+symbolica = { git = "https://github.com/symbolica-dev/symbolica", branch = "community" }
+numerica = { git = "https://github.com/symbolica-dev/symbolica", branch = "community" }
+graphica = { git = "https://github.com/symbolica-dev/symbolica", branch = "community" }
 # Match HEPKit's optional Spenso Wasm dependency source; no plugin feature is selected.
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }
 

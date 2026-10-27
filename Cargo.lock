@@ -144,15 +144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ar_archive_writer"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73cd58deff2140a0a8eae87e417bd01db68a33e148aa93d1e8cd837e55e312b6"
-dependencies = [
- "object",
-]
-
-[[package]]
 name = "arrayvec"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -770,7 +761,7 @@ dependencies = [
 [[package]]
 name = "dot-parser"
 version = "0.5.1"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "either",
  "pest",
@@ -967,7 +958,7 @@ dependencies = [
 [[package]]
 name = "feynkit-amplitude"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-graph",
  "feynkit-model",
@@ -981,7 +972,7 @@ dependencies = [
 [[package]]
 name = "feynkit-generator"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -1001,7 +992,7 @@ dependencies = [
 [[package]]
 name = "feynkit-graph"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-kinematics",
  "feynkit-model",
@@ -1013,6 +1004,7 @@ dependencies = [
  "serde_json",
  "spenso",
  "symbolica",
+ "symbolica-notation",
  "symbolica-utils",
  "thiserror",
 ]
@@ -1020,7 +1012,7 @@ dependencies = [
 [[package]]
 name = "feynkit-kinematics"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "linnet",
  "numerica",
@@ -1033,7 +1025,7 @@ dependencies = [
 [[package]]
 name = "feynkit-model"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
@@ -1050,7 +1042,7 @@ dependencies = [
 [[package]]
 name = "feynkit-tensor"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "feynkit-graph",
  "idenso",
@@ -1149,7 +1141,7 @@ dependencies = [
 [[package]]
 name = "graphica"
 version = "3.0.1"
-source = "git+https://github.com/symbolica-dev/symbolica?rev=9cd57678d8817ec33c05cacba4925162f1c86b0b#9cd57678d8817ec33c05cacba4925162f1c86b0b"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "dyn-clone",
@@ -1213,7 +1205,7 @@ dependencies = [
 [[package]]
 name = "idenso"
 version = "0.3.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "base64",
@@ -1226,6 +1218,7 @@ dependencies = [
  "spenso",
  "spenso-macros",
  "symbolica",
+ "symbolica-notation",
  "symbolica-utils",
  "thiserror",
  "tracing",
@@ -1412,7 +1405,7 @@ dependencies = [
 [[package]]
 name = "linnet"
 version = "0.17.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "bincode",
@@ -1679,7 +1672,7 @@ dependencies = [
 [[package]]
 name = "numerica"
 version = "3.0.1"
-source = "git+https://github.com/symbolica-dev/symbolica?rev=9cd57678d8817ec33c05cacba4925162f1c86b0b#9cd57678d8817ec33c05cacba4925162f1c86b0b"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "astro-float",
@@ -1724,15 +1717,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "object"
-version = "0.39.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1747,12 +1731,11 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "one-loop-reduce"
 version = "0.1.0"
-source = "git+https://github.com/lcnbr/one-loop-reduce?rev=89cc61e0678dd203b1e7edcf88de0c50e0bb0fb7#89cc61e0678dd203b1e7edcf88de0c50e0bb0fb7"
+source = "git+https://github.com/lcnbr/one-loop-reduce?rev=4f68636c58ce205f5da8e9d9eaa68a610ea26036#4f68636c58ce205f5da8e9d9eaa68a610ea26036"
 dependencies = [
  "feynkit-graph",
  "feynkit-kinematics",
  "oneloop",
- "stacker",
  "symbolica",
  "thiserror",
 ]
@@ -1760,7 +1743,7 @@ dependencies = [
 [[package]]
 name = "oneloop"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/oneloopmaster?branch=main#5b710437ada83cbc6e8c6d51e56f7d6ee6a0edb5"
+source = "git+https://github.com/alphal00p/oneloopmaster?rev=73102242c9c35e92be30f4e1f877e141b8f73c6c#73102242c9c35e92be30f4e1f877e141b8f73c6c"
 dependencies = [
  "bincode",
  "symbolica",
@@ -1969,16 +1952,6 @@ dependencies = [
  "quote",
  "syn 2.0.119",
  "version_check",
-]
-
-[[package]]
-name = "psm"
-version = "0.1.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dcd034599e63b970727f70d79e02d62390a4a84f7c6b827c27c46d5ac3fa622"
-dependencies = [
- "ar_archive_writer",
- "cc",
 ]
 
 [[package]]
@@ -2231,6 +2204,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9da7f59328b09405b181fee1018925fad50f157afb43c0c0f5c522c256dd5907"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rug"
 version = "1.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2470,7 +2452,7 @@ checksum = "02ef091d4e8b981dbaa4cc17789d00b53d5d2c001ae689f14e6093f30c529036"
 [[package]]
 name = "spenso"
 version = "0.6.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -2503,6 +2485,7 @@ dependencies = [
  "serde_json",
  "spenso-macros",
  "symbolica",
+ "symbolica-notation",
  "symbolica-typst-plugin",
  "symbolica-utils",
  "tabled",
@@ -2513,7 +2496,7 @@ dependencies = [
 [[package]]
 name = "spenso-hep-lib"
 version = "0.1.7"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "ahash",
  "idenso",
@@ -2526,24 +2509,11 @@ dependencies = [
 [[package]]
 name = "spenso-macros"
 version = "0.3.2"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "stacker"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "707f49d46706bacf8a2b00d51dace3f9de527c13eec3778f570c411f89e69967"
-dependencies = [
- "cc",
- "cfg-if",
- "libc",
- "psm",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2582,7 +2552,7 @@ dependencies = [
 [[package]]
 name = "symbolica"
 version = "3.0.1"
-source = "git+https://github.com/symbolica-dev/symbolica?rev=9cd57678d8817ec33c05cacba4925162f1c86b0b#9cd57678d8817ec33c05cacba4925162f1c86b0b"
+source = "git+https://github.com/symbolica-dev/symbolica?branch=community#f514a7fe1b19e851207f9421ef9a4a4157d5f0e5"
 dependencies = [
  "ahash",
  "append-only-vec",
@@ -2616,6 +2586,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "symbolica-notation"
+version = "0.1.0"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
+dependencies = [
+ "roxmltree",
+ "symbolica",
+ "thiserror",
+]
+
+[[package]]
 name = "symbolica-typst-plugin"
 version = "0.1.0"
 source = "git+https://github.com/symbolica-dev/symbolica-typst-plugin?rev=57b7455b37c30f4f87353c0073e49f5225e937ab#57b7455b37c30f4f87353c0073e49f5225e937ab"
@@ -2628,7 +2608,7 @@ dependencies = [
 [[package]]
 name = "symbolica-utils"
 version = "0.1.0"
-source = "git+https://github.com/alphal00p/gammaloop?branch=preserve-canonical-numerator-interfaces#cfad34cca10d707d72ab572924cbb721084f8f9c"
+source = "git+https://github.com/alphal00p/gammaloop?branch=feynkit#bbe81189ff04be164135c3bff7969ef38dc3336b"
 dependencies = [
  "bincode",
  "bincode-trait-derive",
