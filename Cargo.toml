@@ -17,13 +17,13 @@ symbolica = { version = "3.0.1", default-features = false, features = ["serde", 
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 # Use the published Rust library with a compatible 2.x minimum, not its C/Python cdylib.
 symjit = "2.26.4"
-feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-feynkit-model = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-linnet = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
-idenso = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-spenso = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false, features = ["shadowing"] }
+feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+feynkit-model = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+linnet = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
+idenso = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+spenso = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false, features = ["shadowing"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip", "raw_value"] }
 thiserror = "2.0"

@@ -28,8 +28,8 @@ python_stubgen = [
 [dependencies]
 fastsecdec = { path = "../../crates/fastsecdec", default-features = false }
 fastsecdec-sectors = { path = "../../crates/fastsecdec-sectors", default-features = false }
-feynkit-py = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
-spynso3 = { git = "https://github.com/alphal00p/gammaloop", rev = "ea50b6ae9c8e0dc07d2ebc4df2055c87982dc6f3", default-features = false }
+feynkit-py = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
+spynso3 = { git = "https://github.com/alphal00p/gammaloop", rev = "03e80d538c6e470220ac2f07e32e0b7cefb17662", default-features = false }
 symbolica = { version = "3.0.1", default-features = false, features = ["python_export"] }
 # ABI and extension-module linking are owned by the consuming community host.
 pyo3 = { version = "0.28", features = ["multiple-pymethods"] }
