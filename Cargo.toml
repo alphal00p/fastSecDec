@@ -17,13 +17,13 @@ symbolica = { version = "3.0.1", default-features = false, features = ["serde", 
 numerica = { version = "3.0.1", default-features = false, features = ["serde", "bincode"] }
 # Use the published Rust library with a compatible 2.x minimum, not its C/Python cdylib.
 symjit = "2.26.4"
-feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-model = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-linnet = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
-idenso = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-spenso = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false, features = ["shadowing"] }
+feynkit-graph = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false }
+feynkit-model = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false }
+feynkit-kinematics = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false }
+feynkit-tensor = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false }
+linnet = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false, features = ["serde", "bincode", "nodestore-vec"] }
+idenso = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false }
+spenso = { git = "https://github.com/alphal00p/gammaloop", rev = "e90e78ae9b05c2813b462157a83073b0740419f4", default-features = false, features = ["shadowing"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip", "raw_value"] }
 thiserror = "2.0"
