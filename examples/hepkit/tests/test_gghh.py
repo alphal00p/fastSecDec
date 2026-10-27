@@ -166,14 +166,23 @@ def test_box_numerator_pagers_are_native_cached_and_released(catalogue):
     assert study.prepared_panel is panel
     assert study.run.prepared.simplified_numerator == original
     viewers = list(study.numerator_viewers.values())
-    assert all(viewer._widget is not None and len(viewer._cache) <= 3 for viewer in viewers)
+    for viewer in viewers:
+        page = viewer.page()
+        assert page["page_size"] == 25
+        assert 0 <= page["end"] - page["start"] <= 25
     # An intentional rerun of the widget-owning cell must use fresh models;
     # Marimo has already disposed the old cell's communication channels.
     assert study.prepared_view(mo) is not panel
-    assert all(viewer._closed and viewer._source is None for viewer in viewers)
+    for viewer in viewers:
+        with pytest.raises(RuntimeError, match="viewer is closed"):
+            viewer.page()
     viewers = list(study.numerator_viewers.values())
     study.close_numerators()
-    assert all(viewer._closed and viewer._source is None for viewer in viewers)
+    for viewer in viewers:
+        with pytest.raises(RuntimeError, match="viewer is closed"):
+            viewer.page()
+    assert not study.numerator_viewers and not study.numerator_content
+    assert study.prepared_owner is None and study.prepared_panel is None
 
 
 def test_box_eager_schema_retains_model_leaves_and_polarization_normalization(catalogue):

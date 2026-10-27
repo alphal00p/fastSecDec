@@ -118,11 +118,14 @@ def test_selected_integrand_uses_scoped_native_pager_without_mutating_artifact(o
     study = Study()
     study.expression_viewer = sectors.expression_viewer(generated, 0, 0)
     pager = study.expression_viewer
-    assert not pager._cache and pager._widget is None
+    page = pager.page()
+    assert page["page_size"] == 25
+    assert 0 <= page["end"] - page["start"] <= 25
     rendered = mo.as_html(pager).text
     assert "marimo-anywidget" in rendered
-    assert len(pager._cache) <= 3
+    assert pager.page() == page
     assert saved == (kernels.to_bytes(), kernels.content_id, qmc.checkpoint())
     study.close_inspection()
-    assert pager._closed and pager._source is None and not pager._cache
+    with pytest.raises(RuntimeError, match="viewer is closed"):
+        pager.page()
     assert study.expression_viewer is None and study.inspection is None
