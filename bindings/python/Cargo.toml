@@ -28,8 +28,8 @@ python_stubgen = [
 [dependencies]
 fastsecdec = { path = "../../crates/fastsecdec", default-features = false }
 fastsecdec-sectors = { path = "../../crates/fastsecdec-sectors", default-features = false }
-feynkit-py = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
-spynso3 = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces", default-features = false }
+feynkit-py = { git = "https://github.com/alphal00p/gammaloop", rev = "1f4f2492d818c5bebdbf34af4e4dd3b504756aef", default-features = false }
+spynso3 = { git = "https://github.com/alphal00p/gammaloop", rev = "1f4f2492d818c5bebdbf34af4e4dd3b504756aef", default-features = false }
 symbolica = { version = "3.0.1", default-features = false, features = ["python_export"] }
 # ABI and extension-module linking are owned by the consuming community host.
 pyo3 = { version = "0.28", features = ["multiple-pymethods"] }
@@ -41,10 +41,12 @@ serde_json = { version = "1.0", features = ["float_roundtrip"] }
 # Standalone leaf builds use the same renderer sources as the community host.
 # Consumer-root patches remain authoritative when this crate is a dependency.
 [patch.crates-io]
+# Match the shared owner's official standalone-WASM-capable solver.
+clarabel = { git = "https://github.com/oxfordcontrol/Clarabel.rs", rev = "14ad0f09073224e11ce13633d655547001072059" }
 # Share one public Symbolica owner across the HEPKit dependency graph.
 symbolica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
 numerica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
 graphica = { git = "https://github.com/symbolica-dev/symbolica", rev = "9cd57678d8817ec33c05cacba4925162f1c86b0b" }
-typst-library = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces" }
-typst-svg = { git = "https://github.com/alphal00p/gammaloop", branch = "preserve-canonical-numerator-interfaces" }
+typst-library = { git = "https://github.com/alphal00p/gammaloop", rev = "9ce69d95ac52586426a23ef7cb6b791c09e4e4f0" }
+typst-svg = { git = "https://github.com/alphal00p/gammaloop", rev = "9ce69d95ac52586426a23ef7cb6b791c09e4e4f0" }
 symbolica-typst-plugin = { git = "https://github.com/symbolica-dev/symbolica-typst-plugin", rev = "57b7455b37c30f4f87353c0073e49f5225e937ab" }

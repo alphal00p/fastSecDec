@@ -42,12 +42,12 @@ must not be carried into ordinary-source checks.
 
 | Owner | Selected source |
 |---|---|
-| Symbolica | Public fork revision `1deccb8538ccb91dc2c1e58fc0a2e900d2276bf4`, including configurable coefficient fields and native evaluator composition; [upstream PR #54](https://github.com/symbolica-dev/symbolica/pull/54) targets `community` |
-| FeynKit / Linnet / Spenso ecosystem | Public `feynkit` branch, locked at `259df8790f27b8d3ef32778cd7195942691b4ef0` |
-| Numerica and Graphica | Registry 3.0.1 |
+| Symbolica | Official public revision `9cd57678d8817ec33c05cacba4925162f1c86b0b` |
+| FeynKit / Linnet / Spenso ecosystem | Public GammaLoop revision `1f4f2492d818c5bebdbf34af4e4dd3b504756aef` |
+| Numerica and Graphica | Official public Symbolica workspace revision `9cd57678d8817ec33c05cacba4925162f1c86b0b`, version 3.0.1 |
 | SymJIT | Compatible minimum `2.26.4`; exact resolved release in Cargo.lock |
-| OneLOop | Public `main`, locked at `27c3723434b7d99cf70ce612b0b8041d3f5c0e78`; development-only reference provider |
-| one-loop-reduce | Public source, locked at `b53a70776a43bd14c6562c52a03bc4909568e473`; development-only reference provider |
+| OneLOop | Public `main`, exact revision in Cargo.lock; development-only reference provider |
+| one-loop-reduce | Public source, exact revision in Cargo.lock; development-only reference provider sharing the same GammaLoop owner |
 
 The CLI reads public Git revisions and registry checksums from its consuming
 workspace's resolved lockfile. No `FASTSECDEC_*_SOURCE_ROOT` variables are needed
@@ -131,4 +131,14 @@ Python wheels are separate evidence. Earlier notebook and ggHH results keep
 their original source identities; an ordinary dependency migration does not
 relabel them as fresh runtime validation. Current delivery is tracked in
 [merged HEPKit PR #18](https://github.com/symbolica-dev/symbolica-community/pull/18)
-and the [dependency review](reviews/regular-hepkit-build.md).
+and the [dependency review](reviews/regular-hepkit-build.md) retain the historical
+delivery evidence.
+
+The 2026-10-28 public-owner update passes ordinary locked metadata at all three
+FastSecDec roots, 564 native workspace tests (26 existing diagnostics ignored),
+72 portable-backend host tests, and the standalone Python binding's all-target
+check with stub generation enabled. The portable smoke also passes its complete
+complex vector, cold artifact, 512-bit rescue and QMC covariance assertions. It
+explicitly selects the retained validated replay policy on both original and
+reloaded kernels because runtime stability settings are caller-owned. These
+checks do not claim a new Python wheel or actual Wasm execution.

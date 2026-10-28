@@ -40,12 +40,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         |_| ControlFlow::Continue(()),
     )?;
-    let kernels = generated.compile()?;
+    let mut kernels = generated.compile()?;
+    // These assertions exercise the explicitly retained validated replay policy.
+    kernels.set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())?;
     drop(generated);
     assert_eq!(kernels.orders(), [0, 0, 1, 1, 2, 2]);
     assert_eq!(kernels.sectors().len(), 1);
     let bytes = kernels.to_bytes()?;
-    let restored = KernelSet::from_bytes(&bytes)?;
+    let mut restored = KernelSet::from_bytes(&bytes)?;
+    // Runtime stability settings belong to the caller, not the saved artifact.
+    restored.set_stability_settings(&fastsecdec::kernel::StabilitySettings::validated())?;
     assert_eq!(restored.content_id(), kernels.content_id());
     assert_eq!(restored.artifact_bytes()?, bytes);
     let policy = ReplayPolicy {
