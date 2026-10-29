@@ -5,7 +5,7 @@ use crate::kernel::{
 };
 use symbolica::{
     atom::{Atom, AtomCore, EvaluationInfo},
-    domains::float::{ErrorPropagatingFloat, Float, RealLike},
+    domains::float::{ErrorPropagatingFloat, Float, FloatLike, Real, RealLike},
     evaluate::{FunctionMap, FunctionRegistrationOptions, InliningPolicy},
     function, parse, symbol,
 };
@@ -149,9 +149,11 @@ fn unsupported_rescue_callback_is_a_typed_precision_error() {
 fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback() {
     let _ = symbolica::transcendental::gamma();
     let x = symbol!("gamma_admission::x");
-    // polygamma(1,3) retains a native tagged, fixed-argument callback.
-    let coefficient = parse!("polygamma(1,3)*(1+gamma_admission::x)");
-    let constant = std::f64::consts::PI.powi(2) / 6.0 - 1.25;
+    // A positive noninteger stays opaque after bounded integer normalization.
+    // Its native callback must still reject ErrorPropagatingFloat and retain
+    // real/complex precision rescue, including independently cloned workers.
+    let coefficient = parse!("polygamma(1,3/2)*(1+gamma_admission::x)");
+    let constant = std::f64::consts::PI.powi(2) / 2.0 - 4.0;
     for complex in [false, true] {
         let coefficient = if complex {
             coefficient.clone() * parse!("2+3𝑖")
@@ -214,6 +216,25 @@ fn fixed_native_polygamma_uses_real_and_complex_rescue_without_domain_fallback()
         assert_eq!(original_report, cloned_report);
         assert_eq!(original, output);
     }
+}
+
+#[test]
+fn fresh_integer_polygamma_coefficient_uses_normalized_native_mapping() {
+    let _ = symbolica::transcendental::polygamma();
+    let expression = parse!("polygamma(1,3)");
+    assert!(!expression.to_canonical_string().contains("polygamma"));
+    let exact = expression.evaluator(&[] as &[Atom]).build().unwrap();
+    let mut mapped = MappingRequirements::new(&exact)
+        .unwrap()
+        .map(&exact, |v| v.re.to_multi_prec_float(128), 128)
+        .unwrap();
+    let mut actual = [Float::with_val(128, 0)];
+    mapped.evaluate(&[], &mut actual);
+    let reference = Float::with_val(256, symbolica::domains::backend::float::Constant::Pi)
+        .pow(2) / Float::with_val(256, 6)
+        - Float::with_val(256, 5) / Float::with_val(256, 4);
+    let error = (actual[0].clone() - &reference).norm();
+    assert!(error <= reference.norm() * Float::with_val(256, 0.5).pow(126));
 }
 
 #[test]
